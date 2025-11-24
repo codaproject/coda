@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse
 
 from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue import AudioProcessor
-from coda.grounding.gilda import GildaGrounder
+from coda.grounding.gilda_grounder import GildaGrounder
 
 app = FastAPI()
 transcriber = WhisperTranscriber(grounder=GildaGrounder(),
