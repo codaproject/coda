@@ -36,7 +36,7 @@ def render_annotations(annotations):
         text = ann.text
         part = f"{text} = {curie} ({name})"
         parts.append(part)
-    return "\n".join(parts)
+    return parts
 
 
 @app.websocket("/ws")
@@ -60,15 +60,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Transcribe in background
                     transcript, annotations = await transcriber.transcribe_audio(chunk)
 
-                    annotations_str = render_annotations(annotations)
+                    annotations_rendered = render_annotations(annotations)
                     
                     if transcript:
                         # Send transcript back to client
                         await websocket.send_json({
                             "transcript": transcript,
-                            "annotations": annotations_str
+                            "annotations": annotations_rendered
                         })
-                        logger.info(f"Transcribed: {transcript}, Annotations: {annotations_str}")
+                        logger.info(f"Transcribed: {transcript}, Annotations: {annotations}")
     
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
