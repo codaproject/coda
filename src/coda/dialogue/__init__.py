@@ -8,6 +8,8 @@ import gilda
 import numpy as np
 from scipy.io import wavfile
 
+from coda.grounding import BaseGrounder
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +59,9 @@ class AudioProcessor:
 
 
 class Transcriber:
+    def __init__(self, grounder: BaseGrounder):
+        self.grounder = grounder
+
     async def transcribe_audio(self, audio_data: np.ndarray,
                                sample_rate: int = 16000):
         try:
@@ -80,7 +85,7 @@ class Transcriber:
             os.unlink(tmp_filename)
 
             text = result["text"].strip()
-            annotations = gilda.annotate(text)
+            annotations = self.grounder.annotate(text)
 
             return text, annotations
 

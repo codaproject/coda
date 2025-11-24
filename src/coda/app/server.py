@@ -10,15 +10,16 @@ To run:
 import logging
 
 import os
-import gilda
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue import AudioProcessor
+from coda.grounding.gilda import GildaGrounder
 
 app = FastAPI()
-transcriber = WhisperTranscriber(model_size="medium")
+transcriber = WhisperTranscriber(grounder=GildaGrounder(),
+                                 model_size="medium")
 
 logger = logging.getLogger(__name__)
 
