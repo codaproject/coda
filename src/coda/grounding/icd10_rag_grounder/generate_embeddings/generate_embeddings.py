@@ -9,7 +9,11 @@ try:
 except ImportError:
     SentenceTransformer = None
 
-from ..icd10_map.config import DEFAULT_MODEL, DEFAULT_BATCH_SIZE
+from coda.resources import get_resource_path
+from .config import DEFAULT_MODEL, DEFAULT_BATCH_SIZE
+
+# Default output directory in resources
+_DEFAULT_OUTPUT_DIR = Path(get_resource_path('icd10_embeddings'))
 
 
 def load_icd10_definitions(json_file, verbose=True):
@@ -191,7 +195,7 @@ def load_embeddings(output_dir):
 
 
 def generate_icd10_embeddings(
-    output_dir='icd10_embeddings',
+    output_dir=None,
     model_name=DEFAULT_MODEL,
     batch_size=DEFAULT_BATCH_SIZE,
     icd10_zip_path=None,
@@ -220,6 +224,12 @@ def generate_icd10_embeddings(
         Tuple of output file paths (embeddings_file, code_index_file)
     """
     from .map_definitions import map_icd10_to_definitions
+    
+    # Use default output directory if not specified
+    if output_dir is None:
+        output_dir = _DEFAULT_OUTPUT_DIR
+    else:
+        output_dir = Path(output_dir)
     
     if verbose:
         print("=" * 70)
