@@ -1,0 +1,54 @@
+phmrc_name,icd10_code
+AIDS,B20
+AIDS with TB,C30
+Acute Myocardial Infarction,I21
+Anemia,W15
+Asthma,J45
+Bite of Venomous Animal,X20
+Breast Cancer,C50
+COPD,J33
+Cervical Cancer,D05
+Cirrhosis,K71
+Colorectal Cancer,G18
+Congestive Heart Failure,T50
+Dementia,F03
+Diabetes with Coma,E11
+Diabetes with Renal Failure,M14
+Diabetes with Skin Infection/Sepsis,Q10
+Diarrhea/Dysentery,A09
+Drowning,W65
+Epilepsy,G40
+Esophageal Cancer,C15
+Falls,W00
+Fires,X09
+Hemorrhage,O67
+Homicide,Y00
+Hypertensive Disorder,H11
+Inflammatory Heart Disease,I52
+Leukemia,D91
+Liver Cancer,K22
+Lung Cancer,C34
+Lymphomas,G96
+Malaria,B54
+Mouth/ Orapharynx Cancer,C13
+Obstructed Labor,O64
+Other Cancers,ZZ22
+Other Cardiovascular Diseases,ZZ23
+Other Digestive Diseases,ZZ24
+Other Infectious Diseases,ZZ21
+Other Injuries,ZZ27
+Other Non-communicable Diseases,ZZ25
+Other Pregnancy-Related Deaths,ZZ26
+Ovarian Cancer,F56
+Pelvic Inflammatory Disease,N77
+Pneumonia,J12
+Poisonings,T36
+Prostate Cancer,H61
+Renal Failure,N17
+Road Traffic,V99
+Sepsis,S85
+Stomach Cancer,A16
+Stroke,I64
+Suicide,X70
+TB,A15
+Uterine Cancer,C55
