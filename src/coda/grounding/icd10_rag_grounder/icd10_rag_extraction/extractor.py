@@ -21,12 +21,14 @@ class DiseaseExtractor:
         api_key: Optional[str] = None,
         model: str = "gpt-4o-mini"
     ):
-        """
-        Initialize disease extractor.
-        
-        Args:
-            api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            model: OpenAI model name
+        """Initialize disease extractor.
+
+        Parameters
+        ----------
+        api_key : str, optional
+            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
+        model : str
+            OpenAI model name. Defaults to "gpt-4o-mini".
         """
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -41,15 +43,19 @@ class DiseaseExtractor:
         clinical_description: str,
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Extract diseases and ICD-10 codes from clinical description.
-        
-        Args:
-            clinical_description: Clinical note or description text
-            system_prompt: Optional custom system prompt
-        
-        Returns:
-            Dictionary with 'Diseases' list containing disease info
+        """Extract diseases and ICD-10 codes from clinical description.
+
+        Parameters
+        ----------
+        clinical_description : str
+            Clinical note or description text.
+        system_prompt : str, optional
+            Optional custom system prompt.
+
+        Returns
+        -------
+        dict
+            Dictionary with 'Diseases' list containing disease info.
         """
         if not clinical_description or not clinical_description.strip():
             return {"Diseases": []}

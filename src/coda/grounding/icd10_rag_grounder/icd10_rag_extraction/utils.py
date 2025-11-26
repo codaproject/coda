@@ -7,18 +7,19 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 import json
 
-from coda.resources import get_resource_path
-
 
 def validate_icd10_code(code: str) -> bool:
-    """
-    Validate ICD-10 code format.
-    
-    Args:
-        code: ICD-10 code string (e.g., "I50.9", "A00", "B20.1")
-    
-    Returns:
-        True if valid format, False otherwise
+    """Validate ICD-10 code format.
+
+    Parameters
+    ----------
+    code : str
+        ICD-10 code string (e.g., "I50.9", "A00", "B20.1").
+
+    Returns
+    -------
+    bool
+        True if valid format, False otherwise.
     """
     if not code or not isinstance(code, str):
         return False
@@ -28,18 +29,23 @@ def validate_icd10_code(code: str) -> bool:
 
 
 def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str, Any]:
-    """
-    Load ICD-10 code definitions from JSON file.
-    
-    Args:
-        definitions_file: Path to definitions JSON file
-                         (defaults to resources/icd10_embeddings/icd10_code_to_definition.json)
-    
-    Returns:
-        Dictionary mapping codes to definition data
+    """Load ICD-10 code definitions from JSON file.
+
+    Parameters
+    ----------
+    definitions_file : pathlib.Path, optional
+        Path to definitions JSON file. Defaults to openacme's icd10_embeddings
+        directory.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping codes to definition data.
     """
     if definitions_file is None:
-        definitions_file = Path(get_resource_path('icd10_embeddings')) / 'icd10_code_to_definition.json'
+        # Use openacme's EMBEDDINGS_BASE to get the path
+        from openacme.generate_embeddings.generate_embeddings import EMBEDDINGS_BASE
+        definitions_file = Path(EMBEDDINGS_BASE.base) / 'icd10_code_to_definition.json'
     
     definitions_file = Path(definitions_file)
     if not definitions_file.exists():
@@ -50,15 +56,20 @@ def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str,
 
 
 def get_icd10_name(code: str, definitions_data: Optional[Dict[str, Any]] = None) -> str:
-    """
-    Get human-readable name for an ICD-10 code.
-    
-    Args:
-        code: ICD-10 code
-        definitions_data: Optional pre-loaded definitions dict
-    
-    Returns:
-        Code name, or error message if code not found
+    """Get human-readable name for an ICD-10 code.
+
+    Parameters
+    ----------
+    code : str
+        ICD-10 code.
+    definitions_data : dict, optional
+        Optional pre-loaded definitions dict. If None, loads definitions
+        from default location.
+
+    Returns
+    -------
+    str
+        Code name, or error message if code not found.
     """
     if definitions_data is None:
         definitions_data = load_icd10_definitions()
@@ -70,15 +81,19 @@ def get_icd10_name(code: str, definitions_data: Optional[Dict[str, Any]] = None)
 
 
 def combine_text_for_retrieval(disease_name: str, evidence: list) -> str:
-    """
-    Combine disease name and evidence into a single text for retrieval.
-    
-    Args:
-        disease_name: Name of the disease
-        evidence: List of evidence strings
-    
-    Returns:
-        Combined text string
+    """Combine disease name and evidence into a single text for retrieval.
+
+    Parameters
+    ----------
+    disease_name : str
+        Name of the disease.
+    evidence : list
+        List of evidence strings.
+
+    Returns
+    -------
+    str
+        Combined text string.
     """
     evidence_text = "\n".join(evidence) if evidence else ""
     if evidence_text:
@@ -87,14 +102,17 @@ def combine_text_for_retrieval(disease_name: str, evidence: list) -> str:
 
 
 def validate_extraction_result(result: Dict[str, Any]) -> bool:
-    """
-    Validate structure of disease extraction result.
-    
-    Args:
-        result: Result dictionary from LLM
-    
-    Returns:
-        True if valid, False otherwise
+    """Validate structure of disease extraction result.
+
+    Parameters
+    ----------
+    result : dict
+        Result dictionary from LLM.
+
+    Returns
+    -------
+    bool
+        True if valid, False otherwise.
     """
     if not isinstance(result, dict):
         return False
@@ -106,14 +124,17 @@ def validate_extraction_result(result: Dict[str, Any]) -> bool:
 
 
 def format_output(diagnoses: list) -> Dict[str, Any]:
-    """
-    Format final output in standardized structure.
-    
-    Args:
-        diagnoses: List of diagnosis dictionaries
-    
-    Returns:
-        Formatted output dictionary
+    """Format final output in standardized structure.
+
+    Parameters
+    ----------
+    diagnoses : list
+        List of diagnosis dictionaries.
+
+    Returns
+    -------
+    dict
+        Formatted output dictionary.
     """
     formatted = {
         "diagnoses": [],

@@ -21,12 +21,14 @@ class CodeReranker:
         api_key: Optional[str] = None,
         model: str = "gpt-4o-mini"
     ):
-        """
-        Initialize code reranker.
-        
-        Args:
-            api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            model: OpenAI model name
+        """Initialize code reranker.
+
+        Parameters
+        ----------
+        api_key : str, optional
+            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
+        model : str
+            OpenAI model name. Defaults to "gpt-4o-mini".
         """
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -45,19 +47,27 @@ class CodeReranker:
         retrieved_codes: List[Dict[str, Any]],
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Re-rank retrieved ICD-10 codes based on disease, evidence, and LLM prediction.
-        
-        Args:
-            disease: Disease name
-            evidence: List of supporting evidence strings
-            llm_code: Initial ICD-10 code from LLM
-            llm_code_name: Name corresponding to llm_code
-            retrieved_codes: List of retrieved codes with similarity scores
-            system_prompt: Optional custom system prompt
-        
-        Returns:
-            Dictionary with 'Reranked ICD-10 Codes' list
+        """Re-rank retrieved ICD-10 codes based on disease, evidence, and LLM prediction.
+
+        Parameters
+        ----------
+        disease : str
+            Disease name.
+        evidence : list of str
+            List of supporting evidence strings.
+        llm_code : str
+            Initial ICD-10 code from LLM.
+        llm_code_name : str
+            Name corresponding to llm_code.
+        retrieved_codes : list of dict
+            List of retrieved codes with similarity scores.
+        system_prompt : str, optional
+            Optional custom system prompt.
+
+        Returns
+        -------
+        dict
+            Dictionary with 'Reranked ICD-10 Codes' list.
         """
         if not retrieved_codes:
             return {"Reranked ICD-10 Codes": []}

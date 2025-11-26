@@ -3,14 +3,11 @@ ICD-10 code retrieval using semantic embeddings.
 """
 
 import numpy as np
-import json
-from pathlib import Path
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from coda.resources import get_resource_path
-from .utils import load_icd10_definitions
+from openacme.generate_embeddings.generate_embeddings import load_embeddings, get_code_index
 
 
 class ICD10Retriever:
@@ -22,48 +19,22 @@ class ICD10Retriever:
     
     def __init__(
         self,
-        embeddings_dir: Optional[str] = None,
         model_name: str = 'all-MiniLM-L6-v2'
     ):
+        """Initialize ICD-10 retriever.
+
+        Parameters
+        ----------
+        model_name : str
+            SentenceTransformer model name. Defaults to 'all-MiniLM-L6-v2'.
         """
-        Initialize retriever with embeddings and model.
-        
-        Args:
-            embeddings_dir: Directory containing embeddings.npy and code_index.json
-                          (defaults to resources/icd10_embeddings)
-            model_name: SentenceTransformer model name
-        """
-        if embeddings_dir is None:
-            embeddings_dir = get_resource_path('icd10_embeddings')
-        self.embeddings_dir = Path(embeddings_dir)
+        embeddings, definitions_data = load_embeddings()
+        self.embeddings = embeddings
+        self.definitions_data = definitions_data
+        # Generate code index using openacme's helper function
+        self.code_index = get_code_index(definitions_data)
         self.model_name = model_name
-        
-        # Load embeddings and index
-        self._load_embeddings()
-        
-        # Load definitions
-        definitions_file = self.embeddings_dir / 'icd10_code_to_definition.json'
-        self.definitions_data = load_icd10_definitions(definitions_file)
-        
-        # Initialize model (lazy loading)
         self._model = None
-    
-    def _load_embeddings(self):
-        """Load embeddings and code index from disk."""
-        embeddings_file = self.embeddings_dir / 'embeddings.npy'
-        index_file = self.embeddings_dir / 'code_index.json'
-        
-        if not embeddings_file.exists():
-            raise FileNotFoundError(f"Embeddings file not found: {embeddings_file}")
-        if not index_file.exists():
-            raise FileNotFoundError(f"Index file not found: {index_file}")
-        
-        self.embeddings = np.load(embeddings_file)
-        
-        with open(index_file, 'r', encoding='utf-8') as f:
-            self.code_index = json.load(f)
-        
-        print(f"Loaded {len(self.embeddings):,} ICD-10 code embeddings")
     
     @property
     def model(self) -> SentenceTransformer:
@@ -79,16 +50,21 @@ class ICD10Retriever:
         top_k: int = 10,
         min_similarity: float = 0.0
     ) -> List[Dict[str, Any]]:
-        """
-        Retrieve top-k most similar ICD-10 codes for clinical text.
-        
-        Args:
-            clinical_text: Clinical description or evidence text
-            top_k: Number of top codes to return
-            min_similarity: Minimum similarity threshold (0.0 to 1.0)
-        
-        Returns:
-            List of dictionaries with code, similarity, name, and definition
+        """Retrieve top-k most similar ICD-10 codes for clinical text.
+
+        Parameters
+        ----------
+        clinical_text : str
+            Clinical description or evidence text.
+        top_k : int
+            Number of top codes to return. Defaults to 10.
+        min_similarity : float
+            Minimum similarity threshold (0.0 to 1.0). Defaults to 0.0.
+
+        Returns
+        -------
+        list of dict
+            List of dictionaries with code, similarity, name, and definition.
         """
         if not clinical_text or not clinical_text.strip():
             return []
@@ -114,6 +90,7 @@ class ICD10Retriever:
         
         results = []
         for idx in top_indices:
+            # get_code_index returns idx_to_code as a list, not a dict
             code = self.code_index['idx_to_code'][idx]
             similarity = float(similarities[idx])
             name = self.definitions_data.get(code, {}).get('name', f'Code: {code}')
@@ -129,28 +106,34 @@ class ICD10Retriever:
         return results
     
     def get_code_name(self, code: str) -> str:
-        """
-        Get human-readable name for an ICD-10 code.
-        
-        Args:
-            code: ICD-10 code
-        
-        Returns:
-            Code name or error message
+        """Get human-readable name for an ICD-10 code.
+
+        Parameters
+        ----------
+        code : str
+            ICD-10 code.
+
+        Returns
+        -------
+        str
+            Code name or error message if code not found.
         """
         if code not in self.definitions_data:
             return f"Unknown code: {code}"
         return self.definitions_data[code].get('name', f'Code: {code}')
     
     def get_code_definition(self, code: str) -> str:
-        """
-        Get definition for an ICD-10 code.
-        
-        Args:
-            code: ICD-10 code
-        
-        Returns:
-            Code definition or empty string
+        """Get definition for an ICD-10 code.
+
+        Parameters
+        ----------
+        code : str
+            ICD-10 code.
+
+        Returns
+        -------
+        str
+            Code definition or empty string if code not found.
         """
         if code not in self.definitions_data:
             return ""

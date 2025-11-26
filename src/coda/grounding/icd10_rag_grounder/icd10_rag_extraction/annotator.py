@@ -10,7 +10,20 @@ from difflib import SequenceMatcher
 
 
 def _similarity_ratio(s1: str, s2: str) -> float:
-    """Calculate similarity ratio between two strings using built-in difflib."""
+    """Calculate similarity ratio between two strings using built-in difflib.
+
+    Parameters
+    ----------
+    s1 : str
+        First string.
+    s2 : str
+        Second string.
+
+    Returns
+    -------
+    float
+        Similarity ratio between 0.0 and 1.0.
+    """
     return SequenceMatcher(None, s1, s2).ratio()
 
 
@@ -20,17 +33,24 @@ def find_evidence_spans(
     min_similarity: float = 0.7,
     case_sensitive: bool = False
 ) -> List[Dict[str, Any]]:
-    """
-    Find character spans for evidence strings in clinical text using fuzzy matching.
-    
-    Args:
-        clinical_text: Original clinical description text
-        evidence_strings: List of evidence strings to find
-        min_similarity: Minimum similarity threshold (0.0 to 1.0) for fuzzy matching
-        case_sensitive: Whether to preserve case in matching
-    
-    Returns:
-        List of dictionaries with 'text', 'start', 'end', and 'similarity' keys
+    """Find character spans for evidence strings in clinical text using fuzzy matching.
+
+    Parameters
+    ----------
+    clinical_text : str
+        Original clinical description text.
+    evidence_strings : list of str
+        List of evidence strings to find.
+    min_similarity : float
+        Minimum similarity threshold (0.0 to 1.0) for fuzzy matching.
+        Defaults to 0.7.
+    case_sensitive : bool
+        Whether to preserve case in matching. Defaults to False.
+
+    Returns
+    -------
+    list of dict
+        List of dictionaries with 'text', 'start', 'end', and 'similarity' keys.
     """
     if not clinical_text or not evidence_strings:
         return []
@@ -132,17 +152,23 @@ def annotate_pipeline_output(
     min_similarity: float = 0.7,
     case_sensitive: bool = False
 ) -> Dict[str, Any]:
-    """
-    Add character spans to evidence in pipeline output.
-    
-    Args:
-        clinical_description: Original clinical description text
-        pipeline_output: Output from MedCoderPipeline.process()
-        min_similarity: Minimum similarity threshold for fuzzy matching
-        case_sensitive: Whether to preserve case in matching
-    
-    Returns:
-        Pipeline output with added 'evidence_spans' field for each diagnosis
+    """Add character spans to evidence in pipeline output.
+
+    Parameters
+    ----------
+    clinical_description : str
+        Original clinical description text.
+    pipeline_output : dict
+        Output from MedCoderPipeline.process().
+    min_similarity : float
+        Minimum similarity threshold for fuzzy matching. Defaults to 0.7.
+    case_sensitive : bool
+        Whether to preserve case in matching. Defaults to False.
+
+    Returns
+    -------
+    dict
+        Pipeline output with added 'evidence_spans' field for each diagnosis.
     """
     if not isinstance(pipeline_output, dict) or 'diagnoses' not in pipeline_output:
         return pipeline_output
@@ -179,17 +205,23 @@ def annotate_raw_output(
     min_similarity: float = 0.7,
     case_sensitive: bool = False
 ) -> Dict[str, Any]:
-    """
-    Add character spans to evidence in raw pipeline output (non-formatted).
-    
-    Args:
-        clinical_description: Original clinical description text
-        raw_output: Raw output from MedCoderPipeline.process()
-        min_similarity: Minimum similarity threshold for fuzzy matching
-        case_sensitive: Whether to preserve case in matching
-    
-    Returns:
-        Raw output with added 'evidence_spans' field for each disease
+    """Add character spans to evidence in raw pipeline output (non-formatted).
+
+    Parameters
+    ----------
+    clinical_description : str
+        Original clinical description text.
+    raw_output : dict
+        Raw output from MedCoderPipeline.process().
+    min_similarity : float
+        Minimum similarity threshold for fuzzy matching. Defaults to 0.7.
+    case_sensitive : bool
+        Whether to preserve case in matching. Defaults to False.
+
+    Returns
+    -------
+    dict
+        Raw output with added 'evidence_spans' field for each disease.
     """
     if not isinstance(raw_output, dict) or 'Diseases' not in raw_output:
         return raw_output

@@ -7,7 +7,6 @@ import time
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 
-from coda.resources import get_resource_path
 from .extractor import DiseaseExtractor
 from .retriever import ICD10Retriever
 from .reranker import CodeReranker
@@ -16,6 +15,9 @@ from .utils import (
     combine_text_for_retrieval,
     get_icd10_name
 )
+
+from openacme.generate_embeddings.generate_embeddings import generate_icd10_embeddings
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -30,32 +32,40 @@ class MedCoderPipeline:
     
     def __init__(
         self,
-        embeddings_dir: Optional[str] = None,
         openai_api_key: Optional[str] = None,
         openai_model: str = "gpt-4o-mini",
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0
     ):
-        """
-        Initialize the medical coding pipeline.
-        
-        Args:
-            embeddings_dir: Directory containing ICD-10 embeddings
-                          (defaults to resources/icd10_embeddings)
-            openai_api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            openai_model: OpenAI model name
-            retrieval_top_k: Number of codes to retrieve per disease
-            retrieval_min_similarity: Minimum similarity threshold for retrieval
+        """Initialize the medical coding pipeline.
+
+        Parameters
+        ----------
+        openai_api_key : str, optional
+            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
+        openai_model : str
+            OpenAI model name. Defaults to "gpt-4o-mini".
+        retrieval_top_k : int
+            Number of codes to retrieve per disease. Defaults to 10.
+        retrieval_min_similarity : float
+            Minimum similarity threshold for retrieval. Defaults to 0.0.
+
+        Notes
+        -----
+        Embeddings are automatically loaded from openacme's default location.
+        The pipeline will ensure embeddings exist by calling generate_icd10_embeddings()
+        if needed (idempotent operation).
         """
         # Initialize components
         self.extractor = DiseaseExtractor(
             api_key=openai_api_key,
             model=openai_model
         )
+
+        # Ensure embeddings are generated (this is idempotent - won't regenerate if they exist)
+        generate_icd10_embeddings()
         
-        if embeddings_dir is None:
-            embeddings_dir = get_resource_path('icd10_embeddings')
-        self.retriever = ICD10Retriever(embeddings_dir=embeddings_dir)
+        self.retriever = ICD10Retriever()
         
         self.reranker = CodeReranker(
             api_key=openai_api_key,
@@ -71,18 +81,25 @@ class MedCoderPipeline:
         annotate_evidence: bool = True,
         annotation_min_similarity: float = 0.7
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-        """
-        Process clinical description(s) through full pipeline.
-        
-        Args:
-            clinical_descriptions: Clinical note(s) or description text(s). 
-                                  Can be a single string or a list of strings.
-            annotate_evidence: If True, add character spans for evidence strings
-            annotation_min_similarity: Minimum similarity threshold for evidence annotation (0.0-1.0)
-        
-        Returns:
-            If single description: Dictionary with {"Diseases": [...]}
-            If list of descriptions: List of dictionaries (one per description), each with {"Diseases": [...]}
+        """Process clinical description(s) through full pipeline.
+
+        Parameters
+        ----------
+        clinical_descriptions : str or list of str
+            Clinical note(s) or description text(s). Can be a single string
+            or a list of strings.
+        annotate_evidence : bool
+            If True, add character spans for evidence strings. Defaults to True.
+        annotation_min_similarity : float
+            Minimum similarity threshold for evidence annotation (0.0-1.0).
+            Defaults to 0.7.
+
+        Returns
+        -------
+        dict or list of dict
+            If single description: Dictionary with {"Diseases": [...]}.
+            If list of descriptions: List of dictionaries (one per description),
+            each with {"Diseases": [...]}.
         """
         # Normalize input to list
         is_single = isinstance(clinical_descriptions, str)
@@ -217,14 +234,17 @@ class MedCoderPipeline:
         self,
         clinical_description: str
     ) -> Dict[str, Any]:
-        """
-        Only perform disease extraction (no retrieval/re-ranking).
-        
-        Args:
-            clinical_description: Clinical note or description text
-        
-        Returns:
-            Dictionary with extracted diseases
+        """Only perform disease extraction (no retrieval/re-ranking).
+
+        Parameters
+        ----------
+        clinical_description : str
+            Clinical note or description text.
+
+        Returns
+        -------
+        dict
+            Dictionary with extracted diseases.
         """
         return self.extractor.extract(clinical_description)
     
@@ -233,15 +253,19 @@ class MedCoderPipeline:
         clinical_text: str,
         top_k: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Only perform semantic retrieval (no extraction/re-ranking).
-        
-        Args:
-            clinical_text: Clinical text to search
-            top_k: Number of codes to retrieve (defaults to pipeline setting)
-        
-        Returns:
-            List of retrieved codes with similarity scores
+        """Only perform semantic retrieval (no extraction/re-ranking).
+
+        Parameters
+        ----------
+        clinical_text : str
+            Clinical text to search.
+        top_k : int, optional
+            Number of codes to retrieve. Defaults to pipeline setting.
+
+        Returns
+        -------
+        list of dict
+            List of retrieved codes with similarity scores.
         """
         return self.retriever.retrieve(
             clinical_text,

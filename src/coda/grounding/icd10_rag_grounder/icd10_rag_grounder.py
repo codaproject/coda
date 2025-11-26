@@ -29,44 +29,53 @@ class RAGGrounder(BaseGrounder):
     
     def __init__(
         self,
-        embeddings_dir: Optional[str] = None,
         openai_api_key: Optional[str] = None,
         openai_model: str = "gpt-4o-mini",
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0,
         annotation_min_similarity: float = 0.5
     ):
-        """
-        Initialize the RAG grounder.
-        
-        Args:
-            embeddings_dir: Directory containing ICD-10 embeddings
-                          (defaults to resources/icd10_embeddings)
-            openai_api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            openai_model: OpenAI model name
-            retrieval_top_k: Number of codes to retrieve per disease
-            retrieval_min_similarity: Minimum similarity threshold for retrieval
-            annotation_min_similarity: Minimum similarity threshold for evidence annotation
+        """Initialize the RAG grounder.
+
+        Parameters
+        ----------
+        openai_api_key : str, optional
+            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
+        openai_model : str
+            OpenAI model name. Defaults to "gpt-4o-mini".
+        retrieval_top_k : int
+            Number of codes to retrieve per disease. Defaults to 10.
+        retrieval_min_similarity : float
+            Minimum similarity threshold for retrieval. Defaults to 0.0.
+        annotation_min_similarity : float
+            Minimum similarity threshold for evidence annotation. Defaults to 0.5.
+
+        Notes
+        -----
+        Embeddings are automatically loaded from openacme's default location.
+        Use openacme.generate_embeddings.generate_icd10_embeddings() to generate
+        embeddings if they don't exist yet.
         """
         self.pipeline = MedCoderPipeline(
-            embeddings_dir=embeddings_dir,
             openai_api_key=openai_api_key,
             openai_model=openai_model,
             retrieval_top_k=retrieval_top_k,
             retrieval_min_similarity=retrieval_min_similarity
         )
         self.annotation_min_similarity = annotation_min_similarity
-        logger.info(f"RAGGrounder initialized with embeddings_dir={embeddings_dir}")
     
     def ground(self, text: str) -> List:
-        """
-        Ground text to ICD-10 codes.
-        
-        Args:
-            text: Clinical text to ground
-            
-        Returns:
-            List of gilda ScoredMatch objects
+        """Ground text to ICD-10 codes.
+
+        Parameters
+        ----------
+        text : str
+            Clinical text to ground.
+
+        Returns
+        -------
+        list
+            List of gilda ScoredMatch objects.
         """
         logger.debug(f"Grounding text: {text[:100]}...")
         
@@ -119,14 +128,17 @@ class RAGGrounder(BaseGrounder):
         return scored_matches
     
     def annotate(self, text: str) -> List:
-        """
-        Annotate text with ICD-10 codes and evidence spans.
-        
-        Args:
-            text: Clinical text to annotate
-            
-        Returns:
-            List of gilda Annotation objects
+        """Annotate text with ICD-10 codes and evidence spans.
+
+        Parameters
+        ----------
+        text : str
+            Clinical text to annotate.
+
+        Returns
+        -------
+        list
+            List of gilda Annotation objects.
         """
         logger.debug(f"Annotating text: {text[:100]}...")
         
