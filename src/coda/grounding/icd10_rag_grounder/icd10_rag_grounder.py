@@ -22,11 +22,11 @@ from gilda.scorer import Match
 class RAGGrounder(BaseGrounder):
     """
     RAG-based grounder that uses MedCoderPipeline to extract diseases and assign ICD-10 codes.
-    
+
     This grounder implements the BaseGrounder interface, converting ICD-10 codes
     to a format compatible with gilda's ScoredMatch and Annotation types.
     """
-    
+
     def __init__(
         self,
         openai_api_key: Optional[str] = None,
@@ -63,7 +63,7 @@ class RAGGrounder(BaseGrounder):
             retrieval_min_similarity=retrieval_min_similarity
         )
         self.annotation_min_similarity = annotation_min_similarity
-    
+
     def ground(self, text: str) -> List:
         """Ground text to ICD-10 codes.
 
@@ -78,24 +78,24 @@ class RAGGrounder(BaseGrounder):
             List of gilda ScoredMatch objects.
         """
         logger.debug(f"Grounding text: {text[:100]}...")
-        
+
         # Process through pipeline
         result = self.pipeline.process(
             text,
             annotate_evidence=False,
             annotation_min_similarity=self.annotation_min_similarity
         )
-        
+
         # Extract all codes from the result
         scored_matches = []
         diseases = result.get('Diseases', [])
-        
+
         for disease in diseases:
             # Get reranked codes - take only the top (first) code
             codes = disease.get('reranked_codes', [])
             if not codes:
                 continue
-            
+
             # Get the top code (first in reranked list)
             code_info = codes[0]
             code = code_info.get('ICD-10 Code', '') or code_info.get('code', '')
@@ -103,7 +103,7 @@ class RAGGrounder(BaseGrounder):
             # Use similarity score from retrieval
             similarity = code_info.get('similarity', 0.0)
             score = float(similarity)
-            
+
             # Create gilda Term object
             term = Term(
                 norm_text=name.lower(),
@@ -114,19 +114,19 @@ class RAGGrounder(BaseGrounder):
                 status="name",
                 source="ICD10"
             )
-            
+
             # Create gilda Match object (minimal - just query and ref)
             match = Match(query=name, ref=name)
-            
+
             # Create gilda ScoredMatch
             scored_matches.append(
                 ScoredMatch(term=term, score=max(0.0, min(1.0, score)), match=match)
             )
-        
+
         logger.debug(f"Found {len(scored_matches)} scored matches")
-        
+
         return scored_matches
-    
+
     def annotate(self, text: str) -> List:
         """Annotate text with ICD-10 codes and evidence spans.
 
@@ -141,30 +141,30 @@ class RAGGrounder(BaseGrounder):
             List of gilda Annotation objects.
         """
         logger.debug(f"Annotating text: {text[:100]}...")
-        
+
         # Process through pipeline with evidence annotation
         result = self.pipeline.process(
             text,
             annotate_evidence=True,
             annotation_min_similarity=self.annotation_min_similarity
         )
-        
+
         annotations = []
         diseases = result.get('Diseases', [])
-        
+
         for disease in diseases:
             # Get evidence spans (primary source for annotation text)
             evidence_spans = disease.get('evidence_spans', [])
             if not evidence_spans:
                 continue
-            
+
             # Get reranked codes - take only the top (first) code
             codes = disease.get('reranked_codes', [])
             if not codes:
                 codes = disease.get('retrieved_codes', [])
             if not codes:
                 continue
-            
+
             # Get the top code (first in reranked list)
             code_info = codes[0]
             code = code_info.get('ICD-10 Code', '')
@@ -172,7 +172,7 @@ class RAGGrounder(BaseGrounder):
             # Use similarity score from retrieval
             similarity = code_info.get('similarity', 0.0)
             score = float(similarity)
-            
+
             # Create gilda Term object
             term = Term(
                 norm_text=name.lower(),
@@ -183,13 +183,13 @@ class RAGGrounder(BaseGrounder):
                 status="name",
                 source="ICD10"
             )
-            
+
             # Create gilda Match object (minimal - just query and ref)
             match = Match(query=name, ref=name)
-            
+
             # Create single ScoredMatch for the top code
             top_match = ScoredMatch(term=term, score=max(0.0, min(1.0, score)), match=match)
-            
+
             # Create one annotation per evidence span, each with the top code
             for span in evidence_spans:
                 span_text = span.get('text', '')
@@ -199,8 +199,7 @@ class RAGGrounder(BaseGrounder):
                     annotations.append(
                         Annotation(text=span_text, matches=[top_match], start=start, end=end)
                     )
-        
-        logger.debug(f"Created {len(annotations)} annotations")
-        
-        return annotations
 
+        logger.debug(f"Created {len(annotations)} annotations")
+
+        return annotations

@@ -54,26 +54,26 @@ def find_evidence_spans(
     """
     if not clinical_text or not evidence_strings:
         return []
-    
+
     # Normalize text for matching
     text_to_search = clinical_text if case_sensitive else clinical_text.lower()
-    
+
     annotated_evidence = []
-    
+
     for evidence in evidence_strings:
         if not evidence or not evidence.strip():
             continue
-        
+
         evidence_clean = evidence.strip()
         evidence_normalized = evidence_clean if case_sensitive else evidence_clean.lower()
-        
+
         # Try exact match first
         exact_match = False
         if case_sensitive:
             start_idx = clinical_text.find(evidence_clean)
         else:
             start_idx = text_to_search.find(evidence_normalized)
-        
+
         if start_idx != -1:
             end_idx = start_idx + len(evidence_clean)
             annotated_evidence.append({
@@ -85,12 +85,12 @@ def find_evidence_spans(
             })
             exact_match = True
             continue
-        
+
         # If no exact match, try fuzzy matching
         # Use sliding window approach on original text to preserve exact character positions
         words = re.finditer(r'\S+', clinical_text)  # Find word boundaries with positions
         word_list = [(m.group(), m.start(), m.end()) for m in words]
-        
+
         if not word_list:
             annotated_evidence.append({
                 'text': evidence_clean,
@@ -100,11 +100,11 @@ def find_evidence_spans(
                 'match_type': 'not_found'
             })
             continue
-        
+
         # Try to find best match using sliding window
         best_match = None
         best_similarity = 0.0
-        
+
         # Search with different window sizes
         evidence_word_count = len(evidence_normalized.split())
         for window_size in range(evidence_word_count, min(evidence_word_count + 5, len(word_list) + 1)):
@@ -113,14 +113,14 @@ def find_evidence_spans(
                 window_words = word_list[i:i+window_size]
                 window_start_char = window_words[0][1]  # Start of first word
                 window_end_char = window_words[-1][2]   # End of last word
-                
+
                 # Extract actual text from original (preserves exact spacing)
                 window_text = clinical_text[window_start_char:window_end_char]
                 window_normalized = window_text if case_sensitive else window_text.lower()
-                
+
                 # Calculate similarity
                 similarity = _similarity_ratio(evidence_normalized, window_normalized)
-                
+
                 if similarity > best_similarity and similarity >= min_similarity:
                     best_similarity = similarity
                     best_match = {
@@ -130,7 +130,7 @@ def find_evidence_spans(
                         'similarity': similarity,
                         'match_type': 'fuzzy'
                     }
-        
+
         if best_match:
             annotated_evidence.append(best_match)
         else:
@@ -142,7 +142,7 @@ def find_evidence_spans(
                 'similarity': 0.0,
                 'match_type': 'not_found'
             })
-    
+
     return annotated_evidence
 
 
@@ -172,16 +172,16 @@ def annotate_pipeline_output(
     """
     if not isinstance(pipeline_output, dict) or 'diagnoses' not in pipeline_output:
         return pipeline_output
-    
+
     annotated_output = pipeline_output.copy()
     annotated_output['diagnoses'] = []
-    
+
     for diagnosis in pipeline_output['diagnoses']:
         annotated_diagnosis = diagnosis.copy()
-        
+
         # Get evidence strings
         evidence = diagnosis.get('evidence', [])
-        
+
         if evidence:
             # Find spans for each evidence string
             evidence_spans = find_evidence_spans(
@@ -193,9 +193,9 @@ def annotate_pipeline_output(
             annotated_diagnosis['evidence_spans'] = evidence_spans
         else:
             annotated_diagnosis['evidence_spans'] = []
-        
+
         annotated_output['diagnoses'].append(annotated_diagnosis)
-    
+
     return annotated_output
 
 
@@ -225,16 +225,16 @@ def annotate_raw_output(
     """
     if not isinstance(raw_output, dict) or 'Diseases' not in raw_output:
         return raw_output
-    
+
     annotated_output = raw_output.copy()
     annotated_output['Diseases'] = []
-    
+
     for disease in raw_output['Diseases']:
         annotated_disease = disease.copy()
-        
+
         # Get evidence strings
         evidence = disease.get('Supporting Evidence', [])
-        
+
         if evidence:
             # Find spans for each evidence string
             evidence_spans = find_evidence_spans(
@@ -246,8 +246,8 @@ def annotate_raw_output(
             annotated_disease['evidence_spans'] = evidence_spans
         else:
             annotated_disease['evidence_spans'] = []
-        
+
         annotated_output['Diseases'].append(annotated_disease)
-    
+
     return annotated_output
 
