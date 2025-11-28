@@ -46,11 +46,11 @@ def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str,
         # Use openacme's EMBEDDINGS_BASE to get the path
         from openacme.generate_embeddings.generate_embeddings import EMBEDDINGS_BASE
         definitions_file = Path(EMBEDDINGS_BASE.base) / 'icd10_code_to_definition.json'
-    
+
     definitions_file = Path(definitions_file)
     if not definitions_file.exists():
         raise FileNotFoundError(f"Definitions file not found: {definitions_file}")
-    
+
     with open(definitions_file, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -73,10 +73,10 @@ def get_icd10_name(code: str, definitions_data: Optional[Dict[str, Any]] = None)
     """
     if definitions_data is None:
         definitions_data = load_icd10_definitions()
-    
+
     if code not in definitions_data:
         return f"Unknown code: {code}"
-    
+
     return definitions_data[code].get('name', f"Code: {code}")
 
 
@@ -145,7 +145,7 @@ def format_output(diagnoses: list) -> Dict[str, Any]:
             )
         }
     }
-    
+
     for diag in diagnoses:
         formatted_diag = {
             "disease": diag.get('Disease', ''),
@@ -157,7 +157,7 @@ def format_output(diagnoses: list) -> Dict[str, Any]:
             "retrieved_codes": diag.get('retrieved_codes', []),
             "reranked_codes": diag.get('reranked_codes', []),
         }
-        
+
         # Add final code (top reranked code)
         if diag.get('reranked_codes'):
             formatted_diag["final_code"] = diag['reranked_codes'][0].get('ICD-10 Code', '')
@@ -165,8 +165,8 @@ def format_output(diagnoses: list) -> Dict[str, Any]:
             formatted_diag["final_code"] = diag['ICD10']
         else:
             formatted_diag["final_code"] = None
-        
+
         formatted["diagnoses"].append(formatted_diag)
-    
+
     return formatted
 

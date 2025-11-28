@@ -13,10 +13,10 @@ from openacme.generate_embeddings.generate_embeddings import load_embeddings, ge
 class ICD10Retriever:
     """
     Efficient ICD-10 code retriever using semantic embeddings.
-    
+
     Loads embeddings and model once for reuse across multiple queries.
     """
-    
+
     def __init__(
         self,
         model_name: str = 'all-MiniLM-L6-v2'
@@ -35,7 +35,7 @@ class ICD10Retriever:
         self.code_index = get_code_index(definitions_data)
         self.model_name = model_name
         self._model = None
-    
+
     @property
     def model(self) -> SentenceTransformer:
         """Lazy load the SentenceTransformer model."""
@@ -43,7 +43,7 @@ class ICD10Retriever:
             print(f"Loading SentenceTransformer model: {self.model_name}")
             self._model = SentenceTransformer(self.model_name)
         return self._model
-    
+
     def retrieve(
         self,
         clinical_text: str,
@@ -68,26 +68,26 @@ class ICD10Retriever:
         """
         if not clinical_text or not clinical_text.strip():
             return []
-        
+
         # Generate embedding for clinical text
         clinical_embedding = self.model.encode(
             [clinical_text],
             normalize_embeddings=True
         )
-        
+
         # Calculate cosine similarity
         similarities = cosine_similarity(clinical_embedding, self.embeddings)[0]
-        
+
         # Filter by minimum similarity
         valid_indices = np.where(similarities >= min_similarity)[0]
-        
+
         if len(valid_indices) == 0:
             return []
-        
+
         # Get top-k most similar codes
         top_indices = similarities[valid_indices].argsort()[-top_k:][::-1]
         top_indices = valid_indices[top_indices]
-        
+
         results = []
         for idx in top_indices:
             # get_code_index returns idx_to_code as a list, not a dict
@@ -95,16 +95,16 @@ class ICD10Retriever:
             similarity = float(similarities[idx])
             name = self.definitions_data.get(code, {}).get('name', f'Code: {code}')
             definition = self.definitions_data.get(code, {}).get('definition', '')
-            
+
             results.append({
                 'code': code,
                 'similarity': similarity,
                 'name': name,
                 'definition': definition
             })
-        
+
         return results
-    
+
     def get_code_name(self, code: str) -> str:
         """Get human-readable name for an ICD-10 code.
 
@@ -121,7 +121,7 @@ class ICD10Retriever:
         if code not in self.definitions_data:
             return f"Unknown code: {code}"
         return self.definitions_data[code].get('name', f'Code: {code}')
-    
+
     def get_code_definition(self, code: str) -> str:
         """Get definition for an ICD-10 code.
 

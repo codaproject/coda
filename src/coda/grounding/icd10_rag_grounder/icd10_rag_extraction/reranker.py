@@ -15,7 +15,7 @@ class CodeReranker:
     """
     Re-rank retrieved ICD-10 codes using LLM reasoning.
     """
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -33,11 +33,11 @@ class CodeReranker:
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key.")
-        
+
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.schema = RERANKING_SCHEMA
-    
+
     def rerank(
         self,
         disease: str,
@@ -71,7 +71,7 @@ class CodeReranker:
         """
         if not retrieved_codes:
             return {"Reranked ICD-10 Codes": []}
-        
+
         # Format retrieved codes with similarity scores
         retrieved_codes_formatted = []
         for code_info in retrieved_codes:
@@ -81,7 +81,7 @@ class CodeReranker:
             retrieved_codes_formatted.append(
                 f"  - Code: {code}, Name: {name}, Similarity: {similarity:.3f}"
             )
-        
+
         if system_prompt is None:
             system_prompt = """You are a medical coding expert that re-ranks retrieved ICD-10 codes.
 
@@ -93,9 +93,9 @@ Consider these factors (in order of importance):
 5. **LLM consistency**: How well does the code align with the initial LLM prediction?
 
 Return ONLY JSON that matches the provided schema, ordered from most to least appropriate."""
-        
+
         evidence_text = "\n".join(f"  - {e}" for e in evidence) if evidence else "  (No specific evidence provided)"
-        
+
         user_prompt = f"""Diagnosed disease:
 {disease}
 
@@ -110,7 +110,7 @@ Retrieved ICD-10 candidate codes (from semantic search):
 {"\n".join(retrieved_codes_formatted)}
 
 Re-rank these codes based on how well they match the disease and evidence."""
-        
+
         try:
             response = self.client.responses.create(
                 model=self.model,
@@ -127,14 +127,14 @@ Re-rank these codes based on how well they match the disease and evidence."""
                     }
                 },
             )
-            
+
             response_json = json.loads(response.output_text)
-            
+
             # Validate structure
             if 'Reranked ICD-10 Codes' not in response_json:
                 print("Warning: Invalid reranking response structure")
                 return {"Reranked ICD-10 Codes": []}
-            
+
             # Create mapping from code to similarity score from retrieved_codes
             code_to_similarity = {}
             for retrieved_code in retrieved_codes:
@@ -142,7 +142,7 @@ Re-rank these codes based on how well they match the disease and evidence."""
                 similarity = retrieved_code.get('similarity', 0.0)
                 if code:
                     code_to_similarity[code] = similarity
-            
+
             # Validate codes and add similarity scores
             validated_codes = []
             for code_info in response_json['Reranked ICD-10 Codes']:
@@ -154,13 +154,13 @@ Re-rank these codes based on how well they match the disease and evidence."""
                     validated_codes.append(code_info)
                 else:
                     print(f"Warning: Invalid ICD-10 code '{code}' in reranking result")
-            
+
             return {"Reranked ICD-10 Codes": validated_codes}
-        
+
         except json.JSONDecodeError as e:
             print(f"Error: Failed to parse reranking JSON response: {e}")
             return {"Reranked ICD-10 Codes": []}
-        
+
         except Exception as e:
             print(f"Error: Failed to rerank codes: {e}")
             return {"Reranked ICD-10 Codes": []}
