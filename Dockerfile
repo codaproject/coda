@@ -23,14 +23,27 @@ RUN curl -fsSL https://debian.neo4j.com/neotechnology.gpg.key | \
     && apt-get install -y neo4j=1:2025.10.1
 
 # Retrieves jar file needed to install apoc
-RUN wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.30/apoc-4.4.0.30-all.jar -O /var/lib/neo4j/plugins/apoc-4.4.0.30-all.jar
+# FIXME: get these for the right neo4j version
+# RUN wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.30/apoc-4.4.0.30-all.jar -O /var/lib/neo4j/plugins/apoc-4.4.0.30-all.jar
 
 # Set custom configuration to enable apoc and allow connections
 # FIXME: we need to add an apoc.conf
 #RUN echo "dbms.security.procedures.unrestricted=apoc.*" >> /etc/neo4j/neo4j.conf
 #RUN echo "apoc.export.file.enabled=true" >> /etc/neo4j/neo4j.conf
-RUN sed -i 's/#dbms.default_listen_address/dbms.default_listen_address/' /etc/neo4j/neo4j.conf
+RUN sed -i 's/#server.default_listen_address/server.default_listen_address/' /etc/neo4j/neo4j.conf
 RUN sed -i 's/#dbms.security.auth_enabled/dbms.security.auth_enabled/' /etc/neo4j/neo4j.conf
+
+# On newer Ubuntu versions we need to explicitly allow
+# install of Python packages at the system level
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+# Fixes ERROR: Cannot uninstall 'blinker'. It is a distutils installed project
+# and thus we cannot accurately determine which files belong to it which would lead to only a partial
+# uninstall.
+RUN python -m pip install --ignore-installed blinker && \
+    python -m pip install git+https://github.com/gyorilab/gilda.git && \
+    python -c "import nltk;nltk.download('stopwords');nltk.download('punkt_tab')" && \
+    python -m gilda.resources
+
 
 # Ingest graph content into neo4j
 COPY kg /sw/kg
@@ -41,6 +54,8 @@ RUN neo4j-admin database import full \
     --skip-bad-relationships=true \
     --relationships /sw/kg/icd10_edges.tsv \
     --nodes /sw/kg/icd10_nodes.tsv \
+    --relationships /sw/kg/acme_edges.tsv \
+    --nodes /sw/kg/acme_nodes.tsv \
     --relationships /sw/kg/icd11_edges.tsv \
     --nodes /sw/kg/icd11_nodes.tsv \
     --relationships /sw/kg/phmrc_edges.tsv \
@@ -54,15 +69,6 @@ RUN neo4j-admin database import full \
 ENV DOCKERIZED="TRUE"
 ENV NEO4J_URL="bolt://localhost:7687"
 
-# On newer Ubuntu versions we need to explicitly allow
-# install of Python packages at the system level
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
-# Fixes ERROR: Cannot uninstall 'blinker'. It is a distutils installed project
-# and thus we cannot accurately determine which files belong to it which would lead to only a partial
-# uninstall.
-RUN python -m pip install --ignore-installed blinker && \
-    python -m pip install git+https://github.com/gyorilab/gilda.git && \
-    python -c "import nltk;nltk.download('stopwords');nltk.download('punkt_tab')" && \
-    python -m gilda.resources
+COPY startup.sh  /sw/startup.sh
 
-#ENTRYPOINT ["/bin/bash", "/sw/startup.sh"]
+ENTRYPOINT ["/bin/bash",  "/sw/startup.sh"]
