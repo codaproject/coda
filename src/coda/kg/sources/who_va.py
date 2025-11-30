@@ -72,7 +72,7 @@ def get_who_va_graph():
                     edges.append((
                         icd10_curie,
                         who_va_curie,
-                        {'type': 'maps_to'}
+                        {'kind': 'maps_to'}
                     ))
     g = nx.DiGraph()
     g.add_nodes_from(nodes)

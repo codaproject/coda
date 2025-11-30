@@ -62,7 +62,7 @@ def get_phmrc_graph():
             edges.append((
                 f'icd10:{icd10_code}',
                 phmrc_curie,
-                {'type': 'maps_to'}
+                {'kind': 'maps_to'}
             ))
     g = nx.DiGraph()
     g.add_nodes_from(nodes)
