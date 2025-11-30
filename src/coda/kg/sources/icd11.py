@@ -33,6 +33,7 @@ def get_icd11_graph():
     for _, row in df.iterrows():
         if not row['IsResidual']:
             foundation_id = row['Foundation URI'].split('/')[-1]
+            foundation_curie = f'icd11:{foundation_id}'
         # TODO: handle residual categories
         # http://id.who.int/icd/release/11/mms/344162786	1A03
         #   - - - Intestinal infections due to Escherichia coli
@@ -50,8 +51,8 @@ def get_icd11_graph():
         
         title = row['Title'].replace('- ', '')
         nodes.append([
-            foundation_id, {
-                'icd11_code': icd11_code,
+            foundation_curie, {
+                'code': icd11_code,
                 'name': title,
                 'kind': row['ClassKind'],
             }
