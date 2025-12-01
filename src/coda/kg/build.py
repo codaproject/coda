@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .sources import icd10, icd11, phmrc, who_va, acme
+from .sources import icd10, icd11, phmrc, who_va, acme, probbase
 from .io import networkx_to_tsv
 
 
@@ -26,6 +26,9 @@ def dump_kg():
     g = icd11.get_icd11_graph()
     networkx_to_tsv(g, KG_BASE / 'icd11_nodes.tsv',
                     KG_BASE / 'icd11_edges.tsv')
+    g = probbase.get_probbase_graph()
+    networkx_to_tsv(g, KG_BASE / 'probbase_nodes.tsv',
+                    KG_BASE / 'probbase_edges.tsv')
 
 
 if __name__ == '__main__':
