@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 import json
 
+from openacme.icd10.generate_embeddings import EMBEDDINGS_BASE
+
 
 def validate_icd10_code(code: str) -> bool:
     """Validate ICD-10 code format.
@@ -44,7 +46,6 @@ def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str,
     """
     if definitions_file is None:
         # Use openacme's EMBEDDINGS_BASE to get the path
-        from openacme.generate_embeddings.generate_embeddings import EMBEDDINGS_BASE
         definitions_file = Path(EMBEDDINGS_BASE.base) / 'icd10_code_to_definition.json'
 
     definitions_file = Path(definitions_file)
