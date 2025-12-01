@@ -57,7 +57,8 @@ def get_icd11_graph():
                 'kind': row['ClassKind'],
             }
         ])
-
+        # FIXME: this logic needs to be updated to handle
+        # the concept of "DepthInKind" properly
         depth = int(row['DepthInKind'])
         if depth > 1:
             parent = parent_depths[depth-1]
@@ -65,7 +66,8 @@ def get_icd11_graph():
             parent = None
         parent_depths[depth] = foundation_id
         if parent is not None:
-            edges.append((foundation_id, parent, {'kind': 'is_a'}))
+            parent_curie = f'icd11:{parent}'
+            edges.append((foundation_curie, parent_curie, {'kind': 'is_a'}))
 
     g = nx.DiGraph()
     g.add_nodes_from(nodes)
