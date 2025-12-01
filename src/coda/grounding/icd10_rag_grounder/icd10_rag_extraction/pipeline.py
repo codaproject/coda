@@ -16,7 +16,7 @@ from .utils import (
     get_icd10_name
 )
 
-from openacme.generate_embeddings.generate_embeddings import generate_icd10_embeddings
+from openacme.icd10.generate_embeddings import generate_icd10_embeddings
 
 
 # Set up logging

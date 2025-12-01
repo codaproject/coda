@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from openacme.generate_embeddings.generate_embeddings import load_embeddings, get_code_index
+from openacme.icd10.generate_embeddings import load_embeddings, get_code_index
 
 
 class ICD10Retriever:
