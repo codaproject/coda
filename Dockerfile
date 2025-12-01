@@ -58,10 +58,10 @@ RUN neo4j-admin database import full \
     --nodes /sw/kg/acme_nodes.tsv \
     --relationships /sw/kg/icd11_edges.tsv \
     --nodes /sw/kg/icd11_nodes.tsv \
-    --relationships /sw/kg/phmrc_edges.tsv \
-    --nodes /sw/kg/phmrc_nodes.tsv \
     --relationships /sw/kg/who_va_edges.tsv \
     --nodes /sw/kg/who_va_nodes.tsv \
+    --relationships /sw/kg/phmrc_edges.tsv \
+    --nodes /sw/kg/phmrc_nodes.tsv \
     --bad-tolerance=100000 \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 
