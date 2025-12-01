@@ -37,6 +37,7 @@ def get_who_va_graph():
 
     nodes = []
     edges = []
+    icd_added = set()
     for _, row in df.iterrows():
         who_va_id = row['who_va_id']
         who_va_curie = f'who.va:{who_va_id}'
@@ -45,7 +46,8 @@ def get_who_va_graph():
 
         nodes.append([
             who_va_curie, {
-                'name': who_va_name
+                'name': who_va_name,
+                'kind': 'who.va'
             }
         ])
 
@@ -69,6 +71,9 @@ def get_who_va_graph():
 
                 for code in codes:
                     icd10_curie = f'icd10:{code}'
+                    if icd10_curie not in icd_added:
+                        nodes.append([icd10_curie, {'redundant': True}])
+                        icd_added.add(icd10_curie)
                     edges.append((
                         icd10_curie,
                         who_va_curie,

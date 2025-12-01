@@ -20,7 +20,9 @@ def networkx_to_tsv(g, node_path, edge_path):
     # Export nodes
     node_rows = []
     for node, data in g.nodes(data=True):
-        row = {'id:ID': node, ':LABEL': data.pop('type', 'Entity')}
+        if data.get('redundant'):
+            continue
+        row = {'id:ID': node, ':LABEL': data.pop('kind', 'Entity')}
         row.update(data)
         node_rows.append(row)
     node_df = pd.DataFrame(node_rows)

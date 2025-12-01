@@ -21,7 +21,7 @@ def process_va_col(col_name):
         code = code[:-2]
     else:
         code = f'{code[:2]}.{code[2:]}'
-    return f'who.va:{code}'
+    return f'who.va:VAs-{code}'
 
 
 def get_probbase_graph():
@@ -34,6 +34,7 @@ def get_probbase_graph():
     }
     nodes = []
     edges = []
+    va_curie_added = set()
     for _, row in df.iterrows():
         if pd.isna(row['indic']):
             continue
@@ -41,11 +42,15 @@ def get_probbase_graph():
         node = [
             node_curie, {
                 'name': row[name_column],
+                'kind': 'who.va.q',
                 **{prop: row[prop] for prop in prop_columns}
             }
         ]
         nodes.append(node)
         for col, va_curie in va_question_cols.items():
+            if va_curie not in va_curie_added:
+                nodes.append([va_curie, {'redundant': True}])
+                va_curie_added.add(va_curie)
             edge = [
                 node_curie,
                 va_curie,

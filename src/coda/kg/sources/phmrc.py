@@ -54,13 +54,16 @@ def get_phmrc_graph():
 
         nodes.append([
             phmrc_curie, {
-                'name': phmrc_name
+                'name': phmrc_name,
+                'kind': 'phmrc'
             }
         ])
 
         if pd.notna(icd10_code) and icd10_code.strip():
+            icd10_curie = f'icd10:{icd10_code}'
+            nodes.append([icd10_curie, {'redundant': True}])
             edges.append((
-                f'icd10:{icd10_code}',
+                icd10_curie,
                 phmrc_curie,
                 {'kind': 'maps_to'}
             ))

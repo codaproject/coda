@@ -54,7 +54,8 @@ def get_icd11_graph():
             foundation_curie, {
                 'code': icd11_code,
                 'name': title,
-                'kind': row['ClassKind'],
+                'class_kind': row['ClassKind'],
+                'kind': 'icd11',
             }
         ])
         # FIXME: this logic needs to be updated to handle

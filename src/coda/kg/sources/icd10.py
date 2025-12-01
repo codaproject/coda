@@ -14,6 +14,8 @@ def get_icd10_coda_graph():
         name = data.get('rubrics', {}).pop('preferred', [None])[0]
         if name:
             g.nodes[node]['name'] = name
+        g.nodes[node]['class_kind'] = data.get('kind')
+        g.nodes[node]['kind'] = 'icd10'
     g = nx.relabel_nodes(g, mapping)
     # Next we need to unpack the rubtics to get the "preferred" name
     for node in g.nodes:
