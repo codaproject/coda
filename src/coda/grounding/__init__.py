@@ -1,4 +1,4 @@
-from gilda_grounder import ScoredMatch, Annotation
+from gilda import ScoredMatch, Annotation
 
 
 class BaseGrounder:

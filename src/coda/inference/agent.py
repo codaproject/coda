@@ -4,7 +4,7 @@ import asyncio
 
 
 class InferenceClient:
-    def __init__(self, host: str = "localhost", port: int = 5000):
+    def __init__(self, host: str = "localhost", port: int = 5123):
         self.host = host
         self.port = port
 
