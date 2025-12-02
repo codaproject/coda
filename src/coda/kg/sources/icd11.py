@@ -9,6 +9,7 @@ Grouping1	Grouping2	Grouping3	Grouping4	Grouping5
 Version:2025 Jan 24 - 22:30 UTC
 """
 import zipfile
+
 import networkx as nx
 import pandas as pd
 
@@ -17,6 +18,8 @@ from openacme import OPENACME_BASE
 ICD11_BASE = OPENACME_BASE.module('icd11')
 ICD11_ZIP_URL = "https://icdcdn.who.int/static/releasefiles/2025-01/SimpleTabulation-ICD-11-MMS-en.zip"
 ICD11_FNAME = "SimpleTabulation-ICD-11-MMS-en.txt"
+ICD11_MAPPINGS_URL = "https://icdcdn.who.int/static/releasefiles/2025-01/mapping.zip"
+ICD11_MAPPINGS_FNAME = "foundation_11To10MapToOneCategory.xlsx"
 
 
 def get_icd11_graph():
@@ -25,6 +28,20 @@ def get_icd11_graph():
     with zipfile.ZipFile(zip_path, 'r') as zf:
         with zf.open(ICD11_FNAME) as fh:
             df = pd.read_csv(fh, sep='\t')
+
+    # Foundation URI	icd11Code	icd11Chapter	icd11Title	icd10Code	icd10Title
+    # http://id.who.int/icd/entity/1435254666	01	01	Certain infectious or parasitic diseases	I	Certain infectious and parasitic diseases
+    map_zip_path  = ICD11_BASE.ensure(url=ICD11_MAPPINGS_URL)
+    with zipfile.ZipFile(map_zip_path, 'r') as zf:
+        with zf.open(ICD11_MAPPINGS_FNAME) as fh:
+            mapping_df = pd.read_excel(fh, sheet_name='foundation_11To10MapToOneCateg')
+    icd11_to_10 = {}
+    for _, row in mapping_df.iterrows():
+        foundation_id = row['Foundation URI'].split('/')[-1]
+        foundation_curie = f'icd11:{foundation_id}'
+        icd10_code = row['icd10Code']
+        icd10_curie = f'icd10:{icd10_code}'
+        icd11_to_10[foundation_curie] = icd10_curie
 
     nodes = []
     edges = []
@@ -69,6 +86,16 @@ def get_icd11_graph():
         if parent is not None:
             parent_curie = f'icd11:{parent}'
             edges.append((foundation_curie, parent_curie, {'kind': 'is_a'}))
+
+        if foundation_curie in icd11_to_10:
+            icd10_curie = icd11_to_10[foundation_curie]
+            nodes.append([icd10_curie,
+                          {'redundant': True}])
+            edges.append((
+                foundation_curie,
+                icd10_curie,
+                {'kind': 'maps_to'}
+            ))
 
     g = nx.DiGraph()
     g.add_nodes_from(nodes)
