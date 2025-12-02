@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coda"
+dynamic = ["version"]
+description = "Cause of Death Determination Assistant"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.9"
+license = {text = "BSD-2-Clause"}
+authors = [
+    {name = "Benjamin M. Gyori, Northeastern University", email = "b.gyori@northeastern.edu"}
+]
+keywords = ["coda"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "gilda",
+    "requests",
+    "obonet",
+    "networkx",
+    "pandas",
+    "pystow"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://github.com/codaproject/coda"
+
+[tool.setuptools]
+packages = {find = {}}
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "coda.__version__"}

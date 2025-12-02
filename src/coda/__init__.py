@@ -10,3 +10,5 @@ logger = logging.getLogger(__name__)
 
 
 CODA_BASE = pystow.module('coda')
+
+__version__ = '0.1.0'
