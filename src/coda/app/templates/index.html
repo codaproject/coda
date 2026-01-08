@@ -87,6 +87,11 @@
                             <div id="annotations" class="annotations-box"></div>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Cause of Death Inference:</label>
+                            <div id="inference" class="transcript-box" style="min-height: 150px; background-color: #f8f9fa;"></div>
+                        </div>
+
                         <div class="d-flex justify-content-between">
                             <button id="clearBtn" class="btn btn-outline-secondary">
                                 <i class="bi bi-trash"></i> Clear Transcript
@@ -114,6 +119,8 @@
         const recordBtn = document.getElementById('recordBtn');
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
+        const annotations = document.getElementById('annotations');
+        const inference = document.getElementById('inference');
         const clearBtn = document.getElementById('clearBtn');
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
@@ -139,21 +146,49 @@
 
                 ws.onmessage = (event) => {
                     const data = JSON.parse(event.data);
-                    if (data.transcript) {
+
+                    if (data.type === 'transcript') {
+                        // Display transcript with chunk ID
                         transcriptText += data.transcript + ' ';
-                        transcript.innerHTML += `<p>${data.transcript}</p>`;
+                        transcript.innerHTML += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
                         transcript.scrollTop = transcript.scrollHeight;
-                    }
-                    if (data.annotations) {
-                        let badgesHtml = '<div class="annotation-group mt-2">';
-                        data.annotations.forEach(annotation => {
-                            badgesHtml += `<span class="badge bg-primary me-1 mb-1">${annotation}</span>`;
-                        });
-                        badgesHtml += '</div><br />';
-                        annotations.innerHTML += badgesHtml;
-                        annotations.scrollTop = annotations.scrollHeight;
-                    }
-                    if (data.error) {
+
+                        // Display annotations
+                        if (data.annotations && data.annotations.length > 0) {
+                            let badgesHtml = '<div class="annotation-group mt-2">';
+                            data.annotations.forEach(annotation => {
+                                badgesHtml += `<span class="badge bg-primary me-1 mb-1">${annotation}</span>`;
+                            });
+                            badgesHtml += '</div><br />';
+                            annotations.innerHTML += badgesHtml;
+                            annotations.scrollTop = annotations.scrollHeight;
+                        }
+
+                    } else if (data.type === 'inference') {
+                        // Display inference result
+                        const confidencePercent = (data.confidence * 100).toFixed(0);
+                        const confidenceClass = data.confidence > 0.6 ? 'success' :
+                                                data.confidence > 0.4 ? 'warning' : 'danger';
+
+                        inference.innerHTML += `
+                            <div class="p-2 mb-2 border-start border-4 border-${confidenceClass}">
+                                <strong>COD:</strong> ${data.cod}
+                                <span class="badge bg-${confidenceClass} ms-2">
+                                    ${confidencePercent}% confidence
+                                </span>
+                                <small class="text-muted ms-2">[${data.chunk_id.slice(0,8)}]</small>
+                            </div>
+                        `;
+                        inference.scrollTop = inference.scrollHeight;
+
+                    } else if (data.type === 'warning') {
+                        showStatus(data.message, 'warning');
+
+                    } else if (data.type === 'error') {
+                        showStatus(`Error: ${data.error}`, 'danger');
+
+                    } else if (data.error) {
+                        // Legacy error handling
                         showStatus(`Error: ${data.error}`, 'danger');
                     }
                 };
@@ -245,7 +280,9 @@
         clearBtn.addEventListener('click', () => {
             transcriptText = '';
             transcript.innerHTML = '<p class="text-muted">Click "Start Recording" to begin...</p>';
-            showStatus('Transcript cleared', 'info');
+            annotations.innerHTML = '';
+            inference.innerHTML = '';
+            showStatus('All data cleared', 'info');
         });
 
         copyBtn.addEventListener('click', () => {
