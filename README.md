@@ -1,8 +1,8 @@
-CODA: Cause of Death Assistant
-==============================
+CODA: Cause of Death Determination Assistant
+============================================
 
-This repository implements the Cause of Death Assistant (CODA) application
-which automates cause of death determination via an AI-assisted
+This repository implements the Cause of Death Determination Assistant (CODA)
+application which automates cause of death determination via an AI-assisted
 interview process.
 
 Modules
