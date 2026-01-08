@@ -41,6 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-asyncio",
 ]
 
 [project.urls]
@@ -52,3 +53,8 @@ include-package-data = true
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
