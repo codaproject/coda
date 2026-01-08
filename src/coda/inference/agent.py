@@ -9,11 +9,25 @@ logger = logging.getLogger(__name__)
 
 
 class InferenceAgent:
-    """Base class for cause-of-death inference agents."""
+    """Base class for cause-of-death inference agents with dialogue history tracking."""
+
+    def __init__(self):
+        """Initialize the agent with empty dialogue history."""
+        self.dialogue_history = []  # List of (chunk_id, text, annotations) tuples
+        self.all_text = ""  # Accumulated text from all chunks
+
+    def reset(self):
+        """Reset dialogue history for a new interview."""
+        self.dialogue_history = []
+        self.all_text = ""
+        logger.info("Agent state reset for new interview")
 
     async def process_chunk(self, chunk_id: str, text: str,
                            annotations: List[Annotation]) -> dict:
         """Process dialogue chunk and return inference results.
+
+        This method handles dialogue history tracking and delegates
+        to the subclass `infer()` method for actual COD inference.
 
         Parameters
         ----------
@@ -31,34 +45,86 @@ class InferenceAgent:
             - cod: str (cause of death)
             - confidence: float
             - reasoning: str (optional)
+            - chunks_processed: int
+        """
+        # Add to dialogue history
+        self.dialogue_history.append((chunk_id, text, annotations))
+        self.all_text += " " + text
+
+        # Call subclass inference implementation
+        result = await self.infer(chunk_id, text, annotations)
+
+        # Ensure required fields and add metadata
+        result["chunk_id"] = chunk_id
+        result["chunks_processed"] = len(self.dialogue_history)
+
+        logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, COD={result.get('cod', 'N/A')}")
+
+        return result
+
+    async def infer(self, chunk_id: str, text: str,
+                   annotations: List[Annotation]) -> dict:
+        """Perform COD inference based on current chunk and accumulated history.
+
+        Subclasses must implement this method. The dialogue history is available
+        via self.dialogue_history and self.all_text.
+
+        Parameters
+        ----------
+        chunk_id : str
+            Unique identifier for this chunk
+        text : str
+            Transcribed text for current chunk
+        annotations : List[Annotation]
+            Grounded medical terms from current chunk
+
+        Returns
+        -------
+        dict with keys:
+            - cod: str (cause of death)
+            - confidence: float
+            - reasoning: str (optional)
         """
         raise NotImplementedError
 
 
 class CodaToyInferenceAgent(InferenceAgent):
-    """Simple rule-based inference agent for testing."""
+    """Simple rule-based inference agent using accumulated dialogue history."""
 
-    async def process_chunk(self, chunk_id: str, text: str,
-                           annotations: List[Annotation]) -> dict:
+    async def infer(self, chunk_id: str, text: str,
+                   annotations: List[Annotation]) -> dict:
+        """Perform COD inference based on accumulated dialogue history."""
         # Simulate processing time
         await asyncio.sleep(0.5)
 
-        # Simple keyword-based logic
-        text_lower = text.lower()
-        if "fever" in text_lower or "temperature" in text_lower:
+        # Analyze accumulated evidence from all chunks
+        all_text_lower = self.all_text.lower()
+
+        # Count symptom mentions across entire dialogue
+        fever_mentions = all_text_lower.count("fever") + all_text_lower.count("temperature")
+        cardiac_mentions = (all_text_lower.count("chest pain") +
+                          all_text_lower.count("heart") +
+                          all_text_lower.count("cardiac"))
+
+        # Determine COD based on cumulative evidence
+        if fever_mentions > 0:
             cod = "Infectious disease (suspected COVID-19)"
-            confidence = 0.7
-        elif "chest pain" in text_lower or "heart" in text_lower:
+            # Confidence increases with more mentions
+            confidence = min(0.9, 0.5 + (fever_mentions * 0.1))
+            reasoning = f"Fever/temperature mentioned {fever_mentions} time(s) across {len(self.dialogue_history)} chunk(s)"
+        elif cardiac_mentions > 0:
             cod = "Cardiac arrest"
-            confidence = 0.6
+            confidence = min(0.9, 0.5 + (cardiac_mentions * 0.1))
+            reasoning = f"Cardiac symptoms mentioned {cardiac_mentions} time(s) across {len(self.dialogue_history)} chunk(s)"
         else:
-            cod = "Unknown - insufficient information"
+            cod = "Unknown"
             confidence = 0.3
+            reasoning = f"Insufficient evidence after {len(self.dialogue_history)} chunk(s)"
 
         return {
-            "chunk_id": chunk_id,
             "cod": cod,
-            "confidence": confidence
+            "confidence": confidence,
+            "reasoning": reasoning
         }
 
 
@@ -97,6 +163,16 @@ class InferenceServer:
         async def health():
             """Health check endpoint."""
             return {"status": "healthy"}
+
+        @self.app.post("/reset")
+        async def reset():
+            """Reset agent state for new interview."""
+            if hasattr(self.agent, 'reset'):
+                self.agent.reset()
+                logger.info("Agent state reset via API")
+                return {"status": "reset", "message": "Agent state cleared"}
+            else:
+                return {"status": "not_supported", "message": "Agent does not support state reset"}
 
     def run(self):
         """Start the inference server."""
