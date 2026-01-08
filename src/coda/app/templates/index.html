@@ -165,20 +165,35 @@
                         }
 
                     } else if (data.type === 'inference') {
-                        // Display inference result
-                        const confidencePercent = (data.confidence * 100).toFixed(0);
-                        const confidenceClass = data.confidence > 0.6 ? 'success' :
-                                                data.confidence > 0.4 ? 'warning' : 'danger';
+                        // Display inference result with all causes
+                        let causesHtml = '<div class="p-2 mb-2 border-start border-4 border-primary">';
+                        causesHtml += `<small class="text-muted">[${data.chunk_id.slice(0,8)}]</small><br/>`;
 
-                        inference.innerHTML += `
-                            <div class="p-2 mb-2 border-start border-4 border-${confidenceClass}">
-                                <strong>COD:</strong> ${data.cod}
-                                <span class="badge bg-${confidenceClass} ms-2">
-                                    ${confidencePercent}% confidence
-                                </span>
-                                <small class="text-muted ms-2">[${data.chunk_id.slice(0,8)}]</small>
-                            </div>
-                        `;
+                        // Sort causes by score (highest first)
+                        const sortedCauses = Object.entries(data.causes || {})
+                            .sort((a, b) => b[1] - a[1]);
+
+                        sortedCauses.forEach(([cause, score]) => {
+                            const scorePercent = (score * 100).toFixed(0);
+                            const confidenceClass = score > 0.6 ? 'success' :
+                                                   score > 0.4 ? 'warning' : 'secondary';
+
+                            causesHtml += `
+                                <div class="mb-1">
+                                    <strong>${cause}:</strong>
+                                    <span class="badge bg-${confidenceClass} ms-1">
+                                        ${scorePercent}%
+                                    </span>
+                                </div>
+                            `;
+                        });
+
+                        if (data.reasoning) {
+                            causesHtml += `<small class="text-muted mt-1 d-block">${data.reasoning}</small>`;
+                        }
+
+                        causesHtml += '</div>';
+                        inference.innerHTML += causesHtml;
                         inference.scrollTop = inference.scrollHeight;
 
                     } else if (data.type === 'warning') {
