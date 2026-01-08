@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from gilda import Annotation
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('coda.inference')
 
 
 class InferenceAgent:
@@ -44,11 +44,10 @@ class InferenceAgent:
         -------
         dict with keys:
             - chunk_id: str
-            - cod: str (cause of death)
-            - confidence: float
-            - reasoning: str (optional)
-            - chunks_processed: int
             - timestamp: float
+            - chunks_processed: int
+            - causes: dict mapping cause names to scores
+            - reasoning: str (optional)
         """
         # Use current time if no timestamp provided
         if timestamp is None:
@@ -67,7 +66,10 @@ class InferenceAgent:
         result["timestamp"] = timestamp
         result["chunks_processed"] = len(self.dialogue_history)
 
-        logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, COD={result.get('cod', 'N/A')}")
+        # Log top cause for monitoring
+        causes = result.get('causes', {})
+        top_cause = max(causes.items(), key=lambda x: x[1])[0] if causes else 'N/A'
+        logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, top cause={top_cause}")
 
         return result
 
@@ -90,9 +92,9 @@ class InferenceAgent:
         Returns
         -------
         dict with keys:
-            - cod: str (cause of death)
-            - confidence: float
-            - reasoning: str (optional)
+            - causes: dict mapping cause names to scores (typically probabilities,
+              but not required to sum to 1)
+            - reasoning: str (optional explanation)
         """
         raise NotImplementedError
 
@@ -103,9 +105,6 @@ class CodaToyInferenceAgent(InferenceAgent):
     async def infer(self, chunk_id: str, text: str,
                    annotations: List[Annotation]) -> dict:
         """Perform COD inference based on accumulated dialogue history."""
-        # Simulate processing time
-        await asyncio.sleep(0.5)
-
         # Analyze accumulated evidence from all chunks
         all_text_lower = self.all_text.lower()
 
@@ -116,23 +115,19 @@ class CodaToyInferenceAgent(InferenceAgent):
                           all_text_lower.count("cardiac"))
         total_mentions = fever_mentions + cardiac_mentions
         # Calculate three probabilities normalized to sum to 1
-        probs = {"infectious": 0.0, "cardiac": 0.0, "other": 1.0}
+        causes = {"infectious": 0.0, "cardiac": 0.0, "other": 1.0}
         if total_mentions > 0:
-            probs["infectious"] = fever_mentions / total_mentions
-            probs["cardiac"] = cardiac_mentions / total_mentions
-            probs["other"] = 1.0 - (probs["infectious"] + probs["cardiac"])
+            causes["infectious"] = fever_mentions / total_mentions
+            causes["cardiac"] = cardiac_mentions / total_mentions
+            causes["other"] = 1.0 - (causes["infectious"] + causes["cardiac"])
 
-        # Find highest probability cause
-        cod = max(probs, key=probs.get)
-        confidence = probs[cod]
         reasoning = (f"Based on accumulated dialogue, "
                         f"infectious-related mentions: {fever_mentions}, "
                         f"cardiac-related mentions: {cardiac_mentions}, "
                         f"total mentions: {total_mentions}.")
 
         return {
-            "cod": cod,
-            "confidence": confidence,
+            "causes": causes,
             "reasoning": reasoning
         }
 
@@ -164,7 +159,9 @@ class InferenceServer:
                     request.annotations,
                     request.timestamp
                 )
-                logger.info(f"Processed chunk {request.chunk_id}: {result['cod']}")
+                causes = result.get('causes', {})
+                top_cause = max(causes.items(), key=lambda x: x[1])[0] if causes else 'N/A'
+                logger.info(f"Processed chunk {request.chunk_id}: top cause={top_cause}")
                 return result
             except Exception as e:
                 logger.error(f"Error processing chunk {request.chunk_id}: {e}", exc_info=True)
