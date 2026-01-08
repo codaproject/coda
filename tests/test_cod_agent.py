@@ -1,18 +1,16 @@
 import pytest
 from fastapi.testclient import TestClient
-from gilda import Annotation
 
-from coda.inference.agent import (
-    InferenceAgent,
-    CodaToyInferenceAgent,
-    InferenceServer,
-)
+from coda.inference.agent import CodaToyInferenceAgent, InferenceServer
 
 
 @pytest.fixture
 def toy_agent():
-    """Fixture for CodaToyInferenceAgent."""
-    return CodaToyInferenceAgent()
+    """Fixture for CodaToyInferenceAgent - fresh instance for each test."""
+    agent = CodaToyInferenceAgent()
+    yield agent
+    # Reset after each test to avoid state leakage
+    agent.reset()
 
 
 @pytest.fixture
@@ -69,6 +67,48 @@ class TestInferenceAgent:
         assert result["chunk_id"] == chunk_id
         assert "unknown" in result["cod"].lower()
         assert result["confidence"] < 0.5
+
+    @pytest.mark.asyncio
+    async def test_toy_agent_stateful_confidence_increase(self, toy_agent):
+        """Test that agent confidence increases with repeated evidence across chunks."""
+        # First chunk with fever mention
+        result1 = await toy_agent.process_chunk("chunk-1", "The patient had a fever.", [])
+        assert result1["chunks_processed"] == 1
+        assert "fever" in result1["cod"].lower() or "infectious" in result1["cod"].lower()
+        confidence1 = result1["confidence"]
+
+        # Second chunk with another fever mention
+        result2 = await toy_agent.process_chunk("chunk-2", "The fever continued for days.", [])
+        assert result2["chunks_processed"] == 2
+        confidence2 = result2["confidence"]
+
+        # Third chunk with temperature mention
+        result3 = await toy_agent.process_chunk("chunk-3", "High temperature was recorded.", [])
+        assert result3["chunks_processed"] == 3
+        confidence3 = result3["confidence"]
+
+        # Confidence should increase with accumulating evidence
+        assert confidence2 > confidence1, "Confidence should increase with more evidence"
+        assert confidence3 > confidence2, "Confidence should continue increasing"
+        assert "3 chunk(s)" in result3["reasoning"], "Reasoning should mention all chunks processed"
+
+    @pytest.mark.asyncio
+    async def test_toy_agent_reset(self, toy_agent):
+        """Test that agent reset clears dialogue history."""
+        # Process some chunks
+        await toy_agent.process_chunk("chunk-1", "Patient had fever.", [])
+        await toy_agent.process_chunk("chunk-2", "Fever persisted.", [])
+        assert len(toy_agent.dialogue_history) == 2
+
+        # Reset the agent
+        toy_agent.reset()
+        assert len(toy_agent.dialogue_history) == 0
+        assert toy_agent.all_text == ""
+
+        # Process new chunk after reset
+        result = await toy_agent.process_chunk("chunk-3", "New interview: chest pain.", [])
+        assert result["chunks_processed"] == 1
+        assert "cardiac" in result["cod"].lower()
 
 
 class TestInferenceServer:
@@ -141,3 +181,40 @@ class TestInferenceServer:
 
         response = client.post("/infer", json=request_data)
         assert response.status_code == 422  # Validation error
+
+    def test_reset_endpoint(self, client):
+        """Test the /reset endpoint clears agent state."""
+        # Send first chunk
+        response1 = client.post("/infer", json={
+            "chunk_id": "reset-test-001",
+            "text": "Patient had fever.",
+            "annotations": []
+        })
+        assert response1.status_code == 200
+        result1 = response1.json()
+        assert result1["chunks_processed"] == 1
+
+        # Send second chunk
+        response2 = client.post("/infer", json={
+            "chunk_id": "reset-test-002",
+            "text": "Fever continued.",
+            "annotations": []
+        })
+        assert response2.status_code == 200
+        result2 = response2.json()
+        assert result2["chunks_processed"] == 2
+
+        # Reset the agent
+        reset_response = client.post("/reset")
+        assert reset_response.status_code == 200
+        assert reset_response.json()["status"] == "reset"
+
+        # Send new chunk after reset
+        response3 = client.post("/infer", json={
+            "chunk_id": "reset-test-003",
+            "text": "New patient with chest pain.",
+            "annotations": []
+        })
+        assert response3.status_code == 200
+        result3 = response3.json()
+        assert result3["chunks_processed"] == 1  # Should be back to 1 after reset
