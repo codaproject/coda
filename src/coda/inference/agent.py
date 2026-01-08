@@ -114,21 +114,21 @@ class CodaToyInferenceAgent(InferenceAgent):
         cardiac_mentions = (all_text_lower.count("chest pain") +
                           all_text_lower.count("heart") +
                           all_text_lower.count("cardiac"))
+        total_mentions = fever_mentions + cardiac_mentions
+        # Calculate three probabilities normalized to sum to 1
+        probs = {"infectious": 0.0, "cardiac": 0.0, "other": 1.0}
+        if total_mentions > 0:
+            probs["infectious"] = fever_mentions / total_mentions
+            probs["cardiac"] = cardiac_mentions / total_mentions
+            probs["other"] = 1.0 - (probs["infectious"] + probs["cardiac"])
 
-        # Determine COD based on cumulative evidence
-        if fever_mentions > 0:
-            cod = "Infectious disease (suspected COVID-19)"
-            # Confidence increases with more mentions
-            confidence = min(0.9, 0.5 + (fever_mentions * 0.1))
-            reasoning = f"Fever/temperature mentioned {fever_mentions} time(s) across {len(self.dialogue_history)} chunk(s)"
-        elif cardiac_mentions > 0:
-            cod = "Cardiac arrest"
-            confidence = min(0.9, 0.5 + (cardiac_mentions * 0.1))
-            reasoning = f"Cardiac symptoms mentioned {cardiac_mentions} time(s) across {len(self.dialogue_history)} chunk(s)"
-        else:
-            cod = "Unknown"
-            confidence = 0.3
-            reasoning = f"Insufficient evidence after {len(self.dialogue_history)} chunk(s)"
+        # Find highest probability cause
+        cod = max(probs, key=probs.get)
+        confidence = probs[cod]
+        reasoning = (f"Based on accumulated dialogue, "
+                        f"infectious-related mentions: {fever_mentions}, "
+                        f"cardiac-related mentions: {cardiac_mentions}, "
+                        f"total mentions: {total_mentions}.")
 
         return {
             "cod": cod,
