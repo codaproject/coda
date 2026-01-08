@@ -3,6 +3,9 @@ __all__ = ["AudioProcessor", "Transcriber"]
 import os
 import logging
 import tempfile
+import time
+import uuid
+from typing import Optional, Tuple
 
 import gilda
 import numpy as np
@@ -43,14 +46,23 @@ class AudioProcessor:
         # Check if we have enough audio for processing
         return len(self.audio_buffer) >= self.chunk_size
 
-    def get_chunk(self) -> np.ndarray:
-        """Get a chunk of audio for processing."""
+    def get_chunk(self) -> Optional[Tuple[str, float, np.ndarray]]:
+        """Get a chunk of audio for processing with unique ID and timestamp.
+
+        Returns
+        -------
+        Optional[Tuple[str, float, np.ndarray]]
+            Tuple of (chunk_id, timestamp, audio_data) if chunk is ready, None otherwise
+            timestamp is Unix time (seconds since epoch)
+        """
         if len(self.audio_buffer) >= self.chunk_size:
+            chunk_id = str(uuid.uuid4())
+            timestamp = time.time()
             chunk = self.audio_buffer[:self.chunk_size]
             # Keep some overlap for better continuity (0.5 seconds)
             overlap_size = int(self.sample_rate * 0.5)
             self.audio_buffer = self.audio_buffer[self.chunk_size - overlap_size:]
-            return chunk
+            return (chunk_id, timestamp, chunk)
         return None
 
     def clear_buffer(self):
@@ -74,7 +86,7 @@ class Transcriber:
                 tmp_filename = tmp_file.name
 
             # Transcribe with Whisper
-            result = self.transcribe_file(
+            result = await self.transcribe_file(
                 tmp_filename,
                 language="en",  # Set to None for auto-detection
                 fp16=False,
