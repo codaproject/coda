@@ -28,20 +28,36 @@ dependencies = [
     "obonet",
     "networkx",
     "pandas",
-    "pystow"
+    "pystow",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "websockets>=12.0",
+    "openai-whisper>=20231117",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "httpx>=0.25.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-asyncio",
 ]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"
 
 [tool.setuptools]
-packages = {find = {}}
+package-dir = {"" = "src"}
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
