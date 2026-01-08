@@ -40,8 +40,13 @@ class TestInferenceAgent:
 
         assert result["chunk_id"] == chunk_id
         assert "causes" in result
-        assert "infectious" in result["causes"]
-        assert result["causes"]["infectious"] > 0.5
+        assert "icd10:U07.1" in result["causes"]
+
+        # Check structure
+        covid_cause = result["causes"]["icd10:U07.1"]
+        assert covid_cause["name"] == "COVID-19, virus identified"
+        assert covid_cause["identifiers"]["icd10"] == "U07.1"
+        assert covid_cause["score"] > 0.5
 
     @pytest.mark.asyncio
     async def test_toy_agent_cardiac_detection(self, toy_agent):
@@ -54,8 +59,13 @@ class TestInferenceAgent:
 
         assert result["chunk_id"] == chunk_id
         assert "causes" in result
-        assert "cardiac" in result["causes"]
-        assert result["causes"]["cardiac"] > 0.5
+        assert "icd10:I46.9" in result["causes"]
+
+        # Check structure
+        cardiac_cause = result["causes"]["icd10:I46.9"]
+        assert cardiac_cause["name"] == "Cardiac arrest, unspecified"
+        assert cardiac_cause["identifiers"]["icd10"] == "I46.9"
+        assert cardiac_cause["score"] > 0.5
 
     @pytest.mark.asyncio
     async def test_toy_agent_unknown_case(self, toy_agent):
@@ -68,8 +78,13 @@ class TestInferenceAgent:
 
         assert result["chunk_id"] == chunk_id
         assert "causes" in result
-        assert "other" in result["causes"]
-        assert result["causes"]["other"] > 0.5
+        assert "icd10:R99" in result["causes"]
+
+        # Check structure
+        other_cause = result["causes"]["icd10:R99"]
+        assert other_cause["name"] == "Other ill-defined and unspecified causes of mortality"
+        assert other_cause["identifiers"]["icd10"] == "R99"
+        assert other_cause["score"] > 0.5
 
     @pytest.mark.asyncio
     async def test_toy_agent_stateful_confidence_increase(self, toy_agent):
@@ -77,18 +92,18 @@ class TestInferenceAgent:
         # First chunk with fever mention
         result1 = await toy_agent.process_chunk("chunk-1", "The patient had a fever.", [])
         assert result1["chunks_processed"] == 1
-        assert "infectious" in result1["causes"]
-        score1 = result1["causes"]["infectious"]
+        assert "icd10:U07.1" in result1["causes"]
+        score1 = result1["causes"]["icd10:U07.1"]["score"]
 
         # Second chunk with another fever mention
         result2 = await toy_agent.process_chunk("chunk-2", "The fever continued for days.", [])
         assert result2["chunks_processed"] == 2
-        score2 = result2["causes"]["infectious"]
+        score2 = result2["causes"]["icd10:U07.1"]["score"]
 
         # Third chunk with temperature mention
         result3 = await toy_agent.process_chunk("chunk-3", "High temperature was recorded.", [])
         assert result3["chunks_processed"] == 3
-        score3 = result3["causes"]["infectious"]
+        score3 = result3["causes"]["icd10:U07.1"]["score"]
 
         # Score should remain high with accumulating evidence (all mention fever/temp)
         assert score1 > 0.5, "First chunk should have high infectious score"
@@ -111,8 +126,8 @@ class TestInferenceAgent:
         # Process new chunk after reset
         result = await toy_agent.process_chunk("chunk-3", "New interview: chest pain.", [])
         assert result["chunks_processed"] == 1
-        assert "cardiac" in result["causes"]
-        assert result["causes"]["cardiac"] > 0.5
+        assert "icd10:I46.9" in result["causes"]
+        assert result["causes"]["icd10:I46.9"]["score"] > 0.5
 
     @pytest.mark.asyncio
     async def test_toy_agent_multiple_causes(self, toy_agent):
@@ -127,17 +142,54 @@ class TestInferenceAgent:
         assert "causes" in result
 
         # Should have all three causes
-        assert "infectious" in result["causes"]
-        assert "cardiac" in result["causes"]
-        assert "other" in result["causes"]
+        assert "icd10:U07.1" in result["causes"]
+        assert "icd10:I46.9" in result["causes"]
+        assert "icd10:R99" in result["causes"]
 
         # Both infectious and cardiac should have positive scores
-        assert result["causes"]["infectious"] > 0
-        assert result["causes"]["cardiac"] > 0
+        assert result["causes"]["icd10:U07.1"]["score"] > 0
+        assert result["causes"]["icd10:I46.9"]["score"] > 0
 
         # Scores should sum to approximately 1 (for toy agent)
-        total = sum(result["causes"].values())
+        total = sum(c["score"] for c in result["causes"].values())
         assert abs(total - 1.0) < 0.001
+
+        # Verify structure of each cause
+        for curie, cause in result["causes"].items():
+            assert "name" in cause
+            assert "identifiers" in cause
+            assert "score" in cause
+            assert "icd10" in cause["identifiers"]
+
+    @pytest.mark.asyncio
+    async def test_toy_agent_icd10_structure(self, toy_agent):
+        """Test that agent returns proper ICD-10 CURIE structure."""
+        chunk_id = "test-icd10-001"
+        text = "The patient had fever."
+        annotations = []
+
+        result = await toy_agent.process_chunk(chunk_id, text, annotations)
+
+        # Check CURIE keys
+        assert "icd10:U07.1" in result["causes"]
+        assert "icd10:I46.9" in result["causes"]
+        assert "icd10:R99" in result["causes"]
+
+        # Check COVID-19 cause structure
+        covid = result["causes"]["icd10:U07.1"]
+        assert covid["name"] == "COVID-19, virus identified"
+        assert covid["identifiers"]["icd10"] == "U07.1"
+        assert isinstance(covid["score"], float)
+
+        # Check cardiac cause structure
+        cardiac = result["causes"]["icd10:I46.9"]
+        assert cardiac["name"] == "Cardiac arrest, unspecified"
+        assert cardiac["identifiers"]["icd10"] == "I46.9"
+
+        # Check other cause structure
+        other = result["causes"]["icd10:R99"]
+        assert other["name"] == "Other ill-defined and unspecified causes of mortality"
+        assert other["identifiers"]["icd10"] == "R99"
 
     @pytest.mark.asyncio
     async def test_toy_agent_timestamps(self, toy_agent):
@@ -193,8 +245,8 @@ class TestInferenceServer:
         result = response.json()
         assert result["chunk_id"] == "http-test-001"
         assert "causes" in result
-        assert "infectious" in result["causes"]
-        assert result["causes"]["infectious"] > 0.5
+        assert "icd10:U07.1" in result["causes"]
+        assert result["causes"]["icd10:U07.1"]["score"] > 0.5
 
     def test_infer_endpoint_cardiac(self, client):
         """Test the /infer endpoint with cardiac symptoms."""
@@ -210,8 +262,8 @@ class TestInferenceServer:
         result = response.json()
         assert result["chunk_id"] == "http-test-002"
         assert "causes" in result
-        assert "cardiac" in result["causes"]
-        assert result["causes"]["cardiac"] > 0.5
+        assert "icd10:I46.9" in result["causes"]
+        assert result["causes"]["icd10:I46.9"]["score"] > 0.5
 
     def test_infer_endpoint_with_annotations(self, client):
         """Test the /infer endpoint with medical annotations."""
@@ -230,7 +282,7 @@ class TestInferenceServer:
         result = response.json()
         assert result["chunk_id"] == "http-test-003"
         assert "causes" in result
-        assert len(result["causes"]) > 0
+        assert len(result["causes"]) == 3  # Should have all 3 causes
 
     def test_infer_endpoint_missing_fields(self, client):
         """Test the /infer endpoint with missing required fields."""

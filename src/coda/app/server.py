@@ -74,9 +74,13 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
         })
         # Log top cause
         causes = result.get('causes', {})
-        top_cause = max(causes.items(), key=lambda x: x[1])[0] if causes else 'N/A'
-        top_score = causes.get(top_cause, 0) if causes else 0
-        logger.info(f"Inference result for {chunk_id}: top cause={top_cause} (score={top_score:.2f})")
+        if causes:
+            top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
+            top_cause_name = causes[top_curie]['name']
+            top_score = causes[top_curie]['score']
+            logger.info(f"Inference result for {chunk_id}: {top_cause_name} ({top_curie}, score={top_score:.2f})")
+        else:
+            logger.info(f"Inference result for {chunk_id}: no causes")
 
     except httpx.TimeoutException:
         logger.error(f"Inference timeout for chunk {chunk_id}")

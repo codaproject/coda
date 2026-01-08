@@ -171,16 +171,20 @@
 
                         // Sort causes by score (highest first)
                         const sortedCauses = Object.entries(data.causes || {})
-                            .sort((a, b) => b[1] - a[1]);
+                            .sort((a, b) => b[1].score - a[1].score);
 
-                        sortedCauses.forEach(([cause, score]) => {
-                            const scorePercent = (score * 100).toFixed(0);
-                            const confidenceClass = score > 0.6 ? 'success' :
-                                                   score > 0.4 ? 'warning' : 'secondary';
+                        sortedCauses.forEach(([curie, causeObj]) => {
+                            const scorePercent = (causeObj.score * 100).toFixed(0);
+                            const confidenceClass = causeObj.score > 0.6 ? 'success' :
+                                                   causeObj.score > 0.4 ? 'warning' : 'secondary';
+
+                            // Extract ICD-10 code from curie (e.g., "icd10:U07.1" -> "U07.1")
+                            const icd10Code = causeObj.identifiers.icd10;
 
                             causesHtml += `
                                 <div class="mb-1">
-                                    <strong>${cause}:</strong>
+                                    <strong>${causeObj.name}</strong>
+                                    <span class="text-muted small">(ICD-10: ${icd10Code})</span>
                                     <span class="badge bg-${confidenceClass} ms-1">
                                         ${scorePercent}%
                                     </span>

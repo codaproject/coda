@@ -68,8 +68,13 @@ class InferenceAgent:
 
         # Log top cause for monitoring
         causes = result.get('causes', {})
-        top_cause = max(causes.items(), key=lambda x: x[1])[0] if causes else 'N/A'
-        logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, top cause={top_cause}")
+        if causes:
+            top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
+            top_cause_name = causes[top_curie]['name']
+            top_score = causes[top_curie]['score']
+            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, top cause={top_cause_name} ({top_curie}, score={top_score:.2f})")
+        else:
+            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, no causes")
 
         return result
 
@@ -92,8 +97,11 @@ class InferenceAgent:
         Returns
         -------
         dict with keys:
-            - causes: dict mapping cause names to scores (typically probabilities,
-              but not required to sum to 1)
+            - causes: dict mapping CURIE keys (e.g., "icd10:U07.1") to cause objects
+              Each cause object has:
+                - name: str (standard ICD-10 name)
+                - identifiers: dict (e.g., {"icd10": "U07.1"})
+                - score: float (typically probability, not required to sum to 1)
             - reasoning: str (optional explanation)
         """
         raise NotImplementedError
@@ -114,12 +122,35 @@ class CodaToyInferenceAgent(InferenceAgent):
                           all_text_lower.count("heart") +
                           all_text_lower.count("cardiac"))
         total_mentions = fever_mentions + cardiac_mentions
+
         # Calculate three probabilities normalized to sum to 1
-        causes = {"infectious": 0.0, "cardiac": 0.0, "other": 1.0}
         if total_mentions > 0:
-            causes["infectious"] = fever_mentions / total_mentions
-            causes["cardiac"] = cardiac_mentions / total_mentions
-            causes["other"] = 1.0 - (causes["infectious"] + causes["cardiac"])
+            infectious_score = fever_mentions / total_mentions
+            cardiac_score = cardiac_mentions / total_mentions
+            other_score = 1.0 - (infectious_score + cardiac_score)
+        else:
+            infectious_score = 0.0
+            cardiac_score = 0.0
+            other_score = 1.0
+
+        # Build causes with ICD-10 codes as CURIEs
+        causes = {
+            "icd10:U07.1": {
+                "name": "COVID-19, virus identified",
+                "identifiers": {"icd10": "U07.1"},
+                "score": infectious_score
+            },
+            "icd10:I46.9": {
+                "name": "Cardiac arrest, unspecified",
+                "identifiers": {"icd10": "I46.9"},
+                "score": cardiac_score
+            },
+            "icd10:R99": {
+                "name": "Other ill-defined and unspecified causes of mortality",
+                "identifiers": {"icd10": "R99"},
+                "score": other_score
+            }
+        }
 
         reasoning = (f"Based on accumulated dialogue, "
                         f"infectious-related mentions: {fever_mentions}, "
@@ -160,8 +191,12 @@ class InferenceServer:
                     request.timestamp
                 )
                 causes = result.get('causes', {})
-                top_cause = max(causes.items(), key=lambda x: x[1])[0] if causes else 'N/A'
-                logger.info(f"Processed chunk {request.chunk_id}: top cause={top_cause}")
+                if causes:
+                    top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
+                    top_cause_name = causes[top_curie]['name']
+                    logger.info(f"Processed chunk {request.chunk_id}: top cause={top_cause_name} ({top_curie})")
+                else:
+                    logger.info(f"Processed chunk {request.chunk_id}: no causes")
                 return result
             except Exception as e:
                 logger.error(f"Error processing chunk {request.chunk_id}: {e}", exc_info=True)
