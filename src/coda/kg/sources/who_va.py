@@ -55,7 +55,7 @@ def get_who_va_graph():
         if '.' in who_va_id:
             parent_id = who_va_id.rsplit('.', 1)[0]
             parent_curie = f'who.va:{parent_id}'
-            edges.append((who_va_curie, parent_curie, {'type': 'isa'}))
+            edges.append((who_va_curie, parent_curie, {'type': 'is_a'}))
 
         # Parse ICD codes
         if pd.notna(icd10_codes) and icd10_codes.strip():
