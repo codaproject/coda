@@ -29,12 +29,12 @@ contributed by each source:
 | Source | Node Types | Edge Types | Semantics |
 |--------|-----------|------------|-----------|
 | **ICD-10** | `icd10`: Disease classification codes | `is_a` (hierarchical) | WHO International Classification of Diseases, 10th revision. Provides standardized disease codes with hierarchical relationships. |
-| **ICD-11** | `icd11`: Disease classification codes | `is_a` (hierarchy)<br>`maps_to` (ICD-11→ICD-10) | WHO ICD-11 revision with mappings to ICD-10. Enables cross-version code translation. |
+| **ICD-11** | `icd11`: Disease classification codes | `is_a` (hierarchy)<br>`maps_to` (ICD-11 to ICD-10) | WHO ICD-11 revision with mappings to ICD-10. Enables cross-version code translation. |
 | **ACME** | `icd10`: Disease codes | `is_a` (hierarchical) | Automated Classification of Medical Entities. Alternative ICD-10 structure for cause of death determination. |
-| **PHMRC** | `phmrc`: Verbal autopsy terms | `maps_to` (ICD-10→PHMRC) | Population Health Metrics Research Consortium terms used in VA data collection, mapped to ICD-10 codes. |
-| **WHO VA** | `who.va`: VA cause categories | `is_a` (hierarchy)<br>`maps_to` (ICD-10→WHO VA) | WHO Verbal Autopsy cause categories with hierarchical structure and ICD-10 code range mappings. |
-| **ProbBase** | `who.va.q`: VA interview questions | `probbase_rel` (questions→causes) | InterVA probability base linking VA interview questions to WHO VA causes with probability values. |
-| **HPO** | `hp`: Phenotypes<br>`omim`/etc: Diseases | `has_phenotype` (disease→phenotype) | Human Phenotype Ontology annotations linking diseases to clinical phenotypes with evidence, frequency, and onset metadata. |
+| **PHMRC** | `phmrc`: Verbal autopsy terms | `maps_to` (ICD-10 to PHMRC) | Population Health Metrics Research Consortium terms used in VA data collection, mapped to ICD-10 codes. |
+| **WHO VA** | `who.va`: VA cause categories | `is_a` (hierarchy)<br>`maps_to` (ICD-10 to WHO VA) | WHO Verbal Autopsy cause categories with hierarchical structure and ICD-10 code range mappings. |
+| **ProbBase** | `who.va.q`: VA interview questions | `probbase_rel` (questions to causes) | InterVA probability base linking VA interview questions to WHO VA causes with probability values. |
+| **HPO** | `hp`: Phenotypes<br>`omim`: Diseases | `has_phenotype` (disease to phenotype) | Human Phenotype Ontology annotations linking diseases to clinical phenotypes with evidence, frequency, and onset metadata. |
 
 Dockerization
 -------------
