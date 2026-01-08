@@ -110,6 +110,36 @@ class TestInferenceAgent:
         assert result["chunks_processed"] == 1
         assert "cardiac" in result["cod"].lower()
 
+    @pytest.mark.asyncio
+    async def test_toy_agent_timestamps(self, toy_agent):
+        """Test that agent properly tracks timestamps."""
+        import time
+
+        # Process chunks with explicit timestamps
+        ts1 = time.time()
+        result1 = await toy_agent.process_chunk("chunk-1", "Patient had fever.", [], timestamp=ts1)
+        assert result1["timestamp"] == ts1
+
+        ts2 = ts1 + 2.0  # 2 seconds later
+        result2 = await toy_agent.process_chunk("chunk-2", "Fever continued.", [], timestamp=ts2)
+        assert result2["timestamp"] == ts2
+
+        # Verify dialogue history contains timestamps
+        assert len(toy_agent.dialogue_history) == 2
+        chunk_id1, stored_ts1, text1, annotations1 = toy_agent.dialogue_history[0]
+        assert stored_ts1 == ts1
+        assert text1 == "Patient had fever."
+
+        chunk_id2, stored_ts2, text2, annotations2 = toy_agent.dialogue_history[1]
+        assert stored_ts2 == ts2
+        assert text2 == "Fever continued."
+
+        # Test auto-generated timestamp
+        result3 = await toy_agent.process_chunk("chunk-3", "Temperature high.", [])
+        assert "timestamp" in result3
+        assert result3["timestamp"] >= ts1  # Should be >= first timestamp
+        assert isinstance(result3["timestamp"], float)
+
 
 class TestInferenceServer:
     """Integration tests for InferenceServer HTTP endpoints."""
@@ -218,3 +248,24 @@ class TestInferenceServer:
         assert response3.status_code == 200
         result3 = response3.json()
         assert result3["chunks_processed"] == 1  # Should be back to 1 after reset
+
+    def test_infer_endpoint_with_timestamp(self, client):
+        """Test the /infer endpoint with explicit timestamp."""
+        import time
+
+        timestamp = time.time()
+        request_data = {
+            "chunk_id": "timestamp-test-001",
+            "text": "Patient had fever.",
+            "annotations": [],
+            "timestamp": timestamp
+        }
+
+        response = client.post("/infer", json=request_data)
+        assert response.status_code == 200
+
+        result = response.json()
+        assert result["chunk_id"] == "timestamp-test-001"
+        assert result["timestamp"] == timestamp
+        assert "cod" in result
+        assert "confidence" in result

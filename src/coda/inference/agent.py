@@ -13,7 +13,7 @@ class InferenceAgent:
 
     def __init__(self):
         """Initialize the agent with empty dialogue history."""
-        self.dialogue_history = []  # List of (chunk_id, text, annotations) tuples
+        self.dialogue_history = []  # List of (chunk_id, timestamp, text, annotations) tuples
         self.all_text = ""  # Accumulated text from all chunks
 
     def reset(self):
@@ -23,7 +23,7 @@ class InferenceAgent:
         logger.info("Agent state reset for new interview")
 
     async def process_chunk(self, chunk_id: str, text: str,
-                           annotations: List[Annotation]) -> dict:
+                           annotations: List[Annotation], timestamp: float = None) -> dict:
         """Process dialogue chunk and return inference results.
 
         This method handles dialogue history tracking and delegates
@@ -37,6 +37,8 @@ class InferenceAgent:
             Transcribed text
         annotations : List[Annotation]
             Grounded medical terms from text
+        timestamp : float, optional
+            Unix timestamp (seconds since epoch) when chunk was created
 
         Returns
         -------
@@ -46,9 +48,15 @@ class InferenceAgent:
             - confidence: float
             - reasoning: str (optional)
             - chunks_processed: int
+            - timestamp: float
         """
+        # Use current time if no timestamp provided
+        if timestamp is None:
+            import time
+            timestamp = time.time()
+
         # Add to dialogue history
-        self.dialogue_history.append((chunk_id, text, annotations))
+        self.dialogue_history.append((chunk_id, timestamp, text, annotations))
         self.all_text += " " + text
 
         # Call subclass inference implementation
@@ -56,6 +64,7 @@ class InferenceAgent:
 
         # Ensure required fields and add metadata
         result["chunk_id"] = chunk_id
+        result["timestamp"] = timestamp
         result["chunks_processed"] = len(self.dialogue_history)
 
         logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, COD={result.get('cod', 'N/A')}")
@@ -133,6 +142,7 @@ class InferenceRequest(BaseModel):
     chunk_id: str
     text: str
     annotations: list
+    timestamp: float = None  # Optional timestamp
 
 
 class InferenceServer:
@@ -151,7 +161,8 @@ class InferenceServer:
                 result = await self.agent.process_chunk(
                     request.chunk_id,
                     request.text,
-                    request.annotations
+                    request.annotations,
+                    request.timestamp
                 )
                 logger.info(f"Processed chunk {request.chunk_id}: {result['cod']}")
                 return result

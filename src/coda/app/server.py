@@ -53,13 +53,14 @@ def render_annotations(annotations):
     return parts
 
 
-async def process_inference(chunk_id: str, transcript: str,
+async def process_inference(chunk_id: str, timestamp: float, transcript: str,
                            annotations: list, websocket: WebSocket):
     """Process inference in background and send results via HTTP."""
     try:
         # Send request to inference agent
         response = await inference_client.post("/infer", json={
             "chunk_id": chunk_id,
+            "timestamp": timestamp,
             "text": transcript,
             "annotations": [a.to_json() for a in annotations]
         })
@@ -126,10 +127,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Add to buffer and check if ready for processing
             if processor.add_audio(audio_bytes):
-                # Get chunk with ID
+                # Get chunk with ID and timestamp
                 result = processor.get_chunk()
                 if result is not None:
-                    chunk_id, chunk = result
+                    chunk_id, timestamp, chunk = result
 
                     # Transcribe (now truly non-blocking)
                     transcript, annotations = await transcriber.transcribe_audio(chunk)
@@ -142,6 +143,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await websocket.send_json({
                             "type": "transcript",
                             "chunk_id": chunk_id,
+                            "timestamp": timestamp,
                             "transcript": transcript,
                             "annotations": annotations_rendered
                         })
@@ -149,7 +151,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                         # Start inference in background
                         inference_task = asyncio.create_task(
-                            process_inference(chunk_id, transcript,
+                            process_inference(chunk_id, timestamp, transcript,
                                             annotations, websocket)
                         )
                         pending_chunks[chunk_id] = inference_task
