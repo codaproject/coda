@@ -48,8 +48,11 @@ test = [
 Homepage = "https://github.com/codaproject/coda"
 
 [tool.setuptools]
-packages = {find = {}}
+package-dir = {"" = "src"}
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}
