@@ -12,9 +12,9 @@ def networkx_to_tsv(g, node_path, edge_path):
     ----------
     g : networkx.Graph
         The input graph.
-    node_path : str
+    node_path : str | Path
         Path to output TSV file for nodes.
-    edge_path : str
+    edge_path : str | Path
         Path to output TSV file for edges.
     """
     # Export nodes
