@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 HERE = Path(__file__).parent
-KG_BASE = HERE.parent.parent.parent.joinpath('kg')
+REPO_ROOT = HERE.parent.parent.parent.parent
+KG_BASE = REPO_ROOT.joinpath('kg')
 
 
 class KGSourceExporter(ABC):
