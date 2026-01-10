@@ -96,7 +96,9 @@ class Transcriber:
             # Clean up temp file
             os.unlink(tmp_filename)
 
-            text = result["text"].strip()
+            # Filter segments based on no_speech_prob to avoid hallucinations
+            # during silence (e.g., "thank you for watching")
+            text = self._filter_segments(result)
             annotations = self.grounder.annotate(text)
 
             return text, annotations
@@ -111,5 +113,23 @@ class Transcriber:
     async def transcribe_file(self, file_path: str, language: str = "en",
                               fp16: bool = False, verbose: bool = False):
         raise NotImplementedError
+
+    def _filter_segments(self, result: dict) -> str:
+        """Extract text from transcription result.
+
+        Subclasses may override this to filter segments based on
+        backend-specific criteria.
+
+        Parameters
+        ----------
+        result :
+            The result dictionary from the transcription backend
+
+        Returns
+        -------
+        str
+            Transcription text
+        """
+        return result.get("text", "").strip()
 
 
