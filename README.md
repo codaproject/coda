@@ -5,6 +5,23 @@ This repository implements the Cause of Death Determination Assistant (CODA)
 application which automates cause of death determination via an AI-assisted
 interview process.
 
+Installation
+------------
+
+Install directly from GitHub
+
+```bash
+pip install git+https://github.com/codaproject/coda.git
+```
+
+Or clone and install locally
+
+```bash
+git clone https://github.com/codaproject/coda.git
+cd coda
+pip install -e .
+```
+
 Modules
 -------
 - `coda.app`: Browser-based web application.
@@ -36,16 +53,29 @@ contributed by each source:
 | **ProbBase** | `who.va.q`: VA interview questions | `probbase_rel` (questions to causes) | InterVA probability base linking VA interview questions to WHO VA causes with probability values. |
 | **HPO** | `hp`: Phenotypes<br>`omim`: Diseases | `has_phenotype` (disease to phenotype) | Human Phenotype Ontology annotations linking diseases to clinical phenotypes with evidence, frequency, and onset metadata. |
 
-Dockerization
--------------
-The Dockerfile builds the CODA Knowledge Graph in a neo4j graph database.
+Running CODA using Docker
+-------------------------
+
+### Running with Docker compose
+
+The easiest way to run CODA is with Docker compose, which starts all services:
 
 ```bash
-docker build --tag coda:latest .
+docker-compose up --build
 ```
 
-the KG container can then be run with
+This starts three services:
+- **kg** (`coda.kg`) - Neo4j knowledge graph on ports 7474 (browser) and 7687 (bolt)
+- **inference** (`coda.inference`) - Inference agent on port 5123
+- **app** (`coda.app`) - Web application on port 8000
+
+Access the web UI at http://localhost:8000 and Neo4j browser at http://localhost:7474.
+
+### Building and running the knowledge graph only
+
+To build and run just the CODA knowledge graph:
 
 ```bash
-docker run -it -p 7687:7687 -p 7474:7474 coda:latest
+docker build --tag coda.kg:latest -f Dockerfile.kg .
+docker run -it -p 7687:7687 -p 7474:7474 coda.kg:latest
 ```
