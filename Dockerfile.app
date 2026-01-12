@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir .
 # Download NLTK data needed by gilda
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')"
 
+# Pre-download Whisper model (assumes medium here)
+RUN python -c "import whisper; whisper.load_model('medium')"
+
 # Expose the web server port
 EXPOSE 8000
 
