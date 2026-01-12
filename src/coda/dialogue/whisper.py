@@ -10,12 +10,22 @@ from coda.grounding import BaseGrounder
 # https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages
 DEFAULT_MODEL_SIZE = "small"
 
+# Default threshold for filtering silent segments.
+# Segments with no_speech_prob above this value are considered silence.
+DEFAULT_NO_SPEECH_THRESHOLD = 0.6
+
 logger = logging.getLogger(__name__)
+
 
 class WhisperTranscriber(Transcriber):
     """Transcriber implementation using OpenAI's Whisper model."""
-    def __init__(self, grounder: BaseGrounder, model_size: str = DEFAULT_MODEL_SIZE):
+    def __init__(self, grounder: BaseGrounder, model_size: str = DEFAULT_MODEL_SIZE,
+                 no_speech_threshold: float = None):
         super().__init__(grounder=grounder)
+        self.no_speech_threshold = (
+            no_speech_threshold if no_speech_threshold is not None
+            else DEFAULT_NO_SPEECH_THRESHOLD
+        )
         logger.info(f"Loading Whisper model: {model_size}")
         self.model = whisper.load_model(model_size)
         logger.info("Whisper model loaded successfully")
@@ -39,3 +49,37 @@ class WhisperTranscriber(Transcriber):
             fp16=fp16,
             verbose=verbose
         )
+
+    def _filter_segments(self, result: dict) -> str:
+        """Filter transcription segments based on no_speech_prob.
+
+        Whisper tends to hallucinate phrases like "thank you for watching"
+        during silence. This filters out segments where the model detects
+        high probability of no speech.
+
+        Parameters
+        ----------
+        result :
+            The result dictionary from Whisper's transcribe() method
+
+        Returns
+        -------
+        str
+            Filtered transcription text with silent segments removed
+        """
+        segments = result.get("segments", [])
+        if not segments:
+            return result.get("text", "").strip()
+
+        filtered_texts = []
+        for segment in segments:
+            no_speech_prob = segment.get("no_speech_prob", 0.0)
+            if no_speech_prob < self.no_speech_threshold:
+                filtered_texts.append(segment.get("text", ""))
+            else:
+                logger.debug(
+                    f"Filtered silent segment (no_speech_prob={no_speech_prob:.2f}): "
+                    f"{segment.get('text', '')!r}"
+                )
+
+        return "".join(filtered_texts).strip()
