@@ -7,17 +7,19 @@ interview process.
 
 Installation
 ------------
-```bash
-# Install directly from GitHub
-pip install git+https://github.com/codaproject/coda.git
 
-# Or clone and install locally
+Install directly from GitHub
+
+```bash
+pip install git+https://github.com/codaproject/coda.git
+```
+
+Or clone and install locally
+
+```bash
 git clone https://github.com/codaproject/coda.git
 cd coda
 pip install -e .
-
-# With test dependencies
-pip install -e ".[test]"
 ```
 
 Modules
