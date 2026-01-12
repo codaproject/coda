@@ -1,0 +1,40 @@
+services:
+  kg:
+    image: coda.kg:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.kg
+    ports:
+      - "7474:7474"  # Neo4j Browser
+      - "7687:7687"  # Neo4j Bolt
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inference:
+    image: coda.inference:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    ports:
+      - "5123:5123"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5123/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  app:
+    image: coda.app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    ports:
+      - "8000:8000"
+    environment:
+      - INFERENCE_URL=http://inference:5123
+    depends_on:
+      inference:
+        condition: service_healthy
