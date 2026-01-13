@@ -13,7 +13,8 @@ from .reranker import CodeReranker
 from .annotator import annotate_raw_output
 from .utils import (
     combine_text_for_retrieval,
-    get_icd10_name
+    get_icd10_name,
+    validate_icd10_code
 )
 
 from openacme.icd10.generate_embeddings import generate_icd10_embeddings
@@ -173,7 +174,8 @@ class MedCoderPipeline:
                 disease_name = disease.get('Disease', '')
                 evidence = disease.get('Supporting Evidence', [])
                 llm_code = disease.get('ICD10', '')
-                llm_code_name = get_icd10_name(llm_code)
+                # Only get code name if code is valid and non-empty
+                llm_code_name = get_icd10_name(llm_code) if llm_code and validate_icd10_code(llm_code) else ''
                 retrieved_codes = disease.get('retrieved_codes', [])
 
                 # Re-rank

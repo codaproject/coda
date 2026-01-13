@@ -71,7 +71,8 @@ class DiseaseExtractor:
                 "Input: 'Patient has chest pain and shortness of breath.'\n"
                 "Correct evidence: ['chest pain', 'shortness of breath']\n"
                 "WRONG evidence: ['Patient presents with chest discomfort', 'difficulty breathing']\n\n"
-                "Provide accurate ICD-10 codes for each identified disease."
+                "ICD-10 codes: You may optionally provide an ICD-10 code if you are confident, but this is not required. "
+                "The system will use semantic retrieval to find appropriate codes based on the disease name and evidence."
             )
 
         try:
@@ -113,15 +114,18 @@ class DiseaseExtractor:
                 print("Warning: Invalid response structure from LLM")
                 return {"Diseases": []}
 
-            # Validate ICD-10 codes and evidence
+            # Validate evidence (ICD-10 code validation is optional - retrieval will find codes)
             validated_diseases = []
             clinical_lower = clinical_description.lower()
 
             for disease in response_json.get('Diseases', []):
                 code = disease.get('ICD10', '')
-                if not validate_icd10_code(code):
-                    print(f"Warning: Invalid ICD-10 code '{code}' for disease '{disease.get('Disease', '')}'")
-                    continue
+                # Warn about invalid codes but don't filter out the disease
+                # Retrieval doesn't depend on the ICD-10 code - it uses disease name + evidence
+                if code and not validate_icd10_code(code):
+                    print(f"Warning: Invalid ICD-10 code '{code}' for disease '{disease.get('Disease', '')}' - will use retrieval to find codes")
+                    # Clear invalid code so it doesn't cause issues downstream
+                    disease['ICD10'] = ''
 
                 # Validate evidence strings are verbatim (case-insensitive check)
                 evidence = disease.get('Supporting Evidence', [])

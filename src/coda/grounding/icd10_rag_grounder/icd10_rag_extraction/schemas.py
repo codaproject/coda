@@ -25,10 +25,10 @@ DISEASE_EXTRACTION_SCHEMA = {
                     },
                     "ICD10": {
                         "type": "string",
-                        "description": "The ICD-10 code that corresponds to the disease."
+                        "description": "Optional: The ICD-10 code that corresponds to the disease. If uncertain, you may omit this field as retrieval will find appropriate codes."
                     }
                 },
-                "required": ["Disease", "Supporting Evidence", "ICD10"],
+                "required": ["Disease", "Supporting Evidence"],
                 "additionalProperties": False
             }
         }
