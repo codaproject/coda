@@ -5,62 +5,73 @@ build edges between the questions and the causes they relate to
 using the information in the probbase.
 """
 
-__all__ = ["get_probbase_graph"]
+__all__ = ["ProbBaseExporter"]
 
 import pandas as pd
-import networkx as nx
 
+from coda.kg.sources import KGSourceExporter
 
-PROBBASE_URL = ("https://github.com/verbal-autopsy-software/interva/raw/"
-                "refs/heads/main/src/interva/data/probbase.xls")
+PROBBASE_URL = (
+    "https://github.com/verbal-autopsy-software/interva/raw/"
+    "refs/heads/main/src/interva/data/probbase.xls"
+)
+
 
 def process_va_col(col_name):
     assert col_name.startswith('b_')
     code = col_name[2:]
-    if code.endswith('00'):
+    if code.endswith("00"):
         code = code[:-2]
     else:
-        code = f'{code[:2]}.{code[2:]}'
-    return f'who.va:VAs-{code}'
+        code = f"{code[:2]}.{code[2:]}"
+    return f"who.va:VAs-{code}"
 
 
-def get_probbase_graph():
-    df = pd.read_excel(PROBBASE_URL, sheet_name='probbase')
-    id_column = 'who_2016'
-    name_column = 'qdesc'
-    prop_columns = ['indic', 'sdesc', 'ilab', 'subst', 'samb']
-    va_question_cols = {
-        col: process_va_col(col) for col in df.columns if col.startswith('b_')
-    }
-    nodes = []
-    edges = []
-    va_curie_added = set()
-    for _, row in df.iterrows():
-        if pd.isna(row['indic']):
-            continue
-        node_curie = f'who.va.q:{row[id_column]}'
-        node = [
-            node_curie, {
-                'name': row[name_column],
-                'kind': 'who.va.q',
-                **{prop: row[prop] for prop in prop_columns}
-            }
-        ]
-        nodes.append(node)
-        for col, va_curie in va_question_cols.items():
-            if va_curie not in va_curie_added:
-                nodes.append([va_curie, {'redundant': True}])
-                va_curie_added.add(va_curie)
-            edge = [
-                node_curie,
-                va_curie,
-                {
-                    'kind': 'probbase_rel',
-                    'value': row[col]
-                }
-            ]
-            edges.append(edge)
-    g = nx.DiGraph()
-    g.add_nodes_from(nodes)
-    g.add_edges_from(edges)
-    return g
+class ProbBaseExporter(KGSourceExporter):
+    name = "probBase"
+
+    def export(self):
+        df = pd.read_excel(PROBBASE_URL, sheet_name="probbase")
+        id_column = "who_2016"
+        name_column = "qdesc"
+        prop_columns = ["indic", "sdesc", "ilab", "subst", "samb"]
+        df["who_curie"] = df[id_column].apply(lambda x: f"who.va.q:{x}")
+        va_question_cols = {
+            col: process_va_col(col) for col in df.columns if col.startswith("b_")
+        }
+        nodes = df[["who_curie", name_column, *prop_columns]]
+        nodes[":LABEL"] = "who.va.q"
+        nodes = nodes.rename(columns={"who_curie": "id:ID", name_column: "name"})
+        nodes = nodes.dropna(subset=["indic"])
+
+        nodes.sort_values("id:ID").drop_duplicates().to_csv(
+            self.nodes_file, sep="\t", index=False
+        )
+
+        edges = []
+        for _, row in df.iterrows():
+            if pd.isna(row["indic"]):
+                continue
+            node_curie = row["who_curie"]
+            for col, va_curie in va_question_cols.items():
+                edge = [
+                    node_curie,
+                    va_curie,
+                    "probbase_rel",
+                    row[col],
+                ]
+                edges.append(edge)
+        edge_df = pd.DataFrame(
+            edges, columns=[":START_ID", ":END_ID", ":TYPE", "value"]
+        )
+        edge_df = pd.concat(
+            [edge_df.drop(columns=[":TYPE"]), edge_df[":TYPE"].apply(pd.Series)],
+            axis=1,
+        )
+        edge_df = edge_df.sort_values([":START_ID", ":END_ID"])
+        edge_df.drop_duplicates().to_csv(self.edges_file, sep="\t", index=False)
+
+
+if __name__ == "__main__":
+    exporter = ProbBaseExporter()
+    exporter.export()
