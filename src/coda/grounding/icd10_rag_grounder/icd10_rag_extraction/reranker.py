@@ -96,16 +96,19 @@ Return ONLY JSON that matches the provided schema, ordered from most to least ap
 
         evidence_text = "\n".join(f"  - {e}" for e in evidence) if evidence else "  (No specific evidence provided)"
 
+        # Handle case where LLM didn't provide a valid code
+        llm_code_section = ""
+        if llm_code and llm_code_name:
+            llm_code_section = f"\nLLM's initial ICD-10 prediction:\n  Code: {llm_code}\n  Name: {llm_code_name}\n"
+        else:
+            llm_code_section = "\n(No initial ICD-10 prediction provided - rely on retrieved codes)\n"
+
         user_prompt = f"""Diagnosed disease:
 {disease}
 
 Supporting evidence:
 {evidence_text}
-
-LLM's initial ICD-10 prediction:
-  Code: {llm_code}
-  Name: {llm_code_name}
-
+{llm_code_section}
 Retrieved ICD-10 candidate codes (from semantic search):
 {"\n".join(retrieved_codes_formatted)}
 
