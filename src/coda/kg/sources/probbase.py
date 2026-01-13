@@ -18,7 +18,6 @@ PROBBASE_URL = (
 
 
 def process_va_col(col_name):
-    assert col_name.startswith('b_')
     code = col_name[2:]
     if code.endswith("00"):
         code = code[:-2]
