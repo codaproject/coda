@@ -7,6 +7,36 @@ Finds character spans of evidence strings in the original clinical text.
 import re
 from typing import Dict, Any, List
 from difflib import SequenceMatcher
+from pydantic import BaseModel, Field
+
+
+# Pydantic models for structured annotation output format
+
+class RankedMatch(BaseModel):
+    """A single ranked match for an annotation."""
+    
+    identifier: str = Field(..., description="CURIE identifier for the matched entity (e.g., 'hp:0001945', 'icd10:P22.0')")
+    name: str = Field(..., description="Human-readable name of the matched entity")
+    score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Similarity/confidence score between 0.0 and 1.0, or None if not available")
+    properties: Optional[Dict[str, Any]] = Field(None, description="Additional properties/metadata for the match")
+
+
+class Annotation(BaseModel):
+    """A single annotation with ranked matches."""
+    
+    text: str = Field(..., description="The text span that was annotated")
+    top_identifier: str = Field(..., description="CURIE identifier of the top-ranked match")
+    top_name: str = Field(..., description="Name of the top-ranked match")
+    ranked_matches: List[RankedMatch] = Field(..., description="List of all ranked matches, ordered by score (highest first)")
+
+
+class AnnotatedText(BaseModel):
+    """Complete annotated text output."""
+    
+    text: str = Field(..., description="The original input text")
+    type: str = Field(..., description="Type of text (e.g., 'va_narrative', 'clinical_note')")
+    identifier: str = Field(..., description="Unique identifier for this text (e.g., 'champs_deid:A31C4B5E-3890-4AEC-8375-37DB6D916AED')")
+    annotations: List[Annotation] = Field(default_factory=list, description="List of annotations found in the text")
 
 
 def _similarity_ratio(s1: str, s2: str) -> float:
@@ -146,108 +176,145 @@ def find_evidence_spans(
     return annotated_evidence
 
 
-def annotate_pipeline_output(
-    clinical_description: str,
-    pipeline_output: Dict[str, Any],
+def annotate(
+    text: str,
+    text_type: str,
+    identifier: str,
+    pipeline_result: Dict[str, Any],
+    top_k: int = 5,
+    add_evidence_spans: bool = False,
     min_similarity: float = 0.7,
     case_sensitive: bool = False
-) -> Dict[str, Any]:
-    """Add character spans to evidence in pipeline output.
-
+) -> AnnotatedText:
+    """Convert pipeline output to AnnotatedText format, optionally adding evidence spans.
+    
     Parameters
     ----------
-    clinical_description : str
-        Original clinical description text.
-    pipeline_output : dict
-        Output from MedCoderPipeline.process().
+    text : str
+        Original input text.
+    text_type : str
+        Type of text (e.g., 'va_narrative', 'clinical_note').
+    identifier : str
+        Unique identifier for the text.
+    pipeline_result : dict
+        Pipeline output with 'Diseases' key.
+    top_k : int
+        Number of top ranked matches to include per annotation. Defaults to 5.
+    add_evidence_spans : bool
+        If True, add character spans for evidence strings. Defaults to False.
     min_similarity : float
-        Minimum similarity threshold for fuzzy matching. Defaults to 0.7.
+        Minimum similarity threshold for evidence span matching (0.0-1.0). Defaults to 0.7.
     case_sensitive : bool
-        Whether to preserve case in matching. Defaults to False.
-
+        Whether to preserve case in evidence matching. Defaults to False.
+        
     Returns
     -------
-    dict
-        Pipeline output with added 'evidence_spans' field for each diagnosis.
+    AnnotatedText
+        Structured annotation output.
     """
-    if not isinstance(pipeline_output, dict) or 'diagnoses' not in pipeline_output:
-        return pipeline_output
-
-    annotated_output = pipeline_output.copy()
-    annotated_output['diagnoses'] = []
-
-    for diagnosis in pipeline_output['diagnoses']:
-        annotated_diagnosis = diagnosis.copy()
-
-        # Get evidence strings
-        evidence = diagnosis.get('evidence', [])
-
-        if evidence:
-            # Find spans for each evidence string
-            evidence_spans = find_evidence_spans(
-                clinical_description,
-                evidence,
-                min_similarity=min_similarity,
-                case_sensitive=case_sensitive
-            )
-            annotated_diagnosis['evidence_spans'] = evidence_spans
-        else:
-            annotated_diagnosis['evidence_spans'] = []
-
-        annotated_output['diagnoses'].append(annotated_diagnosis)
-
-    return annotated_output
-
-
-def annotate_raw_output(
-    clinical_description: str,
-    raw_output: Dict[str, Any],
-    min_similarity: float = 0.7,
-    case_sensitive: bool = False
-) -> Dict[str, Any]:
-    """Add character spans to evidence in raw pipeline output (non-formatted).
-
-    Parameters
-    ----------
-    clinical_description : str
-        Original clinical description text.
-    raw_output : dict
-        Raw output from MedCoderPipeline.process().
-    min_similarity : float
-        Minimum similarity threshold for fuzzy matching. Defaults to 0.7.
-    case_sensitive : bool
-        Whether to preserve case in matching. Defaults to False.
-
-    Returns
-    -------
-    dict
-        Raw output with added 'evidence_spans' field for each disease.
-    """
-    if not isinstance(raw_output, dict) or 'Diseases' not in raw_output:
-        return raw_output
-
-    annotated_output = raw_output.copy()
-    annotated_output['Diseases'] = []
-
-    for disease in raw_output['Diseases']:
-        annotated_disease = disease.copy()
-
-        # Get evidence strings
+    if not isinstance(pipeline_result, dict) or 'Diseases' not in pipeline_result:
+        return AnnotatedText(text=text, type=text_type, identifier=identifier, annotations=[])
+    
+    # Optionally add evidence spans to the raw result
+    if add_evidence_spans:
+        pipeline_result = pipeline_result.copy()
+        annotated_diseases = []
+        
+        for disease in pipeline_result.get('Diseases', []):
+            annotated_disease = disease.copy()
+            evidence = disease.get('Supporting Evidence', [])
+            
+            if evidence:
+                evidence_spans = find_evidence_spans(
+                    text,
+                    evidence,
+                    min_similarity=min_similarity,
+                    case_sensitive=case_sensitive
+                )
+                annotated_disease['evidence_spans'] = evidence_spans
+            else:
+                annotated_disease['evidence_spans'] = []
+            
+            annotated_diseases.append(annotated_disease)
+        
+        pipeline_result['Diseases'] = annotated_diseases
+    
+    diseases = pipeline_result.get('Diseases', [])
+    annotations = []
+    
+    for disease in diseases:
+        disease_name = disease.get('Disease', '')
         evidence = disease.get('Supporting Evidence', [])
-
-        if evidence:
-            # Find spans for each evidence string
-            evidence_spans = find_evidence_spans(
-                clinical_description,
-                evidence,
-                min_similarity=min_similarity,
-                case_sensitive=case_sensitive
+        reranked_codes = disease.get('reranked_codes', [])
+        retrieved_codes = disease.get('retrieved_codes', [])
+        
+        if not reranked_codes:
+            continue
+        
+        # Create a lookup map from retrieved codes for definitions
+        code_to_definition = {}
+        for retrieved in retrieved_codes:
+            code = retrieved.get('code', '')
+            definition = retrieved.get('definition', '')
+            if code and definition:
+                code_to_definition[code] = definition
+            
+        # Get top code (first in reranked list)
+        top_code_info = reranked_codes[0]
+        top_code = top_code_info.get('ICD-10 Code', '')
+        top_name = top_code_info.get('ICD-10 Name', '')
+        
+        # Convert reranked codes to ranked matches (limit to top_k)
+        ranked_matches = []
+        for code_info in reranked_codes[:top_k]:
+            code = code_info.get('ICD-10 Code', '')
+            name = code_info.get('ICD-10 Name', '')
+            similarity = code_info.get('similarity', None)
+            retrieved_from = code_info.get('retrieved_from', 'unknown')
+            
+            # Format identifier as CURIE (icd10:CODE)
+            curie_identifier = f"icd10:{code}" if code else ""
+            
+            # Build properties dict with definition (if available) and retrieved_from
+            properties = {}
+            if code and code in code_to_definition:
+                properties["definition"] = code_to_definition[code]
+            properties["retrieved_from"] = retrieved_from
+            
+            # Only include properties if it has at least one field
+            if not properties:
+                properties = None
+            
+            ranked_matches.append(
+                RankedMatch(
+                    identifier=curie_identifier,
+                    name=name,
+                    score=float(similarity) if similarity is not None else None,
+                    properties=properties
+                )
             )
-            annotated_disease['evidence_spans'] = evidence_spans
-        else:
-            annotated_disease['evidence_spans'] = []
-
-        annotated_output['Diseases'].append(annotated_disease)
-
-    return annotated_output
+        
+        # Use first evidence span as annotation text, fallback to disease name if no evidence
+        annotation_text = evidence[0] if evidence else disease_name
+        
+        # Create annotation - use evidence span as the annotation text
+        annotation = Annotation(
+            text=annotation_text,
+            top_identifier=f"icd10:{top_code}" if top_code else "",
+            top_name=top_name,
+            ranked_matches=ranked_matches
+        )
+        annotations.append(annotation)
+    
+    result = AnnotatedText(
+        text=text,
+        type=text_type,
+        identifier=identifier,
+        annotations=annotations
+    )
+    
+    # Store raw result for internal use (e.g., evidence spans)
+    result._raw_result = pipeline_result
+    
+    return result
 

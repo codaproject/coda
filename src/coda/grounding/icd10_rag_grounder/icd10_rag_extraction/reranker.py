@@ -152,9 +152,11 @@ Re-rank these codes based on how well they match the disease and evidence."""
             for code_info in response_json['Reranked ICD-10 Codes']:
                 code = code_info.get('ICD-10 Code', '')
                 if validate_icd10_code(code):
-                    # Add similarity score from retrieved_codes if available
-                    similarity = code_to_similarity.get(code, 0.0)
+                    # Add similarity score from retrieved_codes if available, None if not retrieved
+                    similarity = code_to_similarity.get(code, None)
                     code_info['similarity'] = similarity
+                    # Add retrieved_from field: "semantic_embeddings" if retrieved, "llm_generated" if not
+                    code_info['retrieved_from'] = 'semantic_embeddings' if code in code_to_similarity else 'llm_generated'
                     validated_codes.append(code_info)
                 else:
                     print(f"Warning: Invalid ICD-10 code '{code}' in reranking result")
