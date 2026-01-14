@@ -27,7 +27,7 @@ def process_va_col(col_name):
 
 
 class ProbBaseExporter(KGSourceExporter):
-    name = "probBase"
+    name = "probbase"
 
     def export(self):
         df = pd.read_excel(PROBBASE_URL, sheet_name="probbase")
