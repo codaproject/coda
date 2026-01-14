@@ -1,36 +1,47 @@
-import networkx as nx
+import pandas as pd
 
-from coda.kg.io import networkx_to_tsv
 from coda.kg.sources import KGSourceExporter
 from openacme.icd10 import get_icd10_graph
-
-
-def get_icd10_coda_graph():
-    g = get_icd10_graph()
-    # We need to make sure all nodes have an `icd10:` prefix
-    # in their label
-    mapping = {}
-    for node, data in g.nodes(data=True):
-        mapping[node] = f"icd10:{node}"
-        name = data.get("rubrics", {}).pop("preferred", [None])[0]
-        if name:
-            g.nodes[node]["name"] = name
-        g.nodes[node]["class_kind"] = data.get("kind")
-        g.nodes[node]["kind"] = "icd10"
-    g = nx.relabel_nodes(g, mapping)
-    # Next we need to unpack the rubtics to get the "preferred" name
-    for node in g.nodes:
-        code = node.replace("icd10:", "")
-        g.nodes[node]["code"] = code
-    return g
 
 
 class ICD10Exporter(KGSourceExporter):
     name = "icd10"
 
     def export(self):
-        g = get_icd10_coda_graph()
-        networkx_to_tsv(g, self.nodes_file, self.edges_file)
+        g = get_icd10_graph()
+        # We need to make sure all nodes have an `icd10:` prefix
+        # in their label
+        nodes = []
+        edges = []
+        for node, data in g.nodes(data=True):
+            nodes.append(
+                [
+                    f"icd10:{node}",  # id:ID
+                    "icd10",  # kind -> :LABEL
+                    data.get("rubrics", {}),  # rubrics
+                    data.get("rubrics", {}).pop("preferred", [None])[0],  # name
+                    data.get("kind"),  # class_kind
+                    node,  # code
+                ]
+            )
+        nodes_df = pd.DataFrame(
+            nodes,
+            columns=["id:ID", ":LABEL", "rubrics", "name", "class_kind", "code"],
+        )
+        nodes_df.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
+
+        for source, target, data in g.edges(data=True):
+            edges.append(
+                [
+                    f"icd10:{source}",  # :START_ID
+                    f"icd10:{target}",  # :END_ID
+                    data.get("kind", "related_to"),  # :TYPE
+                ]
+            )
+        edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
+        edges_df.sort_values([":START_ID", ":END_ID"]).to_csv(
+            self.edges_file, sep="\t", index=False
+        )
 
 
 if __name__ == "__main__":
