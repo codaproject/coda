@@ -80,29 +80,35 @@ class RAGGrounder(BaseGrounder):
         logger.debug(f"Grounding text: {text[:100]}...")
 
         # Process through pipeline
-        result = self.pipeline.process(
+        annotated_result = self.pipeline.process(
             text,
+            text_type="clinical_note",
+            identifier="",
             annotate_evidence=False,
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        # Extract all codes from the result
-        scored_matches = []
-        diseases = result.get('Diseases', [])
+        # Handle both single dict and list of dicts
+        if isinstance(annotated_result, list):
+            annotated_dict = annotated_result[0] if annotated_result else {}
+        else:
+            annotated_dict = annotated_result
 
-        for disease in diseases:
-            # Get reranked codes - take only the top (first) code
-            codes = disease.get('reranked_codes', [])
-            if not codes:
+        # Extract all codes from the annotations
+        scored_matches = []
+        
+        annotations = annotated_dict.get('annotations', [])
+        for annotation in annotations:
+            # Get top match (first in ranked_matches)
+            ranked_matches = annotation.get('ranked_matches', [])
+            if not ranked_matches:
                 continue
 
-            # Get the top code (first in reranked list)
-            code_info = codes[0]
-            code = code_info.get('ICD-10 Code', '') or code_info.get('code', '')
-            name = code_info.get('ICD-10 Name', '') or code_info.get('name', get_icd10_name(code))
-            # Use similarity score from retrieval
-            similarity = code_info.get('similarity', 0.0)
-            score = float(similarity)
+            top_match = ranked_matches[0]
+            # Extract code from CURIE identifier (icd10:CODE -> CODE)
+            code = top_match.get('identifier', '').replace("icd10:", "") if top_match.get('identifier', '').startswith("icd10:") else ""
+            name = top_match.get('name', '')
+            score = float(top_match.get('score', 0.0))
 
             # Create gilda Term object
             term = Term(
@@ -143,15 +149,30 @@ class RAGGrounder(BaseGrounder):
         logger.debug(f"Annotating text: {text[:100]}...")
 
         # Process through pipeline with evidence annotation
-        result = self.pipeline.process(
+        annotated_result = self.pipeline.process(
             text,
+            text_type="clinical_note",
+            identifier="",
             annotate_evidence=True,
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        annotations = []
-        diseases = result.get('Diseases', [])
+        # Handle both single dict and list of dicts
+        if isinstance(annotated_result, list):
+            annotated_dict = annotated_result[0] if annotated_result else {}
+        else:
+            annotated_dict = annotated_result
 
+        annotations = []
+        
+        # Get raw result to access evidence spans
+        raw_result = annotated_dict.get('_raw_result', None)
+        if not raw_result:
+            logger.warning("No raw result available for evidence spans")
+            return annotations
+        
+        diseases = raw_result.get('Diseases', [])
+        
         for disease in diseases:
             # Get evidence spans (primary source for annotation text)
             evidence_spans = disease.get('evidence_spans', [])

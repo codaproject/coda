@@ -10,7 +10,7 @@ from pathlib import Path
 from .extractor import DiseaseExtractor
 from .retriever import ICD10Retriever
 from .reranker import CodeReranker
-from .annotator import annotate_raw_output
+from .annotator import annotate
 from .utils import (
     combine_text_for_retrieval,
     get_icd10_name,
@@ -79,8 +79,11 @@ class MedCoderPipeline:
     def process(
         self,
         clinical_descriptions: Union[str, List[str]],
+        text_type: str = "clinical_note",
+        identifier: Optional[Union[str, List[str]]] = None,
         annotate_evidence: bool = True,
-        annotation_min_similarity: float = 0.7
+        annotation_min_similarity: float = 0.7,
+        top_k: int = 5
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """Process clinical description(s) through full pipeline.
 
@@ -89,31 +92,61 @@ class MedCoderPipeline:
         clinical_descriptions : str or list of str
             Clinical note(s) or description text(s). Can be a single string
             or a list of strings.
+        text_type : str
+            Type of text (e.g., 'va_narrative', 'clinical_note'). Defaults to 'clinical_note'.
+        identifier : str, optional
+            Unique identifier for the text(s). If None and single description,
+            will use empty string. If list, should be list of identifiers.
         annotate_evidence : bool
             If True, add character spans for evidence strings. Defaults to True.
         annotation_min_similarity : float
             Minimum similarity threshold for evidence annotation (0.0-1.0).
             Defaults to 0.7.
+        top_k : int
+            Number of top ranked matches to include per annotation. Defaults to 5.
 
         Returns
         -------
         dict or list of dict
-            If single description: Dictionary with {"Diseases": [...]}.
-            If list of descriptions: List of dictionaries (one per description),
-            each with {"Diseases": [...]}.
+            If single description: Dictionary with AnnotatedText structure.
+            If list of descriptions: List of dictionaries, each with AnnotatedText structure.
         """
         # Normalize input to list
         is_single = isinstance(clinical_descriptions, str)
         descriptions_list = [clinical_descriptions] if is_single else clinical_descriptions
+        
+        # Normalize identifiers
+        if identifier is None:
+            identifiers_list = [""] * len(descriptions_list) if descriptions_list else []
+        elif isinstance(identifier, str):
+            identifiers_list = [identifier] * len(descriptions_list) if descriptions_list else []
+        else:  # identifier is List[str]
+            if len(identifier) != len(descriptions_list):
+                raise ValueError(
+                    f"Number of identifiers ({len(identifier)}) must match "
+                    f"number of descriptions ({len(descriptions_list)})"
+                )
+            identifiers_list = identifier
 
         if not descriptions_list:
-            return [] if not is_single else {"Diseases": []}
+            empty_result = annotate(
+                text="",
+                text_type=text_type,
+                identifier="",
+                pipeline_result={"Diseases": []},
+                top_k=top_k,
+                add_evidence_spans=annotate_evidence,
+                min_similarity=annotation_min_similarity
+            )
+            empty_dict = empty_result.model_dump()
+            empty_dict['_raw_result'] = {"Diseases": []}
+            return empty_dict if is_single else []
 
         logger.info(f"Starting MedCoder pipeline for {len(descriptions_list)} clinical description(s)")
 
         results = []
 
-        for idx, clinical_description in enumerate(descriptions_list, 1):
+        for idx, (clinical_description, text_id) in enumerate(zip(descriptions_list, identifiers_list), 1):
             step_times = {}
             total_start = time.time()
 
@@ -134,8 +167,17 @@ class MedCoderPipeline:
 
             if not diseases:
                 logger.warning("No diseases extracted from clinical description")
-                result = {"Diseases": []}
-                results.append(result)
+                # Create empty AnnotatedText
+                empty_result = annotate(
+                    text=clinical_description,
+                    text_type=text_type,
+                    identifier=text_id,
+                    pipeline_result={"Diseases": []},
+                    top_k=top_k,
+                    add_evidence_spans=annotate_evidence,
+                    min_similarity=annotation_min_similarity
+                )
+                results.append(empty_result.model_dump())
                 continue
 
             # Step 2: Retrieve additional codes using semantic search
@@ -173,12 +215,23 @@ class MedCoderPipeline:
             for disease in diseases:
                 disease_name = disease.get('Disease', '')
                 evidence = disease.get('Supporting Evidence', [])
-                llm_code = disease.get('ICD10', '')
-                # Only get code name if code is valid and non-empty
-                llm_code_name = get_icd10_name(llm_code) if llm_code and validate_icd10_code(llm_code) else ''
+                llm_code_raw = disease.get('ICD10', '')
+                
+                # Validate LLM code - if invalid, ignore it and use empty string
+                # This ensures reranker only uses retrieved codes when LLM code is wrong
+                if llm_code_raw and validate_icd10_code(llm_code_raw):
+                    llm_code = llm_code_raw
+                    llm_code_name = get_icd10_name(llm_code)
+                else:
+                    # Invalid or empty code - ignore it, reranker will use only retrieved codes
+                    if llm_code_raw and not validate_icd10_code(llm_code_raw):
+                        logger.debug(f"Ignoring invalid ICD-10 code '{llm_code_raw}' for disease '{disease_name}'")
+                    llm_code = ''
+                    llm_code_name = ''
+                
                 retrieved_codes = disease.get('retrieved_codes', [])
 
-                # Re-rank
+                # Re-rank (will ignore llm_code if empty/invalid)
                 reranking_result = self.reranker.rerank(
                     disease=disease_name,
                     evidence=evidence,
@@ -213,19 +266,23 @@ class MedCoderPipeline:
                 f"Total={step_times['total']:.2f}s"
             )
 
-            # Return raw format
-            result = {"Diseases": diseases}
+            # Build raw result dict
+            raw_result = {"Diseases": diseases}
 
-            # Add evidence spans if requested
-            if annotate_evidence:
-                logger.debug("Annotating evidence spans")
-                result = annotate_raw_output(
-                    clinical_description,
-                    result,
-                    min_similarity=annotation_min_similarity
-                )
-
-            results.append(result)
+            # Convert to AnnotatedText format (optionally adds evidence spans)
+            annotated_text = annotate(
+                text=clinical_description,
+                text_type=text_type,
+                identifier=text_id,
+                pipeline_result=raw_result,
+                top_k=top_k,
+                add_evidence_spans=annotate_evidence,
+                min_similarity=annotation_min_similarity
+            )
+            # Convert to dict and store raw_result for internal use (e.g., evidence spans)
+            result_dict = annotated_text.model_dump()
+            result_dict['_raw_result'] = raw_result
+            results.append(result_dict)
 
         logger.info(f"Pipeline completed for {len(descriptions_list)} description(s)")
 
