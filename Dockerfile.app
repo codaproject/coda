@@ -18,7 +18,8 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir .
 
 # Download NLTK data needed by gilda
-RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')"
+RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \
+    python -m gilda.resources
 
 # Pre-download Whisper model (assumes medium here)
 RUN python -c "import whisper; whisper.load_model('medium')"
