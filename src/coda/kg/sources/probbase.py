@@ -64,7 +64,7 @@ class ProbBaseExporter(KGSourceExporter):
             edges, columns=[":START_ID", ":END_ID", ":TYPE", "value"]
         )
         edge_df = pd.concat(
-            [edge_df.drop(columns=[":TYPE"]), edge_df[":TYPE"].apply(pd.Series)],
+            [edge_df.drop(columns=[":TYPE"]), edge_df[":TYPE"].apply(pd.Series).rename(columns={0: ':TYPE'}) ],
             axis=1,
         )
         edge_df = edge_df.sort_values([":START_ID", ":END_ID"])
