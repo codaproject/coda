@@ -217,15 +217,15 @@ class MedCoderPipeline:
                 evidence = disease.get('Supporting Evidence', [])
                 llm_code_raw = disease.get('ICD10', '')
                 
-                # Validate LLM code - if invalid, ignore it and use empty string
+                # Validate LLM code - if invalid or not in embedding space, ignore it and use empty string
                 # This ensures reranker only uses retrieved codes when LLM code is wrong
-                if llm_code_raw and validate_icd10_code(llm_code_raw):
+                if llm_code_raw and validate_icd10_code(llm_code_raw, check_existence=True):
                     llm_code = llm_code_raw
                     llm_code_name = get_icd10_name(llm_code)
                 else:
                     # Invalid or empty code - ignore it, reranker will use only retrieved codes
-                    if llm_code_raw and not validate_icd10_code(llm_code_raw):
-                        logger.debug(f"Ignoring invalid ICD-10 code '{llm_code_raw}' for disease '{disease_name}'")
+                    if llm_code_raw and not validate_icd10_code(llm_code_raw, check_existence=True):
+                        logger.debug(f"Ignoring invalid or non-existent ICD-10 code '{llm_code_raw}' for disease '{disease_name}'")
                     llm_code = ''
                     llm_code_name = ''
                 

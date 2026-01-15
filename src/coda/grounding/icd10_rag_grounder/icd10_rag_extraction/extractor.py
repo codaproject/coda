@@ -119,10 +119,10 @@ class DiseaseExtractor:
 
             for disease in response_json.get('Diseases', []):
                 code = disease.get('ICD10', '')
-                # Warn about invalid codes but don't filter out the disease
+                # Warn about invalid or non-existent codes but don't filter out the disease
                 # Retrieval doesn't depend on the ICD-10 code - it uses disease name + evidence
-                if code and not validate_icd10_code(code):
-                    print(f"Warning: Invalid ICD-10 code '{code}' for disease '{disease.get('Disease', '')}' - will use retrieval to find codes")
+                if code and not validate_icd10_code(code, check_existence=True):
+                    print(f"Warning: Invalid or non-existent ICD-10 code '{code}' for disease '{disease.get('Disease', '')}' - will use retrieval to find codes")
                     # Clear invalid code so it doesn't cause issues downstream
                     disease['ICD10'] = ''
 

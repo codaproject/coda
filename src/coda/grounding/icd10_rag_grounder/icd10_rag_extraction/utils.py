@@ -9,25 +9,53 @@ import json
 
 from openacme.icd10.generate_embeddings import EMBEDDINGS_BASE
 
+# Cache for definitions data to avoid reloading
+_cached_definitions_data: Optional[Dict[str, Any]] = None
 
-def validate_icd10_code(code: str) -> bool:
-    """Validate ICD-10 code format.
+
+def validate_icd10_code(
+    code: str,
+    check_existence: bool = False,
+    definitions_data: Optional[Dict[str, Any]] = None
+) -> bool:
+    """Validate ICD-10 code format and optionally check existence in embedding space.
 
     Parameters
     ----------
     code : str
         ICD-10 code string (e.g., "I50.9", "A00", "B20.1").
+    check_existence : bool, optional
+        If True, also verify that the code exists in the semantic embedding space.
+        Defaults to False for backward compatibility.
+    definitions_data : dict, optional
+        Optional pre-loaded definitions dict. If None and check_existence=True,
+        loads definitions from default location. Cached after first load.
 
     Returns
     -------
     bool
-        True if valid format, False otherwise.
+        True if valid format (and exists in embedding space if check_existence=True),
+        False otherwise.
     """
     if not code or not isinstance(code, str):
         return False
+    
     # Pattern: Letter followed by 2 digits, optionally followed by . and more digits
     pattern = r'^[A-Z][0-9]{2}(\.[0-9]+)?$'
-    return bool(re.match(pattern, code))
+    if not re.match(pattern, code):
+        return False
+    
+    # If existence check is requested, verify code exists in definitions_data
+    if check_existence:
+        global _cached_definitions_data
+        if definitions_data is None:
+            if _cached_definitions_data is None:
+                _cached_definitions_data = load_icd10_definitions()
+            definitions_data = _cached_definitions_data
+        
+        return code in definitions_data
+    
+    return True
 
 
 def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str, Any]:
