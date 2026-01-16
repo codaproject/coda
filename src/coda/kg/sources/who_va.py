@@ -17,7 +17,7 @@ due to updates (the paper is from 2012 whereas the latest WHO VA
 standard is from 2016).
 """
 import pandas as pd
-import networkx as nx
+from coda.kg.sources import KGSourceExporter
 from openacme.icd10 import expand_icd10_range, get_icd10_graph
 from coda.resources import get_resource_path
 
@@ -28,63 +28,66 @@ from coda.resources import get_resource_path
 # "VAs-01.02","Acute respiratory infection, including pneumonia","J00-J22; J85"
 # "VAs-01.03","HIV/AIDS related death","B20-B24"
 
-WHO_VA_ICD10_MAPPINGS = get_resource_path('who.va_icd10_mappings.csv')
+WHO_VA_ICD10_MAPPINGS = get_resource_path("who.va_icd10_mappings.csv")
 
 
-def get_who_va_graph():
-    df = pd.read_csv(WHO_VA_ICD10_MAPPINGS)
-    icd10_graph = get_icd10_graph()
+class WhoVaExporter(KGSourceExporter):
+    name = "who_va"
 
-    nodes = []
-    edges = []
-    icd_added = set()
-    for _, row in df.iterrows():
-        who_va_id = row['who_va_id']
-        who_va_curie = f'who.va:{who_va_id}'
-        who_va_name = row['who_va_name']
-        icd10_codes = row['icd10_codes']
+    def export(self):
+        df = pd.read_csv(WHO_VA_ICD10_MAPPINGS)
 
-        nodes.append([
-            who_va_curie, {
-                'name': who_va_name,
-                'kind': 'who.va'
-            }
-        ])
+        # Graph is used in expanding ICD-10 ranges
+        icd10_graph = get_icd10_graph()
 
-        # Determine parent based on ID structure
-        if '.' in who_va_id:
-            parent_id = who_va_id.rsplit('.', 1)[0]
-            parent_curie = f'who.va:{parent_id}'
-            edges.append((who_va_curie, parent_curie, {'type': 'is_a'}))
+        # Set WHO VA curies
+        df["who_va_curie"] = df["who_va_id"].apply(lambda x: f"who.va:{x}")
 
-        # Parse ICD codes
-        if pd.notna(icd10_codes) and icd10_codes.strip():
-            for code_part in icd10_codes.split(';'):
-                code_part = code_part.strip()
-                if '-' in code_part:
-                    start_code, end_code = code_part.split('-', 1)
-                    codes = expand_icd10_range(icd10_graph,
-                                               start_code.strip(),
-                                               end_code.strip())
-                else:
-                    codes = [code_part]
+        # Dump the who.va nodes
+        nodes = df[["who_va_curie", "who_va_name"]].rename(
+            {
+                "who_va_curie": "id:ID",
+                "who_va_name": "name",
+            },
+            axis=1,
+        )
+        nodes[":LABEL"] = "who.va"
+        nodes.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
 
-                for code in codes:
-                    icd10_curie = f'icd10:{code}'
-                    if icd10_curie not in icd_added:
-                        nodes.append([icd10_curie, {'redundant': True}])
-                        icd_added.add(icd10_curie)
-                    edges.append((
-                        icd10_curie,
-                        who_va_curie,
-                        {'kind': 'maps_to'}
-                    ))
-    g = nx.DiGraph()
-    g.add_nodes_from(nodes)
-    g.add_edges_from(edges)
-    return g
+        edges = []
+        for _, row in df.iterrows():
+            who_va_id = row["who_va_id"]
+            who_va_curie = row["who_va_curie"]
+            icd10_codes = row["icd10_codes"]
+
+            # Determine parent based on ID structure
+            if "." in who_va_id:
+                parent_id = who_va_id.rsplit(".", 1)[0]
+                parent_curie = f"who.va:{parent_id}"
+                edges.append((who_va_curie, parent_curie, "is_a"))
+
+            # Parse ICD codes
+            if pd.notna(icd10_codes) and icd10_codes.strip():
+                for code_part in icd10_codes.split(";"):
+                    code_part = code_part.strip()
+                    if "-" in code_part:
+                        start_code, end_code = code_part.split("-", 1)
+                        codes = expand_icd10_range(
+                            icd10_graph, start_code.strip(), end_code.strip()
+                        )
+                    else:
+                        codes = [code_part]
+
+                    for code in codes:
+                        icd10_curie = f"icd10:{code}"
+                        edges.append((icd10_curie, who_va_curie, "maps_to"))
+
+        edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
+        edges_df.sort_values([":START_ID", ":END_ID"]).to_csv(
+            self.edges_file, sep="\t", index=False
+        )
 
 
-if __name__ == '__main__':
-    g = get_who_va_graph()
-    print(f'WHO VA graph has {len(g.nodes)} nodes and {len(g.edges)} edges.')
+if __name__ == "__main__":
+    who_va_exporter = WhoVaExporter()
+    who_va_exporter.export()
