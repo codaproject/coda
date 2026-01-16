@@ -22,17 +22,7 @@ RUN curl -fsSL https://debian.neo4j.com/neotechnology.gpg.key | \
     && apt-get update -y \
     && apt-get install -y neo4j=1:2025.10.1
 
-# Retrieves jar file needed to install apoc
-# FIXME: get these for the right neo4j version
-# RUN wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/4.4.0.30/apoc-4.4.0.30-all.jar -O /var/lib/neo4j/plugins/apoc-4.4.0.30-all.jar
-
-# Set custom configuration to enable apoc and allow connections
-# FIXME: we need to add an apoc.conf
-#RUN echo "dbms.security.procedures.unrestricted=apoc.*" >> /etc/neo4j/neo4j.conf
-#RUN echo "apoc.export.file.enabled=true" >> /etc/neo4j/neo4j.conf
-RUN sed -i 's/#server.default_listen_address/server.default_listen_address/' /etc/neo4j/neo4j.conf
-RUN sed -i 's/#dbms.security.auth_enabled/dbms.security.auth_enabled/' /etc/neo4j/neo4j.conf
-
+## Install python packages
 # On newer Ubuntu versions we need to explicitly allow
 # install of Python packages at the system level
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
@@ -44,6 +34,32 @@ RUN python -m pip install --ignore-installed blinker && \
     python -c "import nltk;nltk.download('stopwords');nltk.download('punkt_tab')" && \
     python -m gilda.resources
 
+# Install neo4j apoc core (bundled with neo4j) - simply move the core jar to the plugins directory
+RUN mv /var/lib/neo4j/labs/apoc-2025.10.1-core.jar /var/lib/neo4j/plugins/
+
+
+## apoc extended installation - see https://neo4j.com/labs/apoc/2025/installation/
+# Retrieve jar file for apoc extended
+RUN wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/2025.10.0/apoc-2025.10.0-extended.jar -O /var/lib/neo4j/plugins/apoc-2025.10.0-extended.jar
+
+# Set custom configuration to enable apoc extended and allow connections
+# (core) https://neo4j.com/labs/apoc/2025/installation/#restricted
+# (extended) https://neo4j.com/labs/apoc/2025/installation/#restricted
+
+# dbms.security.procedures.allowlist is set to '*' by default so we don't touch that
+# line in the config - this allows all procedures that _don't_ use the internal API
+
+# For procedures that use the internal API we need to explicitly allow them
+RUN echo "dbms.security.procedures.unrestricted=apoc.*" >> /etc/neo4j/neo4j.conf
+
+# Enables writing local files to disk
+# https://neo4j.com/docs/apoc/current/config/#_apoc_export_file_enabled
+# NOTE: apoc settings must be in their own conf file, apoc.conf, in the same
+# directory as neo4j.conf
+RUN echo "apoc.export.file.enabled=true" >> /etc/neo4j/apoc.conf
+
+# Set up external traffic and basic auth
+RUN sed -i 's/#server.default_listen_address/server.default_listen_address/' /etc/neo4j/neo4j.conf
 
 # Ingest graph content into neo4j
 COPY kg /sw/kg
