@@ -36,6 +36,7 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     "httpx>=0.25.0",
+    'polars',
 ]
 
 [project.optional-dependencies]
