@@ -1,5 +1,8 @@
 import logging
 import polars
+import csv
+from tqdm import tqdm
+import os
 from coda.kg.sources import KGSourceExporter, KG_BASE
 
 logger = logging.getLogger(__name__)
@@ -7,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 class DuplicateNodeIDError(ValueError):
     """Raised when a duplicate node ID is found in a node file."""
+
+
+class MissingNodeIDError(ValueError):
+    """Raised when a non-existent node ID referenced in a relationship file."""
 
 
 def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = True):
@@ -80,3 +87,93 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
             frame.sort("id:ID").write_csv(exporter.nodes_file, separator="\t")
         node_file = KG_BASE / f"combined_nodes.tsv"
         joined_df.write_csv(node_file, separator="\t")
+
+
+def check_missing_node_ids_in_edges(exporters, strict: bool = True):
+    """Ensure every node ID referenced in the edges file exists in the exporters or combined_nodes node resource files.
+
+    Parameters
+    ----------
+    exporters : list[KGSourceExporter]
+        List of exporters to check.
+    strict : bool = True
+        If to raise an exception if a node reference is missing or just raise a warning
+    Raises
+    ------
+    MissingNodeIDError
+        If the head or tail of a node is not present in the set of nodes.
+    """
+    node_ids = set()
+    ## get all node ids
+    for exporter in tqdm(exporters, desc="loading all graph nodes", unit="source"):
+        with open(exporter.nodes_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t")
+            header = next(reader)
+            id_index = header.index("id:ID")
+            for row in reader:
+                id_value = row[id_index]
+                node_ids.add(id_value)
+    ## also check file that stores combined nodes just in case.
+    combined_nodes_path = KG_BASE.joinpath("combined_nodes.tsv")
+    if os.path.exists(combined_nodes_path):
+        with open(combined_nodes_path, "r") as f:
+            reader = csv.reader(f, delimiter="\t")
+            header = next(reader)
+            id_index = header.index("id:ID")
+            for row in reader:
+                id_value = row[id_index]
+                node_ids.add(id_value)
+    ## check that all nodes exist in the edge file
+    for exporter in tqdm(
+        exporters, desc="checking exporter edge existence", unit="source"
+    ):
+        tqdm.write(f"Checking {exporter.name} edges")
+        with open(exporter.edges_file, mode="r") as f:
+            reader = csv.reader(f, delimiter="\t")
+            header = next(reader)
+            start_id_index = header.index(":START_ID")
+            end_id_index = header.index(":END_ID")
+            type_index = header.index(":TYPE")
+            message = "Edge ({start})-[{type}]->({end}) references missing node ID {missing_id}."
+            for row in tqdm(reader, unit="edges", leave=False):
+                type_value = row[type_index]
+                start_id_value = row[start_id_index]
+                end_id_value = row[end_id_index]
+                if start_id_value not in node_ids:
+                    if strict:
+                        raise MissingNodeIDError(
+                            message.format(
+                                start=start_id_value,
+                                type=type_value,
+                                end=end_id_value,
+                                missing_id=start_id_value,
+                            )
+                        )
+                    else:
+                        logger.warning(
+                            message.format(
+                                start=start_id_value,
+                                type=type_value,
+                                end=end_id_value,
+                                missing_id=end_id_value,
+                            )
+                        )
+                if end_id_value not in node_ids:
+                    if strict:
+                        raise MissingNodeIDError(
+                            message.format(
+                                start=start_id_value,
+                                type=type_value,
+                                end=end_id_value,
+                                missing_id=end_id_value,
+                            )
+                        )
+                    else:
+                        logger.warning(
+                            message.format(
+                                start=start_id_value,
+                                type=type_value,
+                                end=end_id_value,
+                                missing_id=end_id_value,
+                            )
+                        )
