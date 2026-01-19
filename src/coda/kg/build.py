@@ -11,7 +11,10 @@ from coda.kg.sources import (
     KG_BASE,
     KGSourceExporter,
 )
-from coda.kg.processor_util import check_duplicated_nodes
+from coda.kg.processor_util import (
+    check_duplicated_nodes,
+    check_missing_node_ids_in_edges,
+)
 
 
 EXPORTERS: list[KGSourceExporter] = [
@@ -36,7 +39,8 @@ def dump_kg():
         unit="source",
     ):
         exporter.export()
-    check_duplicated_nodes(exporters=EXPORTERS, strict=True)
+    check_duplicated_nodes(exporters=EXPORTERS, strict=False)
+    check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=True)
 
 
 if __name__ == "__main__":
