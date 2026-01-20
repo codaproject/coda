@@ -43,6 +43,11 @@ test = [
     "pytest",
     "pytest-asyncio",
 ]
+kg_build = [
+    "openpyxl",
+    "xlrd",
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
+]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"
