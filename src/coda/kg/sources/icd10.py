@@ -13,7 +13,7 @@ class ICD10Exporter(KGSourceExporter):
 
     def export(self):
         g = get_icd10_graph()
-        ## load associated ICD10 embeddings
+        # Load associated ICD10 embeddings
         icd10_embeddings, definitions_data = load_embeddings(
             embeddings_base=ICD10_EMBEDDINGS_BASE
         )
@@ -25,7 +25,7 @@ class ICD10Exporter(KGSourceExporter):
         nodes = []
         edges = []
         for node, data in g.nodes(data=True):
-            ## find associated embedding and format for writing to tsv ##
+            # Find associated embedding and format for writing to tsv
             node_idx = icd10_to_embedding_map.get(node, None)
             embedding = (
                 ";".join(icd10_embeddings[node_idx].astype(str).tolist())
@@ -41,7 +41,7 @@ class ICD10Exporter(KGSourceExporter):
                     data.get("rubrics", {}).pop("preferred", [None])[0],  # name
                     data.get("kind"),  # class_kind
                     node,  # code
-                    embedding,  ## associated embedding
+                    embedding,  # associated embedding
                 ]
             )
         nodes_df = pd.DataFrame(
