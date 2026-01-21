@@ -51,7 +51,8 @@ RUN wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/downloa
 
 # For procedures that use the internal API we need to explicitly allow them
 RUN echo "dbms.security.procedures.unrestricted=apoc.*" >> /etc/neo4j/neo4j.conf
-
+# Disabling neo4j authentication.
+RUN sed -i 's/#dbms.security.auth_enabled/dbms.security.auth_enabled/' /etc/neo4j/neo4j.conf
 # Enables writing local files to disk
 # https://neo4j.com/docs/apoc/current/config/#_apoc_export_file_enabled
 # NOTE: apoc settings must be in their own conf file, apoc.conf, in the same
