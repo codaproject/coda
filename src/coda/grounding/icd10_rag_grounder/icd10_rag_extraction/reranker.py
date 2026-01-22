@@ -6,12 +6,10 @@ Supports:
 - rerank_batch(...): batch reranking for ALL mentions in one LLM call (new)
 """
 
-import json
-import os
-import time
 import logging
 from typing import Dict, Any, List, Optional
-from openai import OpenAI
+
+from coda.llm_api import LLMClient
 
 from .schemas import RERANKING_SCHEMA, BATCH_RERANKING_SCHEMA
 from .utils import validate_icd10_code
@@ -33,15 +31,17 @@ class CodeReranker:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini",
+        llm_client: LLMClient,
     ):
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key.")
+        """
+        Initialize code reranker.
 
-        self.client = OpenAI(api_key=api_key, timeout=(60.0, 300.0))
-        self.model = model
+        Parameters
+        ----------
+        llm_client : LLMClient
+            LLM client adapter to use. Must be provided.
+        """
+        self.llm_client = llm_client
 
         self.schema_single = RERANKING_SCHEMA
         self.schema_batch = BATCH_RERANKING_SCHEMA
@@ -145,36 +145,18 @@ class CodeReranker:
             "Re-rank these codes by how well they match the mention."
         )
 
-        response_json = None
-        for attempt in range(self.max_retries):
-            try:
-                response = self.client.responses.create(
-                    model=self.model,
-                    input=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    text={
-                        "format": {
-                            "type": "json_schema",
-                            "name": "reranking_icd10_single",
-                            "schema": self.schema_single,
-                            "strict": True,
-                        }
-                    },
-                )
-                response_json = json.loads(response.output_text)
-                break
-            except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Reranking attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-                else:
-                    logger.error(f"All {self.max_retries} reranking attempts failed. Last error: {e}")
-                    return {"Reranked ICD-10 Codes": [], "api_failed": True}
+        # Use LLM adapter for API call
+        response_json = self.llm_client.call_with_schema(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=self.schema_single,
+            schema_name="reranking_icd10_single",
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+        )
 
-        if response_json is None:
+        # Check for API failure
+        if response_json.get("api_failed", False):
             return {"Reranked ICD-10 Codes": [], "api_failed": True}
 
         if "Reranked ICD-10 Codes" not in response_json:
@@ -367,40 +349,38 @@ class CodeReranker:
             + "\n\n".join(blocks)
         )
 
-        response_json = None
-        for attempt in range(self.max_retries):
-            try:
-                response = self.client.responses.create(
-                    model=self.model,
-                    input=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    text={
-                        "format": {
-                            "type": "json_schema",
-                            "name": "reranking_icd10_batch",
-                            "schema": self.schema_batch,
-                            "strict": True,
-                        }
-                    },
-                )
-                response_json = json.loads(response.output_text)
-                break
-            except Exception as e:
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Batch reranking attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-                else:
-                    logger.error(f"All {self.max_retries} batch reranking attempts failed. Last error: {e}")
-                    return {"Mention Rerankings": [], "api_failed": True}
+        # Use LLM adapter for API call
+        response_json = self.llm_client.call_with_schema(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=self.schema_batch,
+            schema_name="reranking_icd10_batch",
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+        )
 
-        if response_json is None:
+        # Check for API failure
+        if response_json.get("api_failed", False):
+            logger.warning("Batch reranking API call failed")
             return {"Mention Rerankings": [], "api_failed": True}
 
-        if "Mention Rerankings" not in response_json or not isinstance(response_json["Mention Rerankings"], list):
-            logger.warning("Invalid batch reranking response structure")
+        # Log the response structure for debugging
+        logger.debug(f"Batch reranking response keys: {list(response_json.keys())}")
+        logger.debug(f"Response type: {type(response_json)}")
+        
+        if "Mention Rerankings" not in response_json:
+            logger.error(
+                f"Invalid batch reranking response structure: missing 'Mention Rerankings' key. "
+                f"Got keys: {list(response_json.keys())}"
+            )
+            logger.error(f"Full response_json (first 1000 chars): {str(response_json)[:1000]}")
+            return {"Mention Rerankings": []}
+        
+        if not isinstance(response_json["Mention Rerankings"], list):
+            logger.error(
+                f"Invalid batch reranking response structure: 'Mention Rerankings' is not a list. "
+                f"Got type: {type(response_json['Mention Rerankings'])}, value: {response_json['Mention Rerankings']}"
+            )
             return {"Mention Rerankings": []}
 
         # Validate codes & attach similarity/retrieved_from; enforce closed-set

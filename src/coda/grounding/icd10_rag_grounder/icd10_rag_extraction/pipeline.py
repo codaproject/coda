@@ -6,6 +6,8 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Union
 
+from coda.llm_api import create_llm_client, LLMClient
+
 from .extractor import BaseExtractor
 from .schemas import COD_EVIDENCE_EXTRACTION_SCHEMA
 from .retriever import ICD10Retriever
@@ -36,12 +38,23 @@ class MedCoderPipeline:
       3) Flat mentions (legacy):
          {"Mentions": [{"Mention": str, "ICD10": str}, ...]}
          Note: ICD10 field is optional and typically empty since extractors no longer predict codes.
+
+    Examples
+    --------
+    Using OpenAI:
+        from coda.llm_api import create_llm_client
+        llm_client = create_llm_client(model="gpt-4o-mini", api_key="sk-...")
+        pipeline = MedCoderPipeline(llm_client=llm_client)
+
+    Using Ollama:
+        from coda.llm_api import create_llm_client
+        llm_client = create_llm_client(model="llama3.2")
+        pipeline = MedCoderPipeline(llm_client=llm_client)
     """
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        openai_model: str = "gpt-4o-mini",
+        llm_client: LLMClient,
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0,
         extraction_schema: Optional[Dict[str, Any]] = None,
@@ -51,8 +64,14 @@ class MedCoderPipeline:
 
         Parameters
         ----------
+        llm_client : LLMClient
+            LLM client adapter to use for extraction and reranking.
+        retrieval_top_k : int, default=10
+            Number of ICD-10 codes to retrieve per mention.
+        retrieval_min_similarity : float, default=0.0
+            Minimum similarity threshold for retrieval.
         extraction_schema : Dict[str, Any], optional
-            JSON schema for extraction. If None, defaults to DISEASE_EXTRACTION_SCHEMA.
+            JSON schema for extraction. If None, defaults to COD_EVIDENCE_EXTRACTION_SCHEMA.
             Common options:
             - DISEASE_EXTRACTION_SCHEMA: Hierarchical extraction (diseases with evidence spans)
             - COD_EVIDENCE_EXTRACTION_SCHEMA: Flat extraction (just evidence spans)
@@ -62,15 +81,31 @@ class MedCoderPipeline:
         Embeddings are automatically loaded from openacme's default location.
         The pipeline will ensure embeddings exist by calling generate_icd10_embeddings()
         if needed (idempotent operation).
+
+        Examples
+        --------
+        # Using OpenAI
+        from coda.llm_api import create_llm_client
+        llm_client = create_llm_client(model="gpt-4o-mini", api_key="sk-...")
+        pipeline = MedCoderPipeline(llm_client=llm_client)
+
+        # Using Ollama
+        llm_client = create_llm_client(model="llama3.2")
+        pipeline = MedCoderPipeline(llm_client=llm_client)
         """
         if extraction_schema is None:
             extraction_schema = COD_EVIDENCE_EXTRACTION_SCHEMA
 
-        # Create extractor with the provided schema
+        # Store LLM client for metadata extraction
+        self.llm_client = llm_client
+        
+        # Get LLM properties from the client itself
+        self.llm_properties = llm_client.get_properties()
+
+        # Create extractor with the provided schema and LLM client
         self.extractor = BaseExtractor(
             schema=extraction_schema,
-            api_key=openai_api_key,
-            model=openai_model,
+            llm_client=llm_client,
         )
 
         # Ensure embeddings + definitions exist (idempotent; will not regenerate if present)
@@ -78,7 +113,7 @@ class MedCoderPipeline:
         load_icd10_definitions()
 
         self.retriever = ICD10Retriever()
-        self.reranker = CodeReranker(api_key=openai_api_key, model=openai_model)
+        self.reranker = CodeReranker(llm_client=llm_client)
 
         self.retrieval_top_k = retrieval_top_k
         self.retrieval_min_similarity = retrieval_min_similarity
@@ -212,6 +247,7 @@ class MedCoderPipeline:
                 top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
+                properties=self.llm_properties,
             )
             empty_dict = empty_result.model_dump()
             empty_dict["_raw_result"] = {"Mentions": []}
@@ -241,13 +277,22 @@ class MedCoderPipeline:
             # 1) disease-grouped: {"Diseases": [...]}  -> flatten into Mentions
             # 2) COD evidence spans: {"COD_EVIDENCE_SPANS": [...]}  -> convert to Mentions
             # 3) flat mentions (legacy): {"Mentions": [...]}
+            logger.info(f"Extraction result keys: {list(extraction_result.keys())}")
+            logger.info(f"Extraction result sample (first 500 chars): {str(extraction_result)[:500]}")
+            
             if "Diseases" in extraction_result:
+                logger.info("Using disease-grouped extraction format")
                 mentions = self._flatten_diseases_to_mentions(extraction_result)
             elif "COD_EVIDENCE_SPANS" in extraction_result:
+                logger.info(f"Using COD_EVIDENCE_SPANS extraction format. Found {len(extraction_result.get('COD_EVIDENCE_SPANS', []))} spans")
                 mentions = self._convert_cod_evidence_spans_to_mentions(extraction_result)
+                logger.info(f"Converted to {len(mentions)} mentions")
             elif "Mentions" in extraction_result:
+                logger.info(f"Using flat Mentions extraction format. Found {len(extraction_result.get('Mentions', []))} mentions")
                 mentions = extraction_result.get("Mentions", [])
             else:
+                logger.warning(f"Unknown extraction result format. Keys: {list(extraction_result.keys())}")
+                logger.warning(f"Full extraction_result: {extraction_result}")
                 mentions = []
 
             if api_failed:
@@ -260,6 +305,7 @@ class MedCoderPipeline:
                     top_k=top_k,
                     add_evidence_spans=annotate_evidence,
                     min_similarity=annotation_min_similarity,
+                    properties=self.llm_properties,
                 ).model_dump()
                 failed_result["_raw_result"] = {"Mentions": [], "api_failed": True}
                 results.append(failed_result)
@@ -277,6 +323,7 @@ class MedCoderPipeline:
                     top_k=top_k,
                     add_evidence_spans=annotate_evidence,
                     min_similarity=annotation_min_similarity,
+                    properties=self.llm_properties,
                 )
                 d = empty_result.model_dump()
                 d["_raw_result"] = {"Mentions": []}
@@ -331,8 +378,11 @@ class MedCoderPipeline:
                 return out
 
             # Assign stable IDs per mention (used to join batch reranking results)
+            # Initialize reranking flags for all mentions
             for i, m in enumerate(mentions):
                 m["_mention_id"] = f"m{i}"
+                m["reranking_failed"] = False
+                m["reranked_codes"] = []
 
             # Build batch payload
             batch_items: List[Dict[str, Any]] = []
@@ -381,11 +431,19 @@ class MedCoderPipeline:
                     reranked_codes = by_id.get(rid, [])
 
                     if not reranked_codes:
+                        mention_text = (m.get("Mention") or "").strip()[:80]
+                        logger.debug(
+                            f"Reranker returned empty codes for mention '{mention_text}' "
+                            f"(mention_id={rid}) - falling back to similarity-based ranking"
+                        )
                         m["reranking_failed"] = True
                         m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [], top_k)
                     else:
                         m["reranking_failed"] = False
                         m["reranked_codes"] = reranked_codes
+                        logger.debug(
+                            f"Reranker returned {len(reranked_codes)} codes for mention_id={rid}"
+                        )
 
             # Cleanup internal join key (don’t leak into raw_result unless you want it)
             for m in mentions:
@@ -416,6 +474,7 @@ class MedCoderPipeline:
                 top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
+                properties=self.llm_properties,
             )
 
             result_dict = annotated_text.model_dump()
@@ -435,6 +494,7 @@ class MedCoderPipeline:
                 top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
+                properties=self.llm_properties,
             ).model_dump()
             empty_result["_raw_result"] = {"Mentions": [], "api_failed": True}
             return empty_result

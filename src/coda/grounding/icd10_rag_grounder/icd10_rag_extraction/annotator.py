@@ -58,6 +58,9 @@ class AnnotatedText(BaseModel):
     annotations: List[Annotation] = Field(
         default_factory=list, description="List of annotations found in the text"
     )
+    properties: Optional[Dict[str, Any]] = Field(
+        None, description="Additional properties/metadata for the annotated text (e.g., model, provider)"
+    )
 
 
 def _similarity_ratio(s1: str, s2: str) -> float:
@@ -186,6 +189,7 @@ def annotate(
     add_evidence_spans: bool = False,
     min_similarity: float = 0.7,
     case_sensitive: bool = False,
+    properties: Optional[Dict[str, Any]] = None,
 ) -> AnnotatedText:
     """
     Contract B:
@@ -193,9 +197,24 @@ def annotate(
       (exact/fuzzy matched substring).
     - LLM Mention is treated as a proposal; fallback only if no span can be found.
     - span provenance is exposed via Annotation.properties["span_source"].
+
+    Parameters
+    ----------
+    properties : Dict[str, Any], optional
+        Additional properties/metadata for the annotated text.
+        Common properties: model, provider, etc.
     """
+    # Save the function parameter to avoid shadowing
+    annotated_text_properties = properties
+    
     if not isinstance(pipeline_result, dict) or "Mentions" not in pipeline_result:
-        return AnnotatedText(text=text, type=text_type, identifier=identifier, annotations=[])
+        return AnnotatedText(
+            text=text,
+            type=text_type,
+            identifier=identifier,
+            annotations=[],
+            properties=annotated_text_properties,
+        )
 
     mentions = pipeline_result.get("Mentions", [])
     annotations: List[Annotation] = []
@@ -302,4 +321,5 @@ def annotate(
         type=text_type,
         identifier=identifier,
         annotations=annotations,
+        properties=annotated_text_properties,
     )

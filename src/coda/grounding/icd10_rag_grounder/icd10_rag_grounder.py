@@ -29,38 +29,50 @@ class RAGGrounder(BaseGrounder):
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        openai_model: str = "gpt-4o-mini",
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0,
-        annotation_min_similarity: float = 0.5
+        annotation_min_similarity: float = 0.5,
+        **llm_kwargs
     ):
         """Initialize the RAG grounder.
 
         Parameters
         ----------
-        openai_api_key : str, optional
-            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
-        openai_model : str
-            OpenAI model name. Defaults to "gpt-4o-mini".
         retrieval_top_k : int
             Number of codes to retrieve per disease. Defaults to 10.
         retrieval_min_similarity : float
             Minimum similarity threshold for retrieval. Defaults to 0.0.
         annotation_min_similarity : float
             Minimum similarity threshold for evidence annotation. Defaults to 0.5.
+        **llm_kwargs
+            Arguments passed to create_llm_client().
+            Common arguments:
+            - model: str (e.g., "gpt-4o-mini", "llama3.2") - defaults to "gpt-4o-mini"
+            - provider: str (e.g., "openai", "ollama") - auto-detected from model if not specified
+            - api_key: str - API key for the provider
+            See create_llm_client() documentation for full list.
 
         Notes
         -----
         Embeddings are automatically loaded from openacme's default location.
         Use openacme.generate_embeddings.generate_icd10_embeddings() to generate
         embeddings if they don't exist yet.
+
+        Examples
+        --------
+        # Default (OpenAI, gpt-4o-mini)
+        grounder = RAGGrounder()
+
+        # Custom model
+        grounder = RAGGrounder(model="llama3.2")
+
+        # With API key
+        grounder = RAGGrounder(model="gpt-4o-mini", api_key="sk-...")
         """
         self.pipeline = MedCoderPipeline(
-            openai_api_key=openai_api_key,
-            openai_model=openai_model,
             retrieval_top_k=retrieval_top_k,
-            retrieval_min_similarity=retrieval_min_similarity
+            retrieval_min_similarity=retrieval_min_similarity,
+            **llm_kwargs
         )
         self.annotation_min_similarity = annotation_min_similarity
 
