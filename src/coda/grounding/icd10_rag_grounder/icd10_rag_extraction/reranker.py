@@ -27,9 +27,7 @@ class CodeReranker:
       - one LLM call per input text (across all mentions)
 
     IMPORTANT (closed-set behavior):
-      - The LLM is allowed to choose ONLY from:
-          (a) retrieved candidate codes
-          (b) optional extractor-proposed llm_code (if present)
+      - The LLM is allowed to choose ONLY from retrieved candidate codes
       - Any other codes returned by the LLM are dropped.
     """
 
@@ -57,6 +55,16 @@ class CodeReranker:
     @staticmethod
     def _norm_code(code: Any) -> str:
         return str(code or "").strip().upper()
+
+    @staticmethod
+    def _safe_float(value: Any) -> Optional[float]:
+        """Safely convert value to float, returning None if conversion fails."""
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
 
     # ---------------------------------------------------------------------
     # Legacy: single-mention rerank (kept for compatibility)
@@ -227,8 +235,6 @@ class CodeReranker:
               - retrieved_codes: List[{"code","name","similarity",...}]
             Optional:
               - context: List[str]
-              - llm_code: str
-              - llm_code_name: str
         per_mention_top_k : int
             Max number of candidates shown to LLM per mention (controls prompt length).
         system_prompt : str, optional
@@ -273,8 +279,7 @@ class CodeReranker:
                 "You are a medical coding expert.\n\n"
                 "Task: for EACH clinical mention, re-rank the provided ICD-10 candidate codes.\n\n"
                 "CRITICAL CONSTRAINT:\n"
-                "- For each mention, you MUST ONLY output codes that appear in that mention's candidate list\n"
-                "  (and/or its optional extractor ICD-10 hint if provided).\n"
+                "- For each mention, you MUST ONLY output codes that appear in that mention's candidate list.\n"
                 "- Do NOT introduce any new ICD-10 codes.\n\n"
                 "Rules:\n"
                 "- Do NOT infer diagnoses beyond what is explicitly stated in the mention/context.\n"
@@ -284,53 +289,69 @@ class CodeReranker:
                 "Return ONLY JSON that matches the provided schema."
             )
 
-        # Build prompt blocks
+        # Pre-process all items: build sim_lookup, name_lookup, allowed_lookup, and prompt blocks in one pass
         blocks: List[str] = []
+        sim_lookup: Dict[str, Dict[str, Any]] = {}
+        name_lookup: Dict[str, Dict[str, str]] = {}  # mention_id -> {code: name}
+        allowed_lookup: Dict[str, set] = {}
+        normalized_mention_ids: Dict[int, str] = {}  # Cache normalized IDs by object id
+
         for it in runnable_items:
-            mention_id = str(it.get("mention_id", "")).strip()
+            # Cache normalized mention_id
+            mention_id_raw = it.get("mention_id", "")
+            mention_id = str(mention_id_raw).strip()
+            normalized_mention_ids[id(it)] = mention_id
+
             mention = str(it.get("mention", "")).strip()
 
+            # Process context
             context_list = it.get("context", None)
             if isinstance(context_list, list) and context_list:
                 context_text = " | ".join(str(x).strip() for x in context_list if str(x).strip())
             else:
                 context_text = ""
 
-            llm_code = self._norm_code(it.get("llm_code", ""))
-            llm_code_name = str(it.get("llm_code_name", "") or "").strip()
+            # Process retrieved_codes once - build prompt and lookup structures
+            retrieved_codes = it.get("retrieved_codes", []) or []
+            
+            # Build code_to_sim, code_to_name, and normalize codes
+            code_to_sim: Dict[str, Any] = {}
+            code_to_name: Dict[str, str] = {}
+            for c in retrieved_codes:
+                code_raw = c.get("code", "")
+                if code_raw:
+                    code = self._norm_code(code_raw)
+                    code_to_sim[code] = c.get("similarity", None)
+                    code_to_name[code] = str(c.get("name", "") or "").strip()
+            
+            sim_lookup[mention_id] = code_to_sim
+            name_lookup[mention_id] = code_to_name
+            allowed_lookup[mention_id] = set(code_to_sim.keys())
 
-            retrieved_codes = list(it.get("retrieved_codes", []) or [])
+            # Sort for prompt (top-k)
             retrieved_codes_sorted = sorted(
                 retrieved_codes,
-                key=lambda x: float(x.get("similarity", 0.0) or 0.0),
+                key=lambda x: self._safe_float(x.get("similarity", 0.0)) or 0.0,
                 reverse=True,
             )[: max(1, int(per_mention_top_k))]
 
+            # Build candidate lines for prompt
             candidates_lines = []
             for c in retrieved_codes_sorted:
                 code = self._norm_code(c.get("code", ""))
                 name = str(c.get("name", "")).strip()
-                sim = c.get("similarity", None)
-                try:
-                    sim_f = float(sim) if sim is not None else None
-                except Exception:
-                    sim_f = None
+                sim_f = self._safe_float(c.get("similarity"))
 
                 if sim_f is None:
                     candidates_lines.append(f"- {code} | {name}")
                 else:
                     candidates_lines.append(f"- {code} | {name} | sim={sim_f:.3f}")
 
-            llm_hint = ""
-            if llm_code and llm_code_name:
-                llm_hint = f"LLM_hint: {llm_code} | {llm_code_name}"
-
             block = (
                 f"[MENTION]\n"
                 f"id: {mention_id}\n"
                 f"text: {mention}\n"
                 + (f"context: {context_text}\n" if context_text else "")
-                + (f"{llm_hint}\n" if llm_hint else "")
                 + "candidates (YOU MUST ONLY CHOOSE FROM THESE):\n"
                 + "\n".join(candidates_lines)
             )
@@ -340,8 +361,9 @@ class CodeReranker:
             "Re-rank ICD-10 candidates for each mention below.\n\n"
             "Output requirements:\n"
             "- Provide a result for each mention id.\n"
-            "- For each mention id, return an ordered list of codes from best to worst.\n"
-            "- DO NOT include codes not present in that mention's candidate list (or its optional LLM_hint).\n\n"
+            "- For each mention id, return an ordered list of ICD-10 CODES ONLY (as strings) from best to worst.\n"
+            "- DO NOT include codes not present in that mention's candidate list.\n"
+            "- DO NOT include code names - only return the codes themselves.\n\n"
             + "\n\n".join(blocks)
         )
 
@@ -381,42 +403,27 @@ class CodeReranker:
             logger.warning("Invalid batch reranking response structure")
             return {"Mention Rerankings": []}
 
-        # Build per-mention similarity lookup from retrieved candidates
-        sim_lookup: Dict[str, Dict[str, Any]] = {}
-        # Build per-mention allowed set: retrieved + optional llm_code
-        allowed_lookup: Dict[str, set] = {}
-
-        for it in runnable_items:
-            mention_id = str(it.get("mention_id", "")).strip()
-            retrieved_codes = it.get("retrieved_codes", []) or []
-            code_to_sim = {
-                self._norm_code(c.get("code", "")): c.get("similarity", None)
-                for c in retrieved_codes
-                if c.get("code")
-            }
-            sim_lookup[mention_id] = code_to_sim
-
-            allowed = set(code_to_sim.keys())
-            llm_code = self._norm_code(it.get("llm_code", ""))
-            if llm_code and validate_icd10_code(llm_code, check_existence=True):
-                allowed.add(llm_code)
-
-            allowed_lookup[mention_id] = allowed
-
         # Validate codes & attach similarity/retrieved_from; enforce closed-set
+        # Note: sim_lookup, name_lookup, and allowed_lookup already built above
         validated_outputs: List[Dict[str, Any]] = []
+        present_ids: Dict[str, bool] = {}  # Use dict for O(1) lookup instead of set
+
         for entry in response_json["Mention Rerankings"]:
             mention_id = str(entry.get("mention_id", "")).strip()
             ranked = entry.get("Reranked ICD-10 Codes", [])
 
             code_to_sim = sim_lookup.get(mention_id, {})
+            code_to_name = name_lookup.get(mention_id, {})
             allowed_codes = allowed_lookup.get(mention_id, set())
 
             cleaned_ranked: List[Dict[str, Any]] = []
             if isinstance(ranked, list):
-                for code_info in ranked:
-                    code = self._norm_code(code_info.get("ICD-10 Code", ""))
-                    name = str(code_info.get("ICD-10 Name", "") or "").strip()
+                for code_item in ranked:
+                    # Handle both old format (dict with "ICD-10 Code") and new format (string)
+                    if isinstance(code_item, dict):
+                        code = self._norm_code(code_item.get("ICD-10 Code", ""))
+                    else:
+                        code = self._norm_code(code_item)
 
                     if not code:
                         continue
@@ -435,6 +442,8 @@ class CodeReranker:
                         )
                         continue
 
+                    # Look up name from retrieved codes
+                    name = code_to_name.get(code, "")
                     similarity = code_to_sim.get(code, None)
                     retrieved_from = "semantic_embeddings" if code in code_to_sim else "llm_generated"
 
@@ -453,11 +462,12 @@ class CodeReranker:
                     "Reranked ICD-10 Codes": cleaned_ranked,
                 }
             )
+            present_ids[mention_id] = True
 
-        # Ensure every input mention_id is present
-        present_ids = {x.get("mention_id", "") for x in validated_outputs}
+        # Ensure every input mention_id is present (use cached normalized IDs)
         for it in items:
-            mid = str(it.get("mention_id", "")).strip()
+            mention_id_raw = it.get("mention_id", "")
+            mid = normalized_mention_ids.get(id(it), str(mention_id_raw).strip())
             if mid and mid not in present_ids:
                 validated_outputs.append({"mention_id": mid, "Reranked ICD-10 Codes": []})
 

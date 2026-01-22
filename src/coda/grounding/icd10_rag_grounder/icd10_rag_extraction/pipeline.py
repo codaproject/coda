@@ -6,15 +6,12 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Union
 
-from .extractor import DiseaseExtractor
+from .extractor import BaseExtractor
+from .schemas import COD_EVIDENCE_EXTRACTION_SCHEMA
 from .retriever import ICD10Retriever
 from .reranker import CodeReranker
 from .annotator import annotate
-from .utils import (
-    get_icd10_name,
-    validate_icd10_code,
-    load_icd10_definitions,
-)
+from .utils import load_icd10_definitions
 
 from openacme.icd10.generate_embeddings import generate_icd10_embeddings
 
@@ -27,13 +24,18 @@ class MedCoderPipeline:
 
     Combines LLM mention extraction, semantic retrieval, and re-ranking.
 
-    Supports extractor outputs in either shape:
-      1) Flat mentions:
-         {"Mentions": [{"Mention": str, "ICD10": str}, ...]}
-
-      2) Disease-grouped:
-         {"Diseases": [{"Disease": str, "ICD10": str, "Supporting Evidence": [str, ...]}, ...]}
+    Supports extractor outputs in multiple shapes:
+      1) Disease-grouped:
+         {"Diseases": [{"Disease": str, "Supporting Evidence": [str, ...]}, ...]}
          -> flattened to Mentions where each evidence span becomes a mention.
+
+      2) COD evidence spans (flat):
+         {"COD_EVIDENCE_SPANS": [str, ...]}
+         -> converted to Mentions format.
+
+      3) Flat mentions (legacy):
+         {"Mentions": [{"Mention": str, "ICD10": str}, ...]}
+         Note: ICD10 field is optional and typically empty since extractors no longer predict codes.
     """
 
     def __init__(
@@ -42,9 +44,18 @@ class MedCoderPipeline:
         openai_model: str = "gpt-4o-mini",
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0,
+        extraction_schema: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize the medical coding pipeline.
+
+        Parameters
+        ----------
+        extraction_schema : Dict[str, Any], optional
+            JSON schema for extraction. If None, defaults to DISEASE_EXTRACTION_SCHEMA.
+            Common options:
+            - DISEASE_EXTRACTION_SCHEMA: Hierarchical extraction (diseases with evidence spans)
+            - COD_EVIDENCE_EXTRACTION_SCHEMA: Flat extraction (just evidence spans)
 
         Notes
         -----
@@ -52,7 +63,15 @@ class MedCoderPipeline:
         The pipeline will ensure embeddings exist by calling generate_icd10_embeddings()
         if needed (idempotent operation).
         """
-        self.extractor = DiseaseExtractor(api_key=openai_api_key, model=openai_model)
+        if extraction_schema is None:
+            extraction_schema = COD_EVIDENCE_EXTRACTION_SCHEMA
+
+        # Create extractor with the provided schema
+        self.extractor = BaseExtractor(
+            schema=extraction_schema,
+            api_key=openai_api_key,
+            model=openai_model,
+        )
 
         # Ensure embeddings + definitions exist (idempotent; will not regenerate if present)
         generate_icd10_embeddings()
@@ -72,10 +91,10 @@ class MedCoderPipeline:
         Convert disease-grouped extraction output into flat Mentions[].
 
         Expected disease-grouped shape:
-            {"Diseases": [{"Disease": str, "ICD10": str, "Supporting Evidence": [str, ...]}, ...]}
+            {"Diseases": [{"Disease": str, "Supporting Evidence": [str, ...]}, ...]}
 
         Output flat shape:
-            [{"Mention": <evidence span>, "ICD10": "", "_disease": <label>, "_disease_icd10": <optional>}, ...]
+            [{"Mention": <evidence span>, "ICD10": "", "_disease": <label>}, ...]
         """
         diseases = extraction_result.get("Diseases", [])
         if not isinstance(diseases, list):
@@ -87,7 +106,6 @@ class MedCoderPipeline:
                 continue
 
             disease_label = (d.get("Disease") or "").strip()
-            disease_icd10 = (d.get("ICD10") or "").strip()
             evidence_list = d.get("Supporting Evidence", [])
             if not isinstance(evidence_list, list):
                 evidence_list = []
@@ -104,14 +122,44 @@ class MedCoderPipeline:
                         # retrieval + rerank operate on evidence spans
                         "Mention": ev_clean,
 
-                        # do NOT force disease-level ICD10 onto every evidence span
+                        # No ICD10 codes from extractors (retrieval + reranking will assign codes)
                         "ICD10": "",
 
                         # metadata (annotator ignores unknown fields)
                         "_disease": disease_label,
-                        "_disease_icd10": disease_icd10,
                     }
                 )
+
+        return flat
+
+    def _convert_cod_evidence_spans_to_mentions(self, extraction_result: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Convert COD_EVIDENCE_SPANS extraction output into flat Mentions[].
+
+        Expected COD evidence spans shape:
+            {"COD_EVIDENCE_SPANS": [str, ...]}
+
+        Output flat shape:
+            [{"Mention": <evidence span>, "ICD10": ""}, ...]
+        """
+        evidence_spans = extraction_result.get("COD_EVIDENCE_SPANS", [])
+        if not isinstance(evidence_spans, list):
+            return []
+
+        flat: List[Dict[str, Any]] = []
+        for span in evidence_spans:
+            if not isinstance(span, str):
+                continue
+            span_clean = span.strip()
+            if not span_clean:
+                continue
+
+            flat.append(
+                {
+                    "Mention": span_clean,
+                    "ICD10": "",  # No ICD10 codes from CodEvidenceExtractor
+                }
+            )
 
         return flat
 
@@ -134,8 +182,9 @@ class MedCoderPipeline:
             If list of descriptions: List of dictionaries, each with AnnotatedText structure.
 
         Internal raw_result shape used for annotation:
-            {"Mentions": [ { "Mention": str, "ICD10": str, "retrieved_codes": [...],
-                            "reranked_codes": [...], "reranking_failed": bool, "llm_code_name": str }, ... ]}
+            {"Mentions": [ { "Mention": str, "ICD10": str (empty, extractors don't predict codes),
+                            "retrieved_codes": [...], "reranked_codes": [...], 
+                            "reranking_failed": bool }, ... ]}
         """
         is_single = isinstance(clinical_descriptions, str)
         descriptions_list = [clinical_descriptions] if is_single else clinical_descriptions
@@ -188,13 +237,16 @@ class MedCoderPipeline:
 
             api_failed = extraction_result.get("api_failed", False)
 
-            # Support both extractor output shapes:
-            # 1) flat: {"Mentions": [...]}
-            # 2) grouped: {"Diseases": [...]}  -> flatten into Mentions
-            if "Mentions" in extraction_result:
-                mentions = extraction_result.get("Mentions", [])
-            elif "Diseases" in extraction_result:
+            # Support multiple extractor output shapes:
+            # 1) disease-grouped: {"Diseases": [...]}  -> flatten into Mentions
+            # 2) COD evidence spans: {"COD_EVIDENCE_SPANS": [...]}  -> convert to Mentions
+            # 3) flat mentions (legacy): {"Mentions": [...]}
+            if "Diseases" in extraction_result:
                 mentions = self._flatten_diseases_to_mentions(extraction_result)
+            elif "COD_EVIDENCE_SPANS" in extraction_result:
+                mentions = self._convert_cod_evidence_spans_to_mentions(extraction_result)
+            elif "Mentions" in extraction_result:
+                mentions = extraction_result.get("Mentions", [])
             else:
                 mentions = []
 
@@ -286,21 +338,8 @@ class MedCoderPipeline:
             batch_items: List[Dict[str, Any]] = []
             for m in mentions:
                 mention_text = (m.get("Mention") or "").strip()
-                llm_code_raw = (m.get("ICD10") or "").strip()
 
-                # Validate / normalize LLM code
-                if llm_code_raw and validate_icd10_code(llm_code_raw, check_existence=True):
-                    llm_code = llm_code_raw.strip().upper()
-                    llm_code_name = get_icd10_name(llm_code)
-                else:
-                    if llm_code_raw and not validate_icd10_code(llm_code_raw, check_existence=True):
-                        logger.debug(
-                            f"Ignoring invalid/non-existent ICD-10 code '{llm_code_raw}' for mention '{mention_text[:80]}'"
-                        )
-                    llm_code = ""
-                    llm_code_name = ""
-
-                # Better context (especially for disease-grouped flattening)
+                # Build context (especially for disease-grouped flattening)
                 disease_label = (m.get("_disease") or "").strip()
                 context: List[str] = []
                 if disease_label:
@@ -313,14 +352,9 @@ class MedCoderPipeline:
                         "mention_id": m["_mention_id"],
                         "mention": mention_text,
                         "context": context,
-                        "llm_code": llm_code,
-                        "llm_code_name": llm_code_name,
                         "retrieved_codes": m.get("retrieved_codes", []),
                     }
                 )
-
-                # Keep name around even if rerank fails (useful for debugging)
-                m["llm_code_name"] = llm_code_name
 
             # Single rerank call
             batch_rerank = self.reranker.rerank_batch(items=batch_items)

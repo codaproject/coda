@@ -26,12 +26,8 @@ DISEASE_EXTRACTION_SCHEMA = {
                             "description": "A verbatim text span copied exactly from the clinical description. Must be an exact substring of the input text, not a paraphrase or summary."
                         }
                     },
-                    "ICD10": {
-                        "type": "string",
-                        "description": "The ICD-10 code that corresponds to the disease."
-                    }
                 },
-                "required": ["Disease", "Supporting Evidence", "ICD10"],
+                "required": ["Disease", "Supporting Evidence"],
                 "additionalProperties": False
             }
         }
@@ -41,43 +37,29 @@ DISEASE_EXTRACTION_SCHEMA = {
 }
 
 # -------------------------------------------------------------------
-# Mention extraction (disease / condition centered)
+# General flat evidence span extraction (non-hierarchical, for general-purpose span extraction)
 # -------------------------------------------------------------------
-MENTION_EXTRACTION_SCHEMA = {
+COD_EVIDENCE_EXTRACTION_SCHEMA = {
     "type": "object",
     "properties": {
-        "Mentions": {
+        "COD_EVIDENCE_SPANS": {
             "type": "array",
             "description": (
-                "Clinical conditions extracted from the text. "
-                "Each item should be a verbatim span describing a disease, disorder, complication, "
-                "injury, abnormal finding, or cause-of-death relevant condition."
+                "Clinical evidence spans extracted from the text. "
+                "Each item should be a verbatim text span describing a disease, disorder, complication, "
+                "injury, abnormal finding, or clinical condition."
             ),
             "items": {
-                "type": "object",
-                "properties": {
-                    "Mention": {
-                        "type": "string",
-                        "description": (
-                            "An EXACT verbatim span copied from the input text that expresses a clinical condition. "
-                            "Choose the most informative self-contained span, and include relevant modifiers if present. "
-                            "Avoid overly short fragments when a longer span captures the same meaning."
-                        ),
-                    },
-                    "ICD10": {
-                        "type": "string",
-                        "description": (
-                            "Optional ICD-10 guess for this mention span. "
-                            "May be an empty string if uncertain."
-                        ),
-                    },
-                },
-                "required": ["Mention", "ICD10"],
-                "additionalProperties": False,
+                "type": "string",
+                "description": (
+                    "An EXACT verbatim text span copied from the input text that expresses a clinical condition. "
+                    "DO NOT paraphrase or reword. Extract the exact text as it appears in the input. "
+                    "Must be an exact substring of the input text, not a summary or interpretation."
+                ),
             },
         }
     },
-    "required": ["Mentions"],
+    "required": ["COD_EVIDENCE_SPANS"],
     "additionalProperties": False,
 }
 
@@ -113,6 +95,7 @@ RERANKING_SCHEMA = {
 
 # -------------------------------------------------------------------
 # Batch reranking schema (one LLM call for all mentions)
+# Simplified: only codes required (names looked up from retrieved_codes)
 # -------------------------------------------------------------------
 BATCH_RERANKING_SCHEMA = {
     "type": "object",
@@ -132,16 +115,12 @@ BATCH_RERANKING_SCHEMA = {
                     "Reranked ICD-10 Codes": {
                         "type": "array",
                         "description": (
-                            "ICD-10 codes ordered from most to least appropriate for this mention."
+                            "ICD-10 codes ordered from most to least appropriate for this mention. "
+                            "Return only the codes (strings), not names. Names will be looked up automatically."
                         ),
                         "items": {
-                            "type": "object",
-                            "properties": {
-                                "ICD-10 Code": {"type": "string"},
-                                "ICD-10 Name": {"type": "string"},
-                            },
-                            "required": ["ICD-10 Code", "ICD-10 Name"],
-                            "additionalProperties": False,
+                            "type": "string",
+                            "description": "An ICD-10 code from the candidate list for this mention.",
                         },
                     },
                 },
