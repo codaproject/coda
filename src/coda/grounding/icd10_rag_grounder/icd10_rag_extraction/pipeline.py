@@ -129,7 +129,7 @@ class MedCoderPipeline:
             {"Diseases": [{"Disease": str, "Supporting Evidence": [str, ...]}, ...]}
 
         Output flat shape:
-            [{"Mention": <evidence span>, "ICD10": "", "_disease": <label>}, ...]
+            [{"Mention": <evidence span>, "_disease": <label>}, ...]
         """
         diseases = extraction_result.get("Diseases", [])
         if not isinstance(diseases, list):
@@ -157,9 +157,6 @@ class MedCoderPipeline:
                         # retrieval + rerank operate on evidence spans
                         "Mention": ev_clean,
 
-                        # No ICD10 codes from extractors (retrieval + reranking will assign codes)
-                        "ICD10": "",
-
                         # metadata (annotator ignores unknown fields)
                         "_disease": disease_label,
                     }
@@ -175,7 +172,7 @@ class MedCoderPipeline:
             {"COD_EVIDENCE_SPANS": [str, ...]}
 
         Output flat shape:
-            [{"Mention": <evidence span>, "ICD10": ""}, ...]
+            [{"Mention": <evidence span>}, ...]
         """
         evidence_spans = extraction_result.get("COD_EVIDENCE_SPANS", [])
         if not isinstance(evidence_spans, list):
@@ -191,8 +188,7 @@ class MedCoderPipeline:
 
             flat.append(
                 {
-                    "Mention": span_clean,
-                    "ICD10": "",  # No ICD10 codes from CodEvidenceExtractor
+                    "Mention": span_clean
                 }
             )
 
@@ -380,7 +376,7 @@ class MedCoderPipeline:
             # Assign stable IDs per mention (used to join batch reranking results)
             # Initialize reranking flags for all mentions
             for i, m in enumerate(mentions):
-                m["_mention_id"] = f"m{i}"
+                m["_mention_id"] = str(i)
                 m["reranking_failed"] = False
                 m["reranked_codes"] = []
 
@@ -388,30 +384,21 @@ class MedCoderPipeline:
             batch_items: List[Dict[str, Any]] = []
             for m in mentions:
                 mention_text = (m.get("Mention") or "").strip()
-
-                # Build context (especially for disease-grouped flattening)
-                disease_label = (m.get("_disease") or "").strip()
-                context: List[str] = []
-                if disease_label:
-                    context.append(f"Disease/Condition: {disease_label}")
-                if mention_text:
-                    context.append(f"Evidence: {mention_text}")
-
                 batch_items.append(
                     {
                         "mention_id": m["_mention_id"],
                         "mention": mention_text,
-                        "context": context,
                         "retrieved_codes": m.get("retrieved_codes", []),
                     }
                 )
 
             # Single rerank call
+            logger.debug(f"Batch items (input) for reranking step: {batch_items}")
             batch_rerank = self.reranker.rerank_batch(items=batch_items)
 
             # If API failed, fallback to retrieved codes for all mentions
             if batch_rerank.get("api_failed", False):
-                logger.warning("Batch reranking API failed - falling back to retrieved codes only for all mentions")
+                logger.warning("Batch reranking API failed - falling back to similarity-based ranking for codes for all mentions")
                 for m in mentions:
                     m["reranking_failed"] = True
                     m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [])
@@ -424,7 +411,7 @@ class MedCoderPipeline:
                     if rid:
                         by_id[str(rid)] = codes if isinstance(codes, list) else []
 
-                # Per-mention: if reranker yields empty (often due to hallucinated codes filtered out),
+                # For each mention, if reranker yields empty (often due to hallucinated codes filtered out),
                 # treat as reranking failure and fallback to retrieved codes.
                 for m in mentions:
                     rid = str(m.get("_mention_id", ""))

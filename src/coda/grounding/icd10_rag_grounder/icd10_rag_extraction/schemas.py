@@ -109,8 +109,8 @@ BATCH_RERANKING_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "mention_id": {
-                        "type": "string",
-                        "description": "The mention_id from the input payload. Used to join results back.",
+                        "type": "integer",
+                        "description": "The exact integer 'id' value of the mention.",
                     },
                     "Reranked ICD-10 Codes": {
                         "type": "array",
