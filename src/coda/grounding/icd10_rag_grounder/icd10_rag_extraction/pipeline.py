@@ -205,7 +205,6 @@ class MedCoderPipeline:
         identifier: Optional[Union[str, List[str]]] = None,
         annotate_evidence: bool = True,
         annotation_min_similarity: float = 0.7,
-        top_k: int = 5,
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Process clinical description(s) through full pipeline.
@@ -220,6 +219,9 @@ class MedCoderPipeline:
             {"Mentions": [ { "Mention": str, "ICD10": str (empty, extractors don't predict codes),
                             "retrieved_codes": [...], "reranked_codes": [...], 
                             "reranking_failed": bool }, ... ]}
+        
+        Note: All retrieved/reranked codes are included in the output (no truncation).
+        Use retrieval_top_k parameter in constructor to control how many codes are retrieved.
         """
         is_single = isinstance(clinical_descriptions, str)
         descriptions_list = [clinical_descriptions] if is_single else clinical_descriptions
@@ -244,7 +246,6 @@ class MedCoderPipeline:
                 text_type=text_type,
                 identifier="",
                 pipeline_result={"Mentions": []},
-                top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
                 properties=self.llm_properties,
@@ -302,7 +303,6 @@ class MedCoderPipeline:
                     text_type=text_type,
                     identifier=text_id,
                     pipeline_result={"Mentions": []},
-                    top_k=top_k,
                     add_evidence_spans=annotate_evidence,
                     min_similarity=annotation_min_similarity,
                     properties=self.llm_properties,
@@ -320,7 +320,6 @@ class MedCoderPipeline:
                     text_type=text_type,
                     identifier=text_id,
                     pipeline_result={"Mentions": []},
-                    top_k=top_k,
                     add_evidence_spans=annotate_evidence,
                     min_similarity=annotation_min_similarity,
                     properties=self.llm_properties,
@@ -357,14 +356,15 @@ class MedCoderPipeline:
             step3_start = time.time()
 
             # Helper: fallback = similarity-sorted retrieved codes in reranked schema shape
-            def _fallback_from_retrieved(retrieved_codes: List[Dict[str, Any]], k: int) -> List[Dict[str, Any]]:
+            def _fallback_from_retrieved(retrieved_codes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                """Fallback: return all retrieved codes sorted by similarity (best to worst)."""
                 if not retrieved_codes:
                     return []
                 retrieved_sorted = sorted(
                     retrieved_codes,
                     key=lambda x: float(x.get("similarity", 0.0) or 0.0),
                     reverse=True,
-                )[: max(1, int(k))]
+                )
                 out: List[Dict[str, Any]] = []
                 for c in retrieved_sorted:
                     out.append(
@@ -414,7 +414,7 @@ class MedCoderPipeline:
                 logger.warning("Batch reranking API failed - falling back to retrieved codes only for all mentions")
                 for m in mentions:
                     m["reranking_failed"] = True
-                    m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [], top_k)
+                    m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [])
             else:
                 # Join results back by mention_id
                 by_id: Dict[str, List[Dict[str, Any]]] = {}
@@ -437,7 +437,7 @@ class MedCoderPipeline:
                             f"(mention_id={rid}) - falling back to similarity-based ranking"
                         )
                         m["reranking_failed"] = True
-                        m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [], top_k)
+                        m["reranked_codes"] = _fallback_from_retrieved(m.get("retrieved_codes", []) or [])
                     else:
                         m["reranking_failed"] = False
                         m["reranked_codes"] = reranked_codes
@@ -471,7 +471,6 @@ class MedCoderPipeline:
                 text_type=text_type,
                 identifier=text_id,
                 pipeline_result=raw_result,
-                top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
                 properties=self.llm_properties,
@@ -491,7 +490,6 @@ class MedCoderPipeline:
                 text_type=text_type,
                 identifier=identifiers_list[0] if identifiers_list else "",
                 pipeline_result={"Mentions": []},
-                top_k=top_k,
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
                 properties=self.llm_properties,

@@ -26,17 +26,15 @@ def create_llm_client(
     """
     Factory function to create an appropriate LLM client adapter.
 
-    Auto-detects the provider from the model name if not specified.
-    Falls back to OpenAI if detection fails.
+    Defaults to OpenAI provider if not specified.
 
     Parameters
     ----------
     provider : str, optional
         Explicit provider name ("openai", "ollama", etc.).
-        If not provided, auto-detects from model name.
+        If not provided, defaults to "openai".
     model : str, optional
         Model name (e.g., "gpt-4o-mini", "llama3.2").
-        Used for auto-detection if provider not specified.
     **kwargs
         Additional arguments passed to the adapter constructor
         (e.g., api_key, base_url, timeout).
@@ -53,10 +51,9 @@ def create_llm_client(
 
     Examples
     --------
-    # Auto-detect from model name
+    # Default to OpenAI
     from coda.llm_api import create_llm_client
     client = create_llm_client(model="gpt-4o-mini")
-    client = create_llm_client(model="llama3.2")
 
     # Explicit provider
     client = create_llm_client(provider="openai", model="gpt-4o-mini", api_key="sk-...")
@@ -70,12 +67,11 @@ def create_llm_client(
         timeout=(60.0, 300.0)
     )
     """
-    # Determine provider
+    # Determine provider - default to "openai" if not specified
     if provider:
         provider = provider.lower()
     else:
-        # Auto-detect from model name
-        provider = _detect_provider(model)
+        provider = "openai"
 
     # Get adapter class
     adapter_class = _ADAPTERS.get(provider)
@@ -87,41 +83,6 @@ def create_llm_client(
 
     # Create instance with provided kwargs
     return adapter_class(model=model, **kwargs)
-
-
-def _detect_provider(model: Optional[str] = None) -> str:
-    """
-    Auto-detect provider from model name.
-
-    Parameters
-    ----------
-    model : str, optional
-        Model name to analyze.
-
-    Returns
-    -------
-    str
-        Detected provider name ("openai" or "ollama").
-        Defaults to "openai" if detection fails.
-    """
-    if not model:
-        # Default to OpenAI if no model specified
-        return "openai"
-
-    model_lower = model.lower()
-
-    # OpenAI model patterns
-    openai_patterns = ["gpt-", "o1-", "o3-", "dall-e", "whisper", "tts-"]
-    if any(model_lower.startswith(pattern) for pattern in openai_patterns):
-        return "openai"
-
-    # Ollama model patterns (common local model names)
-    ollama_patterns = ["llama", "mistral", "mixtral", "phi", "gemma", "qwen", "codellama"]
-    if any(pattern in model_lower for pattern in ollama_patterns):
-        return "ollama"
-
-    # Default to OpenAI for unknown models
-    return "openai"
 
 
 __all__ = ["LLMClient", "OpenAIAdapter", "OllamaAdapter", "create_llm_client"]

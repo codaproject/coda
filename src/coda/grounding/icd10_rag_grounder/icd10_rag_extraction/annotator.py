@@ -185,7 +185,6 @@ def annotate(
     text_type: str,
     identifier: str,
     pipeline_result: Dict[str, Any],
-    top_k: int = 5,
     add_evidence_spans: bool = False,
     min_similarity: float = 0.7,
     case_sensitive: bool = False,
@@ -267,7 +266,7 @@ def annotate(
                 retrieved_codes,
                 key=lambda x: x.get("similarity", 0.0),
                 reverse=True,
-            )[:top_k]
+            )
 
             codes_to_process = [
                 {
@@ -281,8 +280,10 @@ def annotate(
 
             top_code_info = codes_to_process[0]
         else:
-            codes_to_process = reranked_codes[:top_k]
-            top_code_info = reranked_codes[0]
+            # Use all reranked codes (reranker returns best-to-worst order)
+            codes_to_process = reranked_codes
+            # Top code is always the first reranked code (best match)
+            top_code_info = reranked_codes[0] if reranked_codes else {}
 
         ranked_matches: List[RankedMatch] = []
         for code_info in codes_to_process:
