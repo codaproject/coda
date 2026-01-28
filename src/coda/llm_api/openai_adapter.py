@@ -51,7 +51,7 @@ class OpenAIAdapter(LLMClient):
         self.model = model
         self.provider = "openai"
 
-    def call(self, user_prompt: str) -> str:
+    def call(self, user_prompt: str, temperature: float = 0.0) -> str:
         """
         Make an OpenAI API call without schema constraints.
 
@@ -59,7 +59,8 @@ class OpenAIAdapter(LLMClient):
         ----------
         user_prompt : str
             User prompt for the LLM.
-
+        temperature : float, default=0.0
+            Temperature for the LLM.
         Returns
         -------
         str
@@ -79,7 +80,7 @@ class OpenAIAdapter(LLMClient):
                     messages=[
                         {"role": "user", "content": user_prompt}
                     ],
-                    temperature=0.0,  # Deterministic output
+                    temperature=temperature,
                 )
                 
                 # Extract message content
@@ -123,6 +124,7 @@ class OpenAIAdapter(LLMClient):
         schema_name: str,
         max_retries: int = 3,
         retry_delay: float = 1.0,
+        temperature: float = 0.0,
     ) -> Dict[str, Any]:
         """
         Make an OpenAI API call with structured JSON schema output.
@@ -141,7 +143,8 @@ class OpenAIAdapter(LLMClient):
             Maximum number of retry attempts on failure.
         retry_delay : float, default=1.0
             Base delay in seconds for exponential backoff retries.
-
+        temperature: float, default=0.0
+            Temperature for the LLM.
         Returns
         -------
         Dict[str, Any]

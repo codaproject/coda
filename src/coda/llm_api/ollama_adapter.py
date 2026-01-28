@@ -53,7 +53,7 @@ class OllamaAdapter(LLMClient):
         self.timeout = timeout
         self.provider = "ollama"
 
-    def call(self, user_prompt: str) -> str:
+    def call(self, user_prompt: str, temperature: float = 0.0) -> str:
         """
         Make an Ollama API call without schema constraints.
 
@@ -61,6 +61,9 @@ class OllamaAdapter(LLMClient):
         ----------
         user_prompt : str
             User prompt for the LLM.
+        temperature : float, default=0.0
+            Temperature for the LLM. Controls randomness in output.
+            Lower values (0.0-0.3) are more deterministic, higher values (0.7-1.0) are more creative.
 
         Returns
         -------
@@ -81,7 +84,7 @@ class OllamaAdapter(LLMClient):
                     model=self.model,
                     messages=messages,
                     options={
-                        "temperature": 0.0,  # Deterministic output
+                        "temperature": temperature,
                     },
                 )
                 
