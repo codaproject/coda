@@ -5,7 +5,7 @@ Finds character spans of evidence strings in the original clinical text.
 """
 
 import re
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 from difflib import SequenceMatcher
 
 
