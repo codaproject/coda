@@ -84,6 +84,7 @@ class DiseaseExtractor:
 
             response = self.client.responses.create(
                 model=self.model,
+                temperature=0,
                 input=[
                     {
                         "role": "system",

@@ -114,6 +114,7 @@ Re-rank these codes based on how well they match the disease and evidence."""
         try:
             response = self.client.responses.create(
                 model=self.model,
+                temperature=0,
                 input=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
