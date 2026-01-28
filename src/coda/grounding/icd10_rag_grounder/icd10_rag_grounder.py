@@ -29,38 +29,50 @@ class RAGGrounder(BaseGrounder):
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        openai_model: str = "gpt-4o-mini",
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0,
-        annotation_min_similarity: float = 0.5
+        annotation_min_similarity: float = 0.5,
+        **llm_kwargs
     ):
         """Initialize the RAG grounder.
 
         Parameters
         ----------
-        openai_api_key : str, optional
-            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
-        openai_model : str
-            OpenAI model name. Defaults to "gpt-4o-mini".
         retrieval_top_k : int
             Number of codes to retrieve per disease. Defaults to 10.
         retrieval_min_similarity : float
             Minimum similarity threshold for retrieval. Defaults to 0.0.
         annotation_min_similarity : float
             Minimum similarity threshold for evidence annotation. Defaults to 0.5.
+        **llm_kwargs
+            Arguments passed to create_llm_client().
+            Common arguments:
+            - model: str (e.g., "gpt-4o-mini", "llama3.2") - defaults to "gpt-4o-mini"
+            - provider: str (e.g., "openai", "ollama") - auto-detected from model if not specified
+            - api_key: str - API key for the provider
+            See create_llm_client() documentation for full list.
 
         Notes
         -----
         Embeddings are automatically loaded from openacme's default location.
         Use openacme.generate_embeddings.generate_icd10_embeddings() to generate
         embeddings if they don't exist yet.
+
+        Examples
+        --------
+        # Default (OpenAI, gpt-4o-mini)
+        grounder = RAGGrounder()
+
+        # Custom model
+        grounder = RAGGrounder(model="llama3.2")
+
+        # With API key
+        grounder = RAGGrounder(model="gpt-4o-mini", api_key="sk-...")
         """
         self.pipeline = MedCoderPipeline(
-            openai_api_key=openai_api_key,
-            openai_model=openai_model,
             retrieval_top_k=retrieval_top_k,
-            retrieval_min_similarity=retrieval_min_similarity
+            retrieval_min_similarity=retrieval_min_similarity,
+            **llm_kwargs
         )
         self.annotation_min_similarity = annotation_min_similarity
 
@@ -80,29 +92,35 @@ class RAGGrounder(BaseGrounder):
         logger.debug(f"Grounding text: {text[:100]}...")
 
         # Process through pipeline
-        result = self.pipeline.process(
+        annotated_result = self.pipeline.process(
             text,
+            text_type="clinical_note",
+            identifier="",
             annotate_evidence=False,
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        # Extract all codes from the result
-        scored_matches = []
-        diseases = result.get('Diseases', [])
+        # Handle both single dict and list of dicts
+        if isinstance(annotated_result, list):
+            annotated_dict = annotated_result[0] if annotated_result else {}
+        else:
+            annotated_dict = annotated_result
 
-        for disease in diseases:
-            # Get reranked codes - take only the top (first) code
-            codes = disease.get('reranked_codes', [])
-            if not codes:
+        # Extract all codes from the annotations
+        scored_matches = []
+        
+        annotations = annotated_dict.get('annotations', [])
+        for annotation in annotations:
+            # Get top match (first in ranked_matches)
+            ranked_matches = annotation.get('ranked_matches', [])
+            if not ranked_matches:
                 continue
 
-            # Get the top code (first in reranked list)
-            code_info = codes[0]
-            code = code_info.get('ICD-10 Code', '') or code_info.get('code', '')
-            name = code_info.get('ICD-10 Name', '') or code_info.get('name', get_icd10_name(code))
-            # Use similarity score from retrieval
-            similarity = code_info.get('similarity', 0.0)
-            score = float(similarity)
+            top_match = ranked_matches[0]
+            # Extract code from CURIE identifier (icd10:CODE -> CODE)
+            code = top_match.get('identifier', '').replace("icd10:", "") if top_match.get('identifier', '').startswith("icd10:") else ""
+            name = top_match.get('name', '')
+            score = float(top_match.get('score', 0.0))
 
             # Create gilda Term object
             term = Term(
@@ -143,15 +161,30 @@ class RAGGrounder(BaseGrounder):
         logger.debug(f"Annotating text: {text[:100]}...")
 
         # Process through pipeline with evidence annotation
-        result = self.pipeline.process(
+        annotated_result = self.pipeline.process(
             text,
+            text_type="clinical_note",
+            identifier="",
             annotate_evidence=True,
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        annotations = []
-        diseases = result.get('Diseases', [])
+        # Handle both single dict and list of dicts
+        if isinstance(annotated_result, list):
+            annotated_dict = annotated_result[0] if annotated_result else {}
+        else:
+            annotated_dict = annotated_result
 
+        annotations = []
+        
+        # Get raw result to access evidence spans
+        raw_result = annotated_dict.get('_raw_result', None)
+        if not raw_result:
+            logger.warning("No raw result available for evidence spans")
+            return annotations
+        
+        diseases = raw_result.get('Diseases', [])
+        
         for disease in diseases:
             # Get evidence spans (primary source for annotation text)
             evidence_spans = disease.get('evidence_spans', [])

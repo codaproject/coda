@@ -2,12 +2,16 @@
 JSON schemas for structured LLM outputs.
 """
 
+# -------------------------------------------------------------------
+# Disease / condition grouped extraction (preferred for clean evidence)
+# -------------------------------------------------------------------
 DISEASE_EXTRACTION_SCHEMA = {
     "type": "object",
     "properties": {
         "Diseases": {
             "type": "array",
-            "description": "The diseases or conditions that the patient likely has.",
+            "minItems": 0,
+            "description": "The diseases or conditions that the patient likely has. If there are no diseases, return an empty array.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -23,12 +27,8 @@ DISEASE_EXTRACTION_SCHEMA = {
                             "description": "A verbatim text span copied exactly from the clinical description. Must be an exact substring of the input text, not a paraphrase or summary."
                         }
                     },
-                    "ICD10": {
-                        "type": "string",
-                        "description": "The ICD-10 code that corresponds to the disease."
-                    }
                 },
-                "required": ["Disease", "Supporting Evidence", "ICD10"],
+                "required": ["Disease", "Supporting Evidence"],
                 "additionalProperties": False
             }
         }
@@ -37,6 +37,36 @@ DISEASE_EXTRACTION_SCHEMA = {
     "additionalProperties": False
 }
 
+# -------------------------------------------------------------------
+# General flat evidence span extraction (non-hierarchical, for general-purpose span extraction)
+# -------------------------------------------------------------------
+COD_EVIDENCE_EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "COD_EVIDENCE_SPANS": {
+            "type": "array",
+            "minItems": 0,
+            "description": (
+                "Clinical evidence spans extracted from the text. "
+                "Each item should be a verbatim text span describing a disease, disorder, complication, "
+                "injury, abnormal finding, or clinical condition. If there are no evidence spans, return an empty array."
+            ),
+            "items": {
+                "type": "string",
+                "description": (
+                    "An EXACT verbatim text span copied from the input text that expresses a clinical condition. "
+                    "Must be an exact substring of the input text, not a summary or interpretation. "
+                ),
+            },
+        }
+    },
+    "required": ["COD_EVIDENCE_SPANS"],
+    "additionalProperties": False,
+}
+
+# -------------------------------------------------------------------
+# Single-mention reranking schema (legacy)
+# -------------------------------------------------------------------
 RERANKING_SCHEMA = {
     "type": "object",
     "properties": {
@@ -48,12 +78,12 @@ RERANKING_SCHEMA = {
                 "properties": {
                     "ICD-10 Code": {
                         "type": "string",
-                        "description": "The ICD-10 code."
+                        "description": "The ICD-10 code.",
                     },
                     "ICD-10 Name": {
                         "type": "string",
-                        "description": "The human-readable name corresponding to the ICD-10 code."
-                    }
+                        "description": "The human-readable name corresponding to the ICD-10 code.",
+                    },
                 },
                 "required": ["ICD-10 Code", "ICD-10 Name"],
                 "additionalProperties": False,
@@ -64,13 +94,64 @@ RERANKING_SCHEMA = {
     "additionalProperties": False,
 }
 
+# -------------------------------------------------------------------
+# Batch reranking schema (one LLM call for all mentions)
+# Simplified: only codes required (names looked up from retrieved_codes)
+# -------------------------------------------------------------------
+BATCH_RERANKING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "Mention Rerankings": {
+            "type": "array",
+            "description": (
+                "A list of reranking results, one per mention_id provided in the prompt."
+            ),
+            "items": {
+                "type": "object",
+                "properties": {
+                    "mention_id": {
+                        "type": "integer",
+                        "description": "The exact integer 'id' value of the mention.",
+                    },
+                    "Reranked ICD-10 Codes": {
+                        "type": "array",
+                        "description": (
+                            "ICD-10 codes ordered from most to least appropriate for this mention. "
+                            "Return only the codes (as strings), not names. "
+                            "Example: [\"E11.9\", \"E10.9\", \"Z51.11\"]"
+                        ),
+                        "items": {
+                            "type": "string",
+                            "description": (
+                                "An ICD-10 code from the candidate list for this mention. "
+                                "Example: \"E11.9\""
+                            ),
+                        },
+                    },
+                },
+                "required": ["mention_id", "Reranked ICD-10 Codes"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["Mention Rerankings"],
+    "additionalProperties": False,
+}
+
+# -------------------------------------------------------------------
 # Type hints for better IDE support
-# Note: TypedDict doesn't support keys with spaces, so we use Dict[str, Any] instead
+# -------------------------------------------------------------------
 from typing import Dict, Any, List
 
-# Type aliases for documentation (actual validation uses JSON schemas above)
-DiseaseInfo = Dict[str, Any]  # {"Disease": str, "Supporting Evidence": List[str], "ICD10": str}
-DiseaseExtractionResult = Dict[str, Any]  # {"Diseases": List[DiseaseInfo]}
-RerankedCode = Dict[str, Any]  # {"ICD-10 Code": str, "ICD-10 Name": str}
-RerankingResult = Dict[str, Any]  # {"Reranked ICD-10 Codes": List[RerankedCode]}
+MentionInfo = Dict[str, Any]              # {"Mention": str, "ICD10": str}
+MentionExtractionResult = Dict[str, Any]  # {"Mentions": List[MentionInfo]}
 
+RerankedCode = Dict[str, Any]             # {"ICD-10 Code": str, "ICD-10 Name": str}
+RerankingResult = Dict[str, Any]          # {"Reranked ICD-10 Codes": List[RerankedCode]}
+
+BatchMentionReranking = Dict[str, Any]    # {"mention_id": str, "Reranked ICD-10 Codes": List[RerankedCode]}
+BatchRerankingResult = Dict[str, Any]     # {"Mention Rerankings": List[BatchMentionReranking]}
+
+
+DiseaseInfo = Dict[str, Any]                 # {"Disease": str, "ICD10": str, "Supporting Evidence": List[str]}
+DiseaseExtractionResult = Dict[str, Any]     # {"Diseases": List[DiseaseInfo]}

@@ -30,6 +30,9 @@ class ICD10Retriever:
         """
         embeddings, definitions_data = load_embeddings()
         self.embeddings = embeddings
+        self.embeddings = np.asarray(embeddings, dtype=np.float32)
+        self.embeddings = self.embeddings / (np.linalg.norm(self.embeddings, axis=1, keepdims=True) + 1e-12)
+        
         self.definitions_data = definitions_data
         # Generate code index using openacme's helper function
         self.code_index = get_code_index(definitions_data)
@@ -50,7 +53,7 @@ class ICD10Retriever:
         top_k: int = 10,
         min_similarity: float = 0.0
     ) -> List[Dict[str, Any]]:
-        """Retrieve top-k most similar ICD-10 codes for clinical text.
+        """Retrieve top-k most similar ICD-10 codes for a mention span or short clinical phrase.
 
         Parameters
         ----------
