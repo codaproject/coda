@@ -6,13 +6,13 @@ import logging
 import time
 from typing import Dict, Any, List, Optional, Union
 
-from coda.llm_api import create_llm_client, LLMClient
+from coda.llm_api import LLMClient
 
 from .extractor import BaseExtractor
 from .schemas import COD_EVIDENCE_EXTRACTION_SCHEMA
 from .retriever import ICD10Retriever
 from .reranker import CodeReranker
-from .annotator import annotate
+from .annotator import annotate, find_evidence_spans
 from .utils import load_icd10_definitions
 
 from openacme.icd10.generate_embeddings import generate_icd10_embeddings
@@ -194,27 +194,39 @@ class MedCoderPipeline:
 
         return flat
 
-    def process(
+    def process_raw(
         self,
         clinical_descriptions: Union[str, List[str]],
-        text_type: str = "clinical_note",
-        identifier: Optional[Union[str, List[str]]] = None,
-        annotate_evidence: bool = True,
-        annotation_min_similarity: float = 0.7,
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
-        Process clinical description(s) through full pipeline.
+        Process clinical description(s) through extraction, retrieval, and reranking.
+        Returns raw results without annotation.
+
+        Parameters
+        ----------
+        clinical_descriptions : str or list of str
+            Clinical text(s) to process.
 
         Returns
         -------
         dict or list of dict
-            If single description: Dictionary with AnnotatedText structure.
-            If list of descriptions: List of dictionaries, each with AnnotatedText structure.
-
-        Internal raw_result shape used for annotation:
-            {"Mentions": [ { "Mention": str, "ICD10": str (empty, extractors don't predict codes),
-                            "retrieved_codes": [...], "reranked_codes": [...], 
-                            "reranking_failed": bool }, ... ]}
+            If single description: Dictionary with raw_result structure.
+            If list of descriptions: List of dictionaries, each with raw_result structure.
+            
+            Raw result shape:
+            {
+                "Mentions": [
+                    {
+                        "Mention": str,
+                        "ICD10": str (empty, extractors don't predict codes),
+                        "retrieved_codes": [...],
+                        "reranked_codes": [...],
+                        "reranking_failed": bool
+                    },
+                    ...
+                ],
+                "api_failed": bool (optional)
+            }
         
         Note: All retrieved/reranked codes are included in the output (no truncation).
         Use retrieval_top_k parameter in constructor to control how many codes are retrieved.
@@ -222,39 +234,15 @@ class MedCoderPipeline:
         is_single = isinstance(clinical_descriptions, str)
         descriptions_list = [clinical_descriptions] if is_single else clinical_descriptions
 
-        # Normalize identifiers
-        if identifier is None:
-            identifiers_list = [""] * len(descriptions_list) if descriptions_list else []
-        elif isinstance(identifier, str):
-            identifiers_list = [identifier] * len(descriptions_list) if descriptions_list else []
-        else:
-            if len(identifier) != len(descriptions_list):
-                raise ValueError(
-                    f"Number of identifiers ({len(identifier)}) must match "
-                    f"number of descriptions ({len(descriptions_list)})"
-                )
-            identifiers_list = identifier
-
         # Empty input handling
         if not descriptions_list:
-            empty_result = annotate(
-                text="",
-                text_type=text_type,
-                identifier="",
-                pipeline_result={"Mentions": []},
-                add_evidence_spans=annotate_evidence,
-                min_similarity=annotation_min_similarity,
-                properties=self.llm_properties,
-            )
-            empty_dict = empty_result.model_dump()
-            empty_dict["_raw_result"] = {"Mentions": []}
-            return empty_dict if is_single else []
+            return {"Mentions": []} if is_single else [{"Mentions": []}]
 
-        logger.info(f"Starting MedCoder pipeline for {len(descriptions_list)} clinical description(s)")
+        logger.info(f"Starting MedCoder pipeline (raw) for {len(descriptions_list)} clinical description(s)")
 
         results: List[Dict[str, Any]] = []
 
-        for idx, (clinical_description, text_id) in enumerate(zip(descriptions_list, identifiers_list), 1):
+        for idx, clinical_description in enumerate(descriptions_list, 1):
             step_times: Dict[str, float] = {}
             total_start = time.time()
 
@@ -294,35 +282,47 @@ class MedCoderPipeline:
 
             if api_failed:
                 logger.error("Extraction API failed after all retries - returning placeholder result for this row")
-                failed_result = annotate(
-                    text=clinical_description,
-                    text_type=text_type,
-                    identifier=text_id,
-                    pipeline_result={"Mentions": []},
-                    add_evidence_spans=annotate_evidence,
-                    min_similarity=annotation_min_similarity,
-                    properties=self.llm_properties,
-                ).model_dump()
-                failed_result["_raw_result"] = {"Mentions": [], "api_failed": True}
-                results.append(failed_result)
+                results.append({"Mentions": [], "api_failed": True})
                 continue
 
             logger.info(f"Extraction completed in {step1_time:.2f}s, found {len(mentions)} mention(s)")
 
             if not mentions:
                 logger.warning("No mentions extracted from clinical description")
-                empty_result = annotate(
-                    text=clinical_description,
-                    text_type=text_type,
-                    identifier=text_id,
-                    pipeline_result={"Mentions": []},
-                    add_evidence_spans=annotate_evidence,
-                    min_similarity=annotation_min_similarity,
-                    properties=self.llm_properties,
+                results.append({"Mentions": []})
+                continue
+
+            # Validate mentions using find_evidence_spans - filter out unmatched spans
+            validated_mentions = []
+            for m in mentions:
+                mention_text = (m.get("Mention") or "").strip()
+                if not mention_text:
+                    continue
+                
+                # Use find_evidence_spans to check if mention can be matched
+                spans = find_evidence_spans(
+                    clinical_description,
+                    [mention_text],
+                    min_similarity=0.7,  # Use default similarity threshold
+                    case_sensitive=False,
                 )
-                d = empty_result.model_dump()
-                d["_raw_result"] = {"Mentions": []}
-                results.append(d)
+                
+                if spans and spans[0].get("match_type") in ("exact", "fuzzy"):
+                    # Mention can be matched, keep it
+                    validated_mentions.append(m)
+                else:
+                    # Mention cannot be matched, filter it out
+                    logger.warning(
+                        f"Filtering out mention '{mention_text[:60]}...' "
+                        f"(match_type: {spans[0].get('match_type') if spans else 'not_found'})"
+                    )
+            
+            mentions = validated_mentions
+            logger.info(f"After validation: {len(mentions)} mention(s) remain")
+
+            if not mentions:
+                logger.warning("No valid mentions after validation - all were filtered out")
+                results.append({"Mentions": []})
                 continue
 
             # Step 2: Retrieve candidate codes per mention (semantic search)
@@ -452,39 +452,94 @@ class MedCoderPipeline:
             )
 
             raw_result = {"Mentions": mentions}
+            results.append(raw_result)
 
-            annotated_text = annotate(
-                text=clinical_description,
-                text_type=text_type,
-                identifier=text_id,
-                pipeline_result=raw_result,
-                add_evidence_spans=annotate_evidence,
-                min_similarity=annotation_min_similarity,
-                properties=self.llm_properties,
-            )
+        logger.info(f"Pipeline (raw) completed for {len(descriptions_list)} description(s)")
 
-            result_dict = annotated_text.model_dump()
-            result_dict["_raw_result"] = raw_result
-            results.append(result_dict)
+        return results[0] if is_single else results
 
-        logger.info(f"Pipeline completed for {len(descriptions_list)} description(s)")
+    def process(
+        self,
+        clinical_descriptions: Union[str, List[str]],
+        text_type: str = "clinical_note",
+        identifier: Optional[str] = None,
+        annotate_evidence: bool = True,
+        annotation_min_similarity: float = 0.7,
+    ) -> Dict[str, Any]:
+        """
+        Process clinical description(s) through full pipeline with annotation.
 
-        if is_single:
-            if results:
-                return results[0]
+        Parameters
+        ----------
+        clinical_descriptions : str or list of str
+            Clinical text(s) to process. If a list is provided, each string is processed
+            separately, then results are merged. The final text field will be the
+            concatenated original texts.
+        text_type : str, default="clinical_note"
+            Type of text being processed.
+        identifier : str, optional
+            Identifier for the text. If None, uses empty string.
+        annotate_evidence : bool, default=True
+            Whether to add evidence spans to annotations.
+        annotation_min_similarity : float, default=0.7
+            Minimum similarity threshold for annotation.
+        
+        Returns
+        -------
+        dict
+            Dictionary with AnnotatedText structure containing all annotations from
+            all processed descriptions, with text field being the concatenated original texts.
+        
+        Note: All retrieved/reranked codes are included in the output (no truncation).
+        Use retrieval_top_k parameter in constructor to control how many codes are retrieved.
+        """
+        # Normalize to list for iteration
+        if isinstance(clinical_descriptions, str):
+            descriptions_list = [clinical_descriptions]
+        else:
+            descriptions_list = [d for d in clinical_descriptions if d and str(d).strip()]
+
+        if not descriptions_list:
             empty_result = annotate(
-                text=descriptions_list[0] if descriptions_list else "",
+                text="",
                 text_type=text_type,
-                identifier=identifiers_list[0] if identifiers_list else "",
+                identifier=identifier or "",
                 pipeline_result={"Mentions": []},
                 add_evidence_spans=annotate_evidence,
                 min_similarity=annotation_min_similarity,
                 properties=self.llm_properties,
             ).model_dump()
-            empty_result["_raw_result"] = {"Mentions": [], "api_failed": True}
             return empty_result
 
-        return results
+        # Process each description separately
+        all_mentions: List[Dict[str, Any]] = []
+        for description in descriptions_list:
+            if not description or not str(description).strip():
+                continue
+            
+            raw_result = self.process_raw(description)
+            if isinstance(raw_result, dict) and "Mentions" in raw_result:
+                mentions = raw_result["Mentions"]
+                all_mentions.extend(mentions)
+
+        # Concatenate original texts for final output
+        combined_text = " ".join(str(d).strip() for d in descriptions_list if d and str(d).strip())
+        
+        # Combine all mentions into a single result
+        combined_raw_result = {"Mentions": all_mentions}
+        
+        # Annotate the combined result using the concatenated text
+        annotated_text = annotate(
+            text=combined_text,
+            text_type=text_type,
+            identifier=identifier or "",
+            pipeline_result=combined_raw_result,
+            add_evidence_spans=annotate_evidence,
+            min_similarity=annotation_min_similarity,
+            properties=self.llm_properties,
+        )
+        
+        return annotated_text.model_dump()
 
     def extract_only(self, clinical_description: str) -> Dict[str, Any]:
         """Only perform mention extraction (no retrieval/re-ranking)."""

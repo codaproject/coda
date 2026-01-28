@@ -53,6 +53,65 @@ class OllamaAdapter(LLMClient):
         self.timeout = timeout
         self.provider = "ollama"
 
+    def call(self, user_prompt: str) -> str:
+        """
+        Make an Ollama API call without schema constraints.
+
+        Parameters
+        ----------
+        user_prompt : str
+            User prompt for the LLM.
+
+        Returns
+        -------
+        str
+            Raw text response from the LLM.
+
+        Raises
+        ------
+        RuntimeError
+            If all retry attempts fail or if the response is empty.
+        """
+        messages = [{"role": "user", "content": user_prompt}]
+        last_error = None
+
+        for attempt in range(3):  # Default max_retries
+            try:
+                response = chat(
+                    model=self.model,
+                    messages=messages,
+                    options={
+                        "temperature": 0.0,  # Deterministic output
+                    },
+                )
+                
+                # Extract message content
+                response_text = response.message.content.strip()
+                
+                if not response_text:
+                    raise ValueError("Empty response from Ollama")
+                
+                return response_text
+                
+            except Exception as e:
+                last_error = e
+                if attempt < 2:  # max_retries - 1
+                    delay = 1.0 * (2 ** attempt)  # Default retry_delay
+                    logger.warning(
+                        f"Ollama API call attempt {attempt + 1}/3 failed: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(
+                        f"All 3 Ollama API call attempts failed. Last error: {e}"
+                    )
+
+        # If we get here, all retries failed
+        raise RuntimeError(
+            f"Ollama API call failed after 3 attempts. Last error: {last_error}"
+        ) from last_error
+
     def call_with_schema(
         self,
         system_prompt: str,

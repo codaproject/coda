@@ -5,10 +5,13 @@ Finds character spans of mention strings in the original clinical text
 and formats ICD-10 candidate codes into a unified AnnotatedText output.
 """
 
+import logging
 import re
 from typing import Dict, Any, List, Optional
 from difflib import SequenceMatcher
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 # Pydantic models for structured annotation output format
@@ -87,39 +90,34 @@ def find_evidence_spans(
 
         evidence_clean = evidence.strip()
         evidence_normalized = evidence_clean if case_sensitive else evidence_clean.lower()
-
-        # Try exact match first
-        if case_sensitive:
-            start_idx = clinical_text.find(evidence_clean)
-            if start_idx != -1:
-                end_idx = start_idx + len(evidence_clean)
-                matched_text = clinical_text[start_idx:end_idx]
-                annotated_evidence.append(
-                    {
-                        "text": matched_text,
-                        "start": start_idx,
-                        "end": end_idx,
-                        "similarity": 1.0,
-                        "match_type": "exact",
-                    }
-                )
-                continue
-        else:
-            start_idx = text_to_search.find(evidence_normalized)
-            if start_idx != -1:
-                # Extract the actual matched text from original clinical_text (preserves case)
-                end_idx = start_idx + len(evidence_normalized)
-                matched_text = clinical_text[start_idx:end_idx]
-                annotated_evidence.append(
-                    {
-                        "text": matched_text,
-                        "start": start_idx,
-                        "end": end_idx,
-                        "similarity": 1.0,
-                        "match_type": "exact",
-                    }
-                )
-                continue
+        
+        # Normalize whitespace for matching: collapse multiple spaces to single space
+        evidence_words = evidence_normalized.split()
+        if not evidence_words:
+            continue
+        
+        # Build regex pattern that matches words with flexible whitespace
+        # Escape special regex characters in words
+        escaped_words = [re.escape(word) for word in evidence_words]
+        pattern = r'\s+'.join(escaped_words)
+        
+        # Try exact match first (with flexible whitespace)
+        flags = 0 if case_sensitive else re.IGNORECASE
+        match = re.search(pattern, clinical_text, flags)
+        if match:
+            start_idx = match.start()
+            end_idx = match.end()
+            matched_text = clinical_text[start_idx:end_idx]
+            annotated_evidence.append(
+                {
+                    "text": matched_text,
+                    "start": start_idx,
+                    "end": end_idx,
+                    "similarity": 1.0,
+                    "match_type": "exact",
+                }
+            )
+            continue
 
         # Fuzzy match with sliding window across word spans
         words = re.finditer(r"\S+", clinical_text)
@@ -239,8 +237,14 @@ def annotate(
             annotation_text = best_span["text"]
             span_source = "matched_fuzzy"
         else:
-            annotation_text = mention_text
-            span_source = "llm_generated"
+            # This should not happen - mentions are validated in pipeline.process_raw()
+            # before reaching annotate(), so all mentions should be matchable.
+            # If this occurs, it indicates a bug in the validation logic.
+            raise ValueError(
+                f"Mention '{mention_text[:60]}...' could not be matched in text "
+                f"(match_type: {best_span.get('match_type') if best_span else 'not_found'}). "
+                f"This should have been filtered out during validation in process_raw()."
+            )
 
         if add_evidence_spans:
             mention_item["mention_spans"] = spans

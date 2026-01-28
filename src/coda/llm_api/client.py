@@ -16,6 +16,24 @@ class LLMClient(ABC):
     """
 
     @abstractmethod
+    def call(self, user_prompt: str) -> str:
+        """
+        Make an LLM API call with no schema.
+
+        Parameters
+        ----------
+        user_prompt : str
+            User prompt for the LLM.
+
+        Returns
+        -------
+        str
+            Raw text response from the LLM.
+            Returns empty string if all retries failed.
+        """
+        pass
+
+    @abstractmethod
     def call_with_schema(
         self,
         system_prompt: str,

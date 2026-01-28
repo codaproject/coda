@@ -51,6 +51,70 @@ class OpenAIAdapter(LLMClient):
         self.model = model
         self.provider = "openai"
 
+    def call(self, user_prompt: str) -> str:
+        """
+        Make an OpenAI API call without schema constraints.
+
+        Parameters
+        ----------
+        user_prompt : str
+            User prompt for the LLM.
+
+        Returns
+        -------
+        str
+            Raw text response from the LLM.
+
+        Raises
+        ------
+        RuntimeError
+            If all retry attempts fail or if the response is empty.
+        """
+        last_error = None
+
+        for attempt in range(3):  # Default max_retries
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.0,  # Deterministic output
+                )
+                
+                # Extract message content
+                if not response.choices:
+                    raise ValueError("Empty choices in OpenAI response")
+                
+                response_text = response.choices[0].message.content
+                if response_text is None:
+                    raise ValueError("Empty content in OpenAI response")
+                
+                response_text = response_text.strip()
+                if not response_text:
+                    raise ValueError("Empty response from OpenAI")
+                
+                return response_text
+                
+            except Exception as e:
+                last_error = e
+                if attempt < 2:  # max_retries - 1
+                    delay = 1.0 * (2 ** attempt)  # Default retry_delay
+                    logger.warning(
+                        f"OpenAI API call attempt {attempt + 1}/3 failed: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(
+                        f"All 3 OpenAI API call attempts failed. Last error: {e}"
+                    )
+
+        # If we get here, all retries failed
+        raise RuntimeError(
+            f"OpenAI API call failed after 3 attempts. Last error: {last_error}"
+        ) from last_error
+
     def call_with_schema(
         self,
         system_prompt: str,

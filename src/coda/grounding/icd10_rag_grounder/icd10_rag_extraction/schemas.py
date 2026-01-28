@@ -10,7 +10,8 @@ DISEASE_EXTRACTION_SCHEMA = {
     "properties": {
         "Diseases": {
             "type": "array",
-            "description": "The diseases or conditions that the patient likely has.",
+            "minItems": 0,
+            "description": "The diseases or conditions that the patient likely has. If there are no diseases, return an empty array.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -44,17 +45,17 @@ COD_EVIDENCE_EXTRACTION_SCHEMA = {
     "properties": {
         "COD_EVIDENCE_SPANS": {
             "type": "array",
+            "minItems": 0,
             "description": (
                 "Clinical evidence spans extracted from the text. "
                 "Each item should be a verbatim text span describing a disease, disorder, complication, "
-                "injury, abnormal finding, or clinical condition."
+                "injury, abnormal finding, or clinical condition. If there are no evidence spans, return an empty array."
             ),
             "items": {
                 "type": "string",
                 "description": (
                     "An EXACT verbatim text span copied from the input text that expresses a clinical condition. "
-                    "DO NOT paraphrase or reword. Extract the exact text as it appears in the input. "
-                    "Must be an exact substring of the input text, not a summary or interpretation."
+                    "Must be an exact substring of the input text, not a summary or interpretation. "
                 ),
             },
         }
@@ -116,11 +117,15 @@ BATCH_RERANKING_SCHEMA = {
                         "type": "array",
                         "description": (
                             "ICD-10 codes ordered from most to least appropriate for this mention. "
-                            "Return only the codes (strings), not names. Names will be looked up automatically."
+                            "Return only the codes (as strings), not names. "
+                            "Example: [\"E11.9\", \"E10.9\", \"Z51.11\"]"
                         ),
                         "items": {
                             "type": "string",
-                            "description": "An ICD-10 code from the candidate list for this mention.",
+                            "description": (
+                                "An ICD-10 code from the candidate list for this mention. "
+                                "Example: \"E11.9\""
+                            ),
                         },
                     },
                 },

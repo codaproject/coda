@@ -145,7 +145,7 @@ class CodeReranker:
                 code = self._norm_code(c.get("code", ""))
                 name = str(c.get("name", "") or "").strip()
                 if code:
-                    candidates_lines.append(f"- {code} | {name}")
+                    candidates_lines.append(f"[CODE]: {code}, [NAME]: {name}")
             
             blocks.append(
                 f"[MENTION]\n"
