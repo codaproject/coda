@@ -513,14 +513,22 @@ class MedCoderPipeline:
 
         # Process each description separately
         all_mentions: List[Dict[str, Any]] = []
+        api_failed = False
         for description in descriptions_list:
             if not description or not str(description).strip():
                 continue
             
             raw_result = self.process_raw(description)
-            if isinstance(raw_result, dict) and "Mentions" in raw_result:
-                mentions = raw_result["Mentions"]
-                all_mentions.extend(mentions)
+            if isinstance(raw_result, dict):
+                # Check for API failure
+                if raw_result.get("api_failed", False):
+                    api_failed = True
+                    # Continue processing other descriptions, but mark overall failure
+                    continue
+                
+                if "Mentions" in raw_result:
+                    mentions = raw_result["Mentions"]
+                    all_mentions.extend(mentions)
 
         # Concatenate original texts for final output
         combined_text = " ".join(str(d).strip() for d in descriptions_list if d and str(d).strip())
@@ -539,7 +547,13 @@ class MedCoderPipeline:
             properties=self.llm_properties,
         )
         
-        return annotated_text.model_dump()
+        result_dict = annotated_text.model_dump()
+        
+        # Propagate api_failed flag if any description failed
+        if api_failed:
+            result_dict["api_failed"] = True
+        
+        return result_dict
 
     def extract_only(self, clinical_description: str) -> Dict[str, Any]:
         """Only perform mention extraction (no retrieval/re-ranking)."""
