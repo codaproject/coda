@@ -77,68 +77,91 @@ def find_evidence_spans(
     min_similarity: float = 0.7,
     case_sensitive: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Find character spans for evidence strings in clinical text using fuzzy matching."""
+    """Find character spans for evidence strings in clinical text using fuzzy matching.
+    
+    Returns exactly one match per evidence string (1:1 correspondence).
+    For duplicate mentions, finds non-overlapping occurrences.
+    Prioritizes exact matches over fuzzy matches.
+    
+    Parameters
+    ----------
+    clinical_text : str
+        The clinical text to search in.
+    evidence_strings : List[str]
+        List of evidence strings to find. Each string will get exactly one match.
+    min_similarity : float, default=0.7
+        Minimum similarity threshold for fuzzy matching.
+    case_sensitive : bool, default=False
+        Whether matching should be case-sensitive.
+    
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of matches, one per input evidence string. Each dict has keys:
+        - text: matched text span
+        - start: start position (None if not_found)
+        - end: end position (None if not_found)
+        - similarity: similarity score (0.0-1.0)
+        - match_type: "exact", "fuzzy", or "not_found"
+    """
     if not clinical_text or not evidence_strings:
-        return []
+        return [{"text": "", "start": None, "end": None, "similarity": 0.0, "match_type": "not_found"}] * len(evidence_strings) if evidence_strings else []
 
-    text_to_search = clinical_text if case_sensitive else clinical_text.lower()
     annotated_evidence: List[Dict[str, Any]] = []
-
-    for evidence in evidence_strings:
+    # Track assigned positions to avoid overlaps for duplicate mentions
+    assigned_positions: List[tuple[int, int]] = []  # List of (start, end) tuples
+    
+    def _spans_overlap(start1: int, end1: int, start2: int, end2: int) -> bool:
+        """Check if two spans overlap (adjacent spans don't overlap)."""
+        return not (end1 <= start2 or start1 >= end2)
+    
+    def _find_all_matches_for_evidence(evidence: str) -> List[Dict[str, Any]]:
+        """Find all possible matches (exact + fuzzy) for a single evidence string."""
         if not evidence or not evidence.strip():
-            continue
-
+            return []
+        
         evidence_clean = evidence.strip()
         evidence_normalized = evidence_clean if case_sensitive else evidence_clean.lower()
-        
-        # Normalize whitespace for matching: collapse multiple spaces to single space
         evidence_words = evidence_normalized.split()
-        if not evidence_words:
-            continue
         
-        # Build regex pattern that matches words with flexible whitespace
-        # Escape special regex characters in words
+        if not evidence_words:
+            return []
+        
+        all_matches: List[Dict[str, Any]] = []
+        
+        # Build regex pattern for exact matching
         escaped_words = [re.escape(word) for word in evidence_words]
         pattern = r'\s+'.join(escaped_words)
-        
-        # Try exact match first (with flexible whitespace)
         flags = 0 if case_sensitive else re.IGNORECASE
-        match = re.search(pattern, clinical_text, flags)
-        if match:
+        
+        # Find all exact matches
+        exact_matches = list(re.finditer(pattern, clinical_text, flags))
+        for match in exact_matches:
             start_idx = match.start()
             end_idx = match.end()
             matched_text = clinical_text[start_idx:end_idx]
-            annotated_evidence.append(
-                {
-                    "text": matched_text,
-                    "start": start_idx,
-                    "end": end_idx,
-                    "similarity": 1.0,
-                    "match_type": "exact",
-                }
-            )
-            continue
-
-        # Fuzzy match with sliding window across word spans
+            all_matches.append({
+                "text": matched_text,
+                "start": start_idx,
+                "end": end_idx,
+                "similarity": 1.0,
+                "match_type": "exact",
+            })
+        
+        # If we found exact matches, return them (prioritize exact over fuzzy)
+        if all_matches:
+            return all_matches
+        
+        # Find fuzzy matches
         words = re.finditer(r"\S+", clinical_text)
         word_list = [(m.group(), m.start(), m.end()) for m in words]
-
+        
         if not word_list:
-            annotated_evidence.append(
-                {
-                    "text": evidence_clean,
-                    "start": None,
-                    "end": None,
-                    "similarity": 0.0,
-                    "match_type": "not_found",
-                }
-            )
-            continue
-
-        best_match = None
-        best_similarity = 0.0
-
+            return []
+        
         evidence_word_count = len(evidence_normalized.split())
+        fuzzy_matches: List[Dict[str, Any]] = []
+        
         for window_size in range(
             evidence_word_count, min(evidence_word_count + 5, len(word_list) + 1)
         ):
@@ -146,35 +169,87 @@ def find_evidence_spans(
                 window_words = word_list[i : i + window_size]
                 window_start_char = window_words[0][1]
                 window_end_char = window_words[-1][2]
-
+                
                 window_text = clinical_text[window_start_char:window_end_char]
                 window_normalized = window_text if case_sensitive else window_text.lower()
-
+                
                 similarity = _similarity_ratio(evidence_normalized, window_normalized)
-
-                if similarity > best_similarity and similarity >= min_similarity:
-                    best_similarity = similarity
-                    best_match = {
+                
+                if similarity >= min_similarity:
+                    fuzzy_matches.append({
                         "text": window_text,
                         "start": window_start_char,
                         "end": window_end_char,
                         "similarity": similarity,
                         "match_type": "fuzzy",
-                    }
-
-        if best_match:
-            annotated_evidence.append(best_match)
+                    })
+        
+        return fuzzy_matches
+    
+    # Process each evidence string in order
+    for evidence in evidence_strings:
+        if not evidence or not evidence.strip():
+            annotated_evidence.append({
+                "text": "",
+                "start": None,
+                "end": None,
+                "similarity": 0.0,
+                "match_type": "not_found",
+            })
+            continue
+        
+        evidence_clean = evidence.strip()
+        
+        # Find all possible matches for this evidence string
+        all_matches = _find_all_matches_for_evidence(evidence)
+        
+        if not all_matches:
+            annotated_evidence.append({
+                "text": evidence_clean,
+                "start": None,
+                "end": None,
+                "similarity": 0.0,
+                "match_type": "not_found",
+            })
+            continue
+        
+        # Sort matches: exact matches first, then by similarity (highest first), then by position (leftmost first)
+        all_matches.sort(key=lambda x: (
+            0 if x["match_type"] == "exact" else 1,  # Exact matches first
+            -x["similarity"],  # Higher similarity first
+            x["start"]  # Leftmost first (tie-breaker)
+        ))
+        
+        # Find the best non-overlapping match
+        best_match = None
+        for match in all_matches:
+            start = match["start"]
+            end = match["end"]
+            
+            # Check if this match overlaps with any already-assigned position
+            overlaps = False
+            for assigned_start, assigned_end in assigned_positions:
+                if _spans_overlap(start, end, assigned_start, assigned_end):
+                    overlaps = True
+                    break
+            
+            if not overlaps:
+                best_match = match
+                assigned_positions.append((start, end))
+                break
+        
+        # If no non-overlapping match found, return "not_found"
+        if best_match is None:
+            annotated_evidence.append({
+                "text": evidence_clean,
+                "start": None,
+                "end": None,
+                "similarity": 0.0,
+                "match_type": "not_found",
+            })
         else:
-            annotated_evidence.append(
-                {
-                    "text": evidence_clean,
-                    "start": None,
-                    "end": None,
-                    "similarity": 0.0,
-                    "match_type": "not_found",
-                }
-            )
-
+            annotated_evidence.append(best_match)
+    
     return annotated_evidence
 
 
@@ -221,34 +296,36 @@ def annotate(
         if not mention_text:
             continue
 
-        # Try to anchor the mention to the original text
+        # Find the best match for this mention (find_evidence_spans returns exactly one match per mention)
         spans = find_evidence_spans(
             text,
             [mention_text],
             min_similarity=min_similarity,
             case_sensitive=case_sensitive,
         )
-        best_span = spans[0] if spans else None
-
-        if best_span and best_span.get("match_type") == "exact":
-            annotation_text = best_span["text"]
-            span_source = "matched_exact"
-        elif best_span and best_span.get("match_type") == "fuzzy":
-            annotation_text = best_span["text"]
-            span_source = "matched_fuzzy"
-        else:
-            # This should not happen - mentions are validated in pipeline.process_raw()
-            # before reaching annotate(), so all mentions should be matchable.
-            # If this occurs, it indicates a bug in the validation logic.
-            raise ValueError(
-                f"Mention '{mention_text[:60]}...' could not be matched in text "
-                f"(match_type: {best_span.get('match_type') if best_span else 'not_found'}). "
+        
+        # find_evidence_spans returns a list with exactly one element (or empty if input was empty)
+        if not spans:
+            logger.warning(
+                f"Mention '{mention_text[:60]}...' returned no spans from find_evidence_spans. "
+                f"This should not happen."
+            )
+            continue
+        
+        span = spans[0]  # Get the single match for this mention
+        
+        # Check if match is valid (shouldn't happen due to validation, but be safe)
+        if span.get("match_type") == "not_found":
+            logger.warning(
+                f"Mention '{mention_text[:60]}...' could not be matched in text. "
                 f"This should have been filtered out during validation in process_raw()."
             )
+            continue
 
         if add_evidence_spans:
             mention_item["mention_spans"] = spans
 
+        # Get codes for this mention
         reranked_codes = mention_item.get("reranked_codes", [])
         retrieved_codes = mention_item.get("retrieved_codes", [])
         reranking_failed = bool(mention_item.get("reranking_failed", False))
@@ -308,16 +385,24 @@ def annotate(
                 )
             )
 
+        # Create exactly one annotation for this mention
+        annotation_text = span["text"]
+        span_source = "matched_exact" if span.get("match_type") == "exact" else "matched_fuzzy"
+        
+        annotation_properties = {
+            "reranking_mode": "similarity_based" if use_retrieved_fallback else "llm_reranked",
+            "span_source": span_source,
+            "span_start": span.get("start"),
+            "span_end": span.get("end"),
+        }
+        
         annotations.append(
             Annotation(
                 text=annotation_text,
                 top_identifier=f"icd10:{top_code_info.get('ICD-10 Code', '')}",
                 top_name=top_code_info.get("ICD-10 Name", ""),
                 ranked_matches=ranked_matches,
-                properties={
-                    "reranking_mode": "similarity_based" if use_retrieved_fallback else "llm_reranked",
-                    "span_source": span_source,
-                },
+                properties=annotation_properties,
             )
         )
 

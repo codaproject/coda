@@ -6,11 +6,11 @@ diseases from clinical text and assign ICD-10 codes.
 """
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List
 
 from .. import BaseGrounder
 from .icd10_rag_extraction.pipeline import MedCoderPipeline
-from .icd10_rag_extraction.utils import get_icd10_name
+from coda.llm_api import create_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +69,11 @@ class RAGGrounder(BaseGrounder):
         # With API key
         grounder = RAGGrounder(model="gpt-4o-mini", api_key="sk-...")
         """
+        llm_client = create_llm_client(**llm_kwargs)
         self.pipeline = MedCoderPipeline(
+            llm_client=llm_client,
             retrieval_top_k=retrieval_top_k,
             retrieval_min_similarity=retrieval_min_similarity,
-            **llm_kwargs
         )
         self.annotation_min_similarity = annotation_min_similarity
 
@@ -100,16 +101,15 @@ class RAGGrounder(BaseGrounder):
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        # Handle both single dict and list of dicts
-        if isinstance(annotated_result, list):
-            annotated_dict = annotated_result[0] if annotated_result else {}
-        else:
-            annotated_dict = annotated_result
+        # process() always returns a dict, not a list
+        if not isinstance(annotated_result, dict):
+            logger.warning("Unexpected result type from pipeline.process()")
+            return []
 
         # Extract all codes from the annotations
         scored_matches = []
         
-        annotations = annotated_dict.get('annotations', [])
+        annotations = annotated_result.get('annotations', [])
         for annotation in annotations:
             # Get top match (first in ranked_matches)
             ranked_matches = annotation.get('ranked_matches', [])
@@ -118,7 +118,8 @@ class RAGGrounder(BaseGrounder):
 
             top_match = ranked_matches[0]
             # Extract code from CURIE identifier (icd10:CODE -> CODE)
-            code = top_match.get('identifier', '').replace("icd10:", "") if top_match.get('identifier', '').startswith("icd10:") else ""
+            identifier = top_match.get('identifier', '')
+            code = identifier.replace("icd10:", "") if identifier.startswith("icd10:") else ""
             name = top_match.get('name', '')
             score = float(top_match.get('score', 0.0))
 
@@ -169,42 +170,34 @@ class RAGGrounder(BaseGrounder):
             annotation_min_similarity=self.annotation_min_similarity
         )
 
-        # Handle both single dict and list of dicts
-        if isinstance(annotated_result, list):
-            annotated_dict = annotated_result[0] if annotated_result else {}
-        else:
-            annotated_dict = annotated_result
+        # process() always returns a dict, not a list
+        if not isinstance(annotated_result, dict):
+            logger.warning("Unexpected result type from pipeline.process()")
+            return []
 
         annotations = []
         
-        # Get raw result to access evidence spans
-        raw_result = annotated_dict.get('_raw_result', None)
-        if not raw_result:
-            logger.warning("No raw result available for evidence spans")
-            return annotations
+        # Use annotations directly from the process() output
+        pipeline_annotations = annotated_result.get('annotations', [])
         
-        diseases = raw_result.get('Diseases', [])
-        
-        for disease in diseases:
-            # Get evidence spans (primary source for annotation text)
-            evidence_spans = disease.get('evidence_spans', [])
-            if not evidence_spans:
+        for annotation in pipeline_annotations:
+            # Get the span text (already matched to original text)
+            span_text = annotation.get('text', '')
+            if not span_text:
                 continue
 
-            # Get reranked codes - take only the top (first) code
-            codes = disease.get('reranked_codes', [])
-            if not codes:
-                codes = disease.get('retrieved_codes', [])
-            if not codes:
+            # Get top match
+            ranked_matches = annotation.get('ranked_matches', [])
+            if not ranked_matches:
                 continue
 
-            # Get the top code (first in reranked list)
-            code_info = codes[0]
-            code = code_info.get('ICD-10 Code', '')
-            name = code_info.get('ICD-10 Name', '')
-            # Use similarity score from retrieval
-            similarity = code_info.get('similarity', 0.0)
-            score = float(similarity)
+            top_match_data = ranked_matches[0]
+            identifier = top_match_data.get('identifier', '')
+            
+            # Extract code from CURIE identifier (icd10:CODE -> CODE)
+            code = identifier.replace("icd10:", "") if identifier.startswith("icd10:") else ""
+            name = top_match_data.get('name', '')
+            score = float(top_match_data.get('score', 0.0))
 
             # Create gilda Term object
             term = Term(
@@ -217,21 +210,30 @@ class RAGGrounder(BaseGrounder):
                 source="ICD10"
             )
 
-            # Create gilda Match object (minimal - just query and ref)
+            # Create gilda Match object
             match = Match(query=name, ref=name)
 
-            # Create single ScoredMatch for the top code
-            top_match = ScoredMatch(term=term, score=max(0.0, min(1.0, score)), match=match)
+            # Create gilda ScoredMatch
+            scored_match = ScoredMatch(
+                term=term, 
+                score=max(0.0, min(1.0, score)), 
+                match=match
+            )
 
-            # Create one annotation per evidence span, each with the top code
-            for span in evidence_spans:
-                span_text = span.get('text', '')
-                start = span.get('start', 0)
-                end = span.get('end', len(span_text))
-                if span_text:
-                    annotations.append(
-                        Annotation(text=span_text, matches=[top_match], start=start, end=end)
-                    )
+            # Get span positions from annotation properties (already computed by pipeline)
+            annotation_properties = annotation.get('properties', {})
+            start = annotation_properties.get('span_start')
+            end = annotation_properties.get('span_end')
+            
+            # Fallback to text length if positions not available
+            if start is None or end is None:
+                logger.debug(f"Span positions not available for '{span_text[:60]}...', using fallback")
+                start = 0
+                end = len(span_text)
+            
+            annotations.append(
+                Annotation(text=span_text, matches=[scored_match], start=start, end=end)
+            )
 
         logger.debug(f"Created {len(annotations)} annotations")
 
