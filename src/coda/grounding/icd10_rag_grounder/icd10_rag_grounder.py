@@ -51,23 +51,6 @@ class RAGGrounder(BaseGrounder):
             - provider: str (e.g., "openai", "ollama") - auto-detected from model if not specified
             - api_key: str - API key for the provider
             See create_llm_client() documentation for full list.
-
-        Notes
-        -----
-        Embeddings are automatically loaded from openacme's default location.
-        Use openacme.generate_embeddings.generate_icd10_embeddings() to generate
-        embeddings if they don't exist yet.
-
-        Examples
-        --------
-        # Default (OpenAI, gpt-4o-mini)
-        grounder = RAGGrounder()
-
-        # Custom model
-        grounder = RAGGrounder(model="llama3.2")
-
-        # With API key
-        grounder = RAGGrounder(model="gpt-4o-mini", api_key="sk-...")
         """
         llm_client = create_llm_client(**llm_kwargs)
         self.pipeline = MedCoderPipeline(
@@ -95,22 +78,22 @@ class RAGGrounder(BaseGrounder):
         # Process through pipeline
         annotated_result = self.pipeline.process(
             text,
-            text_type="clinical_note",
+            text_type="",
             identifier="",
             annotate_evidence=False,
             annotation_min_similarity=self.annotation_min_similarity
         )
-
-        # process() always returns a dict, not a list
-        if not isinstance(annotated_result, dict):
-            logger.warning("Unexpected result type from pipeline.process()")
-            return []
 
         # Extract all codes from the annotations
         scored_matches = []
         
         annotations = annotated_result.get('annotations', [])
         for annotation in annotations:
+            # Get the span text
+            span_text = annotation.get('text', '')
+            if not span_text:
+                continue
+
             # Get top match (first in ranked_matches)
             ranked_matches = annotation.get('ranked_matches', [])
             if not ranked_matches:
@@ -134,8 +117,17 @@ class RAGGrounder(BaseGrounder):
                 source="ICD10"
             )
 
-            # Create gilda Match object (minimal - just query and ref)
-            match = Match(query=name, ref=name)
+            # Get span_source from annotation properties
+            annotation_properties = annotation.get('properties', {})
+            span_source = annotation_properties.get('span_source', '')
+            is_exact = (span_source == 'matched_exact')
+
+            # Create gilda Match object
+            match = Match(
+                query=span_text, 
+                ref=name, 
+                exact=is_exact
+            )
 
             # Create gilda ScoredMatch
             scored_matches.append(
@@ -164,16 +156,11 @@ class RAGGrounder(BaseGrounder):
         # Process through pipeline with evidence annotation
         annotated_result = self.pipeline.process(
             text,
-            text_type="clinical_note",
+            text_type="",
             identifier="",
             annotate_evidence=True,
             annotation_min_similarity=self.annotation_min_similarity
         )
-
-        # process() always returns a dict, not a list
-        if not isinstance(annotated_result, dict):
-            logger.warning("Unexpected result type from pipeline.process()")
-            return []
 
         annotations = []
         
@@ -181,7 +168,7 @@ class RAGGrounder(BaseGrounder):
         pipeline_annotations = annotated_result.get('annotations', [])
         
         for annotation in pipeline_annotations:
-            # Get the span text (already matched to original text)
+            # Get the span text
             span_text = annotation.get('text', '')
             if not span_text:
                 continue
@@ -210,29 +197,27 @@ class RAGGrounder(BaseGrounder):
                 source="ICD10"
             )
 
-            # Create gilda Match object
-            match = Match(query=name, ref=name)
+            # Get span_source from annotation properties
+            annotation_properties = annotation.get('properties', {})
+            span_source = annotation_properties.get('span_source', '')
+            is_exact = (span_source == 'matched_exact')
 
-            # Create gilda ScoredMatch
-            scored_match = ScoredMatch(
-                term=term, 
-                score=max(0.0, min(1.0, score)), 
-                match=match
+            # Create gilda Match object
+            match = Match(
+                query=span_text, 
+                ref=name,
+                exact=is_exact
             )
 
+            # Create single ScoredMatch for the top code
+            top_match = ScoredMatch(term=term, score=max(0.0, min(1.0, score)), match=match)
+
             # Get span positions from annotation properties (already computed by pipeline)
-            annotation_properties = annotation.get('properties', {})
-            start = annotation_properties.get('span_start')
-            end = annotation_properties.get('span_end')
-            
-            # Fallback to text length if positions not available
-            if start is None or end is None:
-                logger.debug(f"Span positions not available for '{span_text[:60]}...', using fallback")
-                start = 0
-                end = len(span_text)
+            start = annotation_properties.get('span_start', 0)
+            end = annotation_properties.get('span_end', len(span_text))
             
             annotations.append(
-                Annotation(text=span_text, matches=[scored_match], start=start, end=end)
+                Annotation(text=span_text, matches=[top_match], start=start, end=end)
             )
 
         logger.debug(f"Created {len(annotations)} annotations")
