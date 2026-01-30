@@ -14,19 +14,13 @@ from coda.llm_api import LLMClient
 from .schemas import RERANKING_SCHEMA, BATCH_RERANKING_SCHEMA, get_schema_name
 from .utils import validate_icd10_code
 
+
 logger = logging.getLogger(__name__)
 
 
 class CodeReranker:
     """
-    Re-rank ICD-10 candidates using LLM reasoning.
-
-    Batch mode is the intended fast path:
-      - one LLM call per input text (across all mentions)
-
-    IMPORTANT (closed-set behavior):
-      - The LLM is allowed to choose ONLY from retrieved candidate codes
-      - Any other codes returned by the LLM are dropped.
+    Re-rank retrieved ICD-10 codes using LLM reasoning.
     """
 
     def __init__(

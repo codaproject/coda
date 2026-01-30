@@ -1,13 +1,14 @@
 """
-Utility functions for validation and data processing (mention-based pipeline).
+Utility functions for validation and data processing.
 """
 
 import re
-import json
+from typing import Optional, Dict, Any
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+import json
 
 from openacme.icd10.generate_embeddings import EMBEDDINGS_BASE
+
 
 # Cache for definitions data to avoid reloading
 _cached_definitions_data: Optional[Dict[str, Any]] = None
@@ -41,58 +42,26 @@ def validate_icd10_code(
 
 
 def load_icd10_definitions(definitions_file: Optional[Path] = None) -> Dict[str, Any]:
-    """Load ICD-10 code definitions from JSON file."""
+    """Load ICD-10 code definitions from JSON file.
+
+    Parameters
+    ----------
+    definitions_file : pathlib.Path, optional
+        Path to definitions JSON file. Defaults to openacme's icd10_embeddings
+        directory.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping codes to definition data.
+    """
     if definitions_file is None:
-        definitions_file = Path(EMBEDDINGS_BASE.base) / "icd10_code_to_definition.json"
+        # Use openacme's EMBEDDINGS_BASE to get the path
+        definitions_file = Path(EMBEDDINGS_BASE.base) / 'icd10_code_to_definition.json'
 
     definitions_file = Path(definitions_file)
     if not definitions_file.exists():
         raise FileNotFoundError(f"Definitions file not found: {definitions_file}")
 
-    with open(definitions_file, "r", encoding="utf-8") as f:
+    with open(definitions_file, 'r', encoding='utf-8') as f:
         return json.load(f)
-
-
-def get_icd10_name(code: str, definitions_data: Optional[Dict[str, Any]] = None) -> str:
-    """Get human-readable name for an ICD-10 code."""
-    if not code or not isinstance(code, str):
-        return "Unknown code: "
-
-    code = code.strip().upper()
-
-    if definitions_data is None:
-        definitions_data = load_icd10_definitions()
-
-    if code not in definitions_data:
-        return f"Unknown code: {code}"
-
-    return definitions_data[code].get("name", f"Code: {code}")
-
-
-def validate_mention_extraction_result(result: Dict[str, Any]) -> bool:
-    """Validate structure of mention extraction result."""
-    if not isinstance(result, dict):
-        return False
-    if "Mentions" not in result:
-        return False
-    if not isinstance(result["Mentions"], list):
-        return False
-    return True
-
-
-def validate_disease_extraction_result(result: Dict[str, Any]) -> bool:
-    """Validate structure of disease extraction result."""
-    if not isinstance(result, dict):
-        return False
-    if "Diseases" not in result:
-        return False
-    if not isinstance(result["Diseases"], list):
-        return False
-    return True
-
-
-def mention_to_retrieval_text(mention: str) -> str:
-    """Normalize a mention span into the text used for retrieval."""
-    if not mention or not isinstance(mention, str):
-        return ""
-    return mention.strip()

@@ -53,7 +53,7 @@ class ICD10Retriever:
         top_k: int = 10,
         min_similarity: float = 0.0
     ) -> List[Dict[str, Any]]:
-        """Retrieve top-k most similar ICD-10 codes for a mention span or short clinical phrase.
+        """Retrieve top-k most similar ICD-10 codes for a mention span.
 
         Parameters
         ----------
