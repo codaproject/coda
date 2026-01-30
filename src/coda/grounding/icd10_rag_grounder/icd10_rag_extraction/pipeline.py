@@ -17,6 +17,8 @@ from .utils import load_icd10_definitions
 
 from openacme.icd10.generate_embeddings import generate_icd10_embeddings
 
+
+# Set up logging
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ class MedCoderPipeline:
     """
     Complete pipeline for extracting mention spans and assigning ICD-10 codes.
 
-    Combines LLM mention extraction, semantic retrieval, and re-ranking.
+    Combines LLM extraction, semantic retrieval, and re-ranking.
 
     Supports extractor outputs in multiple shapes:
       1) Disease-grouped:
@@ -38,18 +40,6 @@ class MedCoderPipeline:
       3) Flat mentions (legacy):
          {"Mentions": [{"Mention": str, "ICD10": str}, ...]}
          Note: ICD10 field is optional and typically empty since extractors no longer predict codes.
-
-    Examples
-    --------
-    Using OpenAI:
-        from coda.llm_api import create_llm_client
-        llm_client = create_llm_client(model="gpt-4o-mini", api_key="sk-...")
-        pipeline = MedCoderPipeline(llm_client=llm_client)
-
-    Using Ollama:
-        from coda.llm_api import create_llm_client
-        llm_client = create_llm_client(model="llama3.2")
-        pipeline = MedCoderPipeline(llm_client=llm_client)
     """
 
     def __init__(
@@ -66,32 +56,16 @@ class MedCoderPipeline:
         ----------
         llm_client : LLMClient
             LLM client adapter to use for extraction and reranking.
-        retrieval_top_k : int, default=10
+        retrieval_top_k : int
             Number of ICD-10 codes to retrieve per mention.
-        retrieval_min_similarity : float, default=0.0
+        retrieval_min_similarity : float
             Minimum similarity threshold for retrieval.
-        extraction_schema : Dict[str, Any], optional
-            JSON schema for extraction. If None, defaults to COD_EVIDENCE_EXTRACTION_SCHEMA.
-            Common options:
-            - DISEASE_EXTRACTION_SCHEMA: Hierarchical extraction (diseases with evidence spans)
-            - COD_EVIDENCE_EXTRACTION_SCHEMA: Flat extraction (just evidence spans)
 
         Notes
         -----
         Embeddings are automatically loaded from openacme's default location.
         The pipeline will ensure embeddings exist by calling generate_icd10_embeddings()
         if needed (idempotent operation).
-
-        Examples
-        --------
-        # Using OpenAI
-        from coda.llm_api import create_llm_client
-        llm_client = create_llm_client(model="gpt-4o-mini", api_key="sk-...")
-        pipeline = MedCoderPipeline(llm_client=llm_client)
-
-        # Using Ollama
-        llm_client = create_llm_client(model="llama3.2")
-        pipeline = MedCoderPipeline(llm_client=llm_client)
         """
         if extraction_schema is None:
             extraction_schema = COD_EVIDENCE_EXTRACTION_SCHEMA
@@ -108,7 +82,7 @@ class MedCoderPipeline:
             llm_client=llm_client,
         )
 
-        # Ensure embeddings + definitions exist (idempotent; will not regenerate if present)
+        # Ensure embeddings are generated (this is idempotent - won't regenerate if they exist)
         generate_icd10_embeddings()
         load_icd10_definitions()
 
@@ -234,11 +208,10 @@ class MedCoderPipeline:
         is_single = isinstance(clinical_descriptions, str)
         descriptions_list = [clinical_descriptions] if is_single else clinical_descriptions
 
-        # Empty input handling
         if not descriptions_list:
             return {"Mentions": []} if is_single else [{"Mentions": []}]
 
-        logger.info(f"Starting MedCoder pipeline (raw) for {len(descriptions_list)} clinical description(s)")
+        logger.info(f"Starting MedCoder pipeline for {len(descriptions_list)} clinical description(s)")
 
         results: List[Dict[str, Any]] = []
 
@@ -338,7 +311,7 @@ class MedCoderPipeline:
                 retrieved = self.retriever.retrieve(
                     mention_text,
                     top_k=self.retrieval_top_k,
-                    min_similarity=self.retrieval_min_similarity,
+                    min_similarity=self.retrieval_min_similarity
                 )
                 m["retrieved_codes"] = retrieved
                 logger.debug(f"Retrieved {len(retrieved)} codes for mention: {mention_text[:80]}")
@@ -461,7 +434,7 @@ class MedCoderPipeline:
     def process(
         self,
         clinical_descriptions: Union[str, List[str]],
-        text_type: str = "clinical_note",
+        text_type: str = "",
         identifier: Optional[str] = None,
         annotation_min_similarity: float = 0.7,
     ) -> Dict[str, Any]:
@@ -474,7 +447,7 @@ class MedCoderPipeline:
             Clinical text(s) to process. If a list is provided, each string is processed
             separately, then results are merged. The final text field will be the
             concatenated original texts.
-        text_type : str, default="clinical_note"
+        text_type : str
             Type of text being processed.
         identifier : str, optional
             Identifier for the text. If None, uses empty string.
@@ -554,10 +527,27 @@ class MedCoderPipeline:
         """Only perform mention extraction (no retrieval/re-ranking)."""
         return self.extractor.extract(clinical_description)
 
-    def retrieve_only(self, clinical_text: str, top_k: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Only perform semantic retrieval (no extraction/re-ranking)."""
+    def retrieve_only(
+        self,
+        clinical_text: str,
+        top_k: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Only perform semantic retrieval (no extraction/re-ranking).
+
+        Parameters
+        ----------
+        clinical_text : str
+            Clinical text to search.
+        top_k : int, optional
+            Number of codes to retrieve. Defaults to pipeline setting.
+
+        Returns
+        -------
+        list of dict
+            List of retrieved codes with similarity scores.
+        """
         return self.retriever.retrieve(
             clinical_text,
             top_k=top_k or self.retrieval_top_k,
-            min_similarity=self.retrieval_min_similarity,
+            min_similarity=self.retrieval_min_similarity
         )
