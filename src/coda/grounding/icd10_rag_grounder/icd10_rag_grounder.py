@@ -158,7 +158,6 @@ class RAGGrounder(BaseGrounder):
             text,
             text_type="",
             identifier="",
-            annotate_evidence=True,
             annotation_min_similarity=self.annotation_min_similarity
         )
 

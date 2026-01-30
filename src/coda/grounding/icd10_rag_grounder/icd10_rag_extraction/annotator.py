@@ -67,7 +67,20 @@ class AnnotatedText(BaseModel):
 
 
 def _similarity_ratio(s1: str, s2: str) -> float:
-    """Calculate similarity ratio between two strings using built-in difflib."""
+    """Calculate similarity ratio between two strings using built-in difflib.
+
+    Parameters
+    ----------
+    s1 : str
+        First string.
+    s2 : str
+        Second string.
+
+    Returns
+    -------
+    float
+        Similarity ratio between 0.0 and 1.0.
+    """
     return SequenceMatcher(None, s1, s2).ratio()
 
 
@@ -75,28 +88,29 @@ def find_evidence_spans(
     clinical_text: str,
     evidence_strings: List[str],
     min_similarity: float = 0.7,
-    case_sensitive: bool = False,
+    case_sensitive: bool = False
 ) -> List[Dict[str, Any]]:
     """Find character spans for evidence strings in clinical text using fuzzy matching.
-    
+
     Returns exactly one match per evidence string (1:1 correspondence).
     For duplicate mentions, finds non-overlapping occurrences.
     Prioritizes exact matches over fuzzy matches.
-    
+
     Parameters
     ----------
     clinical_text : str
-        The clinical text to search in.
-    evidence_strings : List[str]
-        List of evidence strings to find. Each string will get exactly one match.
-    min_similarity : float, default=0.7
-        Minimum similarity threshold for fuzzy matching.
-    case_sensitive : bool, default=False
-        Whether matching should be case-sensitive.
-    
+        Original clinical description text.
+    evidence_strings : list of str
+        List of evidence strings to find.
+    min_similarity : float
+        Minimum similarity threshold (0.0 to 1.0) for fuzzy matching.
+        Defaults to 0.7.
+    case_sensitive : bool
+        Whether to preserve case in matching. Defaults to False.
+
     Returns
     -------
-    List[Dict[str, Any]]
+    list of dict
         List of matches, one per input evidence string. Each dict has keys:
         - text: matched text span
         - start: start position (None if not_found)
@@ -158,23 +172,24 @@ def find_evidence_spans(
         
         if not word_list:
             return []
-        
+
         evidence_word_count = len(evidence_normalized.split())
         fuzzy_matches: List[Dict[str, Any]] = []
-        
-        for window_size in range(
-            evidence_word_count, min(evidence_word_count + 5, len(word_list) + 1)
-        ):
+
+        for window_size in range(evidence_word_count, min(evidence_word_count + 5, len(word_list) + 1)):
             for i in range(len(word_list) - window_size + 1):
-                window_words = word_list[i : i + window_size]
-                window_start_char = window_words[0][1]
-                window_end_char = window_words[-1][2]
-                
+                # Get window words and their positions
+                window_words = word_list[i:i+window_size]
+                window_start_char = window_words[0][1]  # Start of first word
+                window_end_char = window_words[-1][2]   # End of last word
+
+                # Extract actual text from original (preserves exact spacing)
                 window_text = clinical_text[window_start_char:window_end_char]
                 window_normalized = window_text if case_sensitive else window_text.lower()
-                
+
+                # Calculate similarity
                 similarity = _similarity_ratio(evidence_normalized, window_normalized)
-                
+
                 if similarity >= min_similarity:
                     fuzzy_matches.append({
                         "text": window_text,
@@ -241,11 +256,11 @@ def find_evidence_spans(
         # If no non-overlapping match found, return "not_found"
         if best_match is None:
             annotated_evidence.append({
-                "text": evidence_clean,
-                "start": None,
-                "end": None,
-                "similarity": 0.0,
-                "match_type": "not_found",
+                'text': evidence_clean,
+                'start': None,
+                'end': None,
+                'similarity': 0.0,
+                'match_type': 'not_found'
             })
         else:
             annotated_evidence.append(best_match)
@@ -257,29 +272,34 @@ def annotate(
     text: str,
     text_type: str,
     identifier: str,
-    pipeline_result: Dict[str, Any],
-    add_evidence_spans: bool = False,
+    pipeline_output: Dict[str, Any],
     min_similarity: float = 0.7,
     case_sensitive: bool = False,
     properties: Optional[Dict[str, Any]] = None,
 ) -> AnnotatedText:
     """
-    Contract B:
-    - Annotation.text is anchored to the original input text whenever possible
-      (exact/fuzzy matched substring).
-    - LLM Mention is treated as a proposal; fallback only if no span can be found.
-    - span provenance is exposed via Annotation.properties["span_source"].
+    Annotate text with ICD-10 codes and evidence spans.
 
     Parameters
     ----------
-    properties : Dict[str, Any], optional
-        Additional properties/metadata for the annotated text.
-        Common properties: model, provider, etc.
+    text : str
+        Original clinical description text.
+    text_type : str
+        Type of text (e.g., 'va_narrative', 'clinical_note').
+    identifier : str
+        Unique identifier for this text (e.g., 'champs_deid:A31C4B5E-3890-4AEC-8375-37DB6D916AED').
+    pipeline_output : dict
+        Raw pipeline result dictionary.
+    min_similarity : float
+        Minimum similarity threshold (0.0 to 1.0) for fuzzy matching.
+        Defaults to 0.7.
+    case_sensitive : bool
+        Whether to preserve case in matching. Defaults to False.
     """
     # Save the function parameter to avoid shadowing
     annotated_text_properties = properties
     
-    if not isinstance(pipeline_result, dict) or "Mentions" not in pipeline_result:
+    if not isinstance(pipeline_output, dict) or "Mentions" not in pipeline_output:
         return AnnotatedText(
             text=text,
             type=text_type,
@@ -288,7 +308,7 @@ def annotate(
             properties=annotated_text_properties,
         )
 
-    mentions = pipeline_result.get("Mentions", [])
+    mentions = pipeline_output.get("Mentions", [])
     annotations: List[Annotation] = []
 
     for mention_item in mentions:
@@ -321,9 +341,6 @@ def annotate(
                 f"This should have been filtered out during validation in process_raw()."
             )
             continue
-
-        if add_evidence_spans:
-            mention_item["mention_spans"] = spans
 
         # Get codes for this mention
         reranked_codes = mention_item.get("reranked_codes", [])

@@ -463,7 +463,6 @@ class MedCoderPipeline:
         clinical_descriptions: Union[str, List[str]],
         text_type: str = "clinical_note",
         identifier: Optional[str] = None,
-        annotate_evidence: bool = True,
         annotation_min_similarity: float = 0.7,
     ) -> Dict[str, Any]:
         """
@@ -479,8 +478,6 @@ class MedCoderPipeline:
             Type of text being processed.
         identifier : str, optional
             Identifier for the text. If None, uses empty string.
-        annotate_evidence : bool, default=True
-            Whether to add evidence spans to annotations.
         annotation_min_similarity : float, default=0.7
             Minimum similarity threshold for annotation.
         
@@ -504,8 +501,7 @@ class MedCoderPipeline:
                 text="",
                 text_type=text_type,
                 identifier=identifier or "",
-                pipeline_result={"Mentions": []},
-                add_evidence_spans=annotate_evidence,
+                pipeline_output={"Mentions": []},
                 min_similarity=annotation_min_similarity,
                 properties=self.llm_properties,
             ).model_dump()
@@ -541,8 +537,7 @@ class MedCoderPipeline:
             text=combined_text,
             text_type=text_type,
             identifier=identifier or "",
-            pipeline_result=combined_raw_result,
-            add_evidence_spans=annotate_evidence,
+            pipeline_output=combined_raw_result,
             min_similarity=annotation_min_similarity,
             properties=self.llm_properties,
         )
