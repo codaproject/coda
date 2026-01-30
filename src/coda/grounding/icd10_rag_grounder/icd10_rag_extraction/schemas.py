@@ -65,7 +65,7 @@ COD_EVIDENCE_EXTRACTION_SCHEMA = {
 }
 
 # -------------------------------------------------------------------
-# Single-mention reranking schema (legacy)
+# Single-mention reranking schema
 # -------------------------------------------------------------------
 RERANKING_SCHEMA = {
     "type": "object",
@@ -78,12 +78,12 @@ RERANKING_SCHEMA = {
                 "properties": {
                     "ICD-10 Code": {
                         "type": "string",
-                        "description": "The ICD-10 code.",
+                        "description": "The ICD-10 code."
                     },
                     "ICD-10 Name": {
                         "type": "string",
-                        "description": "The human-readable name corresponding to the ICD-10 code.",
-                    },
+                        "description": "The human-readable name corresponding to the ICD-10 code."
+                    }
                 },
                 "required": ["ICD-10 Code", "ICD-10 Name"],
                 "additionalProperties": False,
@@ -139,19 +139,31 @@ BATCH_RERANKING_SCHEMA = {
 }
 
 # -------------------------------------------------------------------
-# Type hints for better IDE support
+# Schema name registry
+# Maps schema names to their schema dictionaries for use in API calls
 # -------------------------------------------------------------------
-from typing import Dict, Any, List
-
-MentionInfo = Dict[str, Any]              # {"Mention": str, "ICD10": str}
-MentionExtractionResult = Dict[str, Any]  # {"Mentions": List[MentionInfo]}
-
-RerankedCode = Dict[str, Any]             # {"ICD-10 Code": str, "ICD-10 Name": str}
-RerankingResult = Dict[str, Any]          # {"Reranked ICD-10 Codes": List[RerankedCode]}
-
-BatchMentionReranking = Dict[str, Any]    # {"mention_id": str, "Reranked ICD-10 Codes": List[RerankedCode]}
-BatchRerankingResult = Dict[str, Any]     # {"Mention Rerankings": List[BatchMentionReranking]}
+SCHEMA_NAMES = {
+    "disease_extraction": DISEASE_EXTRACTION_SCHEMA,
+    "cod_evidence_extraction": COD_EVIDENCE_EXTRACTION_SCHEMA,
+    "reranking_icd10": RERANKING_SCHEMA,
+    "reranking_icd10_batch": BATCH_RERANKING_SCHEMA,
+}
 
 
-DiseaseInfo = Dict[str, Any]                 # {"Disease": str, "ICD10": str, "Supporting Evidence": List[str]}
-DiseaseExtractionResult = Dict[str, Any]     # {"Diseases": List[DiseaseInfo]}
+def get_schema_name(schema: dict) -> str:
+    """Get schema name from schema object by identity comparison.
+    
+    Parameters
+    ----------
+    schema : dict
+        Schema dictionary object.
+        
+    Returns
+    -------
+    str
+        Schema name if found in registry, otherwise "extraction".
+    """
+    for name, schema_obj in SCHEMA_NAMES.items():
+        if schema is schema_obj:
+            return name
+    return "extraction"

@@ -5,9 +5,10 @@ Supports multiple extraction schemas for different use cases.
 """
 
 import logging
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional
 
 from coda.llm_api import LLMClient
+from .schemas import get_schema_name
 
 
 logger = logging.getLogger(__name__)
@@ -52,9 +53,6 @@ class BaseExtractor:
         llm_client: LLMClient,
         system_prompt: Optional[str] = None,
         user_prompt_template: Optional[str] = None,
-        schema_name: Optional[str] = None,
-        default_empty_result: Optional[Dict[str, Any]] = None,
-        validator: Optional[Callable[[Dict[str, Any]], bool]] = None,
     ):
         """
         Initialize the base extractor.
@@ -70,24 +68,24 @@ class BaseExtractor:
         user_prompt_template : str, optional
             User prompt template. Should contain {clinical_description} placeholder.
             If None, uses a minimal default.
-        schema_name : str, optional
-            Name for the schema (used in API call). If None, auto-detected from schema.
-        default_empty_result : Dict[str, Any], optional
-            Default result to return on empty input or validation failure. If None, auto-detected from schema.
-        validator : Callable, optional
-            Function to validate the LLM response structure. If None, uses basic validation.
         """
         self.llm_client = llm_client
         self.schema = schema
         
-        # Auto-detect schema name and default empty result from schema
-        if schema_name is None:
-            schema_name = self._detect_schema_name(schema)
-        self.schema_name = schema_name
+        # Get schema name from registry
+        self.schema_name = get_schema_name(schema)
+        
+        # Derive default empty result from schema name
+        if self.schema_name == "disease_extraction":
+            self.default_empty_result = {"Diseases": []}
+        elif self.schema_name == "cod_evidence_extraction":
+            self.default_empty_result = {"COD_EVIDENCE_SPANS": []}
+        else:
+            self.default_empty_result = {}
         
         # Auto-configure prompts from EXTRACTOR_CONFIGS if not provided
         if system_prompt is None or user_prompt_template is None:
-            config = EXTRACTOR_CONFIGS.get(schema_name, {})
+            config = EXTRACTOR_CONFIGS.get(self.schema_name, {})
             if system_prompt is None:
                 system_prompt = config.get("system_prompt", "You are a medical coding assistant.\n\n")
             if user_prompt_template is None:
@@ -96,59 +94,28 @@ class BaseExtractor:
         self.system_prompt = system_prompt
         self.user_prompt_template = user_prompt_template
         
-        if default_empty_result is None:
-            default_empty_result = self._detect_default_empty_result(schema)
-        self.default_empty_result = default_empty_result
-        
-        if validator is None:
-            validator = self._create_basic_validator(schema)
-        self.validator = validator
-        
         self.max_retries = 3
         self.retry_delay = 1.0
 
-    def _detect_schema_name(self, schema: Dict[str, Any]) -> str:
-        """Detect schema name from schema structure."""
-        props = schema.get("properties", {})
-        if "Diseases" in props:
-            return "disease_extraction"
-        elif "COD_EVIDENCE_SPANS" in props:
-            return "cod_evidence_extraction"
-        elif "Mentions" in props:
-            return "mention_extraction"
-        return "extraction"
-
-    def _detect_default_empty_result(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Detect default empty result from schema structure."""
-        props = schema.get("properties", {})
-        if "Diseases" in props:
-            return {"Diseases": []}
-        elif "COD_EVIDENCE_SPANS" in props:
-            return {"COD_EVIDENCE_SPANS": []}
-        elif "Mentions" in props:
-            return {"Mentions": []}
-        return {}
-
-    def _create_basic_validator(self, schema: Dict[str, Any]) -> Callable[[Dict[str, Any]], bool]:
-        """Create a basic validator function from schema structure."""
-        props = schema.get("properties", {})
-        required = schema.get("required", [])
+    def _validate_schema_structure(self, result: Dict[str, Any]) -> bool:
+        """Validate that result matches the schema structure."""
+        if not isinstance(result, dict):
+            return False
         
-        def validator(result: Dict[str, Any]) -> bool:
-            if not isinstance(result, dict):
+        props = self.schema.get("properties", {})
+        required = self.schema.get("required", [])
+        
+        # Check required keys exist
+        for key in required:
+            if key not in result:
                 return False
-            # Check required keys exist
-            for key in required:
-                if key not in result:
+            # Check type matches schema
+            if key in props:
+                prop_type = props[key].get("type")
+                if prop_type == "array" and not isinstance(result[key], list):
                     return False
-                # Check type matches schema
-                if key in props:
-                    prop_type = props[key].get("type")
-                    if prop_type == "array" and not isinstance(result[key], list):
-                        return False
-            return True
         
-        return validator
+        return True
 
     def extract(
         self,
@@ -201,8 +168,8 @@ class BaseExtractor:
             result["api_failed"] = True
             return result
 
-        # Validate if validator provided
-        if self.validator and not self.validator(response_json):
+        # Validate response structure
+        if not self._validate_schema_structure(response_json):
             logger.warning(
                 f"Invalid response structure from LLM. "
                 f"Expected schema keys: {list(self.schema.get('properties', {}).keys())}, "
@@ -220,11 +187,10 @@ class BaseExtractor:
         
         Validates spans are verbatim for COD_EVIDENCE_SPANS and DISEASE schemas.
         """
-        schema_name = self._detect_schema_name(self.schema)
         clinical_lower = clinical_description.lower()
         
         # For COD_EVIDENCE_SPANS schema, validate spans are verbatim
-        if schema_name == "cod_evidence_extraction":
+        if self.schema_name == "cod_evidence_extraction":
             if not isinstance(response_json, dict) or "COD_EVIDENCE_SPANS" not in response_json:
                 return response_json
             if not isinstance(response_json["COD_EVIDENCE_SPANS"], list):
@@ -250,7 +216,7 @@ class BaseExtractor:
             return {"COD_EVIDENCE_SPANS": validated_evidence}
         
         # For DISEASE schema, validate evidence spans are verbatim
-        elif schema_name == "disease_extraction":
+        elif self.schema_name == "disease_extraction":
             if not isinstance(response_json, dict) or "Diseases" not in response_json:
                 return response_json
             

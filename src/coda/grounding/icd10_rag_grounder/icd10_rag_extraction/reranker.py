@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 
 from coda.llm_api import LLMClient
 
-from .schemas import RERANKING_SCHEMA, BATCH_RERANKING_SCHEMA
+from .schemas import RERANKING_SCHEMA, BATCH_RERANKING_SCHEMA, get_schema_name
 from .utils import validate_icd10_code
 
 logger = logging.getLogger(__name__)
@@ -165,11 +165,14 @@ class CodeReranker:
             + "\n\n".join(blocks)
         )
 
+        # Get schema name from registry
+        schema_name = get_schema_name(self.schema_batch)
+        
         response_json = self.llm_client.call_with_schema(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=self.schema_batch,
-            schema_name="reranking_icd10_batch",
+            schema_name=schema_name,
             max_retries=self.max_retries,
             retry_delay=self.retry_delay,
         )
