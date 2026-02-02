@@ -10,7 +10,10 @@ import time
 import logging
 from typing import Dict, Any, Optional
 
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 from .client import LLMClient
 
@@ -43,6 +46,12 @@ class OpenAIAdapter(LLMClient):
         timeout : tuple, default=(60.0, 300.0)
             Timeout tuple (connect_timeout, read_timeout) in seconds.
         """
+        if OpenAI is None:
+            raise ImportError(
+                "OpenAI package is not installed. "
+                "Install it with: pip install 'coda[openai]' or pip install openai"
+            )
+        
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key.")
