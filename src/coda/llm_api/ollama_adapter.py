@@ -11,7 +11,10 @@ import time
 import logging
 from typing import Dict, Any, Optional
 
-from ollama import chat
+try:
+    from ollama import chat
+except ImportError:
+    chat = None
 
 from .client import LLMClient
 
@@ -46,6 +49,12 @@ class OllamaAdapter(LLMClient):
         timeout : float, default=300.0
             Request timeout in seconds.
         """
+        if chat is None:
+            raise ImportError(
+                "Ollama package is not installed. "
+                "Install it with: pip install 'coda[ollama]' or pip install ollama"
+            )
+        
         # Note: base_url and timeout are not used with ollama package
         # but kept for API compatibility
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

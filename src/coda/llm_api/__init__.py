@@ -8,14 +8,24 @@ retry logic, and error handling. Abstracts provider-specific implementations.
 from typing import Optional, Dict, Any
 
 from .client import LLMClient
-from .openai_adapter import OpenAIAdapter
-from .ollama_adapter import OllamaAdapter
 
-# Registry of available adapters
-_ADAPTERS: Dict[str, type[LLMClient]] = {
-    "openai": OpenAIAdapter,
-    "ollama": OllamaAdapter,
-}
+# Optional adapter imports
+try:
+    from .openai_adapter import OpenAIAdapter
+except ImportError:
+    OpenAIAdapter = None
+
+try:
+    from .ollama_adapter import OllamaAdapter
+except ImportError:
+    OllamaAdapter = None
+
+# Registry of available adapters (only include installed ones)
+_ADAPTERS: Dict[str, type[LLMClient]] = {}
+if OpenAIAdapter is not None:
+    _ADAPTERS["openai"] = OpenAIAdapter
+if OllamaAdapter is not None:
+    _ADAPTERS["ollama"] = OllamaAdapter
 
 
 def create_llm_client(
@@ -77,12 +87,20 @@ def create_llm_client(
     adapter_class = _ADAPTERS.get(provider)
     if not adapter_class:
         available = ", ".join(_ADAPTERS.keys())
-        raise ValueError(
-            f"Unknown provider '{provider}'. Available providers: {available}"
-        )
+        if available:
+            raise ValueError(
+                f"Unknown provider '{provider}' or provider not installed. "
+                f"Available providers: {available}. "
+                f"Install with: pip install 'coda[{provider}]'"
+            )
+        else:
+            raise ImportError(
+                "No LLM providers are installed. "
+                "Install at least one with: pip install 'coda[openai]' or pip install 'coda[ollama]'"
+            )
 
     # Create instance with provided kwargs
     return adapter_class(model=model, **kwargs)
 
 
-__all__ = ["LLMClient", "OpenAIAdapter", "OllamaAdapter", "create_llm_client"]
+__all__ = ["LLMClient", "create_llm_client"]
