@@ -121,17 +121,22 @@ Re-rank these codes based on how well they match the disease and evidence."""
                 if code:
                     code_to_similarity[code] = similarity
 
-            # Validate codes and add similarity scores
+            # Validate codes: must be valid format AND in retrieved set
             validated_codes = []
             for code_info in response_json['Reranked ICD-10 Codes']:
                 code = code_info.get('ICD-10 Code', '')
-                if validate_icd10_code(code):
-                    # Add similarity score from retrieved_codes if available
-                    similarity = code_to_similarity.get(code, 0.0)
-                    code_info['similarity'] = similarity
-                    validated_codes.append(code_info)
-                else:
-                    print(f"Warning: Invalid ICD-10 code '{code}' in reranking result")
+                if not validate_icd10_code(code):
+                    print(f"Warning: Invalid ICD-10 code format '{code}' in reranking result")
+                    continue
+                
+                if code not in code_to_similarity:
+                    print(f"Warning: Code '{code}' not in retrieved codes set - skipping")
+                    continue
+                
+                # Add similarity score from retrieved_codes
+                similarity = code_to_similarity[code]
+                code_info['similarity'] = similarity
+                validated_codes.append(code_info)
 
             return {"Reranked ICD-10 Codes": validated_codes}
 

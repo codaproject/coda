@@ -45,13 +45,9 @@ RERANKING_SCHEMA = {
                     "ICD-10 Code": {
                         "type": "string",
                         "description": "The ICD-10 code."
-                    },
-                    "ICD-10 Name": {
-                        "type": "string",
-                        "description": "The human-readable name corresponding to the ICD-10 code."
                     }
                 },
-                "required": ["ICD-10 Code", "ICD-10 Name"],
+                "required": ["ICD-10 Code"],
                 "additionalProperties": False,
             },
         },
