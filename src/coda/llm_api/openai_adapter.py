@@ -178,6 +178,7 @@ class OpenAIAdapter(LLMClient):
                             "strict": True,
                         }
                     },
+                    temperature=temperature,
                 )
                 response_json = json.loads(response.output_text)
                 break
