@@ -101,7 +101,7 @@ class RAGGrounder(BaseGrounder):
             # Get the top code (first in reranked list)
             code_info = codes[0]
             code = code_info.get('ICD-10 Code', '') or code_info.get('code', '')
-            name = code_info.get('ICD-10 Name', '') or code_info.get('name', get_icd10_name(code))
+            name = get_icd10_name(code)
             # Use similarity score from retrieval
             similarity = code_info.get('similarity', 0.0)
             score = float(similarity)
@@ -170,7 +170,7 @@ class RAGGrounder(BaseGrounder):
             # Get the top code (first in reranked list)
             code_info = codes[0]
             code = code_info.get('ICD-10 Code', '')
-            name = code_info.get('ICD-10 Name', '')
+            name = get_icd10_name(code)
             # Use similarity score from retrieval
             similarity = code_info.get('similarity', 0.0)
             score = float(similarity)
