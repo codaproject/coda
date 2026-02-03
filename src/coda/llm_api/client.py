@@ -50,6 +50,7 @@ class LLMClient(ABC):
         schema_name: str,
         max_retries: int = 3,
         retry_delay: float = 1.0,
+        temperature: float = 0.0,
     ) -> Dict[str, Any]:
         """
         Make an LLM API call with structured JSON schema output.
@@ -68,6 +69,9 @@ class LLMClient(ABC):
             Maximum number of retry attempts on failure.
         retry_delay : float, default=1.0
             Base delay in seconds for exponential backoff retries.
+        temperature : float, default=0.0
+            Temperature for the LLM. Controls randomness in output.
+            Lower values (0.0-0.3) are more deterministic, higher values (0.7-1.0) are more creative.
 
         Returns
         -------
