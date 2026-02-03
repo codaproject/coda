@@ -15,6 +15,7 @@ from .utils import (
     combine_text_for_retrieval,
     get_icd10_name
 )
+from coda.llm_api import LLMClient
 
 from openacme.icd10.generate_embeddings import generate_icd10_embeddings
 
@@ -32,8 +33,7 @@ class MedCoderPipeline:
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
-        openai_model: str = "gpt-4o-mini",
+        llm_client: LLMClient,
         retrieval_top_k: int = 10,
         retrieval_min_similarity: float = 0.0
     ):
@@ -41,10 +41,8 @@ class MedCoderPipeline:
 
         Parameters
         ----------
-        openai_api_key : str, optional
-            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
-        openai_model : str
-            OpenAI model name. Defaults to "gpt-4o-mini".
+        llm_client : LLMClient
+            LLM client instance for making API calls.
         retrieval_top_k : int
             Number of codes to retrieve per disease. Defaults to 10.
         retrieval_min_similarity : float
@@ -56,21 +54,15 @@ class MedCoderPipeline:
         The pipeline will ensure embeddings exist by calling generate_icd10_embeddings()
         if needed (idempotent operation).
         """
+        self.llm_client = llm_client
         # Initialize components
-        self.extractor = DiseaseExtractor(
-            api_key=openai_api_key,
-            model=openai_model
-        )
+        self.extractor = DiseaseExtractor(llm_client=llm_client)
 
         # Ensure embeddings are generated (this is idempotent - won't regenerate if they exist)
         generate_icd10_embeddings()
 
         self.retriever = ICD10Retriever()
-
-        self.reranker = CodeReranker(
-            api_key=openai_api_key,
-            model=openai_model
-        )
+        self.reranker = CodeReranker(llm_client=llm_client)
 
         self.retrieval_top_k = retrieval_top_k
         self.retrieval_min_similarity = retrieval_min_similarity
@@ -272,4 +264,3 @@ class MedCoderPipeline:
             top_k=top_k or self.retrieval_top_k,
             min_similarity=self.retrieval_min_similarity
         )
-
