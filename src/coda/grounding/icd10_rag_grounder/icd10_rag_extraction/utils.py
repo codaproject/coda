@@ -151,10 +151,6 @@ def format_output(diagnoses: list) -> Dict[str, Any]:
         formatted_diag = {
             "disease": diag.get('Disease', ''),
             "evidence": diag.get('Supporting Evidence', []),
-            "llm_prediction": {
-                "code": diag.get('ICD10', ''),
-                "name": diag.get('llm_code_name', ''),
-            },
             "retrieved_codes": diag.get('retrieved_codes', []),
             "reranked_codes": diag.get('reranked_codes', []),
         }

@@ -12,8 +12,7 @@ from .retriever import ICD10Retriever
 from .reranker import CodeReranker
 from .annotator import annotate_raw_output
 from .utils import (
-    combine_text_for_retrieval,
-    get_icd10_name
+    combine_text_for_retrieval
 )
 from coda.llm_api import LLMClient
 
@@ -112,7 +111,7 @@ class MedCoderPipeline:
                 logger.info(f"Processing description {idx}/{len(descriptions_list)}")
 
             # Step 1: Extract diseases using LLM
-            logger.debug("Step 1: Extracting diseases and initial ICD-10 codes")
+            logger.debug("Step 1: Extracting diseases and supporting evidence")
 
             step1_start = time.time()
             extraction_result = self.extractor.extract(clinical_description)
@@ -164,21 +163,16 @@ class MedCoderPipeline:
             for disease in diseases:
                 disease_name = disease.get('Disease', '')
                 evidence = disease.get('Supporting Evidence', [])
-                llm_code = disease.get('ICD10', '')
-                llm_code_name = get_icd10_name(llm_code)
                 retrieved_codes = disease.get('retrieved_codes', [])
 
                 # Re-rank
                 reranking_result = self.reranker.rerank(
                     disease=disease_name,
                     evidence=evidence,
-                    llm_code=llm_code,
-                    llm_code_name=llm_code_name,
                     retrieved_codes=retrieved_codes
                 )
 
                 disease['reranked_codes'] = reranking_result.get('Reranked ICD-10 Codes', [])
-                disease['llm_code_name'] = llm_code_name
 
                 num_reranked = len(disease['reranked_codes'])
                 logger.debug(f"Re-ranked {num_reranked} codes for disease: {disease_name}")

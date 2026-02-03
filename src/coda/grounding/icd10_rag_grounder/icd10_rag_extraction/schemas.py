@@ -22,13 +22,9 @@ DISEASE_EXTRACTION_SCHEMA = {
                             "type": "string",
                             "description": "A verbatim text span copied exactly from the clinical description. Must be an exact substring of the input text, not a paraphrase or summary."
                         }
-                    },
-                    "ICD10": {
-                        "type": "string",
-                        "description": "The ICD-10 code that corresponds to the disease."
                     }
                 },
-                "required": ["Disease", "Supporting Evidence", "ICD10"],
+                "required": ["Disease", "Supporting Evidence"],
                 "additionalProperties": False
             }
         }

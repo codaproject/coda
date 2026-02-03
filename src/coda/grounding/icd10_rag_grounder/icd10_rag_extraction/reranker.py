@@ -33,12 +33,10 @@ class CodeReranker:
         self,
         disease: str,
         evidence: List[str],
-        llm_code: str,
-        llm_code_name: str,
         retrieved_codes: List[Dict[str, Any]],
         system_prompt: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Re-rank retrieved ICD-10 codes based on disease, evidence, and LLM prediction.
+        """Re-rank retrieved ICD-10 codes based on disease and evidence.
 
         Parameters
         ----------
@@ -46,10 +44,6 @@ class CodeReranker:
             Disease name.
         evidence : list of str
             List of supporting evidence strings.
-        llm_code : str
-            Initial ICD-10 code from LLM.
-        llm_code_name : str
-            Name corresponding to llm_code.
         retrieved_codes : list of dict
             List of retrieved codes with similarity scores.
         system_prompt : str, optional
@@ -81,7 +75,6 @@ Consider these factors (in order of importance):
 2. **Evidence alignment**: Does the code match the supporting clinical evidence?
 3. **Specificity**: Prefer more specific codes over general ones when appropriate
 4. **Retrieval confidence**: Consider the embedding similarity scores (higher = more relevant)
-5. **LLM consistency**: How well does the code align with the initial LLM prediction?
 
 Return ONLY JSON that matches the provided schema, ordered from most to least appropriate."""
 
@@ -92,11 +85,8 @@ Return ONLY JSON that matches the provided schema, ordered from most to least ap
 
 Supporting evidence:
 {evidence_text}
-
-LLM's initial ICD-10 prediction:
-  Code: {llm_code}
-  Name: {llm_code_name}
-
+"""
+        user_prompt += f"""
 Retrieved ICD-10 candidate codes (from semantic search):
 {"\n".join(retrieved_codes_formatted)}
 

@@ -93,17 +93,11 @@ class DiseaseExtractor:
                 print("Warning: Invalid response structure from LLM")
                 return {"Diseases": []}
 
-            # Validate ICD-10 codes and evidence
+            # Validate evidence
             validated_diseases = []
             clinical_lower = clinical_description.lower()
 
             for disease in response_json.get('Diseases', []):
-                code = disease.get('ICD10', '')
-                if not validate_icd10_code(code):
-                    print(f"Warning: Invalid ICD-10 code '{code}' for disease '{disease.get('Disease', '')}'")
-                    continue
-
-                # Validate evidence strings are verbatim (case-insensitive check)
                 evidence = disease.get('Supporting Evidence', [])
                 validated_evidence = []
 
