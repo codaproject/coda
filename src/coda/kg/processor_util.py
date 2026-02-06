@@ -124,6 +124,7 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                 id_value = row[id_index]
                 node_ids.add(id_value)
     ## check that all nodes exist in the edge file
+    records: list = []
     for exporter in tqdm(
         exporters, desc="checking exporter edge existence", unit="source"
     ):
@@ -150,6 +151,14 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                             )
                         )
                     else:
+                        records.append(
+                            {
+                                "start": start_id_value,
+                                "type": type_value,
+                                "end": end_id_value,
+                                "missing_id": start_id_value,
+                            }
+                        )
                         logger.warning(
                             message.format(
                                 start=start_id_value,
@@ -169,6 +178,14 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                             )
                         )
                     else:
+                        records.append(
+                            {
+                                "start": start_id_value,
+                                "type": type_value,
+                                "end": end_id_value,
+                                "missing_id": end_id_value,
+                            }
+                        )
                         logger.warning(
                             message.format(
                                 start=start_id_value,
@@ -177,3 +194,9 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                                 missing_id=end_id_value,
                             )
                         )
+            if len(records) > 0:
+                logger.info(
+                    "edges with missing node IDs found, wrote list to missing_edges.tsv"
+                )
+                df = polars.from_dicts(records)
+                df.write_csv("missing_edges.tsv", separator="\t")
