@@ -71,7 +71,7 @@ class Reranker:
         for term in retrieved_terms:
             term_info = f"  - Identifier: {term.id}, Name: {term.text}"
             if term.definition:
-                term_info += f", Definition: {term.definition[:100]}"
+                term_info += f", Definition: {term.definition}"
             retrieved_terms_formatted.append(term_info)
         
         if system_prompt is None:
@@ -184,7 +184,7 @@ Re-rank these terms based on how well they match the concept and evidence."""
             for term in retrieved_terms:
                 term_info = f"    - Identifier: {term.id}, Name: {term.text}"
                 if term.definition:
-                    term_info += f", Definition: {term.definition[:100]}"
+                    term_info += f", Definition: {term.definition}"
                 retrieved_terms_formatted.append(term_info)
             
             concept_section = f"""Concept {i + 1}:
