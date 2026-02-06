@@ -1,0 +1,99 @@
+Transcripted Line
+
+"Hi, Mr. Johnson, please come in and have a seat. I'm Dr. Lee. How are you doing today?"
+
+"I'm alright, thank you. A little nervous, I guess. It's my first time seeing a cardiologist."
+
+"That's totally understandable. It's good you're taking care of your health. So, let's start with some background. You were referred by your primary care... Dr. Smith, right?"
+
+"Yeah, that's right. He mentioned something about... my blood pressure and, uh... palpitations?"
+
+"Okay, palpitations. Can you describe what those feels- feel like?"
+
+"Well, it's like... my heart skips a beat sometimes, or it feels like it's racing. And sometimes it just... thumps, I guess? Like, really hard."
+
+"And how often do these episodes occur?"
+
+"Maybe, two or three times a week? It's not constant, but when it happens, it's... unsettling."
+
+"I understand. And how long do they usually last?"
+
+"A few minutes? Five, maybe ten, at most. Uh, it's hard to tell when you're... you know, experiencing it."
+
+"Right, right. Um, is there anything that seems to trigger these episodes? Stress maybe? Exercise? Certain foods?"
+
+Stress, definitely. And maybe... a big meal? Or if I have too much coffee. I, I do like my coffee. And, you know, sometimes, if I don’t get enough sleep."
+
+"Most of us do. So, let's talk about your blood pressure. Dr. Smith mentioned it was elevated. Do you know your readings?"
+
+"I think he said something like... 140 over 90? Or something like that."
+
+"Okay, that's definitely elevated. And do you have any other medical conditions? Diabetes? High cholesterol?"
+
+"No, not that I know of. Uh, just the blood pressure and these... heart things. And, uh, sometimes, I get a little lightheaded. But, I thought that was just me getting old. And, occasionally, I get a little short of breath when I walk uphill."
+
+"Okay. We'll figure it out. How about family history? Is there any heart disease in your family?"
+
+"Um, my father had a heart attack when he was in his sixties. And my grandfather, I think he had, uh... something with his heart too. Um, I'm not sure what. And my mother had high blood pressure, I remember that."
+
+"Okay, that's important information. And what about your lifestyle? Do you exercise regularly?"
+
+"Well, I, I try to. I walk the dog, you know? And, uh, I haven't been as active lately. Work's been busy. And, honestly, I find myself sitting a lot in front of the TV."
+
+"And what about your diet? Do you eat a lot of processed foods? Salt?"
+
+"Uh, I do try and eat healthy, but... you know, sometimes it's easier to just grab something quick. And, yeah, I probably use too much salt. Uh, my wife always tells me that [laughter]. And I admit, I love a good burger and fries."
+
+"Okay. So, let's do a quick physical exam. I'll listen to your heart and lungs, and we'll check your blood pressure again."
+
+"Okay, your heart sounds... a little irregular. We'll get an ECG to get a better look. And your blood pressure is 142 over 92 today. Still elevated. We’ll get a full blood panel as well. I also want to check your peripheral pulses, and your legs for any edema."
+
+"So, Mr. Johnson, I'm going to order a few tests. An ECG, a Holter monitor to track your heart rhythm over 24 hours, and some blood work. We'll also schedule an echocardiogram, that’s an ultrasound of the heart. And, we’ll get a stress test as well, since you mention some shortness of breath with exertion."
+
+"A Holter monitor? What's that?"
+
+"It's a small device that you wear for a day to record your heart's electrical activity. It's painless, don't worry."
+
+"Okay... and the, um, the echocardiogram... is that like a... like a picture of my heart?"
+
+"Exactly. It gives us a detailed view of your heart's structure and function. We'll also get that blood work, like I said, to check your cholesterol, electrolytes, kidney function, and your thyroid levels. And the stress test will evaluate how your heart handles exertion."
+
+"Okay, that sounds... thorough. Um, and the stress test, uh, will I be on a treadmill?"
+
+"Yes, usually a treadmill, or sometimes a stationary bike. We’ll monitor your heart and blood pressure during the test."
+
+"We want to get a complete picture. Based on these tests, we'll develop a treatment plan. We might consider medication for your blood pressure and, depending on the Holter results, something to regulate your heart rhythm. We will also discuss some lifestyle changes. We’ll review all the labs and studies at your next appointment."
+
+"Hm, lifestyle changes... like what?"
+
+"Diet, exercise, stress management. We'll go over it all in detail once we have the test results. We'll schedule a follow up appointment in about two weeks, after we have all the results back."
+
+"Two weeks? Okay. Yeah, that's fine."
+
+"Yes. And in the meantime, please keep a log of your palpitations. Note when they occur, how long they last, and any triggers you might notice. It will help us interpret the Holter monitor results. And try to note any episodes of shortness of breath, as well."
+
+"I can do that."
+
+"Good. And try to reduce your caffeine intake, if possible. And please, if you experience any severe chest pain or shortness of breath, go to the emergency room immediately. And if you have any lightheadedness that causes you to faint, also go to the ER."
+
+"Okay, I understand."
+
+"Any other questions for me?"
+
+"No, I, I, I think you've covered everything. Thank you, Dr. Lee."
+
+"You're welcome, Mr. Johnson. We'll get to the bottom of this. We’ll see you in two weeks. My nurse will schedule the tests and follow up. Take care."
+
+"Thank you, you too."
+
+"Okay, now, let's just go over the blood work results that came back. Your cholesterol is a little elevated, your LDL is 150. We want that lower. Your potassium is also a bit low. Your kidney function is normal. Your thyroid is also normal. We will address the cholesterol and potassium at your next visit. /Okay"
+
+"/Okay, so the cholesterol is bad, and the potassium is low."
+
+"Yes, we will discuss that in detail at your next visit, after we have all the tests done."
+
+ "And the ECG shows some non-specific T-wave changes, which could be related to the palpitations. The Holter monitor will give us much more information. And the echocardiogram will help to see if there are any structural issues."
+
+ "Okay, so we, we're still waiting on those results?"
+
+ "Yes, we are waiting for the Holter, Echo, and Stress test results. We will review all of those at your next appointment."

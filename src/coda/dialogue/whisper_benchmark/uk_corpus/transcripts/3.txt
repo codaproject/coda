@@ -1,0 +1,101 @@
+Transcripted Line
+
+"Good afternoon, Mrs. Collins. It's nice to see you again."
+
+"Good afternoon, uh, Dr. Reynolds. Good to see you, too."
+
+"So, it’s been about… six months since your last visit. How have you been feeling during this time?"
+
+"Well, uh, pretty good, I suppose. But, mm... I'm still a little tired now and then."
+
+"I see. When you say 'tired,' can you clarify what you mean? Is it fatigue, lack of energy, or more like sleepiness?"
+
+"It, it's mostly just fatigue. Not sleepy really, but just, you know, lacking energy to do things, especially in the afternoons."
+
+"Okay, understood. Have there been any changes in your routine, perhaps increased stress or changes in sleep?"
+
+"No major changes that I'm aware of, really. Uh.. Well, now that I think of it… my sleep isn't always consistent. I sometimes- I sometimes have trouble falling asleep."
+
+"Okay. Well, sleep quality can definitely impact your energy. We'll revisit this shortly. Uh, let me quickly review your medication list to confirm accuracy... So, you're currently taking hydrochlorothiazide 25mg daily for your blood pressure. Is that correct?"
+
+"Yes, that's right."
+
+"And have you experienced any side effects or concerns with the medication?"
+
+"No, none at all."
+
+"Very good. Okay. Have you been checking your blood pressure at home?"
+
+"Uh, yeah, o- occasionally. Uh, usually once a week or so. The numbers have been good, mostly around... 130-something over 80-something, I think?"
+
+"Alright, well those numbers sound reasonable. Uh, we'll verify that here today as well. I'll just check your blood pressure now."
+
+"Okay."
+
+"Blood pressure today is 134 over 82, which is within an acceptable range."
+
+"Mm, that's good to hear."
+
+"Yes, it is. Now, regarding the fatigue you've described—have you noticed any other symptoms such as weight changes, or difficulty concentrating, or even mood changes?"
+
+"Um, not really weight changes, but maybe finding it a bit harder to concentrate lately, yeah."
+
+"Alright, um, have you experienced any feelings of depression or anxiety lately?"
+
+"No. Well, maybe mild stress, but nothing severe or unusual."
+
+"Okay. That's good to know. uh, let's perform a brief physical exam to ensure that everything else looks okay. I'll narrate as I go along, if that's okay with you."
+
+"Yeah, of course."
+
+"General appearance: Mrs. Collins appears well, alert, cooperative, in no acute distress. Vital signs reviewed previously are stable."
+
+"HEENT exam: Pupils equal and reactive. Oral mucosa is pink, moist, with no abnormalities noted."
+
+"Uh, neck exam: Supple, no palpable lymphadenopathy or thyroid enlargement."
+
+"Uh, heart examination: Regular rate and rhythm, no murmurs or extra heart sounds."
+
+"Lung examination: it's clear bilaterally, ther are no normal- uh, there are normal breath sounds, no wheezing or crackles noted."
+
+"Abdominal exam: Soft, non-tender, bowel sounds normal, there are no palpable masses."
+
+"Extremities: No swelling, pulses normal bilaterally."
+
+"Neurological exam: Strength intact in upper and lower extremities, reflexes are symmetric and normal."
+
+"Physical exam overall appears entirely normal, Mrs. Collins."
+
+"Okay, good."
+
+"We last checked your lab work about six months ago, and everything was normal at that time—haemoglobin, thyroid, vitamin levels. uh, given your ongoing mild fatigue, it might be reasonable to repeat some basic labs again today. How does that sound to you?"
+
+"Yeah, that sounds good."
+
+"Okay. So, we'll recheck your complete blood count, thyroid-stimulating hormone, vitamin D, and basic metabolic panel. Also, we'll assess iron levels again, just to rule out mild anemia."
+
+"Alright, th- that seems thorough."
+
+"Additionally, regarding your sleep, uh, let's briefly discuss sleep hygiene strategies. Are you currently using electronics close to bedtime?"
+
+"Um, honestly…yes, I do watch TV or use my phone before bed. I know I probably shouldn't, though."
+
+"Yeah. It could help significantly to reduce screen time about an hour before bed, as screens can disrupt your natural sleep rhythms. Uh, also, maintaining a consistent sleep schedule—even on the weekends—can improve sleep quality and potentially reduce daytime fatigue."
+
+"Yeah, you're right. I- I'll try working on that."
+
+"Excellent. So, I'll quickly summarize our plan today: First, continue hydrochlor- hydrochlorothiazide as prescribed, since your blood pressure is stable. Second, we'll recheck some basic lab tests today, including thyroid and vitamin levels, to rule out underlying issues contributing to fatigue. Third, focus on improving sleep hygiene by limiting screen time before bedtime and maintaining a regular sleep schedule. We'll review the lab results once available and follow up accordingly."
+
+"Yeah, that all sounds clear to me."
+
+"Great. So, are there any further questions or concerns you'd like to discuss today?"
+
+"No, I think we've covered everything."
+
+"Very well. As always, please call if you have concerns prior to our next scheduled visit."
+
+"Thank you, Dr. Reynolds, I appreciate it."
+
+"You're most welcome, Mrs. Collins. Have a pleasant afternoon."
+
+"You too, Doctor."

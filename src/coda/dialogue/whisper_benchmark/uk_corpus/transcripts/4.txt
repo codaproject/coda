@@ -1,0 +1,117 @@
+Transcripted Line
+
+"So, good morning, Mr. Harris. I'm Dr. Kim, nice to meet you. Welcome to our practice."
+
+"Good morning, Doctor. Thank you very much."
+
+"You're very welcome. So, since you’re a new patient, we'll start some time- we'll spend some time going over your health history and addressing your concerns thoroughly. What brings you in today?"
+
+"Well, I- I've recently relocated and I- I just wanted to establish care. I haven't really had a check-up in a while."
+
+"Okay, understood. Preventive care is important, so you're doing the right thing. Do you have any specific concerns or symptoms at this time?"
+
+"No major issues. Uh… maybe just feeling a bit tired lately, but that's probably nothing."
+
+"Alright. Well, we'll keep that in mind. Uh, let me first gather some health history details. Are there any chronic medical conditions you're aware of?"
+
+"No, none."
+
+"Okay, good. And any past surgeries or hospitalisations?"
+
+"No surgeries. Just- I was hospital- hospitalised once years ago—uh… my appendix—appendicitis. Maybe 20 years ago."
+
+"Okay, got it. And do you take any regular medications?"
+
+"No medications, just vitamins sometimes."
+
+"Alright, that's good to hear. Any allergies to medications or foods?"
+
+"No, no known allergies."
+
+"Very good. So, with regards to family history, are there any significant conditions like diabetes, hypertension, or any cancers?"
+
+"Uh… my father has hypertension, uh, but my mother is healthy. No cancer or diabetes that I know of."
+
+"Okay. And lifestyle—do you smoke or use tobacco?"
+
+"No, no, I don't."
+
+"Any alcohol consumption?"
+
+"Occasional, socially—maybe one or two drinks per week."
+
+"And your occupation?"
+
+"I'm an accountant."
+
+"Alright. Good to know. So, let's proceed to your physical examination. I'll narrate my findings as we go, for the record."
+
+"Yeah, of course."
+
+"General appearance: Mr. Harris is a well-nourished male, appears healthy, alert, and oriented, no acute distress. Vital signs today: Blood pressure 126 over 78, pulse 72 beats per minute, respiratory rate 16 breaths per minute, temperature 98.5. So, all within normal limits."
+
+"Head and neck examination: Pupil- pupils are equal and reactive, oral mucosa is pink and moist, there are no signs of lesions. Dentition is, um, in good condition. Neck supple, no palpable lymphadenopathy or thyroid enlargement."
+
+"Heart exam: Regular rate and rhythm, no murmurs or abnormal sounds appreciated."
+
+"Lung exam: Clear bilat- bilaterally, breath sounds equal, no wheezing or crackles noted."
+
+"Abdominal exam: Soft, non-tender, bowel sounds normal. No palpable masses or organomegaly."
+
+"Extremities: No edema, good pulses bilaterally. Skin examination is normal, no rashes or suspicious lesions noted."
+
+"Neurologic exam: Strength 5 out of 5 in all extremities. Reflexes normal and symmetrical. Sensation intact."
+
+"Uh, physical examination is essentially normal, Mr. Harris. Nothing concerning noted at this time."
+
+"Oh, that's good to hear."
+
+"So, I reviewed your labs completed last week, uh, let's look at those briefly."
+
+"Your complete blood count was normal. Haemoglobin at 14.8 g/dL, white cell count normal at 6,000. Platelets normal at 220,000."
+
+"Uh, cholesterol panel was mostly normal. LDL cholesterol at 112 mg/dL—ideal is under 100, so mildly elevated. HDL is good at 58 mg/dL. Triglycerides were 140 mg/dL, within normal limits."
+
+"Blood glucose was normal at 88 mg/dL. Kidney function all normal. And liver function tests were normal as well."
+
+"Oh, good."
+
+"Yes, overall very re- reassuring results. The LDL cholesterol is slightly elevated, which is likely manageable with diet adjustments and exercise. Have you been exercising regularly?"
+
+"Not as regularly as I should. Mostly walking occasionally, but I, I should be doing more."
+
+"Okay. Aim for at least 30 minutes of moderate exercise, five days a week, if possible. This will help to manage your cholesterol and your energy levels. With regards to the fatigue you mentioned earlier, have there been any changes in sleep or stress recently?"
+
+"Oh, yeah—stress has been higher since the move and new job. Sleep isn't great either, honestly."
+
+"I see. That could very well be contributing. I would suggest focusing on sleep hygiene practices. So, limiting screen time before bed, consistent sleep schedules, and consider some relaxation techniques like meditation or yoga. Does that sound doable?"
+
+"Yeah, it does. I, I'll try that."
+
+"Excellent. So, I'll summarise the care plan clearly: One—continue healthy lifestyle practices, especially regular exercise and improved dietary habits, aiming to reduce LDL cholesterol. Two—focus on stress management and better sleep hygiene to address fatigue. Three—I recommend repeating cholesterol labs in six months to reassess."
+
+"Okay, I understand."
+
+"Do you have any questions or concerns about the plan?"
+
+"Um…no, not really. Well—actually, just one question. You mentioned vitamins earlier—should I be taking any supplements regularly?"
+
+"Good question. So, your diet sounds generally balanced. But if you're not consistently eating fruits and vegetables or dairy, a generally- a general multivitamin , uh, or Vitamin D supplement might be beneficial. Uh, do you have any dietary restrictions or concerns?"
+
+"Uh, no restrictions, but I'm not always consistent with vegetables and fruits."
+
+"Then a daily multivitamin is reasonable. Additionally, Vitamin D at about 1000 IU daily could be helpful, especially during winter months when sun exposure is limited."
+
+"Okay, that's good to know. I, I'll add that."
+
+"Very well. Um, is there anything else you'd like us to discuss today?"
+
+"No, I, I think we've covered everything. Thank you."
+
+You're very welcome. It was a pleasure meeting you. So, let's plan for an annual physical next year, or sooner if concerns arise. Please don't hesitate to call if anything changes or if you have any additional questions."
+
+"Will do. Thank you again, Doctor Kim."
+
+"You're most welcome, Mr. Harris. Have a good rest of your day."
+
+"Thank you, you too."

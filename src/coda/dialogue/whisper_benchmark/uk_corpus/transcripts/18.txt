@@ -1,0 +1,95 @@
+Transcripted Line
+
+"Good morning, Ms. Thompson. I'm Dr. Garcia. Please have a seat."
+
+"Thank you, Doctor."
+
+"So this is a new patient visit, and I understand you've been referred to our oncology department. Before we dive into specifics, would you mind if I take some comprehensive notes?"
+
+"Of course, go ahead."
+
+"Right, let's start with your current medications. Could you walk me through what you're taking?"
+
+"Well, let's see... I'm on metformin for diabetes. And, lisinopril for blood pressure. And I take a daily multivitamin."
+
+"Any other supplements or over-the-counter medications?"
+
+"Sometimes I take ibuprofen for my arthritis. When it flares up."
+
+"Okay, good to know. And allergies?"
+
+"Penicillin. I break out in a terrible rash."
+
+"Okay. Penicillin allergy noted. Any other medication allergies?"
+
+"No, not that I'm aware of."
+
+"Okay. Let's discuss your social history. Can you tell me about your work, living situation, support system?"
+
+"Um, I'm retired. I worked as a high school teacher for 35 years. I live alone, but my daughter lives nearby and she helps me out."
+
+"Do you use tobacco, alcohol, or recreational drugs?"
+
+"I quit smoking about ten years ago. Used to be a pack a day. I have a glass of wine maybe... twice a week? No drugs."
+
+"Past smoker. Light alcohol use. Can you tell me about your past medical history?"
+
+"It's complicated. I've had type 2 diabetes for about 15 years. Hypertension. Had a hip replacement in 2018. Oh, and I had a bout of pneumonia two years ago."
+
+"Okay. Any surgeries besides the hip replacement?"
+
+"Um, gallbladder removal in 2010, but nothing major."
+
+"Okay, um, family medical history?"
+
+"My mother had breast cancer. My father died of heart disease. And my sister has lupus."
+
+"Okay. Um, I'm going to do a compre- comprehensive review of systems. Uh, bear with me. Um, any recent changes in weight?"
+
+"I've lost about 5kg without trying. Which is...unusual for me."
+
+"Okay. Unintentional weight loss can be significant. Uh, any appetite changes?"
+
+"I'm less hungry. Food just doesn't taste the same."
+
+"Right. Um, energy levels?"
+
+"I'm tired. So tired. I used to be so active."
+
+"Any pain?"
+
+"Lower back. Its a constant ache. Worse some days."
+
+"I'm going to perform a physical examination now. Uh, please let me know if anything causes discomfort."
+
+"Okay."
+
+"So, heart sounds regular. Breath sounds...slightly diminished in the lower right lobe."
+
+"Er, is something wrong?"
+
+"Just gathering information. Er, any swelling in your legs? Hmm..."
+
+"What is it?"
+
+"I'd like to discuss some lab results and imaging studies we've ordered. Er, Your CBC shows some irregularities. Urm, your white blood cell count is elevated."
+
+"Okay. So what does that mean?"
+
+"It could indicate several things. Erm, we'll need additional tests. Your CT scan showed a suspicious nodule in the right lung. Er, we'll need a biopsy to determine its nature."
+
+"Cancer?"
+
+"We're not jumping to conclusions. But we need to be thorough. I'm ordering a PET scan, additional blood work, and we'll schedule a lung biopsy."
+
+"Okay."
+
+"Our plan is comprehensive. We'll reconvene in two weeks to review everything."
+
+"Thank you, Doctor."
+
+"Do you have any questions?"
+
+"Just... will I be okay?"
+
+"We're going to be very systematic in our approach. One step at a time."
