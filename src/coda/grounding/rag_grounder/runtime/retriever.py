@@ -6,7 +6,7 @@ Loads embeddings from KG and performs semantic search for retrieval terms.
 
 import logging
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -49,8 +49,8 @@ class Retriever:
         self,
         query_text: str,
         top_k: int = 10,
-        min_similarity: float = 0.0
-    ) -> List[RetrievalTerm]:
+        min_similarity: float = 0.5
+    ) -> List[Tuple[RetrievalTerm, float]]:
         """Retrieve top-k most similar terms for query text.
         
         Parameters
@@ -64,8 +64,8 @@ class Retriever:
         
         Returns
         -------
-        list of RetrievalTerm
-            List of RetrievalTerm objects, ordered by similarity descending.
+        list of tuple (RetrievalTerm, float)
+            List of tuples containing (RetrievalTerm, similarity_score), ordered by similarity descending.
         """
         if not query_text or not query_text.strip():
             return []
@@ -103,6 +103,7 @@ class Retriever:
         
         results = []
         for idx in top_indices:
-            results.append(self._terms[idx])
+            similarity_score = float(similarities[idx])
+            results.append((self._terms[idx], similarity_score))
         
         return results

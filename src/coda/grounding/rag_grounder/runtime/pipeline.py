@@ -6,7 +6,7 @@ Combines LLM extraction, semantic retrieval, and re-ranking for any concept type
 
 import logging
 import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from tqdm import tqdm
 from pydantic import BaseModel, ConfigDict
 
@@ -37,7 +37,7 @@ class ProcessedConcept(BaseModel):
 
     Concept: str
     evidence_spans: List[EvidenceSpan] = []
-    retrieved_terms: List[RetrievalTerm] = []
+    retrieved_terms: List[Tuple[RetrievalTerm, float]] = []  # (term, similarity) tuples
     reranked_terms: List[RetrievalTerm] = []
 
 
@@ -185,13 +185,14 @@ class RAGGrounderPipeline:
             evidence_text = "\n".join(evidence_texts) if evidence_texts else ""
             retrieval_text = f"{concept_name}\n\n{evidence_text}" if evidence_text else concept_name
             
-            # Retrieve terms
+            # Retrieve terms (returns list of tuples: (RetrievalTerm, similarity))
             retrieved_terms = self.retriever.retrieve(
                 retrieval_text,
                 top_k=self.retrieval_top_k,
                 min_similarity=self.retrieval_min_similarity
             )
             
+            # Store tuples directly (term, similarity)
             concept['retrieved_terms'] = retrieved_terms
             concepts_iter.set_postfix({"concept": concept_name[:30]})
             logger.debug(f"Retrieved {len(retrieved_terms)} terms for concept: {concept_name}")
@@ -211,7 +212,8 @@ class RAGGrounderPipeline:
             concepts_list = [c['Concept'] for c in concepts]
             # Extract matched text from evidence spans
             evidences_list = [[span.text for span in c['evidence_spans']] for c in concepts]
-            retrieved_terms_list = [c['retrieved_terms'] for c in concepts]
+            # Extract just terms from tuples for reranking
+            retrieved_terms_list = [[term for term, _ in c['retrieved_terms']] for c in concepts]
             
             reranked_batch = self.reranker.rerank_batch(
                 concepts=concepts_list,
@@ -232,7 +234,8 @@ class RAGGrounderPipeline:
             for concept in rerank_iter:
                 concept_name = concept['Concept']
                 evidence_spans = concept['evidence_spans']
-                retrieved_terms = concept['retrieved_terms']
+                # Extract just terms from tuples for reranking
+                retrieved_terms = [term for term, _ in concept['retrieved_terms']]
                 
                 # Extract matched text from evidence spans
                 evidence_texts = [span.text for span in evidence_spans]
@@ -267,7 +270,7 @@ class RAGGrounderPipeline:
         
         logger.info("Pipeline completed")
         
-        # Construct and return Pydantic model (exclude Supporting_Evidence from final output)
+        # Construct and return Pydantic model
         processed_concepts = []
         for concept in concepts:
             processed_concepts.append(ProcessedConcept(
