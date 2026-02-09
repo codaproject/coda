@@ -3,10 +3,9 @@ LLM-based re-ranking of retrieved ICD-10 codes.
 """
 
 import json
-import os
 from typing import Dict, Any, List, Optional
-from openai import OpenAI
 
+from coda.llm_api import LLMClient
 from .schemas import RERANKING_SCHEMA
 from .utils import validate_icd10_code
 
@@ -18,24 +17,16 @@ class CodeReranker:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini"
+        llm_client: LLMClient
     ):
         """Initialize code reranker.
 
         Parameters
         ----------
-        api_key : str, optional
-            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
-        model : str
-            OpenAI model name. Defaults to "gpt-4o-mini".
+        llm_client : LLMClient
+            LLM client instance for making API calls.
         """
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key.")
-
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.llm_client = llm_client
         self.schema = RERANKING_SCHEMA
 
     def rerank(
@@ -112,24 +103,20 @@ Retrieved ICD-10 candidate codes (from semantic search):
 Re-rank these codes based on how well they match the disease and evidence."""
 
         try:
-            response = self.client.responses.create(
-                model=self.model,
-                temperature=0,
-                input=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                text={
-                    "format": {
-                        "type": "json_schema",
-                        "name": "reranking_icd_10_codes",
-                        "schema": self.schema,
-                        "strict": True,
-                    }
-                },
+            # Use LLMClient's call_with_schema method
+            response_json = self.llm_client.call_with_schema(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=self.schema,
+                schema_name="reranking_icd10",
+                max_retries=3,
+                retry_delay=1.0
             )
-
-            response_json = json.loads(response.output_text)
+            
+            # Check for API failures
+            if response_json.get("api_failed", False):
+                print("Error: LLM API call failed")
+                return {"Reranked ICD-10 Codes": []}
 
             # Validate structure
             if 'Reranked ICD-10 Codes' not in response_json:

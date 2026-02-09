@@ -3,10 +3,9 @@ LLM-based disease extraction from clinical notes.
 """
 
 import json
-import os
 from typing import Dict, Any, Optional
-from openai import OpenAI
 
+from coda.llm_api import LLMClient
 from .schemas import DISEASE_EXTRACTION_SCHEMA
 from .utils import validate_extraction_result, validate_icd10_code
 
@@ -18,24 +17,16 @@ class DiseaseExtractor:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini"
+        llm_client: LLMClient
     ):
         """Initialize disease extractor.
 
         Parameters
         ----------
-        api_key : str, optional
-            OpenAI API key. Defaults to OPENAI_API_KEY environment variable.
-        model : str
-            OpenAI model name. Defaults to "gpt-4o-mini".
+        llm_client : LLMClient
+            LLM client instance for making API calls.
         """
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var or pass api_key.")
-
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.llm_client = llm_client
         self.schema = DISEASE_EXTRACTION_SCHEMA
 
     def extract(
@@ -82,31 +73,20 @@ class DiseaseExtractor:
                 f"Clinical Description:\n{clinical_description}"
             )
 
-            response = self.client.responses.create(
-                model=self.model,
-                temperature=0,
-                input=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": user_prompt
-                    }
-                ],
-                text={
-                    "format": {
-                        "type": "json_schema",
-                        "name": "disease_evidence_icd10",
-                        "schema": self.schema,
-                        "strict": True
-                    }
-                }
+            # Use LLMClient's call_with_schema method
+            response_json = self.llm_client.call_with_schema(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=self.schema,
+                schema_name="disease_extraction",
+                max_retries=3,
+                retry_delay=1.0
             )
-
-            # Parse response
-            response_json = json.loads(response.output_text)
+            
+            # Check for API failures
+            if response_json.get("api_failed", False):
+                print("Error: LLM API call failed")
+                return {"Diseases": []}
 
             # Validate structure
             if not validate_extraction_result(response_json):
