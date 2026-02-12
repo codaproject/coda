@@ -48,6 +48,10 @@ kg_build = [
     "xlrd",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 ]
+grounding = [
+    "openai>=1.0.0",
+    "ollama>=0.1.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"
