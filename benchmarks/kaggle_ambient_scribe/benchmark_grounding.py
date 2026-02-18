@@ -2,9 +2,9 @@
 Kaggle Ambient Scribe Benchmark for CODA ICD-10 Annotation
 
 Compares ICD-10 annotations between reference transcripts and
-Whisper-transcribed audio (from run_gpt.py output).
+Whisper-transcribed audio (from benchmark_asr.py output).
 
-Reads whisper transcripts from run_gpt.py's CSV (hyp_text column),
+Reads whisper transcripts from benchmark_asr.py's CSV (hyp_text column),
 annotates both reference and whisper text with RAGGrounder, and
 computes strict and hierarchical code-level metrics.
 
@@ -75,7 +75,7 @@ def get_default_asr_csv(model_size: str) -> Path:
 
 
 def load_whisper_transcripts_from_csv(csv_path: Path) -> Dict[int, str]:
-    """Load whisper transcripts from run_gpt.py output CSV.
+    """Load whisper transcripts from benchmark_asr.py output CSV.
 
     Returns a dict mapping encounter_id -> hyp_text.
     """
@@ -303,7 +303,7 @@ def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: str = None) -> 
     model_size : str
         Whisper model size (used for cache paths and to find ASR CSV)
     asr_csv : str, optional
-        Path to run_gpt.py output CSV. If None, looks in pystow cache.
+        Path to benchmark_asr.py output CSV. If None, looks in pystow cache.
 
     Returns
     -------
@@ -318,7 +318,7 @@ def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: str = None) -> 
 
     if not csv_path.exists():
         logger.error(f"ASR results CSV not found: {csv_path}")
-        logger.error("Run run_gpt.py first to generate whisper transcripts.")
+        logger.error("Run benchmark_asr.py first to generate whisper transcripts.")
         return {}
 
     whisper_transcripts = load_whisper_transcripts_from_csv(csv_path)
@@ -499,7 +499,7 @@ def main():
     parser.add_argument(
         "--asr_csv",
         default=None,
-        help="Path to run_gpt.py output CSV (default: pystow cache)"
+        help="Path to benchmark_asr.py output CSV (default: pystow cache)"
     )
     args = parser.parse_args()
 

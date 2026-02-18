@@ -19,7 +19,7 @@ Metrics:
   - Per-file rows + one aggregate row
 
 Usage:
-  python run_gpt.py \
+  python benchmark_asr.py \
       --out_csv ./asr_benchmark_results.csv \
       --model_id openai/whisper-tiny \
       --task transcribe \
