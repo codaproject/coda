@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
-Batch benchmark Whisper ASR against plain-text transcripts with direct basename matching,
-16 kHz resampling, and chunked decoding to capture full-length transcriptions.
+Batch benchmark Whisper ASR against plain-text transcripts from the
+Kaggle Ambient Scribe dataset, with 16 kHz resampling and chunked decoding.
 
-Direct match rule:
-  Audio:       <number>.mp3 OR <number>.wav (e.g., 1.mp3, 6.wav)
-  Transcript:  <number>.txt                 (e.g., 1.txt, 6.txt)
+  Audio:       DATA_BASE/audio/recording_uk_encounter_{id}.mp3
+  Transcript:  DATA_BASE/transcripts/Encounter {id}_UK.txt
 
 Transcript preprocessing (reference):
   - Drop first line if it equals 'Transcripted Line' (case-insensitive; trims spaces).
@@ -23,9 +19,7 @@ Metrics:
   - Per-file rows + one aggregate row
 
 Usage:
-  python benchmark_asr_from_txt.py \
-      --audio_dir ./audio \
-      --transcript_dir ./transcripts \
+  python run_gpt.py \
       --out_csv ./asr_benchmark_results.csv \
       --model_id openai/whisper-tiny \
       --task transcribe \
@@ -39,12 +33,45 @@ import csv
 import time
 import math
 import argparse
+from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 
+import kagglehub
 import numpy as np
+import pystow
 import torch
 import soundfile as sf
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
+
+# Data paths - kagglehub handles downloading and caching the dataset
+DATA_BASE = Path(kagglehub.dataset_download("imeritinc/multilingual-ambient-scribe-dataset")) / \
+    "iMerit_Multilingual_Ambient_Scribe_Dataset/UK English"
+AUDIO_DIR = DATA_BASE / "audio"
+TRANSCRIPTS_DIR = DATA_BASE / "transcripts"
+
+# Pystow cache for benchmark results
+RESULTS_BASE = pystow.module("coda", "benchmarks", "kaggle_ambient_scribe")
+
+
+def get_encounter_ids() -> List[int]:
+    """Get list of encounter IDs from audio files."""
+    pattern = re.compile(r"recording_uk_encounter_(\d+)\.mp3")
+    ids = []
+    for f in AUDIO_DIR.iterdir():
+        match = pattern.match(f.name)
+        if match:
+            ids.append(int(match.group(1)))
+    return sorted(ids)
+
+
+def get_audio_path(encounter_id: int) -> Path:
+    """Get path to audio file for an encounter."""
+    return AUDIO_DIR / f"recording_uk_encounter_{encounter_id}.mp3"
+
+
+def get_reference_transcript_path(encounter_id: int) -> Path:
+    """Get path to reference transcript for an encounter."""
+    return TRANSCRIPTS_DIR / f"Encounter {encounter_id}_UK.txt"
 
 # -------------------------------
 # Constants
@@ -312,9 +339,7 @@ def transcribe_chunked(
 # -------------------------------
 
 def evaluate(
-    audio_dir: str,
-    transcript_dir: str,
-    out_csv: str,
+    out_csv: str = None,
     model_id: str = "openai/whisper-tiny",
     task: str = "transcribe",
     chunk_length_s: float = 29.5,
@@ -328,36 +353,23 @@ def evaluate(
     total_dur = 0.0
     total_asr_time = 0.0
 
-    # Collect audio files with numeric basenames (allow .mp3 and .wav)
-    audio_files = []
-    for fname in os.listdir(audio_dir):
-        fpath = os.path.join(audio_dir, fname)
-        if not os.path.isfile(fpath):
-            continue
-        lower = fname.lower()
-        if lower.endswith(".mp3") or lower.endswith(".wav"):
-            stem = os.path.splitext(fname)[0]
-            if re.fullmatch(r"\d+", stem):  # numeric basename only
-                audio_files.append(fname)
+    encounter_ids = get_encounter_ids()
+    print(f"Found {len(encounter_ids)} encounters")
 
-    # Sort numerically (1,2,3,...)
-    audio_files.sort(key=lambda x: int(os.path.splitext(x)[0]))
+    for enc_id in encounter_ids:
+        audio_path = get_audio_path(enc_id)
+        txt_path = get_reference_transcript_path(enc_id)
 
-    for fname in audio_files:
-        base_num = os.path.splitext(fname)[0]  # e.g., "1"
-        audio_path = os.path.join(audio_dir, fname)
-        txt_path = os.path.join(transcript_dir, f"{base_num}.txt")
-
-        if not os.path.exists(txt_path):
-            print(f"[WARN] Transcript not found for {fname} -> expected {base_num}.txt; skipping.")
+        if not txt_path.exists():
+            print(f"[WARN] Transcript not found for encounter {enc_id} -> expected {txt_path.name}; skipping.")
             continue
 
         # Load & normalize reference
-        ref_norm = load_reference_from_txt(txt_path)
+        ref_norm = load_reference_from_txt(str(txt_path))
         ref_words_list = words(ref_norm)
 
         # ---- Load audio raw (keep original sampling rate for duration) ----
-        audio_in, sr_in = sf.read(audio_path, dtype="float32")
+        audio_in, sr_in = sf.read(str(audio_path), dtype="float32")
         audio_in = to_mono(audio_in)
 
         dur_s = len(audio_in) / float(sr_in) if sr_in and sr_in > 0 else 0.0  # original duration for RTF
@@ -394,8 +406,9 @@ def evaluate(
         agg_cedits += cedits; agg_cref += cref
 
         rows.append({
-            "audio_file": fname,
-            "transcript_file": f"{base_num}.txt",
+            "encounter_id": enc_id,
+            "audio_file": audio_path.name,
+            "transcript_file": txt_path.name,
             "duration_s": round(dur_s, 3),
             "latency_s": round(asr_time, 3),
             "rtf": round(rtf, 3) if not math.isnan(rtf) else "",
@@ -415,6 +428,7 @@ def evaluate(
     rtf_corpus = (total_asr_time / total_dur) if total_dur > 0 else math.nan
 
     rows.append({
+        "encounter_id": "",
         "audio_file": "__AGGREGATE__",
         "transcript_file": "",
         "duration_s": round(total_dur, 3),
@@ -432,24 +446,32 @@ def evaluate(
         "hyp_text": "",
     })
 
-    # Write CSV
-    os.makedirs(os.path.dirname(out_csv), exist_ok=True) if os.path.dirname(out_csv) else None
+    # Write CSV using pystow cache or provided path
+    if out_csv:
+        out_path = Path(out_csv)
+        if out_path.parent.name:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        model_suffix = model_id.split("/")[-1] if "/" in model_id else model_id
+        out_path = RESULTS_BASE.join("results", name=f"asr_benchmark_results.{model_suffix}.csv")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
     fieldnames = [
-        "audio_file","transcript_file","duration_s","latency_s","rtf",
+        "encounter_id","audio_file","transcript_file","duration_s","latency_s","rtf",
         "ref_words","hyp_words","S","D","I","WER","Accuracy","CER",
         "ref_text","hyp_text"
     ]
-    with open(out_csv, "w", encoding="utf-8", newline="") as f:
+    with open(out_path, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         for r in rows:
             w.writerow(r)
 
-    print(f"Done. Wrote {len(rows)-1} file rows + 1 aggregate to {out_csv}")
+    print(f"Done. Wrote {len(rows)-1} file rows + 1 aggregate to {out_path}")
     if agg_N > 0:
         print(f"Micro WER={rows[-1]['WER']}  |  Micro CER={rows[-1]['CER']}  |  Corpus RTF={rows[-1]['rtf']}")
     else:
-        print("No references processed; verify that <number>.txt exists for each <number>.mp3/.wav.")
+        print("No references processed; check that audio and transcript files exist in the dataset.")
 
 
 # -------------------------------
@@ -458,12 +480,10 @@ def evaluate(
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Benchmark Whisper ASR vs. transcripts with direct basename matching (N.* ↔ N.txt), "
+        description="Benchmark Whisper ASR vs. Kaggle Ambient Scribe transcripts "
                     "with 16k resampling and chunked decoding."
     )
-    ap.add_argument("--audio_dir", required=True, help="Directory with audio files named <number>.mp3 or <number>.wav.")
-    ap.add_argument("--transcript_dir", required=True, help="Directory with transcripts named <number>.txt.")
-    ap.add_argument("--out_csv", required=True, help="Path to write metrics CSV.")
+    ap.add_argument("--out_csv", default=None, help="Path to write metrics CSV (default: pystow cache).")
     ap.add_argument("--model_id", default="openai/whisper-tiny", help="HF model ID (default: openai/whisper-tiny).")
     ap.add_argument("--task", default="transcribe", choices=["transcribe","translate"], help="Whisper task.")
     ap.add_argument("--chunk_length_s", type=float, default=29.5, help="Chunk length (seconds) per decode window.")
@@ -471,8 +491,6 @@ def main():
     args = ap.parse_args()
 
     evaluate(
-        audio_dir=args.audio_dir,
-        transcript_dir=args.transcript_dir,
         out_csv=args.out_csv,
         model_id=args.model_id,
         task=args.task,
