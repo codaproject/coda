@@ -93,11 +93,6 @@ def get_reachable_curies(
     return [n for n in reachable if n != curie]
 
 
-# Backward compatibility
-load_mapping_graph_from_sssom = load_base_mapping
-load_mapping_graph = load_base_mapping
-
-
 def extend_graph(
     base_mapping_graph: nx.MultiDiGraph,
     extension_mapping_graph: nx.MultiDiGraph,
@@ -146,20 +141,29 @@ def load_extension_from_nodes_and_edges_tsv(
     id_col: str = "id:ID",
     name_col: str = "name",
 ) -> nx.MultiDiGraph:
-    """Load an extension mapping graph from Neo4j-style edges TSV and optional nodes TSV.
+    """Load an extension mapping graph from Neo4j-style edges TSV and nodes TSV.
 
     Edges TSV: :START_ID, :END_ID, :TYPE (or configurable).
-    Nodes TSV (optional): id:ID, name (or configurable). If provided, enriches node labels.
+    Nodes TSV: id:ID, name (or configurable). Inferred from edges path if not provided
+    (e.g. icd11_edges.tsv -> icd11_nodes.tsv). Both must exist.
     """
+    _BUILD_HINT = "Run `python -m coda.kg.build` to generate these files."
     edges_path = Path(edges_path)
     if not edges_path.exists():
-        raise FileNotFoundError(f"Extension edges file not found: {edges_path}")
+        raise FileNotFoundError(
+            f"Extension edges file not found: {edges_path}. {_BUILD_HINT}"
+        )
 
     # Infer nodes path if not provided: icd11_edges.tsv -> icd11_nodes.tsv
     if nodes_path is None:
         nodes_path = edges_path.parent / (edges_path.stem.replace("_edges", "_nodes") + ".tsv")
     else:
         nodes_path = Path(nodes_path)
+    if not nodes_path.exists():
+        raise FileNotFoundError(
+            f"Extension nodes file not found: {nodes_path}. "
+            f"Expected alongside {edges_path} for label enrichment. {_BUILD_HINT}"
+        )
 
     logger.info("Loading extension mapping from %s...", edges_path)
     df = pd.read_csv(edges_path, sep="\t", low_memory=False)
@@ -183,31 +187,26 @@ def load_extension_from_nodes_and_edges_tsv(
         G.nodes[node_id]["namespace"] = ns
         G.nodes[node_id]["label"] = ""
 
-    # Enrich labels from nodes TSV if available
-    if nodes_path.exists():
-        logger.info("Loading node labels from %s...", nodes_path)
-        nodes_df = pd.read_csv(nodes_path, sep="\t", low_memory=False)
-        id_col_actual = id_col if id_col in nodes_df.columns else "id"
-        name_col_actual = name_col if name_col in nodes_df.columns else "name"
-        if name_col_actual not in nodes_df.columns:
-            logger.warning("Nodes file %s has no '%s' column, skipping label enrichment", nodes_path, name_col)
-        else:
-            for _, row in nodes_df.iterrows():
-                nid = row.get(id_col_actual)
-                if pd.isna(nid) or nid not in G:
-                    continue
-                name = row.get(name_col_actual)
-                if pd.notna(name) and str(name).strip():
-                    G.nodes[nid]["label"] = str(name).strip()
-            label_count = sum(1 for n in G.nodes if G.nodes[n].get("label"))
-            logger.info(f"Enriched {label_count} labels from nodes file")
+    # Enrich labels from nodes TSV
+    logger.info("Loading node labels from %s...", nodes_path)
+    nodes_df = pd.read_csv(nodes_path, sep="\t", low_memory=False)
+    id_col_actual = id_col if id_col in nodes_df.columns else "id"
+    name_col_actual = name_col if name_col in nodes_df.columns else "name"
+    if name_col_actual not in nodes_df.columns:
+        logger.warning("Nodes file %s has no '%s' column, skipping label enrichment", nodes_path, name_col)
+    else:
+        for _, row in nodes_df.iterrows():
+            nid = row.get(id_col_actual)
+            if pd.isna(nid) or nid not in G:
+                continue
+            name = row.get(name_col_actual)
+            if pd.notna(name) and str(name).strip():
+                G.nodes[nid]["label"] = str(name).strip()
+        label_count = sum(1 for n in G.nodes if G.nodes[n].get("label"))
+        logger.info(f"Enriched {label_count} labels from nodes file")
 
     logger.info(f"Loaded extension: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G
-
-
-# Backward compatibility
-load_extension_from_edges_tsv = load_extension_from_nodes_and_edges_tsv
 
 
 def compose(
