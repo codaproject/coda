@@ -69,30 +69,6 @@ def load_base_mapping(path: Union[Path, str]) -> nx.MultiDiGraph:
     return G
 
 
-def get_reachable_curies(
-    graph: nx.MultiDiGraph,
-    curie: str,
-    exact_match_only: bool = True,
-) -> list[str]:
-    """Return CURIEs in the same connected component as curie (excluding curie itself)."""
-    if curie not in graph:
-        return []
-
-    if exact_match_only:
-        exact_edges = [
-            (u, v)
-            for u, v, d in graph.edges(data=True)
-            if d.get("predicate_id") == "skos:exactMatch"
-        ]
-        G_traverse = nx.Graph()
-        G_traverse.add_edges_from(exact_edges)
-    else:
-        G_traverse = nx.Graph(graph)
-
-    reachable = nx.node_connected_component(G_traverse, curie)
-    return [n for n in reachable if n != curie]
-
-
 def extend_graph(
     base_mapping_graph: nx.MultiDiGraph,
     extension_mapping_graph: nx.MultiDiGraph,
