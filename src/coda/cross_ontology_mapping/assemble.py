@@ -141,28 +141,16 @@ def load_extension_from_nodes_and_edges_tsv(
     id_col: str = "id:ID",
     name_col: str = "name",
 ) -> nx.MultiDiGraph:
-    """Load an extension mapping graph from Neo4j-style edges TSV and nodes TSV.
+    """Load an extension mapping graph from Neo4j-style edges TSV and optional nodes TSV.
 
-    Edges TSV: :START_ID, :END_ID, :TYPE (or configurable).
-    Nodes TSV: id:ID, name (or configurable). Inferred from edges path if not provided
-    (e.g. icd11_edges.tsv -> icd11_nodes.tsv). Both must exist.
+    Edges TSV: :START_ID, :END_ID, :TYPE (or configurable). Required.
+    Nodes TSV: id:ID, name (or configurable). Optional; when provided, enriches node labels.
     """
     _BUILD_HINT = "Run `python -m coda.kg.build` to generate these files."
     edges_path = Path(edges_path)
     if not edges_path.exists():
         raise FileNotFoundError(
             f"Extension edges file not found: {edges_path}. {_BUILD_HINT}"
-        )
-
-    # Infer nodes path if not provided: icd11_edges.tsv -> icd11_nodes.tsv
-    if nodes_path is None:
-        nodes_path = edges_path.parent / (edges_path.stem.replace("_edges", "_nodes") + ".tsv")
-    else:
-        nodes_path = Path(nodes_path)
-    if not nodes_path.exists():
-        raise FileNotFoundError(
-            f"Extension nodes file not found: {nodes_path}. "
-            f"Expected alongside {edges_path} for label enrichment. {_BUILD_HINT}"
         )
 
     logger.info("Loading extension mapping from %s...", edges_path)
@@ -187,23 +175,28 @@ def load_extension_from_nodes_and_edges_tsv(
         G.nodes[node_id]["namespace"] = ns
         G.nodes[node_id]["label"] = ""
 
-    # Enrich labels from nodes TSV
-    logger.info("Loading node labels from %s...", nodes_path)
-    nodes_df = pd.read_csv(nodes_path, sep="\t", low_memory=False)
-    id_col_actual = id_col if id_col in nodes_df.columns else "id"
-    name_col_actual = name_col if name_col in nodes_df.columns else "name"
-    if name_col_actual not in nodes_df.columns:
-        logger.warning("Nodes file %s has no '%s' column, skipping label enrichment", nodes_path, name_col)
-    else:
-        for _, row in nodes_df.iterrows():
-            nid = row.get(id_col_actual)
-            if pd.isna(nid) or nid not in G:
-                continue
-            name = row.get(name_col_actual)
-            if pd.notna(name) and str(name).strip():
-                G.nodes[nid]["label"] = str(name).strip()
-        label_count = sum(1 for n in G.nodes if G.nodes[n].get("label"))
-        logger.info(f"Enriched {label_count} labels from nodes file")
+    # Enrich labels from nodes TSV when provided
+    if nodes_path is not None:
+        nodes_path = Path(nodes_path)
+        if nodes_path.exists():
+            logger.info("Loading node labels from %s...", nodes_path)
+            nodes_df = pd.read_csv(nodes_path, sep="\t", low_memory=False)
+            id_col_actual = id_col if id_col in nodes_df.columns else "id"
+            name_col_actual = name_col if name_col in nodes_df.columns else "name"
+            if name_col_actual not in nodes_df.columns:
+                logger.warning("Nodes file %s has no '%s' column, skipping label enrichment", nodes_path, name_col)
+            else:
+                for _, row in nodes_df.iterrows():
+                    nid = row.get(id_col_actual)
+                    if pd.isna(nid) or nid not in G:
+                        continue
+                    name = row.get(name_col_actual)
+                    if pd.notna(name) and str(name).strip():
+                        G.nodes[nid]["label"] = str(name).strip()
+                label_count = sum(1 for n in G.nodes if G.nodes[n].get("label"))
+                logger.info(f"Enriched {label_count} labels from nodes file")
+        else:
+            raise FileNotFoundError(f"Nodes file not found: {nodes_path}. {_BUILD_HINT}")
 
     logger.info(f"Loaded extension: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G
@@ -240,9 +233,8 @@ def assemble(
     ----------
     base_path : Path or str
         Path to base mapping SSSOM file (e.g. processed.sssom.tsv)
-    extension_paths : list of Path or str, optional
-        Paths to extension edges TSVs (Neo4j format: :START_ID, :END_ID, :TYPE).
-        Node labels are loaded from matching *_nodes.tsv if present (e.g. icd11_edges.tsv -> icd11_nodes.tsv).
+    extension_paths : list of (edges_path, nodes_path) tuples, optional
+        Each tuple is (edges TSV path, nodes TSV path). nodes_path may be None to skip label enrichment.
     definition_sources : list of DefinitionSource, optional
         Sources to add definitions to the composed graph
 
@@ -254,7 +246,10 @@ def assemble(
     graph = load_base_mapping(base_path)
 
     if extension_paths:
-        extensions = [load_extension_from_nodes_and_edges_tsv(p) for p in extension_paths]
+        extensions = [
+            load_extension_from_nodes_and_edges_tsv(edges_path, nodes_path)
+            for edges_path, nodes_path in extension_paths
+        ]
         graph = compose(graph, *extensions)
 
     if definition_sources:
@@ -270,8 +265,11 @@ def main() -> None:
         logger.info("Base SSSOM not found; downloading from Zenodo...")
         base_path = CODA_BASE.ensure("kg", name="processed.sssom.tsv.gz", url=SEMRA_PROCESSED_SSSOM_URL)
 
-    extension_paths = [DEFAULT_ICD11_EDGES_PATH] if DEFAULT_ICD11_EDGES_PATH.exists() else None
-    if not extension_paths:
+    extension_paths = None
+    if DEFAULT_ICD11_EDGES_PATH.exists():
+        nodes_path = DEFAULT_ICD11_NODES_PATH if DEFAULT_ICD11_NODES_PATH.exists() else None
+        extension_paths = [(DEFAULT_ICD11_EDGES_PATH, nodes_path)]
+    else:
         logger.warning("ICD-11 edges not found at %s, skipping extension", DEFAULT_ICD11_EDGES_PATH)
     definition_sources = [ICD10DefinitionSource()]
     graph = assemble(
