@@ -42,11 +42,9 @@ logger = logging.getLogger(__name__)
 here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
 
-# Language display names for translation prompts
-LANGUAGE_NAMES = {
-    "en": "English", "sw": "Swahili", "es": "Spanish", "fr": "French",
-    "pt": "Portuguese", "ar": "Arabic", "hi": "Hindi", "zh": "Chinese",
-}
+# All languages supported by Whisper, keyed by ISO code
+from whisper.tokenizer import LANGUAGES as _WHISPER_LANGUAGES
+LANGUAGE_NAMES = {code: name.title() for code, name in _WHISPER_LANGUAGES.items()}
 
 # Server-level settings
 current_language = "en"
@@ -235,6 +233,19 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
             del pending_chunks[chunk_id]
 
 
+@app.get("/languages")
+async def get_languages():
+    """Get all supported languages."""
+    # Return sorted by name, with English first
+    langs = [{"code": code, "name": name}
+             for code, name in sorted(LANGUAGE_NAMES.items(),
+                                      key=lambda x: x[1])]
+    # Move English to front
+    langs = ([l for l in langs if l["code"] == "en"]
+             + [l for l in langs if l["code"] != "en"])
+    return langs
+
+
 @app.get("/settings")
 async def get_settings():
     """Get current server settings."""
@@ -270,8 +281,14 @@ async def update_settings(req: SettingsRequest):
     if req.whisper_model is not None and req.whisper_model != current_whisper_model:
         current_whisper_model = req.whisper_model
         logger.info(f"Reloading Whisper model: {current_whisper_model}")
-        transcriber = WhisperTranscriber(grounder=GildaGrounder(),
-                                         model_size=current_whisper_model)
+        # Load in a thread to avoid blocking the event loop
+        loop = asyncio.get_running_loop()
+        new_transcriber = await loop.run_in_executor(
+            None,
+            lambda: WhisperTranscriber(grounder=GildaGrounder(),
+                                       model_size=current_whisper_model)
+        )
+        transcriber = new_transcriber
         logger.info(f"Whisper model reloaded: {current_whisper_model}")
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider

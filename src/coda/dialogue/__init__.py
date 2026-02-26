@@ -82,6 +82,15 @@ class Transcriber:
             # Convert int16 to float32
             audio_float = audio_data.astype(np.float32) / 32768.0
 
+            # Log audio diagnostics
+            rms = float(np.sqrt(np.mean(audio_float ** 2)))
+            peak = float(np.max(np.abs(audio_float)))
+            logger.info(f"Audio chunk: {len(audio_float)} samples, "
+                        f"rms={rms:.4f}, peak={peak:.4f}, "
+                        f"language={language}, task={task}")
+            if peak < 0.001:
+                logger.warning("Audio appears to be silent (peak < 0.001)")
+
             # Create temporary WAV file
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
                 wavfile.write(tmp_file.name, sample_rate, audio_float)
@@ -98,6 +107,18 @@ class Transcriber:
 
             # Clean up temp file
             os.unlink(tmp_filename)
+
+            # Log raw result for debugging
+            raw_text = result.get("text", "").strip()
+            segments = result.get("segments", [])
+            if segments:
+                probs = [f"{s.get('no_speech_prob', 0):.2f}" for s in segments]
+                logger.info(f"Raw transcription ({language}/{task}): "
+                            f"{raw_text!r}")
+                logger.info(f"Segment no_speech_probs: {probs}")
+            else:
+                logger.info(f"Raw transcription ({language}/{task}): "
+                            f"{raw_text!r} (no segments)")
 
             # Filter segments based on no_speech_prob to avoid hallucinations
             # during silence (e.g., "thank you for watching")
