@@ -31,21 +31,23 @@ class WhisperTranscriber(Transcriber):
         logger.info("Whisper model loaded successfully")
 
     async def transcribe_file(self, file_path: str, language: str = "en",
+                              task: str = "transcribe",
                               fp16: bool = False, verbose: bool = False):
         """Transcribe file asynchronously using thread pool."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             self._sync_transcribe,
-            file_path, language, fp16, verbose
+            file_path, language, task, fp16, verbose
         )
 
     def _sync_transcribe(self, file_path: str, language: str,
-                        fp16: bool, verbose: bool):
+                        task: str, fp16: bool, verbose: bool):
         """Synchronous transcription method."""
         return self.model.transcribe(
             file_path,
             language=language,
+            task=task,
             fp16=fp16,
             verbose=verbose
         )
