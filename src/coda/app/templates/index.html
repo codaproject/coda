@@ -64,6 +64,23 @@
             color: #6c757d;
             word-break: break-all;
         }
+        .audio-meter {
+            display: inline-block;
+            width: 200px;
+            height: 12px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        .audio-meter-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #28a745;
+            border-radius: 6px;
+            transition: width 0.05s ease, background-color 0.1s ease;
+        }
     </style>
 </head>
 <body>
@@ -82,14 +99,7 @@
                             </div>
                             <div class="col-auto">
                                 <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
-                                    <option value="en">English</option>
-                                    <option value="sw">Swahili</option>
-                                    <option value="es">Spanish</option>
-                                    <option value="fr">French</option>
-                                    <option value="pt">Portuguese</option>
-                                    <option value="ar">Arabic</option>
-                                    <option value="hi">Hindi</option>
-                                    <option value="zh">Chinese</option>
+                                    <option value="en">English (en)</option>
                                 </select>
                             </div>
                             <div class="col-auto">
@@ -151,9 +161,12 @@
                             <button id="recordBtn" class="btn btn-lg btn-success">
                                 <i class="bi bi-mic-fill"></i> Start Recording
                             </button>
-                            <div id="recordingStatus" class="mt-3" style="display: none;">
+                            <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
                                 <span class="text-danger fw-bold">Recording...</span>
+                                <div class="audio-meter">
+                                    <div class="audio-meter-fill" id="audioMeterFill"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -195,6 +208,8 @@
         let ws = null;
         let mediaRecorder = null;
         let audioContext = null;
+        let analyser = null;
+        let meterAnimFrame = null;
         let isRecording = false;
         let transcriptText = '';
 
@@ -238,9 +253,21 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
-        // Load current settings on page load
+        // Load languages and settings on page load
         async function loadSettings() {
             try {
+                // Fetch languages and populate dropdown
+                const langResp = await fetch('/languages');
+                const languages = await langResp.json();
+                languageSelect.innerHTML = '';
+                languages.forEach(lang => {
+                    const opt = document.createElement('option');
+                    opt.value = lang.code;
+                    opt.textContent = `${lang.name} (${lang.code})`;
+                    languageSelect.appendChild(opt);
+                });
+
+                // Fetch current settings
                 const resp = await fetch('/settings');
                 const data = await resp.json();
                 languageSelect.value = data.language;
@@ -468,17 +495,24 @@
                 source.connect(processor);
                 processor.connect(audioContext.destination);
 
+                const audioMeterFill = document.getElementById('audioMeterFill');
+
                 processor.onaudioprocess = (e) => {
                     if (!isRecording) return;
 
                     const inputData = e.inputBuffer.getChannelData(0);
                     const pcmData = new Int16Array(inputData.length);
 
-                    // Convert float32 to int16
+                    // Compute RMS for audio level meter
+                    let sumSq = 0;
                     for (let i = 0; i < inputData.length; i++) {
                         const s = Math.max(-1, Math.min(1, inputData[i]));
                         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                        sumSq += s * s;
                     }
+                    const rms = Math.sqrt(sumSq / inputData.length);
+                    const pct = Math.min(100, rms * 600);
+                    audioMeterFill.style.width = pct + '%';
 
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(pcmData.buffer);
@@ -489,7 +523,8 @@
                 recordBtn.textContent = 'Stop Recording';
                 recordBtn.classList.remove('btn-success');
                 recordBtn.classList.add('btn-danger');
-                recordingStatus.style.display = 'block';
+                recordingStatus.style.display = 'flex';
+                recordingStatus.style.flexDirection = 'row';
 
             } catch (error) {
                 console.error('Error starting recording:', error);
@@ -499,6 +534,12 @@
 
         function stopRecording() {
             isRecording = false;
+
+            if (meterAnimFrame) {
+                cancelAnimationFrame(meterAnimFrame);
+                meterAnimFrame = null;
+            }
+            analyser = null;
 
             if (ws) {
                 ws.close();
