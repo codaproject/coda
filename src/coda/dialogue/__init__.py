@@ -76,7 +76,8 @@ class Transcriber:
 
     async def transcribe_audio(self, audio_data: np.ndarray,
                                sample_rate: int = 16000,
-                               language: str = "en"):
+                               language: str = "en",
+                               task: str = "transcribe"):
         try:
             # Convert int16 to float32
             audio_float = audio_data.astype(np.float32) / 32768.0
@@ -90,6 +91,7 @@ class Transcriber:
             result = await self.transcribe_file(
                 tmp_filename,
                 language=language,
+                task=task,
                 fp16=False,
                 verbose=False
             )
@@ -112,6 +114,7 @@ class Transcriber:
             return "", {}
 
     async def transcribe_file(self, file_path: str, language: str = "en",
+                              task: str = "transcribe",
                               fp16: bool = False, verbose: bool = False):
         raise NotImplementedError
 

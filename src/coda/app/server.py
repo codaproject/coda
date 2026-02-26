@@ -56,6 +56,9 @@ transcripts_dir = CODA_BASE.join(name="transcripts")
 current_whisper_model = "medium"
 current_llm_provider = "openai"
 current_llm_model = "gpt-4o-mini"
+# "whisper_translate" = use whisper task="translate" (direct speech-to-English)
+# "llm" = transcribe in original language, then translate via LLM
+translation_mode = "whisper_translate"
 
 
 class SettingsRequest(BaseModel):
@@ -64,6 +67,7 @@ class SettingsRequest(BaseModel):
     whisper_model: Optional[str] = None
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
+    translation_mode: Optional[str] = None
 
 
 def get_language_name(code: str) -> str:
@@ -242,6 +246,7 @@ async def get_settings():
         "whisper_model": current_whisper_model,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
+        "translation_mode": translation_mode,
     }
 
 
@@ -250,6 +255,7 @@ async def update_settings(req: SettingsRequest):
     """Update server settings."""
     global current_language, save_enabled, transcriber
     global current_whisper_model, current_llm_provider, current_llm_model
+    global translation_mode
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -273,6 +279,9 @@ async def update_settings(req: SettingsRequest):
     if req.llm_model is not None:
         current_llm_model = req.llm_model
         logger.info(f"LLM model set to: {current_llm_model}")
+    if req.translation_mode is not None:
+        translation_mode = req.translation_mode
+        logger.info(f"Translation mode set to: {translation_mode}")
     file_paths = {k: f.name for k, f in save_files.items()} if save_files else {}
     return {
         "language": current_language,
@@ -281,6 +290,7 @@ async def update_settings(req: SettingsRequest):
         "whisper_model": current_whisper_model,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
+        "translation_mode": translation_mode,
     }
 
 
@@ -320,17 +330,30 @@ async def websocket_endpoint(websocket: WebSocket):
                 if result is not None:
                     chunk_id, timestamp, chunk = result
 
-                    # Transcribe in the configured language
-                    transcript, annotations = await transcriber.transcribe_audio(
-                        chunk, language=current_language
-                    )
-
-                    if transcript:
-                        original_transcript = None
+                    # Transcribe audio
+                    original_transcript = None
+                    if (current_language != "en"
+                            and translation_mode == "whisper_translate"):
+                        # Whisper translates directly to English
+                        transcript, annotations = (
+                            await transcriber.transcribe_audio(
+                                chunk, language=current_language,
+                                task="translate"
+                            )
+                        )
+                        english_text = transcript
+                    else:
+                        # Transcribe in the configured language
+                        transcript, annotations = (
+                            await transcriber.transcribe_audio(
+                                chunk, language=current_language
+                            )
+                        )
                         english_text = transcript
 
-                        # If non-English, translate to English
-                        if current_language != "en":
+                        # If non-English with LLM mode, translate
+                        if (current_language != "en"
+                                and translation_mode == "llm"):
                             original_transcript = transcript
                             english_text = await translate_text(
                                 transcript, current_language
@@ -339,6 +362,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             annotations = transcriber.grounder.annotate(
                                 english_text
                             )
+
+                    if english_text:
 
                         # Save transcripts and annotations if enabled
                         if save_enabled:

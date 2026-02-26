@@ -117,7 +117,18 @@
                         <div id="whisperWarning" class="mb-2" style="display: none;">
                             <small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Large models require ~6GB+ VRAM and may be very slow on CPU</small>
                         </div>
-                        <div class="row mb-3 align-items-center" id="llmSettingsRow">
+                        <div class="row mb-2 align-items-center" id="translationRow" style="display: none;">
+                            <div class="col-auto">
+                                <label for="translationModeSelect" class="form-label mb-0 fw-bold">Translation:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="translationModeSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="whisper_translate">Whisper (direct speech-to-English)</option>
+                                    <option value="llm">LLM (transcribe then translate)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3 align-items-center" id="llmSettingsRow" style="display: none;">
                             <div class="col-auto">
                                 <label for="llmProviderSelect" class="form-label mb-0 fw-bold">Translation LLM:</label>
                             </div>
@@ -202,6 +213,8 @@
         const whisperModelSelect = document.getElementById('whisperModelSelect');
         const whisperWarning = document.getElementById('whisperWarning');
         const whisperApplyBtn = document.getElementById('whisperApplyBtn');
+        const translationRow = document.getElementById('translationRow');
+        const translationModeSelect = document.getElementById('translationModeSelect');
         const llmSettingsRow = document.getElementById('llmSettingsRow');
         const llmProviderSelect = document.getElementById('llmProviderSelect');
         const llmModelInput = document.getElementById('llmModelInput');
@@ -212,9 +225,11 @@
             ollama: 'llama3.2',
         };
 
-        // Show/hide LLM settings based on language
-        function updateLlmVisibility() {
-            llmSettingsRow.style.display = languageSelect.value === 'en' ? 'none' : 'flex';
+        // Show/hide translation and LLM settings based on language and mode
+        function updateTranslationVisibility() {
+            const isNonEnglish = languageSelect.value !== 'en';
+            translationRow.style.display = isNonEnglish ? 'flex' : 'none';
+            llmSettingsRow.style.display = (isNonEnglish && translationModeSelect.value === 'llm') ? 'flex' : 'none';
         }
 
         // Show/hide whisper warning for large models
@@ -234,8 +249,9 @@
                 loadedWhisperModel = data.whisper_model;
                 llmProviderSelect.value = data.llm_provider;
                 llmModelInput.value = data.llm_model;
+                translationModeSelect.value = data.translation_mode;
                 updateFilePathDisplay(data.file_paths);
-                updateLlmVisibility();
+                updateTranslationVisibility();
                 updateWhisperWarning();
             } catch (e) {
                 console.error('Failed to load settings:', e);
@@ -274,7 +290,12 @@
 
         languageSelect.addEventListener('change', () => {
             updateSettings({language: languageSelect.value});
-            updateLlmVisibility();
+            updateTranslationVisibility();
+        });
+
+        translationModeSelect.addEventListener('change', () => {
+            updateSettings({translation_mode: translationModeSelect.value});
+            updateTranslationVisibility();
         });
 
         saveToggle.addEventListener('change', () => {
