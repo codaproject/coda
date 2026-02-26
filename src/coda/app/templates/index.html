@@ -49,10 +49,20 @@
             display: inline-block;
             margin: 0.25rem 0;
         }
-
         .badge {
             font-size: 0.85em;
             padding: 0.35em 0.65em;
+        }
+        .original-text {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 0.95em;
+        }
+        .file-path {
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #6c757d;
+            word-break: break-all;
         }
     </style>
 </head>
@@ -65,6 +75,34 @@
                         <h3 class="mb-0">Real-time Voice Transcription</h3>
                     </div>
                     <div class="card-body">
+                        <!-- Settings row -->
+                        <div class="row mb-3 align-items-center">
+                            <div class="col-auto">
+                                <label for="languageSelect" class="form-label mb-0 fw-bold">Language:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="en">English</option>
+                                    <option value="sw">Swahili</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="ar">Arabic</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="zh">Chinese</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="saveToggle">
+                                    <label class="form-check-label fw-bold" for="saveToggle">Save Transcripts</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="filePathDisplay" class="mb-3" style="display: none;">
+                            <small class="file-path" id="filePathText"></small>
+                        </div>
+
                         <div class="text-center mb-4">
                             <button id="recordBtn" class="btn btn-lg btn-success">
                                 <i class="bi bi-mic-fill"></i> Start Recording
@@ -74,9 +112,9 @@
                                 <span class="text-danger fw-bold">Recording...</span>
                             </div>
                         </div>
-                        
+
                         <div id="statusMessage" class="alert alert-info status-message" style="display: none;"></div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Transcription:</label>
                             <div id="transcript" class="transcript-box"></div>
@@ -108,7 +146,7 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
         let ws = null;
         let mediaRecorder = null;
@@ -124,6 +162,58 @@
         const clearBtn = document.getElementById('clearBtn');
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
+        const languageSelect = document.getElementById('languageSelect');
+        const saveToggle = document.getElementById('saveToggle');
+        const filePathDisplay = document.getElementById('filePathDisplay');
+        const filePathText = document.getElementById('filePathText');
+
+        // Load current settings on page load
+        async function loadSettings() {
+            try {
+                const resp = await fetch('/settings');
+                const data = await resp.json();
+                languageSelect.value = data.language;
+                saveToggle.checked = data.save_enabled;
+                updateFilePathDisplay(data.file_paths);
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+
+        async function updateSettings(changes) {
+            try {
+                const resp = await fetch('/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(changes),
+                });
+                const data = await resp.json();
+                updateFilePathDisplay(data.file_paths);
+            } catch (e) {
+                console.error('Failed to update settings:', e);
+                showStatus('Failed to update settings', 'danger');
+            }
+        }
+
+        function updateFilePathDisplay(filePaths) {
+            if (filePaths && Object.keys(filePaths).length > 0) {
+                const paths = Object.entries(filePaths)
+                    .map(([lang, path]) => `[${lang}] ${path}`)
+                    .join('\n');
+                filePathText.textContent = 'Saving to: ' + Object.values(filePaths).join(', ');
+                filePathDisplay.style.display = 'block';
+            } else {
+                filePathDisplay.style.display = 'none';
+            }
+        }
+
+        languageSelect.addEventListener('change', () => {
+            updateSettings({language: languageSelect.value});
+        });
+
+        saveToggle.addEventListener('change', () => {
+            updateSettings({save_enabled: saveToggle.checked});
+        });
 
         function showStatus(message, type = 'info') {
             statusMessage.className = `alert alert-${type} status-message`;
@@ -136,9 +226,12 @@
 
         async function startRecording() {
             try {
+                // Disable language select while recording
+                languageSelect.disabled = true;
+
                 // Connect to WebSocket
                 ws = new WebSocket('ws://localhost:8000/ws');
-                
+
                 ws.onopen = () => {
                     console.log('WebSocket connected');
                     showStatus('Connected to server', 'success');
@@ -148,9 +241,16 @@
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'transcript') {
-                        // Display transcript with chunk ID
+                        // Display original text if present (non-English)
+                        let html = '';
+                        if (data.original_transcript) {
+                            html += `<p class="original-text"><span class="badge bg-secondary me-1">${data.original_language}</span>${data.original_transcript}</p>`;
+                        }
+
+                        // Display transcript (English or original if English)
                         transcriptText += data.transcript + ' ';
-                        transcript.innerHTML += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
+                        html += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
+                        transcript.innerHTML += html;
                         transcript.scrollTop = transcript.scrollHeight;
 
                         // Display annotations
@@ -223,13 +323,13 @@
                 };
 
                 // Get user media
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         channelCount: 1,
                         sampleRate: 16000,
                         sampleSize: 16,
                         volume: 1.0
-                    } 
+                    }
                 });
 
                 // Create audio context for processing
@@ -242,16 +342,16 @@
 
                 processor.onaudioprocess = (e) => {
                     if (!isRecording) return;
-                    
+
                     const inputData = e.inputBuffer.getChannelData(0);
                     const pcmData = new Int16Array(inputData.length);
-                    
+
                     // Convert float32 to int16
                     for (let i = 0; i < inputData.length; i++) {
                         const s = Math.max(-1, Math.min(1, inputData[i]));
                         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                     }
-                    
+
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(pcmData.buffer);
                     }
@@ -271,21 +371,24 @@
 
         function stopRecording() {
             isRecording = false;
-            
+
             if (ws) {
                 ws.close();
                 ws = null;
             }
-            
+
             if (audioContext) {
                 audioContext.close();
                 audioContext = null;
             }
-            
+
             recordBtn.textContent = 'Start Recording';
             recordBtn.classList.remove('btn-danger');
             recordBtn.classList.add('btn-success');
             recordingStatus.style.display = 'none';
+
+            // Re-enable language select
+            languageSelect.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
@@ -315,6 +418,9 @@
                 showStatus('No text to copy', 'warning');
             }
         });
+
+        // Load settings on page load
+        loadSettings();
     </script>
 </body>
 </html>
