@@ -75,7 +75,8 @@ class Transcriber:
         self.grounder = grounder
 
     async def transcribe_audio(self, audio_data: np.ndarray,
-                               sample_rate: int = 16000):
+                               sample_rate: int = 16000,
+                               language: str = "en"):
         try:
             # Convert int16 to float32
             audio_float = audio_data.astype(np.float32) / 32768.0
@@ -88,7 +89,7 @@ class Transcriber:
             # Transcribe with Whisper
             result = await self.transcribe_file(
                 tmp_filename,
-                language="en",  # Set to None for auto-detection
+                language=language,
                 fp16=False,
                 verbose=False
             )

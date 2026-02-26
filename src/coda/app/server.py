@@ -8,17 +8,22 @@ To run:
 """
 
 import asyncio
+import json
 import logging
 import os
-from typing import Dict
+from datetime import datetime
+from typing import Dict, Optional
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
+from coda import CODA_BASE
 from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue import AudioProcessor
 from coda.grounding.gilda_grounder import GildaGrounder
+from coda.llm_api import create_llm_client
 
 app = FastAPI()
 transcriber = WhisperTranscriber(grounder=GildaGrounder(),
@@ -36,6 +41,116 @@ logger = logging.getLogger(__name__)
 
 here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
+
+# Language display names for translation prompts
+LANGUAGE_NAMES = {
+    "en": "English", "sw": "Swahili", "es": "Spanish", "fr": "French",
+    "pt": "Portuguese", "ar": "Arabic", "hi": "Hindi", "zh": "Chinese",
+}
+
+# Server-level settings
+current_language = "en"
+save_enabled = False
+save_files: Dict[str, object] = {}  # open file handles keyed by language code
+transcripts_dir = CODA_BASE.join(name="transcripts")
+
+
+class SettingsRequest(BaseModel):
+    language: Optional[str] = None
+    save_enabled: Optional[bool] = None
+
+
+def get_language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code)
+
+
+def open_save_files(language: str):
+    """Open transcript and annotation files for saving. Returns dict of file paths."""
+    global save_files
+    close_save_files()
+
+    os.makedirs(transcripts_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    paths = {}
+
+    if language != "en":
+        # Original language file
+        orig_path = os.path.join(transcripts_dir,
+                                 f"transcript_{ts}_{language}.txt")
+        save_files[language] = open(orig_path, "a", encoding="utf-8")
+        paths[language] = orig_path
+
+        # English translation file
+        en_path = os.path.join(transcripts_dir, f"transcript_{ts}_en.txt")
+        save_files["en"] = open(en_path, "a", encoding="utf-8")
+        paths["en"] = en_path
+    else:
+        en_path = os.path.join(transcripts_dir, f"transcript_{ts}_en.txt")
+        save_files["en"] = open(en_path, "a", encoding="utf-8")
+        paths["en"] = en_path
+
+    # Annotated dialogue file (JSON Lines - one JSON object per chunk)
+    annotations_path = os.path.join(transcripts_dir,
+                                    f"annotations_{ts}.jsonl")
+    save_files["annotations"] = open(annotations_path, "a", encoding="utf-8")
+    paths["annotations"] = annotations_path
+
+    return paths
+
+
+def close_save_files():
+    """Close any open save files."""
+    global save_files
+    for f in save_files.values():
+        try:
+            f.close()
+        except Exception:
+            pass
+    save_files.clear()
+
+
+def save_transcript(text: str, lang_code: str):
+    """Append a transcript line to the appropriate file."""
+    f = save_files.get(lang_code)
+    if f:
+        f.write(text + "\n")
+        f.flush()
+
+
+def save_annotated_chunk(chunk_id: str, timestamp: float,
+                         english_text: str, annotations,
+                         original_text: str = None,
+                         original_language: str = None):
+    """Save a chunk with its annotations as a JSON Lines record."""
+    f = save_files.get("annotations")
+    if not f:
+        return
+    record = {
+        "chunk_id": chunk_id,
+        "timestamp": timestamp,
+        "text": english_text,
+        "annotations": [a.to_json() for a in annotations] if annotations else [],
+    }
+    if original_text:
+        record["original_text"] = original_text
+        record["original_language"] = original_language
+    f.write(json.dumps(record) + "\n")
+    f.flush()
+
+
+async def translate_text(text: str, source_language: str) -> str:
+    """Translate text to English using the LLM API."""
+    lang_name = get_language_name(source_language)
+    prompt = (f"Translate the following {lang_name} text to English. "
+              f"Return only the translation, nothing else.\n\n{text}")
+    try:
+        llm = create_llm_client()
+        loop = asyncio.get_running_loop()
+        translation = await loop.run_in_executor(None, llm.call, prompt)
+        return translation.strip()
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return text  # fall back to original text
 
 
 def render_annotations(annotations):
@@ -109,6 +224,40 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
             del pending_chunks[chunk_id]
 
 
+@app.get("/settings")
+async def get_settings():
+    """Get current server settings."""
+    file_paths = {k: f.name for k, f in save_files.items()} if save_files else {}
+    return {
+        "language": current_language,
+        "save_enabled": save_enabled,
+        "file_paths": file_paths,
+    }
+
+
+@app.post("/settings")
+async def update_settings(req: SettingsRequest):
+    """Update server settings."""
+    global current_language, save_enabled
+    if req.language is not None:
+        current_language = req.language
+        logger.info(f"Language set to: {current_language}")
+    if req.save_enabled is not None:
+        save_enabled = req.save_enabled
+        if save_enabled:
+            paths = open_save_files(current_language)
+            logger.info(f"Transcript saving enabled: {paths}")
+        else:
+            close_save_files()
+            logger.info("Transcript saving disabled")
+    file_paths = {k: f.name for k, f in save_files.items()} if save_files else {}
+    return {
+        "language": current_language,
+        "save_enabled": save_enabled,
+        "file_paths": file_paths,
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time audio streaming and transcription"""
@@ -116,6 +265,11 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info("WebSocket connection established")
 
     processor = AudioProcessor()
+
+    # Open save files at the start of a recording session if saving is enabled
+    if save_enabled and not save_files:
+        paths = open_save_files(current_language)
+        logger.info(f"Opened save files for session: {paths}")
 
     try:
         while True:
@@ -140,26 +294,61 @@ async def websocket_endpoint(websocket: WebSocket):
                 if result is not None:
                     chunk_id, timestamp, chunk = result
 
-                    # Transcribe (now truly non-blocking)
-                    transcript, annotations = await transcriber.transcribe_audio(chunk)
+                    # Transcribe in the configured language
+                    transcript, annotations = await transcriber.transcribe_audio(
+                        chunk, language=current_language
+                    )
 
                     if transcript:
+                        original_transcript = None
+                        english_text = transcript
+
+                        # If non-English, translate to English
+                        if current_language != "en":
+                            original_transcript = transcript
+                            english_text = await translate_text(
+                                transcript, current_language
+                            )
+                            # Re-ground on the English translation
+                            annotations = transcriber.grounder.annotate(
+                                english_text
+                            )
+
+                        # Save transcripts and annotations if enabled
+                        if save_enabled:
+                            save_transcript(english_text, "en")
+                            if original_transcript and current_language != "en":
+                                save_transcript(original_transcript,
+                                                current_language)
+                            save_annotated_chunk(
+                                chunk_id, timestamp, english_text,
+                                annotations,
+                                original_text=original_transcript,
+                                original_language=(current_language
+                                                   if current_language != "en"
+                                                   else None),
+                            )
+
                         # Render annotations for display
                         annotations_rendered = render_annotations(annotations)
 
-                        # Send transcript immediately
-                        await websocket.send_json({
+                        # Send transcript to client
+                        msg = {
                             "type": "transcript",
                             "chunk_id": chunk_id,
                             "timestamp": timestamp,
-                            "transcript": transcript,
-                            "annotations": annotations_rendered
-                        })
-                        logger.info(f"Chunk {chunk_id}: {transcript}")
+                            "transcript": english_text,
+                            "annotations": annotations_rendered,
+                        }
+                        if original_transcript:
+                            msg["original_transcript"] = original_transcript
+                            msg["original_language"] = current_language
+                        await websocket.send_json(msg)
+                        logger.info(f"Chunk {chunk_id}: {english_text}")
 
-                        # Start inference in background
+                        # Start inference in background (always on English text)
                         inference_task = asyncio.create_task(
-                            process_inference(chunk_id, timestamp, transcript,
+                            process_inference(chunk_id, timestamp, english_text,
                                             annotations, websocket)
                         )
                         pending_chunks[chunk_id] = inference_task
