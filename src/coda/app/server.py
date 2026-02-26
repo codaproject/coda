@@ -53,11 +53,17 @@ current_language = "en"
 save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
+current_whisper_model = "medium"
+current_llm_provider = "openai"
+current_llm_model = "gpt-4o-mini"
 
 
 class SettingsRequest(BaseModel):
     language: Optional[str] = None
     save_enabled: Optional[bool] = None
+    whisper_model: Optional[str] = None
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
 
 
 def get_language_name(code: str) -> str:
@@ -144,7 +150,8 @@ async def translate_text(text: str, source_language: str) -> str:
     prompt = (f"Translate the following {lang_name} text to English. "
               f"Return only the translation, nothing else.\n\n{text}")
     try:
-        llm = create_llm_client()
+        llm = create_llm_client(provider=current_llm_provider,
+                                model=current_llm_model)
         loop = asyncio.get_running_loop()
         translation = await loop.run_in_executor(None, llm.call, prompt)
         return translation.strip()
@@ -232,13 +239,17 @@ async def get_settings():
         "language": current_language,
         "save_enabled": save_enabled,
         "file_paths": file_paths,
+        "whisper_model": current_whisper_model,
+        "llm_provider": current_llm_provider,
+        "llm_model": current_llm_model,
     }
 
 
 @app.post("/settings")
 async def update_settings(req: SettingsRequest):
     """Update server settings."""
-    global current_language, save_enabled
+    global current_language, save_enabled, transcriber
+    global current_whisper_model, current_llm_provider, current_llm_model
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -250,11 +261,26 @@ async def update_settings(req: SettingsRequest):
         else:
             close_save_files()
             logger.info("Transcript saving disabled")
+    if req.whisper_model is not None and req.whisper_model != current_whisper_model:
+        current_whisper_model = req.whisper_model
+        logger.info(f"Reloading Whisper model: {current_whisper_model}")
+        transcriber = WhisperTranscriber(grounder=GildaGrounder(),
+                                         model_size=current_whisper_model)
+        logger.info(f"Whisper model reloaded: {current_whisper_model}")
+    if req.llm_provider is not None:
+        current_llm_provider = req.llm_provider
+        logger.info(f"LLM provider set to: {current_llm_provider}")
+    if req.llm_model is not None:
+        current_llm_model = req.llm_model
+        logger.info(f"LLM model set to: {current_llm_model}")
     file_paths = {k: f.name for k, f in save_files.items()} if save_files else {}
     return {
         "language": current_language,
         "save_enabled": save_enabled,
         "file_paths": file_paths,
+        "whisper_model": current_whisper_model,
+        "llm_provider": current_llm_provider,
+        "llm_model": current_llm_model,
     }
 
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Voice Transcription</title>
+    <title>CODA: Cause of Death Determination Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .transcript-box {
@@ -72,11 +72,11 @@
             <div class="col-md-8">
                 <div class="card shadow">
                     <div class="card-header bg-primary text-white">
-                        <h3 class="mb-0">Real-time Voice Transcription</h3>
+                        <h3 class="mb-0">CODA: Cause of Death Determination Assistant</h3>
                     </div>
                     <div class="card-body">
-                        <!-- Settings row -->
-                        <div class="row mb-3 align-items-center">
+                        <!-- Settings rows -->
+                        <div class="row mb-2 align-items-center">
                             <div class="col-auto">
                                 <label for="languageSelect" class="form-label mb-0 fw-bold">Language:</label>
                             </div>
@@ -93,10 +93,43 @@
                                 </select>
                             </div>
                             <div class="col-auto">
+                                <label for="whisperModelSelect" class="form-label mb-0 fw-bold">Transcription model:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="whisperModelSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                                    <option value="tiny">Whisper tiny (39M)</option>
+                                    <option value="base">Whisper base (74M)</option>
+                                    <option value="small">Whisper small (244M)</option>
+                                    <option value="medium">Whisper medium (769M)</option>
+                                    <option value="large">Whisper large (1.5G)</option>
+                                    <option value="large-v2">Whisper large-v2 (1.5G)</option>
+                                    <option value="large-v3">Whisper large-v3 (1.5G)</option>
+                                </select>
+                                <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary ms-1" style="display: none;">Load</button>
+                            </div>
+                            <div class="col-auto">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="saveToggle">
                                     <label class="form-check-label fw-bold" for="saveToggle">Save Transcripts</label>
                                 </div>
+                            </div>
+                        </div>
+                        <div id="whisperWarning" class="mb-2" style="display: none;">
+                            <small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Large models require ~6GB+ VRAM and may be very slow on CPU</small>
+                        </div>
+                        <div class="row mb-3 align-items-center" id="llmSettingsRow">
+                            <div class="col-auto">
+                                <label for="llmProviderSelect" class="form-label mb-0 fw-bold">Translation LLM:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="llmProviderSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="ollama">Ollama</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" id="llmModelInput" class="form-control form-control-sm"
+                                       style="width: 160px;" placeholder="Model name">
                             </div>
                         </div>
                         <div id="filePathDisplay" class="mb-3" style="display: none;">
@@ -166,6 +199,29 @@
         const saveToggle = document.getElementById('saveToggle');
         const filePathDisplay = document.getElementById('filePathDisplay');
         const filePathText = document.getElementById('filePathText');
+        const whisperModelSelect = document.getElementById('whisperModelSelect');
+        const whisperWarning = document.getElementById('whisperWarning');
+        const whisperApplyBtn = document.getElementById('whisperApplyBtn');
+        const llmSettingsRow = document.getElementById('llmSettingsRow');
+        const llmProviderSelect = document.getElementById('llmProviderSelect');
+        const llmModelInput = document.getElementById('llmModelInput');
+
+        // Default models per provider
+        const defaultLlmModels = {
+            openai: 'gpt-4o-mini',
+            ollama: 'llama3.2',
+        };
+
+        // Show/hide LLM settings based on language
+        function updateLlmVisibility() {
+            llmSettingsRow.style.display = languageSelect.value === 'en' ? 'none' : 'flex';
+        }
+
+        // Show/hide whisper warning for large models
+        function updateWhisperWarning() {
+            const val = whisperModelSelect.value;
+            whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
+        }
 
         // Load current settings on page load
         async function loadSettings() {
@@ -174,7 +230,13 @@
                 const data = await resp.json();
                 languageSelect.value = data.language;
                 saveToggle.checked = data.save_enabled;
+                whisperModelSelect.value = data.whisper_model;
+                loadedWhisperModel = data.whisper_model;
+                llmProviderSelect.value = data.llm_provider;
+                llmModelInput.value = data.llm_model;
                 updateFilePathDisplay(data.file_paths);
+                updateLlmVisibility();
+                updateWhisperWarning();
             } catch (e) {
                 console.error('Failed to load settings:', e);
             }
@@ -189,6 +251,9 @@
                 });
                 const data = await resp.json();
                 updateFilePathDisplay(data.file_paths);
+                if (changes.whisper_model) {
+                    showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
+                }
             } catch (e) {
                 console.error('Failed to update settings:', e);
                 showStatus('Failed to update settings', 'danger');
@@ -209,10 +274,51 @@
 
         languageSelect.addEventListener('change', () => {
             updateSettings({language: languageSelect.value});
+            updateLlmVisibility();
         });
 
         saveToggle.addEventListener('change', () => {
             updateSettings({save_enabled: saveToggle.checked});
+        });
+
+        let loadedWhisperModel = null;
+
+        whisperModelSelect.addEventListener('change', () => {
+            updateWhisperWarning();
+            // Show "Load" button if selection differs from what's currently loaded
+            if (whisperModelSelect.value !== loadedWhisperModel) {
+                whisperApplyBtn.style.display = 'inline-block';
+            } else {
+                whisperApplyBtn.style.display = 'none';
+            }
+        });
+
+        whisperApplyBtn.addEventListener('click', async () => {
+            whisperApplyBtn.disabled = true;
+            whisperApplyBtn.textContent = 'Loading...';
+            showStatus(`Loading Whisper model "${whisperModelSelect.value}"...`, 'info');
+            await updateSettings({whisper_model: whisperModelSelect.value});
+            loadedWhisperModel = whisperModelSelect.value;
+            whisperApplyBtn.style.display = 'none';
+            whisperApplyBtn.disabled = false;
+            whisperApplyBtn.textContent = 'Load';
+            showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+        });
+
+        llmProviderSelect.addEventListener('change', () => {
+            const provider = llmProviderSelect.value;
+            llmModelInput.value = defaultLlmModels[provider] || '';
+            updateSettings({llm_provider: provider, llm_model: llmModelInput.value});
+        });
+
+        let llmModelDebounce = null;
+        llmModelInput.addEventListener('input', () => {
+            clearTimeout(llmModelDebounce);
+            llmModelDebounce = setTimeout(() => {
+                if (llmModelInput.value.trim()) {
+                    updateSettings({llm_model: llmModelInput.value.trim()});
+                }
+            }, 500);
         });
 
         function showStatus(message, type = 'info') {
@@ -226,8 +332,9 @@
 
         async function startRecording() {
             try {
-                // Disable language select while recording
+                // Disable model selects while recording
                 languageSelect.disabled = true;
+                whisperModelSelect.disabled = true;
 
                 // Connect to WebSocket
                 ws = new WebSocket('ws://localhost:8000/ws');
@@ -387,8 +494,9 @@
             recordBtn.classList.add('btn-success');
             recordingStatus.style.display = 'none';
 
-            // Re-enable language select
+            // Re-enable model selects
             languageSelect.disabled = false;
+            whisperModelSelect.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
