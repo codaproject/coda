@@ -61,8 +61,10 @@ Running CODA using Docker
 The easiest way to run CODA is with Docker compose, which starts all services:
 
 ```bash
-docker-compose up --build
+docker-compose up
 ```
+
+optionally with --build as an additional argument to build the images locally.
 
 This starts three services:
 - **kg** (`coda.kg`) - Neo4j knowledge graph on ports 7474 (browser) and 7687 (bolt)
