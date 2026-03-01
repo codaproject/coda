@@ -1,6 +1,6 @@
 services:
   kg:
-    image: coda.kg:latest
+    image: gyorilab/coda.kg:latest
     build:
       context: .
       dockerfile: Dockerfile.kg
@@ -14,7 +14,7 @@ services:
       retries: 5
 
   inference:
-    image: coda.inference:latest
+    image: gyorilab/coda.inference:latest
     build:
       context: .
       dockerfile: Dockerfile.inference
@@ -27,7 +27,7 @@ services:
       retries: 3
 
   app:
-    image: coda.app:latest
+    image: gyorilab/coda.app:latest
     build:
       context: .
       dockerfile: Dockerfile.app
