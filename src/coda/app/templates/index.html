@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Voice Transcription</title>
+    <title>CODA: Cause of Death Determination Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .transcript-box {
@@ -49,10 +49,37 @@
             display: inline-block;
             margin: 0.25rem 0;
         }
-
         .badge {
             font-size: 0.85em;
             padding: 0.35em 0.65em;
+        }
+        .original-text {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 0.95em;
+        }
+        .file-path {
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #6c757d;
+            word-break: break-all;
+        }
+        .audio-meter {
+            display: inline-block;
+            width: 200px;
+            height: 12px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        .audio-meter-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #28a745;
+            border-radius: 6px;
+            transition: width 0.05s ease, background-color 0.1s ease;
         }
     </style>
 </head>
@@ -62,21 +89,89 @@
             <div class="col-md-8">
                 <div class="card shadow">
                     <div class="card-header bg-primary text-white">
-                        <h3 class="mb-0">Real-time Voice Transcription</h3>
+                        <h3 class="mb-0">CODA: Cause of Death Determination Assistant</h3>
                     </div>
                     <div class="card-body">
+                        <!-- Settings rows -->
+                        <div class="row mb-2 align-items-center">
+                            <div class="col-auto">
+                                <label for="languageSelect" class="form-label mb-0 fw-bold">Language:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="en">English (en)</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <label for="whisperModelSelect" class="form-label mb-0 fw-bold">Transcription model:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="whisperModelSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                                    <option value="tiny">Whisper tiny (39M)</option>
+                                    <option value="base">Whisper base (74M)</option>
+                                    <option value="small">Whisper small (244M)</option>
+                                    <option value="medium">Whisper medium (769M)</option>
+                                    <option value="large">Whisper large (1.5G)</option>
+                                    <option value="large-v2">Whisper large-v2 (1.5G)</option>
+                                    <option value="large-v3">Whisper large-v3 (1.5G)</option>
+                                </select>
+                                <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary ms-1" style="display: none;">Load</button>
+                            </div>
+                            <div class="col-auto">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="saveToggle">
+                                    <label class="form-check-label fw-bold" for="saveToggle">Save Transcripts</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="whisperWarning" class="mb-2" style="display: none;">
+                            <small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Large models require ~6GB+ VRAM and may be very slow on CPU</small>
+                        </div>
+                        <div class="row mb-2 align-items-center" id="translationRow" style="display: none;">
+                            <div class="col-auto">
+                                <label for="translationModeSelect" class="form-label mb-0 fw-bold">Translation:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="translationModeSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="whisper_translate">Whisper (direct speech-to-English)</option>
+                                    <option value="llm">LLM (transcribe then translate)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3 align-items-center" id="llmSettingsRow" style="display: none;">
+                            <div class="col-auto">
+                                <label for="llmProviderSelect" class="form-label mb-0 fw-bold">Translation LLM:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select id="llmProviderSelect" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="ollama">Ollama</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" id="llmModelInput" class="form-control form-control-sm"
+                                       style="width: 160px;" placeholder="Model name">
+                            </div>
+                        </div>
+                        <div id="filePathDisplay" class="mb-3" style="display: none;">
+                            <small class="file-path" id="filePathText"></small>
+                        </div>
+
                         <div class="text-center mb-4">
                             <button id="recordBtn" class="btn btn-lg btn-success">
                                 <i class="bi bi-mic-fill"></i> Start Recording
                             </button>
-                            <div id="recordingStatus" class="mt-3" style="display: none;">
+                            <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
                                 <span class="text-danger fw-bold">Recording...</span>
+                                <div class="audio-meter">
+                                    <div class="audio-meter-fill" id="audioMeterFill"></div>
+                                </div>
                             </div>
                         </div>
-                        
+
                         <div id="statusMessage" class="alert alert-info status-message" style="display: none;"></div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Transcription:</label>
                             <div id="transcript" class="transcript-box"></div>
@@ -108,11 +203,13 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
         let ws = null;
         let mediaRecorder = null;
         let audioContext = null;
+        let analyser = null;
+        let meterAnimFrame = null;
         let isRecording = false;
         let transcriptText = '';
 
@@ -124,6 +221,153 @@
         const clearBtn = document.getElementById('clearBtn');
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
+        const languageSelect = document.getElementById('languageSelect');
+        const saveToggle = document.getElementById('saveToggle');
+        const filePathDisplay = document.getElementById('filePathDisplay');
+        const filePathText = document.getElementById('filePathText');
+        const whisperModelSelect = document.getElementById('whisperModelSelect');
+        const whisperWarning = document.getElementById('whisperWarning');
+        const whisperApplyBtn = document.getElementById('whisperApplyBtn');
+        const translationRow = document.getElementById('translationRow');
+        const translationModeSelect = document.getElementById('translationModeSelect');
+        const llmSettingsRow = document.getElementById('llmSettingsRow');
+        const llmProviderSelect = document.getElementById('llmProviderSelect');
+        const llmModelInput = document.getElementById('llmModelInput');
+
+        // Default models per provider
+        const defaultLlmModels = {
+            openai: 'gpt-4o-mini',
+            ollama: 'llama3.2',
+        };
+
+        // Show/hide translation and LLM settings based on language and mode
+        function updateTranslationVisibility() {
+            const isNonEnglish = languageSelect.value !== 'en';
+            translationRow.style.display = isNonEnglish ? 'flex' : 'none';
+            llmSettingsRow.style.display = (isNonEnglish && translationModeSelect.value === 'llm') ? 'flex' : 'none';
+        }
+
+        // Show/hide whisper warning for large models
+        function updateWhisperWarning() {
+            const val = whisperModelSelect.value;
+            whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
+        }
+
+        // Load languages and settings on page load
+        async function loadSettings() {
+            try {
+                // Fetch languages and populate dropdown
+                const langResp = await fetch('/languages');
+                const languages = await langResp.json();
+                languageSelect.innerHTML = '';
+                languages.forEach(lang => {
+                    const opt = document.createElement('option');
+                    opt.value = lang.code;
+                    opt.textContent = `${lang.name} (${lang.code})`;
+                    languageSelect.appendChild(opt);
+                });
+
+                // Fetch current settings
+                const resp = await fetch('/settings');
+                const data = await resp.json();
+                languageSelect.value = data.language;
+                saveToggle.checked = data.save_enabled;
+                whisperModelSelect.value = data.whisper_model;
+                loadedWhisperModel = data.whisper_model;
+                llmProviderSelect.value = data.llm_provider;
+                llmModelInput.value = data.llm_model;
+                translationModeSelect.value = data.translation_mode;
+                updateFilePathDisplay(data.file_paths);
+                updateTranslationVisibility();
+                updateWhisperWarning();
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+
+        async function updateSettings(changes) {
+            try {
+                const resp = await fetch('/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(changes),
+                });
+                const data = await resp.json();
+                updateFilePathDisplay(data.file_paths);
+                if (changes.whisper_model) {
+                    showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
+                }
+            } catch (e) {
+                console.error('Failed to update settings:', e);
+                showStatus('Failed to update settings', 'danger');
+            }
+        }
+
+        function updateFilePathDisplay(filePaths) {
+            if (filePaths && Object.keys(filePaths).length > 0) {
+                const paths = Object.entries(filePaths)
+                    .map(([lang, path]) => `[${lang}] ${path}`)
+                    .join('\n');
+                filePathText.textContent = 'Saving to: ' + Object.values(filePaths).join(', ');
+                filePathDisplay.style.display = 'block';
+            } else {
+                filePathDisplay.style.display = 'none';
+            }
+        }
+
+        languageSelect.addEventListener('change', () => {
+            updateSettings({language: languageSelect.value});
+            updateTranslationVisibility();
+        });
+
+        translationModeSelect.addEventListener('change', () => {
+            updateSettings({translation_mode: translationModeSelect.value});
+            updateTranslationVisibility();
+        });
+
+        saveToggle.addEventListener('change', () => {
+            updateSettings({save_enabled: saveToggle.checked});
+        });
+
+        let loadedWhisperModel = null;
+
+        whisperModelSelect.addEventListener('change', () => {
+            updateWhisperWarning();
+            // Show "Load" button if selection differs from what's currently loaded
+            if (whisperModelSelect.value !== loadedWhisperModel) {
+                whisperApplyBtn.style.display = 'inline-block';
+            } else {
+                whisperApplyBtn.style.display = 'none';
+            }
+        });
+
+        whisperApplyBtn.addEventListener('click', async () => {
+            whisperApplyBtn.disabled = true;
+            whisperApplyBtn.textContent = 'Loading...';
+            showStatus(`Loading Whisper model "${whisperModelSelect.value}"...`, 'info');
+            await updateSettings({whisper_model: whisperModelSelect.value});
+            loadedWhisperModel = whisperModelSelect.value;
+            whisperApplyBtn.style.display = 'none';
+            whisperApplyBtn.disabled = false;
+            whisperApplyBtn.textContent = 'Load';
+            showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+        });
+
+        llmProviderSelect.addEventListener('change', () => {
+            const provider = llmProviderSelect.value;
+            llmModelInput.value = defaultLlmModels[provider] || '';
+            updateSettings({llm_provider: provider, llm_model: llmModelInput.value});
+        });
+
+        let llmModelDebounce = null;
+        llmModelInput.addEventListener('input', () => {
+            clearTimeout(llmModelDebounce);
+            llmModelDebounce = setTimeout(() => {
+                if (llmModelInput.value.trim()) {
+                    updateSettings({llm_model: llmModelInput.value.trim()});
+                }
+            }, 500);
+        });
 
         function showStatus(message, type = 'info') {
             statusMessage.className = `alert alert-${type} status-message`;
@@ -136,9 +380,13 @@
 
         async function startRecording() {
             try {
+                // Disable model selects while recording
+                languageSelect.disabled = true;
+                whisperModelSelect.disabled = true;
+
                 // Connect to WebSocket
                 ws = new WebSocket('ws://localhost:8000/ws');
-                
+
                 ws.onopen = () => {
                     console.log('WebSocket connected');
                     showStatus('Connected to server', 'success');
@@ -148,9 +396,16 @@
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'transcript') {
-                        // Display transcript with chunk ID
+                        // Display original text if present (non-English)
+                        let html = '';
+                        if (data.original_transcript) {
+                            html += `<p class="original-text"><span class="badge bg-secondary me-1">${data.original_language}</span>${data.original_transcript}</p>`;
+                        }
+
+                        // Display transcript (English or original if English)
                         transcriptText += data.transcript + ' ';
-                        transcript.innerHTML += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
+                        html += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
+                        transcript.innerHTML += html;
                         transcript.scrollTop = transcript.scrollHeight;
 
                         // Display annotations
@@ -223,13 +478,13 @@
                 };
 
                 // Get user media
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         channelCount: 1,
                         sampleRate: 16000,
                         sampleSize: 16,
                         volume: 1.0
-                    } 
+                    }
                 });
 
                 // Create audio context for processing
@@ -240,18 +495,25 @@
                 source.connect(processor);
                 processor.connect(audioContext.destination);
 
+                const audioMeterFill = document.getElementById('audioMeterFill');
+
                 processor.onaudioprocess = (e) => {
                     if (!isRecording) return;
-                    
+
                     const inputData = e.inputBuffer.getChannelData(0);
                     const pcmData = new Int16Array(inputData.length);
-                    
-                    // Convert float32 to int16
+
+                    // Compute RMS for audio level meter
+                    let sumSq = 0;
                     for (let i = 0; i < inputData.length; i++) {
                         const s = Math.max(-1, Math.min(1, inputData[i]));
                         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                        sumSq += s * s;
                     }
-                    
+                    const rms = Math.sqrt(sumSq / inputData.length);
+                    const pct = Math.min(100, rms * 600);
+                    audioMeterFill.style.width = pct + '%';
+
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(pcmData.buffer);
                     }
@@ -261,7 +523,8 @@
                 recordBtn.textContent = 'Stop Recording';
                 recordBtn.classList.remove('btn-success');
                 recordBtn.classList.add('btn-danger');
-                recordingStatus.style.display = 'block';
+                recordingStatus.style.display = 'flex';
+                recordingStatus.style.flexDirection = 'row';
 
             } catch (error) {
                 console.error('Error starting recording:', error);
@@ -271,21 +534,31 @@
 
         function stopRecording() {
             isRecording = false;
-            
+
+            if (meterAnimFrame) {
+                cancelAnimationFrame(meterAnimFrame);
+                meterAnimFrame = null;
+            }
+            analyser = null;
+
             if (ws) {
                 ws.close();
                 ws = null;
             }
-            
+
             if (audioContext) {
                 audioContext.close();
                 audioContext = null;
             }
-            
+
             recordBtn.textContent = 'Start Recording';
             recordBtn.classList.remove('btn-danger');
             recordBtn.classList.add('btn-success');
             recordingStatus.style.display = 'none';
+
+            // Re-enable model selects
+            languageSelect.disabled = false;
+            whisperModelSelect.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
@@ -315,6 +588,9 @@
                 showStatus('No text to copy', 'warning');
             }
         });
+
+        // Load settings on page load
+        loadSettings();
     </script>
 </body>
 </html>
