@@ -83,7 +83,7 @@ RUN neo4j-admin database import full \
     --nodes /sw/kg/probbase_nodes.tsv \
     --relationships /sw/kg/hpo_edges.tsv \
     --nodes /sw/kg/hpo_nodes.tsv \
-    --bad-tolerance=100000 \
+    --nodes /sw/kg/combined_nodes.tsv \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 
 

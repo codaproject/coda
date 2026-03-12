@@ -1,6 +1,6 @@
 from tqdm import tqdm
 
-from .sources import (
+from coda.kg.sources import (
     icd10,
     icd11,
     phmrc,
@@ -10,6 +10,10 @@ from .sources import (
     hpo,
     KG_BASE,
     KGSourceExporter,
+)
+from coda.kg.processor_util import (
+    check_duplicated_nodes,
+    check_missing_node_ids_in_edges,
 )
 
 
@@ -35,6 +39,8 @@ def dump_kg():
         unit="source",
     ):
         exporter.export()
+    check_duplicated_nodes(exporters=EXPORTERS, strict=False)
+    check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=True)
 
 
 if __name__ == "__main__":

@@ -46,7 +46,8 @@ test = [
 kg_build = [
     "openpyxl",
     "xlrd",
-    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
+    "polars",
 ]
 grounding = [
     "openai>=1.0.0",
