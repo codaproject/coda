@@ -23,10 +23,6 @@ ICD11_MAPPINGS_URL = (
 )
 ICD11_MAPPINGS_FNAME = "foundation_11To10MapToOneCategory.xlsx"
 
-## Nodes that exist in edges but we do not want to add to the KG.
-IGNORED_NODES = [
-        'icd10:No Mapping'
-]
 
 class ICD11Exporter(KGSourceExporter):
     name = "icd11"
@@ -51,6 +47,8 @@ class ICD11Exporter(KGSourceExporter):
             foundation_id = row["Foundation URI"].split("/")[-1]
             foundation_curie = f"icd11:{foundation_id}"
             icd10_code = row["icd10Code"]
+            if icd10_code == 'No Mapping':
+                continue
             icd10_curie = f"icd10:{icd10_code}"
             icd11_to_10[foundation_curie] = icd10_curie
 
@@ -100,9 +98,6 @@ class ICD11Exporter(KGSourceExporter):
 
             if foundation_curie in icd11_to_10:
                 icd10_curie = icd11_to_10[foundation_curie]
-                ## Skip edges to nodes that should not be added to graph ## 
-                if icd10_curie in IGNORED_NODES or foundation_curie in IGNORED_NODES:
-                    continue
                 edges.append((foundation_curie, icd10_curie, "maps_to"))
 
         node_df = pd.DataFrame(
