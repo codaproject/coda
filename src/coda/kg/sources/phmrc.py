@@ -60,6 +60,10 @@ def process_phmrc_icd10_mappings(phmrc_path: str = PHMRC_RAW_DATA):
 class PhmrcExporter(KGSourceExporter):
     name = "phmrc"
 
+    def __init__(self, phmrc_path: str = PHMRC_RAW_DATA):
+        super().__init__()
+        self.phmrc_path = phmrc_path
+
     def export(self):
         # phmrc nodes:
         # - id:ID "phmrc:<phmrc_name>"
@@ -67,14 +71,13 @@ class PhmrcExporter(KGSourceExporter):
         # - :LABEL "phmrc"
         # edges:
         # - icd10 curie -[ :maps_to ]-> phmrc curie
-        process_phmrc_icd10_mappings()
+        process_phmrc_icd10_mappings(self.phmrc_path)
 
         df = pd.read_csv(PHMRC_ICD10_MAPPINGS)
 
         df["phmrc_curie"] = df["phmrc_name"].apply(lambda x: f"phmrc:{x}")
-        df["icd10_curie"] = df["icd10_code"].apply(
-            lambda x: f"icd10:{x}" if pd.notna(x) and x.strip() else None
-        )
+        df["icd10_curie"] = df["icd10_code"].apply(lambda x: f"icd10:{x}")
+        breakpoint()
 
         # Dump all phmrc entities as nodes with :LABEL "phmrc"
         phmrc_nodes = df[["phmrc_curie", "phmrc_name"]].drop_duplicates()
