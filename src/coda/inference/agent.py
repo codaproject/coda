@@ -230,7 +230,8 @@ if __name__ == "__main__":
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # Create and run the inference server with toy agent
-    agent = CodaToyInferenceAgent()
+    # Create and run the inference server with CHAMPS agent (Ollama gpt-oss:20b)
+    from coda.inference.champs_llm_agent import create_champs_agent
+    agent = create_champs_agent()
     server = InferenceServer(agent, host="0.0.0.0", port=5123)
     server.run()

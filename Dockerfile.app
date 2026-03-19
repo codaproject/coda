@@ -17,9 +17,12 @@ COPY src/ ./src/
 # Install the package
 RUN pip install --no-cache-dir .
 
-# Download NLTK data needed by gilda
+# Download NLTK data and Gilda resources, then build sqlite db for fast startup
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \
-    python -m gilda.resources
+    python -m gilda.resources && \
+    python -m gilda.resources.sqlite_adapter /app/grounding_terms.db
+
+ENV GILDA_SQLITE_DB=/app/grounding_terms.db
 
 # Pre-download Whisper model (assumes medium here)
 RUN python -c "import whisper; whisper.load_model('medium')"

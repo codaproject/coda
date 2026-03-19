@@ -1,0 +1,44 @@
+cause_name	icd10
+Anemias	D64.9
+Cancer	C80.1
+Congenital birth defects	Q89.9
+Congenital infection	P39.9
+Diabetes	E14
+Diarrheal Diseases	A09
+HIV	B24
+HIV exposure	Z20.6
+Heart Diseases	I51.9
+Injury	T14.9
+Kidney Disease	N28.9
+Liver disease	K76.9
+Lower respiratory infections	J18.9
+Malaria	B54
+Malnutrition	E46
+Measles	B05.9
+Meningitis/Encephalitis	G03.9
+Neonatal encephalopathy	P91.6
+Neonatal preterm birth complications	P07.3
+Neonatal sepsis	P36.9
+Other	R99
+Other disorders of fluid, electrolyte and acid-base balance	E87.8
+Other endocrine, metabolic, blood, and immune disorders	E88.9
+Other gastrointestinal disease	K92.9
+Other immunodeficiencies	D84.9
+Other infections	B99.9
+Other maternal factor	P00.9
+Other neonatal disorders	P96.9
+Other neurological disorders	G98
+Other nutritional deficiencies	E63.9
+Other nutritional disorders	E63.1
+Other respiratory disease	J98.9
+Other skin and subcutaneous diseases	L98.9
+Paralytic ileus and intestinal obstruction	K56.7
+Perinatal asphyxia/hypoxia	P21.9
+Poisoning	T65.9
+Rabies	A82.9
+Sepsis	A41.9
+Sickle cell disorders	D57.1
+Thalassaemia	D56.9
+Tuberculosis	A16.9
+Undetermined	R99
+Upper respiratory infections	J06.9

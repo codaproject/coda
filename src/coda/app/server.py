@@ -31,10 +31,10 @@ transcriber = WhisperTranscriber(grounder=GildaGrounder(),
 
 # HTTP client for inference agent
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:5123")
-inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=30.0)
+inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
 
 # Queue management for backpressure
-MAX_PENDING_CHUNKS = 3
+MAX_PENDING_CHUNKS = 10
 pending_chunks: Dict[str, asyncio.Task] = {}
 
 logger = logging.getLogger(__name__)
