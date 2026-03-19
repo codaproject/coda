@@ -25,6 +25,14 @@ class GildaGrounder(BaseGrounder):
         self.namespaces = DEFAULT_NAMESPACES \
             if namespaces is None else namespaces
 
+        if not db_path:
+            db_path = os.environ.get("GILDA_SQLITE_DB")
+        if not db_path:
+            from gilda.resources import resource_dir
+            default_db = os.path.join(resource_dir, "grounding_terms.db")
+            if os.path.isfile(default_db):
+                db_path = default_db
+
         if db_path and os.path.isfile(db_path):
             logger.info("Loading Gilda grounder from sqlite: %s", db_path)
             self._grounder = Grounder(db_path)
