@@ -1,0 +1,11 @@
+## GUIDANCE
+- Output the exact cause name from the allowed causes list, preserving capitalization and wording. Do not paraphrase or lowercase.
+- Choose Malaria only with lab-confirmed malaria or strong classic malaria signs; do not default to malaria for fever alone or incidental TAC findings.
+- If severe malnutrition is evident (e.g., MUAC < 11.5 cm in 6-59 months or very low weight-for-age/height), Malnutrition should be top-1. Only override for clear trauma or congenital primary causes.
+- Distinguish LRI vs Sepsis: use Lower respiratory infections when respiratory signs dominate (cough, fast breathing, chest indrawing, hypoxia, pneumonia); use Sepsis only for documented systemic infection without a clear primary focus and do not default to Sepsis.
+- Choose HIV only with positive HIV testing or advanced HIV disease; otherwise select the proximate infection (LRI/diarrhea/malaria).
+- For neonates, use Neonatal preterm birth complications when prematurity/low birth weight is primary without infection signs; use Neonatal sepsis only with strong infection evidence.
+- For diarrheal disease, require GI symptoms or dehydration; if GI dominates, Diarrheal Diseases should be in the top 3.
+- If classic LRI signs are present without severe malnutrition, LRI should be top-1 or top-3; if severe malnutrition is present, Malnutrition stays top-1 and LRI can be top-3.
+- If malaria tests are positive, Malaria should be in the top 3; if severe malnutrition is evident, Malnutrition should be in the top 3.
+- If evidence is weak, conflicting, or lacks key symptoms/labs, output Undetermined as cause_name.
