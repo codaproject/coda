@@ -225,13 +225,28 @@ class InferenceServer:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="CODA inference agent server")
+    parser.add_argument("--provider", default=None,
+                        help="LLM provider (e.g. openai, ollama)")
+    parser.add_argument("--model", default=None,
+                        help="LLM model name (e.g. gpt-4o-mini, gpt-oss:20b)")
+    parser.add_argument("--port", type=int, default=5123,
+                        help="Server port (default: 5123)")
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # Create and run the inference server with CHAMPS agent (Ollama gpt-oss:20b)
     from coda.inference.champs_llm_agent import create_champs_agent
-    agent = create_champs_agent()
-    server = InferenceServer(agent, host="0.0.0.0", port=5123)
+    kwargs = {}
+    if args.provider:
+        kwargs["provider"] = args.provider
+    if args.model:
+        kwargs["model"] = args.model
+    agent = create_champs_agent(**kwargs)
+    server = InferenceServer(agent, host="0.0.0.0", port=args.port)
     server.run()

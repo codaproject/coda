@@ -5,71 +5,162 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CODA: Cause of Death Determination Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        .transcript-box {
-            min-height: 300px;
+        :root {
+            --header-bg: #1e293b;
+            --page-bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --box-bg: #f8fafc;
+            --box-border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent: #3b82f6;
+            --accent-subtle: rgba(59, 130, 246, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--page-bg);
+            color: var(--text-primary);
+        }
+
+        .app-header {
+            background: var(--header-bg);
+            color: #fff;
+            padding: 1.25rem 1.5rem;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+        .app-header h3 {
+            font-weight: 600;
+            font-size: 1.25rem;
+            letter-spacing: -0.01em;
+        }
+
+        .app-card {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.04);
+        }
+
+        .content-box {
+            min-height: 280px;
             max-height: 500px;
             overflow-y: auto;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
-            font-size: 1.1rem;
-            line-height: 1.6;
+            background-color: var(--box-bg);
+            border: 1px solid var(--box-border);
+            border-radius: 0.5rem;
+            padding: 1rem 1.25rem;
+            font-size: 1.05rem;
+            line-height: 1.7;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
         }
-        .annotations-box {
-            min-height: 150px;
-            max-height: 300px;
-            overflow-y: auto;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
-            font-size: 1.1rem;
-            line-height: 1.6;
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
         }
+
+        /* Settings toolbar */
+        .settings-bar {
+            background: var(--box-bg);
+            border: 1px solid var(--box-border);
+            border-radius: 0.5rem;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+        .settings-bar label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        .settings-bar .form-select-sm,
+        .settings-bar .form-control-sm {
+            font-size: 0.8rem;
+            border-color: var(--box-border);
+        }
+
+        /* Collapsible settings toggle */
+        .settings-toggle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+        .settings-toggle:hover {
+            color: var(--text-primary);
+        }
+        .settings-toggle i {
+            transition: transform 0.2s;
+        }
+        .settings-toggle[aria-expanded="true"] i {
+            transform: rotate(90deg);
+        }
+
+        /* Record button */
+        .btn-record {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.4rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .btn-record:hover {
+            transform: scale(1.05);
+        }
+        .btn-record:active {
+            transform: scale(0.97);
+        }
+        .btn-record-start {
+            background: #86c7a0;
+            color: #fff;
+        }
+        .btn-record-start:hover {
+            background: #6bb589;
+            color: #fff;
+        }
+        .btn-record-stop {
+            background: #d47076;
+            color: #fff;
+        }
+        .btn-record-stop:hover {
+            background: #c45a61;
+            color: #fff;
+        }
+
         .recording-indicator {
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            background-color: #dc3545;
+            width: 10px;
+            height: 10px;
+            background-color: #ef4444;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 6px;
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.4; }
             100% { opacity: 1; }
         }
-        .status-message {
-            transition: all 0.3s ease;
-        }
-        .annotation-group {
-            display: inline-block;
-            margin: 0.25rem 0;
-        }
-        .badge {
-            font-size: 0.85em;
-            padding: 0.35em 0.65em;
-        }
-        .original-text {
-            font-style: italic;
-            color: #6c757d;
-            font-size: 0.95em;
-        }
-        .file-path {
-            font-family: monospace;
-            font-size: 0.8em;
-            color: #6c757d;
-            word-break: break-all;
-        }
+
         .audio-meter {
             display: inline-block;
-            width: 200px;
-            height: 12px;
-            background-color: #e9ecef;
-            border-radius: 6px;
+            width: 160px;
+            height: 6px;
+            background-color: #e2e8f0;
+            border-radius: 3px;
             overflow: hidden;
             vertical-align: middle;
             margin-left: 10px;
@@ -77,93 +168,182 @@
         .audio-meter-fill {
             height: 100%;
             width: 0%;
-            background-color: #28a745;
-            border-radius: 6px;
-            transition: width 0.05s ease, background-color 0.1s ease;
+            background: linear-gradient(90deg, #22c55e, #eab308);
+            border-radius: 3px;
+            transition: width 0.05s ease;
+        }
+
+        .status-message {
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border-radius: 0.5rem;
+        }
+
+        .original-text {
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 0.95em;
+        }
+        .file-path {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        /* Chunk and annotation styles */
+        .chunk {
+            border-radius: 2px;
+            padding: 1px 0;
+        }
+        .chunk:hover {
+            background-color: rgba(59, 130, 246, 0.06);
+        }
+        .annotation {
+            text-decoration: underline dotted var(--accent);
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+        .annotation:hover {
+            background-color: var(--accent-subtle);
+        }
+
+        /* Inference result cards */
+        .inference-card {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            background: #fff;
+            border-left: 3px solid;
+        }
+        .inference-card-high { border-color: #22c55e; }
+        .inference-card-mid { border-color: #eab308; }
+        .inference-card-low { border-color: #94a3b8; }
+        .inference-reasoning {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.35rem;
+            line-height: 1.5;
+        }
+        .cause-score {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2em 0.55em;
+            border-radius: 1rem;
+        }
+
+        /* Utility */
+        .btn-subtle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-color: var(--box-border);
+        }
+        .btn-subtle:hover {
+            color: var(--text-primary);
+            border-color: #cbd5e1;
+            background: var(--box-bg);
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container py-4">
         <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow">
-                    <div class="card-header bg-primary text-white">
-                        <h3 class="mb-0">CODA: Cause of Death Determination Assistant</h3>
+            <div class="col-lg-10 col-xl-9">
+                <div class="app-card">
+                    <div class="app-header d-flex align-items-center justify-content-between">
+                        <h3 class="mb-0">CODA <span style="font-weight: 400; opacity: 0.7;">Cause of Death Determination Assistant</span></h3>
                     </div>
-                    <div class="card-body">
-                        <!-- Settings rows -->
-                        <div class="row mb-2 align-items-center">
-                            <div class="col-auto">
-                                <label for="languageSelect" class="form-label mb-0 fw-bold">Language:</label>
+                    <div class="card-body p-4">
+                        <!-- Collapsible settings -->
+                        <div class="mb-3">
+                            <div class="settings-toggle d-inline-flex align-items-center gap-1"
+                                 data-bs-toggle="collapse" data-bs-target="#settingsPanel"
+                                 aria-expanded="false" aria-controls="settingsPanel">
+                                <i class="bi bi-gear"></i> Settings
+                                <i class="bi bi-chevron-right" style="font-size: 0.65rem;"></i>
                             </div>
-                            <div class="col-auto">
-                                <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
-                                    <option value="en">English (en)</option>
-                                </select>
-                            </div>
-                            <div class="col-auto">
-                                <label for="whisperModelSelect" class="form-label mb-0 fw-bold">Transcription model:</label>
-                            </div>
-                            <div class="col-auto">
-                                <select id="whisperModelSelect" class="form-select form-select-sm" style="width: auto; display: inline-block;">
-                                    <option value="tiny">Whisper tiny (39M)</option>
-                                    <option value="base">Whisper base (74M)</option>
-                                    <option value="small">Whisper small (244M)</option>
-                                    <option value="medium">Whisper medium (769M)</option>
-                                    <option value="large">Whisper large (1.5G)</option>
-                                    <option value="large-v2">Whisper large-v2 (1.5G)</option>
-                                    <option value="large-v3">Whisper large-v3 (1.5G)</option>
-                                </select>
-                                <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary ms-1" style="display: none;">Load</button>
-                            </div>
-                            <div class="col-auto">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="saveToggle">
-                                    <label class="form-check-label fw-bold" for="saveToggle">Save Transcripts</label>
+                            <div class="collapse mt-2" id="settingsPanel">
+                                <div class="settings-bar">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-auto">
+                                            <label for="languageSelect" class="mb-0">Language</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="en">English (en)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <label for="whisperModelSelect" class="mb-0">Model</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="whisperModelSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="tiny">Whisper tiny (39M)</option>
+                                                <option value="base">Whisper base (74M)</option>
+                                                <option value="small">Whisper small (244M)</option>
+                                                <option value="medium">Whisper medium (769M)</option>
+                                                <option value="large">Whisper large (1.5G)</option>
+                                                <option value="large-v2">Whisper large-v2 (1.5G)</option>
+                                                <option value="large-v3">Whisper large-v3 (1.5G)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary" style="display: none;">Load</button>
+                                        </div>
+                                        <div class="col-auto">
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" id="saveToggle">
+                                                <label class="form-check-label" for="saveToggle">Save</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="whisperWarning" class="mt-2" style="display: none;">
+                                        <small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Large models require ~6GB+ VRAM and may be very slow on CPU</small>
+                                    </div>
+                                    <div class="row g-2 align-items-center mt-1" id="translationRow" style="display: none;">
+                                        <div class="col-auto">
+                                            <label for="translationModeSelect" class="mb-0">Translation</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="translationModeSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="whisper_translate">Whisper (direct speech-to-English)</option>
+                                                <option value="llm">LLM (transcribe then translate)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 align-items-center mt-1" id="llmSettingsRow" style="display: none;">
+                                        <div class="col-auto">
+                                            <label for="llmProviderSelect" class="mb-0">Translation LLM</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="llmProviderSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="openai">OpenAI</option>
+                                                <option value="ollama">Ollama</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <input type="text" id="llmModelInput" class="form-control form-control-sm"
+                                                   style="width: 150px;" placeholder="Model name">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div id="whisperWarning" class="mb-2" style="display: none;">
-                            <small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Large models require ~6GB+ VRAM and may be very slow on CPU</small>
-                        </div>
-                        <div class="row mb-2 align-items-center" id="translationRow" style="display: none;">
-                            <div class="col-auto">
-                                <label for="translationModeSelect" class="form-label mb-0 fw-bold">Translation:</label>
+                            <div id="filePathDisplay" class="mt-2" style="display: none;">
+                                <small class="file-path" id="filePathText"></small>
                             </div>
-                            <div class="col-auto">
-                                <select id="translationModeSelect" class="form-select form-select-sm" style="width: auto;">
-                                    <option value="whisper_translate">Whisper (direct speech-to-English)</option>
-                                    <option value="llm">LLM (transcribe then translate)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3 align-items-center" id="llmSettingsRow" style="display: none;">
-                            <div class="col-auto">
-                                <label for="llmProviderSelect" class="form-label mb-0 fw-bold">Translation LLM:</label>
-                            </div>
-                            <div class="col-auto">
-                                <select id="llmProviderSelect" class="form-select form-select-sm" style="width: auto;">
-                                    <option value="openai">OpenAI</option>
-                                    <option value="ollama">Ollama</option>
-                                </select>
-                            </div>
-                            <div class="col-auto">
-                                <input type="text" id="llmModelInput" class="form-control form-control-sm"
-                                       style="width: 160px;" placeholder="Model name">
-                            </div>
-                        </div>
-                        <div id="filePathDisplay" class="mb-3" style="display: none;">
-                            <small class="file-path" id="filePathText"></small>
                         </div>
 
+                        <!-- Recording controls -->
                         <div class="text-center mb-4">
-                            <button id="recordBtn" class="btn btn-lg btn-success">
-                                <i class="bi bi-mic-fill"></i> Start Recording
+                            <button id="recordBtn" class="btn-record btn-record-start">
+                                <i class="bi bi-mic-fill"></i>
+                            </button>
+                            <button id="resetBtn" class="btn btn-sm btn-subtle ms-3" style="vertical-align: middle;">
+                                <i class="bi bi-arrow-counterclockwise"></i> New Recording
                             </button>
                             <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
-                                <span class="text-danger fw-bold">Recording...</span>
+                                <span style="color: #ef4444; font-weight: 500; font-size: 0.85rem;">Recording</span>
                                 <div class="audio-meter">
                                     <div class="audio-meter-fill" id="audioMeterFill"></div>
                                 </div>
@@ -172,27 +352,31 @@
 
                         <div id="statusMessage" class="alert alert-info status-message" style="display: none;"></div>
 
+                        <!-- Transcription -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Transcription:</label>
-                            <div id="transcript" class="transcript-box"></div>
+                            <div class="section-label">Transcript</div>
+                            <div id="transcript" class="content-box">
+                                <span class="text-muted">Click the mic to begin...</span>
+                            </div>
                         </div>
 
+                        <!-- Cause probability chart -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Annotations:</label>
-                            <div id="annotations" class="annotations-box"></div>
+                            <div class="section-label">Cause Probabilities Over Time</div>
+                            <div class="content-box" style="min-height: auto; padding: 0.75rem;">
+                                <canvas id="causesChart" height="200"></canvas>
+                            </div>
                         </div>
 
+                        <!-- Inference -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Cause of Death Inference:</label>
-                            <div id="inference" class="transcript-box" style="min-height: 150px; background-color: #f8f9fa;"></div>
+                            <div class="section-label">Cause of Death Inference</div>
+                            <div id="inference" class="content-box" style="min-height: 120px;"></div>
                         </div>
 
-                        <div class="d-flex justify-content-between">
-                            <button id="clearBtn" class="btn btn-outline-secondary">
-                                <i class="bi bi-trash"></i> Clear Transcript
-                            </button>
-                            <button id="copyBtn" class="btn btn-outline-primary">
-                                <i class="bi bi-clipboard"></i> Copy to Clipboard
+                        <div class="text-end">
+                            <button id="copyBtn" class="btn btn-sm btn-subtle">
+                                <i class="bi bi-clipboard"></i> Copy Transcript
                             </button>
                         </div>
                     </div>
@@ -212,13 +396,89 @@
         let meterAnimFrame = null;
         let isRecording = false;
         let transcriptText = '';
+        let chunkCount = 0;
 
         const recordBtn = document.getElementById('recordBtn');
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
-        const annotations = document.getElementById('annotations');
         const inference = document.getElementById('inference');
-        const clearBtn = document.getElementById('clearBtn');
+
+        // Cause probability chart
+        const CHART_COLORS = [
+            '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6',
+            '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6',
+        ];
+        let inferenceCount = 0;
+        const causesChart = new Chart(document.getElementById('causesChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Chunk', font: { size: 11 } },
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } },
+                    },
+                    y: {
+                        min: 0, max: 1,
+                        title: { display: true, text: 'Probability', font: { size: 11 } },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: v => (v * 100).toFixed(0) + '%',
+                        },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 11 }, boxWidth: 12, padding: 12 },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(0)}%`,
+                        },
+                    },
+                },
+            },
+        });
+
+        function updateCausesChart(causes) {
+            inferenceCount++;
+            causesChart.data.labels.push(inferenceCount);
+
+            // Build a set of all cause names we've seen
+            const currentNames = new Set(causesChart.data.datasets.map(ds => ds.label));
+
+            // Add new datasets for causes we haven't seen before
+            for (const [curie, causeObj] of Object.entries(causes)) {
+                if (!currentNames.has(causeObj.name)) {
+                    const colorIdx = causesChart.data.datasets.length % CHART_COLORS.length;
+                    causesChart.data.datasets.push({
+                        label: causeObj.name,
+                        data: new Array(inferenceCount - 1).fill(null),
+                        borderColor: CHART_COLORS[colorIdx],
+                        backgroundColor: CHART_COLORS[colorIdx],
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        tension: 0.3,
+                        spanGaps: true,
+                    });
+                }
+            }
+
+            // Push the new data point for each dataset
+            for (const ds of causesChart.data.datasets) {
+                const match = Object.values(causes).find(c => c.name === ds.label);
+                ds.data.push(match ? match.score : null);
+            }
+
+            causesChart.update();
+        }
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
         const languageSelect = document.getElementById('languageSelect');
@@ -396,51 +656,66 @@
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'transcript') {
-                        // Display original text if present (non-English)
-                        let html = '';
-                        if (data.original_transcript) {
-                            html += `<p class="original-text"><span class="badge bg-secondary me-1">${data.original_language}</span>${data.original_transcript}</p>`;
+                        // Clear placeholder on first chunk
+                        if (chunkCount === 0) {
+                            transcript.innerHTML = '';
                         }
 
-                        // Display transcript (English or original if English)
-                        transcriptText += data.transcript + ' ';
-                        html += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
-                        transcript.innerHTML += html;
+                        // Build chunk HTML with inline annotations
+                        const text = data.transcript;
+                        transcriptText += text + ' ';
+
+                        // Sort annotations by start position to build HTML
+                        const anns = (data.annotations || []).slice().sort((a, b) => a.start - b.start);
+
+                        // Build HTML by walking through text, wrapping annotated spans
+                        let chunkHtml = '';
+                        let pos = 0;
+                        for (const ann of anns) {
+                            if (ann.start > pos) {
+                                chunkHtml += escapeHtml(text.slice(pos, ann.start));
+                            }
+                            chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+                            pos = ann.end;
+                        }
+                        if (pos < text.length) {
+                            chunkHtml += escapeHtml(text.slice(pos));
+                        }
+
+                        chunkCount++;
+                        const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0,8)}">${chunkHtml} </span>`;
+
+                        // If there's an original transcript (non-English), show it above
+                        if (data.original_transcript) {
+                            const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
+                            transcript.insertAdjacentHTML('beforeend', origSpan);
+                        }
+
+                        transcript.insertAdjacentHTML('beforeend', chunkSpan);
                         transcript.scrollTop = transcript.scrollHeight;
 
-                        // Display annotations
-                        if (data.annotations && data.annotations.length > 0) {
-                            let badgesHtml = '<div class="annotation-group mt-2">';
-                            data.annotations.forEach(annotation => {
-                                badgesHtml += `<span class="badge bg-primary me-1 mb-1">${annotation}</span>`;
-                            });
-                            badgesHtml += '</div><br />';
-                            annotations.innerHTML += badgesHtml;
-                            annotations.scrollTop = annotations.scrollHeight;
-                        }
-
                     } else if (data.type === 'inference') {
-                        // Display inference result with all causes
-                        let causesHtml = '<div class="p-2 mb-2 border-start border-4 border-primary">';
-                        causesHtml += `<small class="text-muted">[${data.chunk_id.slice(0,8)}]</small><br/>`;
-
-                        // Sort causes by score (highest first)
+                        // Determine border color from top cause score
                         const sortedCauses = Object.entries(data.causes || {})
                             .sort((a, b) => b[1].score - a[1].score);
+                        const topScore = sortedCauses.length > 0 ? sortedCauses[0][1].score : 0;
+                        const cardClass = topScore > 0.6 ? 'inference-card-high' :
+                                          topScore > 0.4 ? 'inference-card-mid' : 'inference-card-low';
+
+                        let causesHtml = `<div class="inference-card ${cardClass}">`;
 
                         sortedCauses.forEach(([curie, causeObj]) => {
                             const scorePercent = (causeObj.score * 100).toFixed(0);
                             const confidenceClass = causeObj.score > 0.6 ? 'success' :
                                                    causeObj.score > 0.4 ? 'warning' : 'secondary';
 
-                            // Extract ICD-10 code from curie (e.g., "icd10:U07.1" -> "U07.1")
                             const icd10Code = causeObj.identifiers.icd10;
 
                             causesHtml += `
                                 <div class="mb-1">
                                     <strong>${causeObj.name}</strong>
                                     <span class="text-muted small">(ICD-10: ${icd10Code})</span>
-                                    <span class="badge bg-${confidenceClass} ms-1">
+                                    <span class="cause-score badge bg-${confidenceClass} ms-1">
                                         ${scorePercent}%
                                     </span>
                                 </div>
@@ -448,12 +723,14 @@
                         });
 
                         if (data.reasoning) {
-                            causesHtml += `<small class="text-muted mt-1 d-block">${data.reasoning}</small>`;
+                            causesHtml += `<div class="inference-reasoning">${escapeHtml(data.reasoning)}</div>`;
                         }
 
                         causesHtml += '</div>';
-                        inference.innerHTML += causesHtml;
-                        inference.scrollTop = inference.scrollHeight;
+                        inference.insertAdjacentHTML('afterbegin', causesHtml);
+
+                        // Update probability chart
+                        updateCausesChart(data.causes || {});
 
                     } else if (data.type === 'warning') {
                         showStatus(data.message, 'warning');
@@ -520,9 +797,9 @@
                 };
 
                 isRecording = true;
-                recordBtn.textContent = 'Stop Recording';
-                recordBtn.classList.remove('btn-success');
-                recordBtn.classList.add('btn-danger');
+                recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
+                recordBtn.classList.remove('btn-record-start');
+                recordBtn.classList.add('btn-record-stop');
                 recordingStatus.style.display = 'flex';
                 recordingStatus.style.flexDirection = 'row';
 
@@ -551,9 +828,9 @@
                 audioContext = null;
             }
 
-            recordBtn.textContent = 'Start Recording';
-            recordBtn.classList.remove('btn-danger');
-            recordBtn.classList.add('btn-success');
+            recordBtn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+            recordBtn.classList.remove('btn-record-stop');
+            recordBtn.classList.add('btn-record-start');
             recordingStatus.style.display = 'none';
 
             // Re-enable model selects
@@ -569,13 +846,31 @@
             }
         });
 
-        clearBtn.addEventListener('click', () => {
+        document.getElementById('resetBtn').addEventListener('click', async () => {
+            if (isRecording) {
+                stopRecording();
+            }
             transcriptText = '';
-            transcript.innerHTML = '<p class="text-muted">Click "Start Recording" to begin...</p>';
-            annotations.innerHTML = '';
+            chunkCount = 0;
+            transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
             inference.innerHTML = '';
-            showStatus('All data cleared', 'info');
+            inferenceCount = 0;
+            causesChart.data.labels = [];
+            causesChart.data.datasets = [];
+            causesChart.update();
+            try {
+                await fetch('/reset', {method: 'POST'});
+                showStatus('Session reset - ready for new interview', 'success');
+            } catch (e) {
+                showStatus('UI cleared but server reset failed', 'warning');
+            }
         });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         copyBtn.addEventListener('click', () => {
             if (transcriptText) {

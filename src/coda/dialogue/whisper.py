@@ -52,31 +52,29 @@ class WhisperTranscriber(Transcriber):
             verbose=verbose
         )
 
-    def _filter_segments(self, result: dict) -> str:
+    def _filter_segments(self, result: dict, language: str = "en") -> str:
         """Filter transcription segments based on no_speech_prob.
 
         Whisper tends to hallucinate phrases like "thank you for watching"
         during silence. This filters out segments where the model detects
         high probability of no speech.
 
-        Parameters
-        ----------
-        result :
-            The result dictionary from Whisper's transcribe() method
-
-        Returns
-        -------
-        str
-            Filtered transcription text with silent segments removed
+        Only applied for English - Whisper's no_speech_prob is unreliable
+        for other languages, often reporting high values on real speech.
         """
         segments = result.get("segments", [])
         if not segments:
             return result.get("text", "").strip()
 
+        # Use a higher threshold for non-English since Whisper's
+        # no_speech_prob tends to be inflated for other languages
+        threshold = self.no_speech_threshold if language == "en" \
+            else max(self.no_speech_threshold, 0.8)
+
         filtered_texts = []
         for segment in segments:
             no_speech_prob = segment.get("no_speech_prob", 0.0)
-            if no_speech_prob < self.no_speech_threshold:
+            if no_speech_prob < threshold:
                 filtered_texts.append(segment.get("text", ""))
             else:
                 logger.debug(

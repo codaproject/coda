@@ -177,6 +177,14 @@ def render_annotations(annotations):
     return parts
 
 
+async def _ws_send_safe(websocket: WebSocket, data: dict):
+    """Send JSON over WebSocket, silently ignoring disconnected clients."""
+    try:
+        await websocket.send_json(data)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+
+
 async def process_inference(chunk_id: str, timestamp: float, transcript: str,
                            annotations: list, websocket: WebSocket):
     """Process inference in background and send results via HTTP."""
@@ -192,10 +200,7 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
         result = response.json()
 
         # Send inference result to client
-        await websocket.send_json({
-            "type": "inference",
-            **result
-        })
+        await _ws_send_safe(websocket, {"type": "inference", **result})
         # Log top cause
         causes = result.get('causes', {})
         if causes:
@@ -208,23 +213,20 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
 
     except httpx.TimeoutException:
         logger.error(f"Inference timeout for chunk {chunk_id}")
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": "Inference timeout"
         })
     except httpx.ConnectError:
         logger.error(f"Cannot connect to inference agent for chunk {chunk_id}")
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": "Inference agent unavailable"
         })
     except Exception as e:
         logger.error(f"Inference error for chunk {chunk_id}: {e}", exc_info=True)
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": str(e)
         })
     finally:
@@ -369,15 +371,22 @@ async def websocket_endpoint(websocket: WebSocket):
                         english_text = transcript
 
                         # If non-English with LLM mode, translate
+                        # (skip if transcript is too short to be real speech)
                         if (current_language != "en"
-                                and translation_mode == "llm"):
+                                and translation_mode == "llm"
+                                and len(transcript.split()) > 1):
                             original_transcript = transcript
                             english_text = await translate_text(
                                 transcript, current_language
                             )
-                            # Re-ground on the English translation
-                            annotations = transcriber.grounder.annotate(
-                                english_text
+                            # Re-ground on the English translation (use
+                            # dedicated executor for SQLite thread safety)
+                            from coda.dialogue import Transcriber
+                            loop = asyncio.get_running_loop()
+                            annotations = await loop.run_in_executor(
+                                Transcriber._grounding_executor,
+                                transcriber.grounder.annotate,
+                                english_text,
                             )
 
                     if english_text:
@@ -397,8 +406,17 @@ async def websocket_endpoint(websocket: WebSocket):
                                                    else None),
                             )
 
-                        # Render annotations for display
-                        annotations_rendered = render_annotations(annotations)
+                        # Build structured annotations for inline display
+                        structured_annotations = [
+                            {
+                                "text": ann.text,
+                                "start": ann.start,
+                                "end": ann.end,
+                                "curie": ann.matches[0].term.get_curie(),
+                                "name": ann.matches[0].term.entry_name,
+                            }
+                            for ann in annotations
+                        ] if annotations else []
 
                         # Send transcript to client
                         msg = {
@@ -406,7 +424,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "chunk_id": chunk_id,
                             "timestamp": timestamp,
                             "transcript": english_text,
-                            "annotations": annotations_rendered,
+                            "annotations": structured_annotations,
                         }
                         if original_transcript:
                             msg["original_transcript"] = original_transcript
@@ -439,6 +457,19 @@ async def websocket_endpoint(websocket: WebSocket):
         except:
             pass
         processor.clear_buffer()
+
+
+@app.post("/reset")
+async def reset_session():
+    """Reset session state: close save files and reset the inference agent."""
+    close_save_files()
+    try:
+        resp = await inference_client.post("/reset")
+        resp.raise_for_status()
+        logger.info("Inference agent reset")
+    except Exception as e:
+        logger.warning(f"Could not reset inference agent: {e}")
+    return {"status": "reset"}
 
 
 @app.get("/")
