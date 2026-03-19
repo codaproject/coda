@@ -27,9 +27,6 @@ ICD11_MAPPINGS_FNAME = "foundation_11To10MapToOneCategory.xlsx"
 class ICD11Exporter(KGSourceExporter):
     name = "icd11"
 
-    def __init__(self):
-        super().__init__()
-
     def export(self):
         zip_path = ICD11_BASE.ensure(url=ICD11_ZIP_URL)
 
