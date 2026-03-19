@@ -53,7 +53,7 @@ save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_whisper_model = "medium"
 current_llm_provider = "openai"
-current_llm_model = "gpt-4o-mini"
+current_llm_model = "gpt-5.4-mini"
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = "whisper_translate"

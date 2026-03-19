@@ -31,7 +31,7 @@ class OpenAIAdapter(LLMClient):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-5.4-mini",
         timeout: tuple = (60.0, 300.0),
     ):
         """
@@ -39,7 +39,7 @@ class OpenAIAdapter(LLMClient):
 
         Parameters
         ----------
-        model : str, default="gpt-4o-mini"
+        model : str, default="gpt-5.4-mini"
             OpenAI model to use.
         api_key : str, optional
             OpenAI API key. If not provided, uses OPENAI_API_KEY env var.

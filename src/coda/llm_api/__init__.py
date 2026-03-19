@@ -44,7 +44,7 @@ def create_llm_client(
         Explicit provider name ("openai", "ollama", etc.).
         If not provided, defaults to "openai".
     model : str, optional
-        Model name (e.g., "gpt-4o-mini", "llama3.2").
+        Model name (e.g., "gpt-5.4-mini", "llama3.2").
     **kwargs
         Additional arguments passed to the adapter constructor
         (e.g., api_key, base_url, timeout).
@@ -63,16 +63,16 @@ def create_llm_client(
     --------
     # Default to OpenAI
     from coda.llm_api import create_llm_client
-    client = create_llm_client(model="gpt-4o-mini")
+    client = create_llm_client(model="gpt-5.4-mini")
 
     # Explicit provider
-    client = create_llm_client(provider="openai", model="gpt-4o-mini", api_key="sk-...")
+    client = create_llm_client(provider="openai", model="gpt-5.4-mini", api_key="sk-...")
     client = create_llm_client(provider="ollama", model="llama3.2")
 
     # With additional parameters
     client = create_llm_client(
         provider="openai",
-        model="gpt-4o",
+        model="gpt-5.4",
         api_key="sk-...",
         timeout=(60.0, 300.0)
     )
