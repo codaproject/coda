@@ -126,8 +126,10 @@ class Transcriber:
                             f"{raw_text!r} (no segments)")
 
             # Filter segments based on no_speech_prob to avoid hallucinations
-            # during silence (e.g., "thank you for watching")
-            text = self._filter_segments(result)
+            # during silence (e.g., "thank you for watching").
+            # Only applied for English - Whisper's no_speech_prob is
+            # unreliable for other languages.
+            text = self._filter_segments(result, language=language)
 
             # Run grounding in a dedicated single-thread executor to avoid
             # SQLite cross-thread errors from Gilda's connection
@@ -150,7 +152,7 @@ class Transcriber:
                               fp16: bool = False, verbose: bool = False):
         raise NotImplementedError
 
-    def _filter_segments(self, result: dict) -> str:
+    def _filter_segments(self, result: dict, language: str = "en") -> str:
         """Extract text from transcription result.
 
         Subclasses may override this to filter segments based on

@@ -177,6 +177,14 @@ def render_annotations(annotations):
     return parts
 
 
+async def _ws_send_safe(websocket: WebSocket, data: dict):
+    """Send JSON over WebSocket, silently ignoring disconnected clients."""
+    try:
+        await websocket.send_json(data)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+
+
 async def process_inference(chunk_id: str, timestamp: float, transcript: str,
                            annotations: list, websocket: WebSocket):
     """Process inference in background and send results via HTTP."""
@@ -192,10 +200,7 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
         result = response.json()
 
         # Send inference result to client
-        await websocket.send_json({
-            "type": "inference",
-            **result
-        })
+        await _ws_send_safe(websocket, {"type": "inference", **result})
         # Log top cause
         causes = result.get('causes', {})
         if causes:
@@ -208,23 +213,20 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
 
     except httpx.TimeoutException:
         logger.error(f"Inference timeout for chunk {chunk_id}")
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": "Inference timeout"
         })
     except httpx.ConnectError:
         logger.error(f"Cannot connect to inference agent for chunk {chunk_id}")
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": "Inference agent unavailable"
         })
     except Exception as e:
         logger.error(f"Inference error for chunk {chunk_id}: {e}", exc_info=True)
-        await websocket.send_json({
-            "type": "error",
-            "chunk_id": chunk_id,
+        await _ws_send_safe(websocket, {
+            "type": "error", "chunk_id": chunk_id,
             "error": str(e)
         })
     finally:
@@ -369,8 +371,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         english_text = transcript
 
                         # If non-English with LLM mode, translate
+                        # (skip if transcript is too short to be real speech)
                         if (current_language != "en"
-                                and translation_mode == "llm"):
+                                and translation_mode == "llm"
+                                and len(transcript.split()) > 1):
                             original_transcript = transcript
                             english_text = await translate_text(
                                 transcript, current_language
