@@ -56,6 +56,10 @@ DIAGNOSIS_STANDARD = read_champs_resource("diagnosis_standard.txt")
 COD_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
+        "reasoning": {
+            "type": "string",
+            "description": "1-2 sentence summary of the key evidence for the top cause.",
+        },
         "top_causes": {
             "type": "array",
             "items": {
@@ -69,9 +73,9 @@ COD_OUTPUT_SCHEMA = {
             },
             "minItems": 1,
             "maxItems": 3,
-        }
+        },
     },
-    "required": ["top_causes"],
+    "required": ["reasoning", "top_causes"],
     "additionalProperties": False,
 }
 
@@ -160,7 +164,7 @@ class ChampsLLMInferenceAgent(InferenceAgent):
                 "score": probability,
             }
 
-        reasoning = "CHAMPS LLM classification"
+        reasoning = response.get("reasoning", "")
 
         return {"causes": causes, "reasoning": reasoning}
 
