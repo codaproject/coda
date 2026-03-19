@@ -89,7 +89,7 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
             frame = frames[exporter.name]
             frame = frame[~frame["id:ID"].isin(joined_df["id:ID"])]
             frame.sort_values("id:ID").to_csv(exporter.nodes_file, sep="\t", index=False)
-        node_file = KG_BASE / f"combined_nodes.tsv"
+        node_file = KG_BASE / "combined_nodes.tsv"
         joined_df.to_csv(node_file, sep="\t", index=False)
 
 
@@ -141,66 +141,25 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
             start_id_index = header.index(":START_ID")
             end_id_index = header.index(":END_ID")
             type_index = header.index(":TYPE")
-            message = ("Edge ({start})-[{type}]->({end}) references "
-                       "missing node ID {missing_id}.")
+            msg = ("Edge ({start})-[{type}]->({end}) references "
+                   "missing node ID {missing_id}.")
             for row in tqdm(reader, unit="edges", leave=False):
-                type_value = row[type_index]
                 start_id_value = row[start_id_index]
                 end_id_value = row[end_id_index]
-                if start_id_value not in node_ids:
-                    if strict:
-                        raise MissingNodeIDError(
-                            message.format(
-                                start=start_id_value,
-                                type=type_value,
-                                end=end_id_value,
-                                missing_id=start_id_value,
-                            )
-                        )
-                    else:
-                        records.append(
-                            {
-                                "start": start_id_value,
-                                "type": type_value,
-                                "end": end_id_value,
-                                "missing_id": start_id_value,
-                            }
-                        )
-                        logger.warning(
-                            message.format(
-                                start=start_id_value,
-                                type=type_value,
-                                end=end_id_value,
-                                missing_id=end_id_value,
-                            )
-                        )
-                if end_id_value not in node_ids:
-                    if strict:
-                        raise MissingNodeIDError(
-                            message.format(
-                                start=start_id_value,
-                                type=type_value,
-                                end=end_id_value,
-                                missing_id=end_id_value,
-                            )
-                        )
-                    else:
-                        records.append(
-                            {
-                                "start": start_id_value,
-                                "type": type_value,
-                                "end": end_id_value,
-                                "missing_id": end_id_value,
-                            }
-                        )
-                        logger.warning(
-                            message.format(
-                                start=start_id_value,
-                                type=type_value,
-                                end=end_id_value,
-                                missing_id=end_id_value,
-                            )
-                        )
+                type_value = row[type_index]
+                for node_id in (start_id_value, end_id_value):
+                    if node_id not in node_ids:
+                        record = {
+                            "start": start_id_value,
+                            "type": type_value,
+                            "end": end_id_value,
+                            "missing_id": node_id,
+                        }
+                        if strict:
+                            raise MissingNodeIDError(msg.format(**record))
+                        else:
+                            records.append(record)
+                            logger.warning(msg.format(**record))
             if len(records) > 0:
                 logger.info("Edges with missing node IDs found, wrote "
                             "list to missing_edges.tsv")
