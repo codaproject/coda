@@ -56,7 +56,7 @@ current_llm_provider = "openai"
 current_llm_model = "gpt-5.4-mini"
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
-translation_mode = "whisper_translate"
+translation_mode = "llm"
 
 
 class SettingsRequest(BaseModel):
