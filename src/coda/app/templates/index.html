@@ -17,17 +17,6 @@
             font-size: 1.1rem;
             line-height: 1.6;
         }
-        .annotations-box {
-            min-height: 150px;
-            max-height: 300px;
-            overflow-y: auto;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
         .recording-indicator {
             display: inline-block;
             width: 12px;
@@ -44,14 +33,6 @@
         }
         .status-message {
             transition: all 0.3s ease;
-        }
-        .annotation-group {
-            display: inline-block;
-            margin: 0.25rem 0;
-        }
-        .badge {
-            font-size: 0.85em;
-            padding: 0.35em 0.65em;
         }
         .original-text {
             font-style: italic;
@@ -80,6 +61,24 @@
             background-color: #28a745;
             border-radius: 6px;
             transition: width 0.05s ease, background-color 0.1s ease;
+        }
+        .chunk {
+            border-radius: 2px;
+            padding: 1px 0;
+        }
+        .chunk-even {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        .chunk:hover {
+            background-color: rgba(0, 0, 0, 0.07);
+        }
+        .annotation {
+            text-decoration: underline dotted #4a90d9;
+            text-underline-offset: 3px;
+            cursor: pointer;
+        }
+        .annotation:hover {
+            background-color: rgba(74, 144, 217, 0.12);
         }
     </style>
 </head>
@@ -178,11 +177,6 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Annotations:</label>
-                            <div id="annotations" class="annotations-box"></div>
-                        </div>
-
-                        <div class="mb-3">
                             <label class="form-label fw-bold">Cause of Death Inference:</label>
                             <div id="inference" class="transcript-box" style="min-height: 150px; background-color: #f8f9fa;"></div>
                         </div>
@@ -212,11 +206,11 @@
         let meterAnimFrame = null;
         let isRecording = false;
         let transcriptText = '';
+        let chunkCount = 0;
 
         const recordBtn = document.getElementById('recordBtn');
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
-        const annotations = document.getElementById('annotations');
         const inference = document.getElementById('inference');
         const clearBtn = document.getElementById('clearBtn');
         const copyBtn = document.getElementById('copyBtn');
@@ -396,31 +390,43 @@
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'transcript') {
-                        // Display original text if present (non-English)
-                        let html = '';
-                        if (data.original_transcript) {
-                            html += `<p class="original-text"><span class="badge bg-secondary me-1">${data.original_language}</span>${data.original_transcript}</p>`;
+                        // Build chunk HTML with inline annotations
+                        const text = data.transcript;
+                        transcriptText += text + ' ';
+
+                        // Sort annotations by start position (descending) to build HTML
+                        const anns = (data.annotations || []).slice().sort((a, b) => a.start - b.start);
+
+                        // Build HTML by walking through text, wrapping annotated spans
+                        let chunkHtml = '';
+                        let pos = 0;
+                        for (const ann of anns) {
+                            if (ann.start > pos) {
+                                chunkHtml += escapeHtml(text.slice(pos, ann.start));
+                            }
+                            chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+                            pos = ann.end;
+                        }
+                        if (pos < text.length) {
+                            chunkHtml += escapeHtml(text.slice(pos));
                         }
 
-                        // Display transcript (English or original if English)
-                        transcriptText += data.transcript + ' ';
-                        html += `<p><span class="text-muted text-monospace">[${data.chunk_id.slice(0,8)}]</span> ${data.transcript}</p>`;
-                        transcript.innerHTML += html;
+                        // Wrap in chunk span with alternating tint
+                        const parityClass = (chunkCount % 2 === 0) ? 'chunk-even' : '';
+                        chunkCount++;
+                        const chunkSpan = `<span class="chunk ${parityClass}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0,8)}">${chunkHtml}</span> `;
+
+                        // If there's an original transcript (non-English), show it above
+                        if (data.original_transcript) {
+                            const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
+                            transcript.insertAdjacentHTML('beforeend', origSpan);
+                        }
+
+                        transcript.insertAdjacentHTML('beforeend', chunkSpan);
                         transcript.scrollTop = transcript.scrollHeight;
 
-                        // Display annotations
-                        if (data.annotations && data.annotations.length > 0) {
-                            let badgesHtml = '<div class="annotation-group mt-2">';
-                            data.annotations.forEach(annotation => {
-                                badgesHtml += `<span class="badge bg-primary me-1 mb-1">${annotation}</span>`;
-                            });
-                            badgesHtml += '</div><br />';
-                            annotations.innerHTML += badgesHtml;
-                            annotations.scrollTop = annotations.scrollHeight;
-                        }
-
                     } else if (data.type === 'inference') {
-                        // Display inference result with all causes
+                        // Display inference result with all causes (newest on top)
                         let causesHtml = '<div class="p-2 mb-2 border-start border-4 border-primary">';
                         causesHtml += `<small class="text-muted">[${data.chunk_id.slice(0,8)}]</small><br/>`;
 
@@ -433,7 +439,6 @@
                             const confidenceClass = causeObj.score > 0.6 ? 'success' :
                                                    causeObj.score > 0.4 ? 'warning' : 'secondary';
 
-                            // Extract ICD-10 code from curie (e.g., "icd10:U07.1" -> "U07.1")
                             const icd10Code = causeObj.identifiers.icd10;
 
                             causesHtml += `
@@ -452,8 +457,7 @@
                         }
 
                         causesHtml += '</div>';
-                        inference.innerHTML += causesHtml;
-                        inference.scrollTop = inference.scrollHeight;
+                        inference.insertAdjacentHTML('afterbegin', causesHtml);
 
                     } else if (data.type === 'warning') {
                         showStatus(data.message, 'warning');
@@ -571,11 +575,17 @@
 
         clearBtn.addEventListener('click', () => {
             transcriptText = '';
+            chunkCount = 0;
             transcript.innerHTML = '<p class="text-muted">Click "Start Recording" to begin...</p>';
-            annotations.innerHTML = '';
             inference.innerHTML = '';
             showStatus('All data cleared', 'info');
         });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         copyBtn.addEventListener('click', () => {
             if (transcriptText) {
