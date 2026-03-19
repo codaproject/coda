@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CODA: Cause of Death Determination Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -357,6 +358,14 @@
                             </div>
                         </div>
 
+                        <!-- Cause probability chart -->
+                        <div class="mb-3">
+                            <div class="section-label">Cause Probabilities Over Time</div>
+                            <div class="content-box" style="min-height: auto; padding: 0.75rem;">
+                                <canvas id="causesChart" height="200"></canvas>
+                            </div>
+                        </div>
+
                         <!-- Inference -->
                         <div class="mb-3">
                             <div class="section-label">Cause of Death Inference</div>
@@ -391,6 +400,83 @@
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
         const inference = document.getElementById('inference');
+
+        // Cause probability chart
+        const CHART_COLORS = [
+            '#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6',
+            '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6',
+        ];
+        let inferenceCount = 0;
+        const causesChart = new Chart(document.getElementById('causesChart'), {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Chunk', font: { size: 11 } },
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } },
+                    },
+                    y: {
+                        min: 0, max: 1,
+                        title: { display: true, text: 'Probability', font: { size: 11 } },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: v => (v * 100).toFixed(0) + '%',
+                        },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 11 }, boxWidth: 12, padding: 12 },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(0)}%`,
+                        },
+                    },
+                },
+            },
+        });
+
+        function updateCausesChart(causes) {
+            inferenceCount++;
+            causesChart.data.labels.push(inferenceCount);
+
+            // Build a set of all cause names we've seen
+            const currentNames = new Set(causesChart.data.datasets.map(ds => ds.label));
+
+            // Add new datasets for causes we haven't seen before
+            for (const [curie, causeObj] of Object.entries(causes)) {
+                if (!currentNames.has(causeObj.name)) {
+                    const colorIdx = causesChart.data.datasets.length % CHART_COLORS.length;
+                    causesChart.data.datasets.push({
+                        label: causeObj.name,
+                        data: new Array(inferenceCount - 1).fill(null),
+                        borderColor: CHART_COLORS[colorIdx],
+                        backgroundColor: CHART_COLORS[colorIdx],
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        tension: 0.3,
+                        spanGaps: true,
+                    });
+                }
+            }
+
+            // Push the new data point for each dataset
+            for (const ds of causesChart.data.datasets) {
+                const match = Object.values(causes).find(c => c.name === ds.label);
+                ds.data.push(match ? match.score : null);
+            }
+
+            causesChart.update();
+        }
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
         const languageSelect = document.getElementById('languageSelect');
@@ -641,6 +727,9 @@
                         causesHtml += '</div>';
                         inference.insertAdjacentHTML('afterbegin', causesHtml);
 
+                        // Update probability chart
+                        updateCausesChart(data.causes || {});
+
                     } else if (data.type === 'warning') {
                         showStatus(data.message, 'warning');
 
@@ -763,6 +852,10 @@
             chunkCount = 0;
             transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
             inference.innerHTML = '';
+            inferenceCount = 0;
+            causesChart.data.labels = [];
+            causesChart.data.datasets = [];
+            causesChart.update();
             try {
                 await fetch('/reset', {method: 'POST'});
                 showStatus('Session reset - ready for new interview', 'success');
