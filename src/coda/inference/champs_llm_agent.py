@@ -65,12 +65,14 @@ COD_OUTPUT_SCHEMA = {
                     "probability": {"type": "number"},
                 },
                 "required": ["cause_name", "probability"],
+                "additionalProperties": False,
             },
             "minItems": 1,
             "maxItems": 3,
         }
     },
     "required": ["top_causes"],
+    "additionalProperties": False,
 }
 
 
