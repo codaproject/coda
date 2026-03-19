@@ -375,9 +375,14 @@ async def websocket_endpoint(websocket: WebSocket):
                             english_text = await translate_text(
                                 transcript, current_language
                             )
-                            # Re-ground on the English translation
-                            annotations = transcriber.grounder.annotate(
-                                english_text
+                            # Re-ground on the English translation (use
+                            # dedicated executor for SQLite thread safety)
+                            from coda.dialogue import Transcriber
+                            loop = asyncio.get_running_loop()
+                            annotations = await loop.run_in_executor(
+                                Transcriber._grounding_executor,
+                                transcriber.grounder.annotate,
+                                english_text,
                             )
 
                     if english_text:
@@ -397,8 +402,17 @@ async def websocket_endpoint(websocket: WebSocket):
                                                    else None),
                             )
 
-                        # Render annotations for display
-                        annotations_rendered = render_annotations(annotations)
+                        # Build structured annotations for inline display
+                        structured_annotations = [
+                            {
+                                "text": ann.text,
+                                "start": ann.start,
+                                "end": ann.end,
+                                "curie": ann.matches[0].term.get_curie(),
+                                "name": ann.matches[0].term.entry_name,
+                            }
+                            for ann in annotations
+                        ] if annotations else []
 
                         # Send transcript to client
                         msg = {
@@ -406,7 +420,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             "chunk_id": chunk_id,
                             "timestamp": timestamp,
                             "transcript": english_text,
-                            "annotations": annotations_rendered,
+                            "annotations": structured_annotations,
                         }
                         if original_transcript:
                             msg["original_transcript"] = original_transcript

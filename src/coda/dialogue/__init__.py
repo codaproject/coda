@@ -1,10 +1,12 @@
 __all__ = ["AudioProcessor", "Transcriber"]
 
+import asyncio
 import os
 import logging
 import tempfile
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
 
 import gilda
@@ -71,6 +73,10 @@ class AudioProcessor:
 
 
 class Transcriber:
+    # Single-thread executor for grounding so Gilda's SQLite connection
+    # is always used from the same thread
+    _grounding_executor = ThreadPoolExecutor(max_workers=1)
+
     def __init__(self, grounder: BaseGrounder):
         self.grounder = grounder
 
@@ -123,7 +129,13 @@ class Transcriber:
             # Filter segments based on no_speech_prob to avoid hallucinations
             # during silence (e.g., "thank you for watching")
             text = self._filter_segments(result)
-            annotations = self.grounder.annotate(text)
+
+            # Run grounding in a dedicated single-thread executor to avoid
+            # SQLite cross-thread errors from Gilda's connection
+            loop = asyncio.get_running_loop()
+            annotations = await loop.run_in_executor(
+                self._grounding_executor, self.grounder.annotate, text
+            )
 
             return text, annotations
 
