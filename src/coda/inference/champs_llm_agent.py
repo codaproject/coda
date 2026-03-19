@@ -82,32 +82,29 @@ class ChampsLLMInferenceAgent(InferenceAgent):
     no demographics, MITS, structured VA, or clinical abstraction sections.
     """
 
-    def __init__(self, llm_client: LLMClient, label_schema: str = "group"):
+    def __init__(self, llm_client: LLMClient,
+                 use_diagnosis_standard: bool = False):
         super().__init__()
         self.llm_client = llm_client
-        self.label_schema = label_schema
 
-        if label_schema == "group":
-            self.allowed_causes = CHAMPS_GROUP_CAUSES
-            self.cause_to_icd10 = CHAMPS_GROUP_TO_ICD10
-            self.schema_guidance = SCHEMA_GUIDANCE
-        else:
-            raise ValueError(
-                f"Unsupported label_schema '{label_schema}'. "
-                "Only 'group' is currently supported."
-            )
+        self.allowed_causes = CHAMPS_GROUP_CAUSES
+        self.cause_to_icd10 = CHAMPS_GROUP_TO_ICD10
+        self.schema_guidance = SCHEMA_GUIDANCE
+        self.use_diagnosis_standard = use_diagnosis_standard
 
         allowed_str = ", ".join(self.allowed_causes)
         self.rendered_system_prompt = \
             SYSTEM_PROMPT.format(allowed_causes=allowed_str) + "\n\n" \
             + self.schema_guidance
 
-    async def infer(
-        self, chunk_id: str, text: str, annotations: List[Annotation]
-    ) -> dict:
+    async def infer(self, chunk_id: str, text: str,
+                    annotations: List[Annotation]):
         """Perform COD inference using accumulated dialogue via LLM."""
-        user_prompt = (
-            f"## DIAGNOSIS STANDARD\n{DIAGNOSIS_STANDARD}\n\n"
+        if self.use_diagnosis_standard:
+            user_prompt = f"## DIAGNOSIS STANDARD\n{DIAGNOSIS_STANDARD}\n\n"
+        else:
+            user_prompt = ''
+        user_prompt += (
             f"## INPUT\n"
             f"- case_id: {chunk_id}\n"
             f"- narrative:\n"
@@ -115,12 +112,13 @@ class ChampsLLMInferenceAgent(InferenceAgent):
         )
 
         try:
+            logger.info(f'Inferring causes up to chunk {chunk_id}...')
             response = self.llm_client.call_with_schema(
                 system_prompt=self.rendered_system_prompt,
                 user_prompt=user_prompt,
                 schema=COD_OUTPUT_SCHEMA,
                 schema_name="champs_cod_classification",
-                temperature=0.1,
+                temperature=0,
             )
         except Exception:
             logger.exception("LLM call failed for chunk %s", chunk_id)
