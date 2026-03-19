@@ -48,7 +48,7 @@ class RAGGrounder(BaseGrounder):
         **llm_kwargs
             Arguments passed to create_llm_client().
             Common arguments:
-            - model: str (e.g., "gpt-4o-mini", "llama3.2") - defaults to "gpt-4o-mini"
+            - model: str (e.g., "gpt-5.4-mini", "llama3.2") - defaults to "gpt-5.4-mini"
             - provider: str (e.g., "openai", "ollama") - auto-detected from model if not specified
             - api_key: str - API key for the provider
             

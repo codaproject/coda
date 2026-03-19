@@ -231,7 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--provider", default=None,
                         help="LLM provider (e.g. openai, ollama)")
     parser.add_argument("--model", default=None,
-                        help="LLM model name (e.g. gpt-4o-mini, gpt-oss:20b)")
+                        help="LLM model name (e.g. gpt-5.4-mini, gpt-oss:20b)")
     parser.add_argument("--port", type=int, default=5123,
                         help="Server port (default: 5123)")
     args = parser.parse_args()
