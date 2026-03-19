@@ -1,0 +1,63 @@
+age_group,group,name,smart_va,icd10,comments
+adult,A,AIDS,B20,B24,Unspecified human immunodeficiency virus [HIV] disease
+adult,A,Diarrhea/Dysentery,A09,A09,Other gastroenteritis and colitis of infectious and unspecified origin
+adult,A,Malaria,B54,B54,Unspecified malaria
+adult,A,Maternal,O67,O95,"Obstetric death of unspecified cause: Maternal death from unspecified cause occurring during pregnancy, labour and delivery, or the puerperium"
+adult,A,Other Infectious Diseases,ZZ21,B99,Other and unspecified infectious diseases
+adult,A,Pneumonia,J12,J22,Unspecified acute lower respiratory infection
+adult,A,TB,A15,A16,"Respiratory tuberculosis, not confirmed bacteriologically or histologically"
+adult,B,Acute Myocardial Infarction,I21,I24,Other acute ischaemic heart diseases (as for WHO 2014)
+adult,B,Asthma,J45,J45,Asthma
+adult,B,Breast Cancer,C50,C50,Malignant neoplasm of breast
+adult,B,COPD,J33,J44,Other chronic obstructive pulmonary disease
+adult,B,Cervical Cancers,D05,C53,Malignant neoplasm of cervix uteri (WHO VA has C55 for all female reproductive neoplasms)
+adult,B,Cirrhosis,K71,K74,Fibrosis and cirrhosis of liver
+adult,B,Colorectal Cancer,G18,C18,Malignant neoplasm of colon
+adult,B,Diabetes,E10,E14,Unspecified diabetes mellitus
+adult,B,Epilepsy,G40,G40,Epilepsy
+adult,B,Esophageal Cancer,C15,C15,Malignant neoplasm of oesophagus
+adult,B,Leukemia/Lymphomas,D91 (G96),C96,"Other and unspecified malignant neoplasms of lymphoid, haematopoietic and related tissue"
+adult,B,Lung Cancer,C34,C34,Malignant neoplasm of bronchus and lung
+adult,B,Other Cardiovascular Diseases,ZZ23,I99,Other and unspecified disorders of circulatory system
+adult,B,Other Non-communicable Diseases,ZZ25,R99,Other ill-defined and unspecified causes of mortality
+adult,B,Prostate Cancer,H61,C61,Malignant neoplasm of prostate
+adult,B,Renal Failure (due to renal disease),N17,N19,Unspecified kidney failure
+adult,B,Stomach Cancer,A16,C16,Malignant neoplasm of stomach
+adult,B,Stroke,I64,I64,"Stroke, not specified as haemorrhage or infarction"
+adult,B,Other Cancers,ZZ22,C76,Malignant neoplasm of other and ill-defined sites
+adult,C,Bite of Venomous Animal,X20,X27,Contact with other specified venomous animals
+adult,C,Drowning,W65,W74,Unspecified drowning and submersion
+adult,C,Falls,W00,W19,Unspecified fall
+adult,C,Fires,X09,X09,"Exposure to unspecified smoke, fire and flames"
+adult,C,Homicide (assault),Y00,Y09,Assault by unspecified means
+adult,C,Other Injuries,ZZ27,X58,Exposure to other specified factors
+adult,C,Poisonings (accidental),T36,X49,Accidental poisoning by and exposure to other and unspecified chemicals and noxious substances
+adult,C,Road Traffic,V99,V89,"Motor- or nonmotor-vehicle accident, type of vehicle unspecified"
+adult,C,Suicide (intentional self-harm),X70,X84,Intentional self-harm by unspecified means
+child,A,AIDS,B20,B24,Unspecified human immunodeficiency virus [HIV] disease
+child,A,Diarrhea/Dysentery,A09,A09,Other gastroenteritis and colitis of infectious and unspecified origin
+child,A,Encephalitis,A83,G04,"Encephalitis, myelitis and encephalomyelitis"
+child,A,Hemorrhagic fever,A91,A99,Unspecified viral haemorrhagic fever
+child,A,Malaria,B54,B54,Unspecified malaria
+child,A,Measles,B05,B05,Measles
+child,A,Meningitis,A39,G03,Meningitis due to other and unspecified causes
+child,A,Other Infectious Diseases,ZZ11,B99,Other and unspecified infectious diseases
+child,A,Pneumonia,J12,J22,Unspecified acute lower respiratory infection
+child,A,Sepsis,R20,A41,Other sepsis
+child,B,Other Cancers,ZZ12,C76,Malignant neoplasm of other and ill-defined sites
+child,B,Other Cardiovascular Diseases,ZZ13,I99,Other and unspecified disorders of circulatory system
+child,B,Other Defined Causes of Child Deaths,ZZ16,R99,Other ill-defined and unspecified causes of mortality
+child,B,Other Digestive Diseases,ZZ15,K92,Other diseases of digestive system
+child,C,Bite of Venomous Animal,X20,X27,Contact with other specified venomous animals
+child,C,Drowning,W65,W74,Unspecified drowning and submersion
+child,C,Falls,W00,W19,Unspecified fall
+child,C,Fires,X09,X09,"Exposure to unspecified smoke, fire and flames"
+child,C,Poisonings,T36,X49,Accidental poisoning by and exposure to other and unspecified chemicals and noxious substances
+child,C,Road Traffic,V99,V89,"Motor- or nonmotor-vehicle accident, type of vehicle unspecified"
+child,C,Violent Death,V05,Y09,Assault by unspecified means
+neonate,,Birth asphyxia,P21,P21,Birth asphyxia
+neonate,,Congenital malformation,Q00,Q89,"Other congenital malformations, not elsewhere classified"
+neonate,,Meningitis/Sepsis,P351,P36,Bacterial sepsis of newborn
+neonate,,Pneumonia,P353,P23/J22,Congenital pneumonia/Unspecified acute lower respiratory infection
+neonate,,Preterm Delivery,O601,P07,"Disorders related to short gestation and low birth weight, not elsewhere classified"
+neonate,,Stillbirth,Z37,P95,Fetal death of unspecified cause
