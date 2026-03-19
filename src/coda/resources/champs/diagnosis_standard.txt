@@ -1,0 +1,101 @@
+### Level of Certainty
+**Level 1:** Diagnosis of a condition with the highest level of certainty possible for that condition, consisting of:
+- 1) highly specific pathological findings, **or**
+- 2) a CHAMPS laboratory test with specific findings **and** medically observed and documented / clinically observed appropriate illness sign(s).
+
+**Level 2:** Diagnosis of a condition with a high level of certainty, consisting of:
+- 1) medically observed and documented appropriate illness sign(s) to support the diagnosis, **or**
+- 2) a CHAMPS laboratory test with specific findings **and** supporting symptoms reported by Verbal Autopsy (VA).
+
+**Level 3:** Conditions which would be considered for diagnosis (i.e., from Verbal Autopsy data alone) but do not meet Level 1 or Level 2 criteria.
+
+### Malnutrition
+
+General note: MITS anthropometrics are converted to z-scores (with special growth charts used when applicable), and HIV wasting should use the HIV with Wasting Syndrome ICD-10 code when relevant.
+
+Kwashiorkor (E40)
+  - Level 1: Pre-death clinical diagnosis of kwashiorkor (edema) plus histologic fatty liver changes (macrocytic steatosis, often periportal) or documented low albumin during pre-death clinical care.
+  - Level 2: Clinical diagnosis of kwashiorkor prior to death or physical exam findings consistent with kwashiorkor during MITS (bilateral pitting edema).
+  - Level 3: VA report of bilateral pitting edema on feet/ankles, legs, hands, face, or abdomen (ascites).
+
+Marasmus (E41)
+  - Level 1: Pre-death clinical diagnosis or MITS anthropometrics: weight-for-height < -3 z (or MUAC <11.5 cm in 6-59 months) or (if length/height unreliable) weight-for-age < -3 z.
+  - Level 2: MITS anthropometrics: weight-for-height between -2 and -3 z (or MUAC 11.5-12.5 cm) or (if length/height unreliable) weight-for-age between -2 and -3 z.
+  - Level 3: Clinical suspicion of malnutrition documented medically or by VA report, without sufficient criteria for Level 1/2.
+
+Marasmic kwashiorkor (E42)
+  - Use when a case meets criteria for both kwashiorkor and marasmus.
+
+Severe protein-energy malnutrition, unspecified (E43) / Moderate protein-energy malnutrition (E44)
+  - Panelists are instructed to prefer the more specific diagnoses above when possible; these are used when kwashiorkor/marasmus criteria are not met but protein-energy malnutrition is still supported.
+
+Stunting (E45)
+  - Defined via MITS anthropometrics as height-for-age < -2 z, and should be included when it contributes to death.
+
+Wasting (R64)
+  - Level 1: Pre-death clinical diagnosis of wasting plus a contributing underlying chronic condition (e.g., chronic disease/HIV/AIDS/TB/cancer), as assessed by panelists.
+  - Level 2: Clinical diagnosis of wasting (no specific underlying condition required).
+  - Level 3: VA report of wasting/cachexia, without meeting Level 1/2.
+
+### Malaria
+
+Malaria with cerebral complications (B50.0)
+  - Level 1: Detection of Plasmodium falciparum by PCR/TAC in brain tissues, and no better explanation for neurologic syndrome.
+  - Level 2: Detection of P. falciparum by PCR/TAC in brain tissue or blood, plus clinical/VA evidence of seizures, coma, prostration, focal neuro signs, severe anemia, hypoglycemia, acidosis, severe respiratory distress, etc.
+  - Level 3: P. falciparum detected in brain/blood by PCR/TAC or parasitemia on blood smear, plus clinical features suggestive of cerebral malaria, but insufficient to meet Level 1/2.
+
+Non-cerebral malaria (B50.8, B51.8, B52.8, B53.8, B54)
+  - Level 1: Parasitemia (smear), malaria rapid diagnostic test, or PCR/TAC evidence, plus consistent clinical malaria illness, with no more likely diagnosis.
+  - Level 2: Detection of Plasmodium by PCR/TAC in blood or tissues in the context of febrile illness consistent with malaria, but not meeting Level 1.
+  - Level 3: Suspected malaria by clinical history/VA without sufficient lab confirmation for Level 1/2.
+
+Past malaria (B50.9, B51.9, B52.9, B53.9)
+  - Use when past malaria is reported/treated, but criteria for current malaria are not met.
+
+### Lower respiratory infections
+
+(Operationalized via pneumonia and bronchiolitis standards.)
+
+Pneumonia, unspecified organism (J18)
+  - Level 1: Strong histologic evidence of pneumonia in lung tissue.
+  - Level 2: Illness meeting clinical pneumonia criteria (e.g., tachypnea, respiratory distress, abnormal breath sounds, hypoxia/desaturation, fever/hypothermia) documented medically or by MITS report.
+  - Level 3: Illness consistent with pneumonia but not meeting Level 1/2 (e.g., only partially documented).
+
+Bronchiolitis (J21.8, J21.9)
+  - Level 1: Clinical bronchiolitis illness (wheezing/crackles/tachypnea/resp distress) documented medically or during MITS.
+  - Level 2: Bronchiolitis illness reported by VA (cough/difficulty breathing/wheezing), not meeting Level 1.
+  - Level 3: Suggestive but insufficient evidence for Level 1/2.
+
+### Congenital birth defects
+
+Congenital Malformations, Deformations and Chromosomal Abnormalities (Q00-Q99) (ND, SB)
+  - Level 1: (1) Congenital malformation externally visible or established by imaging, and (2) assessed to have (or reasonably could have) contributed to death.
+  - Level 2: External/internal congenital abnormality suspected by a medical provider and likely contributed to death, but not meeting Level 1.
+  - Level 3: Congenital malformation reported by VA (e.g., abnormality noted at delivery) that contributed to death, not meeting Level 1.
+
+### Diarrheal Diseases
+
+(Operationalized via Gastroenteritis/Enteritis plus pathogen-specific diarrheal diagnoses.)
+
+Gastroenteritis/Enteritis, unspecified origin (A09)
+  - Level 1: Medical record evidence of gastroenteritis (diarrhea and/or vomiting) with dehydration/signs such as sunken eyes, poor skin turgor, delayed cap refill, dry mouth, tachycardia, lethargy, etc.
+  - Level 2: Diarrhea and/or vomiting reported by VA (definitions include frequency/duration thresholds), with dehydration indicators or clinician documentation.
+  - Level 3: Diarrhea and/or vomiting reported by VA without dehydration signs, or insufficient information for Level 1/2.
+
+### HIV
+
+  - Level 1: Detection of HIV by HIV DNA PCR or HIV RNA PCR (if available) in blood of a child of any age. Detection of HIV antibodies (positive HIV ELISA) in blood of a child >=18 months. Immunological criteria for advanced HIV (e.g., CD4+ % thresholds for different age groups) or post-mortem findings.
+  - Level 2: Laboratory evidence of HIV and documented clinical conditions (e.g., oral thrush, severe pneumonia) or a positive HIV antibody test for children <18 months with AIDS-indicator conditions.
+  - Level 3: Presumptive diagnosis of advanced HIV disease based on WHO criteria for stage 3 or stage 4 conditions, or HIV-related maternal death.
+
+### Sepsis
+
+  - Level 1: Strong pathological evidence (e.g., pyogenic infection in multiple tissues) and clinical findings (e.g., elevated WBC, temperature anomalies, altered mental status). Isolation or PCR detection of pathogens in blood, CSF, or tissues.
+  - Level 2: Moderate pathological evidence, isolation of pathogens from tissues, or PCR evidence across different sites.
+  - Level 3: Laboratory evidence of sepsis without meeting Level 1 or Level 2 criteria.
+
+### Neonatal preterm birth complications
+
+  - Level 1: Weight below the 10th percentile for gestational age, gestational age confirmed by prenatal ultrasound or medical record. Birth weight <=999g (for extreme prematurity).
+  - Level 2: Weight below the 10th percentile and gestational age confirmed by first-trimester ultrasound or other clinical evidence.
+  - Level 3: Weight measurements and gestational age based on verbal autopsy or clinical officer's assessment.
