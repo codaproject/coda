@@ -14,7 +14,6 @@ import pandas as pd
 
 from coda.kg.sources import KGSourceExporter
 from openacme import OPENACME_BASE
-from openacme.icd10 import get_icd10_graph
 
 ICD11_BASE = OPENACME_BASE.module("icd11")
 ICD11_ZIP_URL = "https://icdcdn.who.int/static/releasefiles/2025-01/SimpleTabulation-ICD-11-MMS-en.zip"
@@ -30,7 +29,6 @@ class ICD11Exporter(KGSourceExporter):
 
     def __init__(self):
         super().__init__()
-        self.invalid_icd10_codes = set()
 
     def export(self):
         zip_path = ICD11_BASE.ensure(url=ICD11_ZIP_URL)
@@ -48,15 +46,11 @@ class ICD11Exporter(KGSourceExporter):
                     fh, sheet_name="foundation_11To10MapToOneCateg"
                 )
         icd11_to_10 = {}
-        icd10_graph = get_icd10_graph()
         for _, row in mapping_df.iterrows():
             foundation_id = row["Foundation URI"].split("/")[-1]
             foundation_curie = f"icd11:{foundation_id}"
             icd10_code = row["icd10Code"]
             if icd10_code == 'No Mapping':
-                continue
-            if icd10_code not in icd10_graph:
-                self.invalid_icd10_codes.add(icd10_code)
                 continue
             icd10_curie = f"icd10:{icd10_code}"
             icd11_to_10[foundation_curie] = icd10_curie
