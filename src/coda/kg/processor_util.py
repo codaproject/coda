@@ -1,5 +1,5 @@
 import logging
-import polars
+import pandas as pd
 import csv
 from tqdm import tqdm
 import os
@@ -40,11 +40,11 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     # Each source's representation of all nodes
     all_nodes: dict[str, dict[str, dict]] = {}
     # Data frames for all nodes
-    frames: dict[str, polars.DataFrame] = {}
+    frames: dict[str, pd.DataFrame] = {}
     for exporter in exporters:
-        frames[exporter.name] = polars.read_csv(exporter.nodes_file, separator="\t")
+        frames[exporter.name] = pd.read_csv(exporter.nodes_file, sep="\t")
         all_nodes[exporter.name] = {}
-        for node in frames[exporter.name].iter_rows(named=True):
+        for node in frames[exporter.name].to_dict(orient="records"):
             node_id = node.get("id:ID", "")
             all_nodes[exporter.name][node_id] = node
             if node_id not in nodes_and_sources:
@@ -84,13 +84,13 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
         )
     logger.info("Removing resolved duplicated from node resource files...")
     if len(joined_nodes) > 0:
-        joined_df = polars.from_dicts(joined_nodes)
+        joined_df = pd.DataFrame(joined_nodes)
         for exporter in exporters:
             frame = frames[exporter.name]
-            frame = frame.join(joined_df, on="id:ID", how="anti")
-            frame.sort("id:ID").write_csv(exporter.nodes_file, separator="\t")
+            frame = frame[~frame["id:ID"].isin(joined_df["id:ID"])]
+            frame.sort_values("id:ID").to_csv(exporter.nodes_file, sep="\t", index=False)
         node_file = KG_BASE / f"combined_nodes.tsv"
-        joined_df.write_csv(node_file, separator="\t")
+        joined_df.to_csv(node_file, sep="\t", index=False)
 
 
 def check_missing_node_ids_in_edges(exporters, strict: bool = True):
@@ -204,5 +204,5 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
             if len(records) > 0:
                 logger.info("Edges with missing node IDs found, wrote "
                             "list to missing_edges.tsv")
-                df = polars.from_dicts(records)
-                df.write_csv("missing_edges.tsv", separator="\t")
+                df = pd.DataFrame(records)
+                df.to_csv("missing_edges.tsv", sep="\t", index=False)
