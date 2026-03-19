@@ -33,20 +33,7 @@ class PhmrcExporter(KGSourceExporter):
     name = "phmrc"
 
     def export(self):
-        # phmrc nodes:
-        # - id:ID "phmrc:<phmrc_name>"
-        # - name: <phmrc_name>
-        # - :LABEL "phmrc"
-        # edges:
-        # - icd10 curie -[ :maps_to ]-> phmrc curie
-
         df = pd.read_csv(PHMRC_COD_TERMS)
-        # Get a list of smart_va code to name mappings
-        # Handle corner cases like D91 (G96)
-        # Add age_groups as an attribute
-        # Add cod_groups as an attribute
-        # Add note as an attibute
-        # Add mappings edge
         phmrc_code_to_term = defaultdict(list)
         for _, row in df.iterrows():
             # Here both codes are relevant and can be mapped
