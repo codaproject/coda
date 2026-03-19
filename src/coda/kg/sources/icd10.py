@@ -1,14 +1,11 @@
 import pandas as pd
-import zipfile
 
 from coda.kg.sources import KGSourceExporter
 from openacme.icd10 import get_icd10_graph
 from openacme.icd10.generate_embeddings import load_embeddings, get_code_index
 from openacme import OPENACME_BASE
-from coda.resources import get_resource_path
 
 ICD10_EMBEDDINGS_BASE = OPENACME_BASE.module("icd10_embeddings")
-PHMRC_ICD10_MAPPINGS = get_resource_path("phmrc_icd10_mappings.csv")
 
 
 class ICD10Exporter(KGSourceExporter):

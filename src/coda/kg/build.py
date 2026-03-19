@@ -11,10 +11,8 @@ from coda.kg.sources import (
     KG_BASE,
     KGSourceExporter,
 )
-from coda.kg.processor_util import (
-    check_duplicated_nodes,
-    check_missing_node_ids_in_edges,
-)
+from coda.kg.processor_util import check_duplicated_nodes, \
+    check_missing_node_ids_in_edges
 
 
 EXPORTERS: list[KGSourceExporter] = [

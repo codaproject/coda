@@ -23,23 +23,24 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     ----------
     exporters : list[KGSourceExporter]
         List of exporters to check.
-    strict : bool = True
-        If to raise an exception if two nodes found with conflicting information
+    strict : bool
+        If to raise an exception if two nodes found with conflicting information.
+        Default: True
 
     Raises
     ------
     DuplicateNodeIDError
         If duplicate node IDs are found with conflicting information.
     """
-    logger.info("checking for duplicated nodes...")
-    nodes_and_sources: dict[str, set[str]] = (
-        {}
-    )  ## maps each node to the set of sources it comes from
-    duplicate_ids = set()  ## set of duplicated ids
-    all_nodes: dict[str, dict[str, dict]] = (
-        {}
-    )  ## each sources representation of all nodes
-    frames: dict[str, polars.DataFrame] = {}  ## data frames for all nodes
+    logger.info("Checking for duplicated nodes...")
+    # Maps each node to the set of sources it comes from
+    nodes_and_sources: dict[str, set[str]] = {}
+    # Set of duplicated ids
+    duplicate_ids = set()
+    # Each source's representation of all nodes
+    all_nodes: dict[str, dict[str, dict]] = {}
+    # Data frames for all nodes
+    frames: dict[str, polars.DataFrame] = {}
     for exporter in exporters:
         frames[exporter.name] = polars.read_csv(exporter.nodes_file, separator="\t")
         all_nodes[exporter.name] = {}
@@ -70,9 +71,12 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
                 else:
                     conflicting_nodes_count += 1
                     logger.warning(
-                        f"{duplicate_id} has conflicting information in {key} attribute from {' '.join(list(nodes_and_sources[duplicate_id]))}"
+                        f"{duplicate_id} has conflicting information in "
+                        f"{key} attribute from "
+                        f"{' '.join(list(nodes_and_sources[duplicate_id]))}"
                     )
-        joined_node["source:string[]"] = ";".join(list(nodes_and_sources[duplicate_id]))
+        joined_node["source:string[]"] = \
+            ";".join(list(nodes_and_sources[duplicate_id]))
         joined_nodes.append(joined_node)
     if conflicting_nodes_count > 0 and strict:
         raise DuplicateNodeIDError(
@@ -90,22 +94,25 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
 
 
 def check_missing_node_ids_in_edges(exporters, strict: bool = True):
-    """Ensure every node ID referenced in the edges file exists in the exporters or combined_nodes node resource files.
+    """Ensure every node ID referenced in the edges file exists in the
+    exporters or combined_nodes node resource files.
 
     Parameters
     ----------
     exporters : list[KGSourceExporter]
         List of exporters to check.
     strict : bool = True
-        If to raise an exception if a node reference is missing or just raise a warning
+        If to raise an exception if a node reference is missing or just
+        raise a warning
     Raises
     ------
     MissingNodeIDError
         If the head or tail of a node is not present in the set of nodes.
     """
     node_ids = set()
-    ## get all node ids
-    for exporter in tqdm(exporters, desc="loading all graph nodes", unit="source"):
+    # Get all node ids
+    for exporter in tqdm(exporters, desc="loading all graph nodes",
+                         unit="source"):
         with open(exporter.nodes_file, "r") as f:
             reader = csv.reader(f, delimiter="\t")
             header = next(reader)
@@ -113,7 +120,7 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
             for row in reader:
                 id_value = row[id_index]
                 node_ids.add(id_value)
-    ## also check file that stores combined nodes just in case.
+    # Also check file that stores combined nodes just in case
     combined_nodes_path = KG_BASE.joinpath("combined_nodes.tsv")
     if os.path.exists(combined_nodes_path):
         with open(combined_nodes_path, "r") as f:
@@ -123,11 +130,10 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
             for row in reader:
                 id_value = row[id_index]
                 node_ids.add(id_value)
-    ## check that all nodes exist in the edge file
+    # Check that all nodes exist in the edge file
     records: list = []
-    for exporter in tqdm(
-        exporters, desc="checking exporter edge existence", unit="source"
-    ):
+    for exporter in tqdm(exporters, desc="checking exporter edge existence",
+                         unit="source"):
         tqdm.write(f"Checking {exporter.name} edges")
         with open(exporter.edges_file, mode="r") as f:
             reader = csv.reader(f, delimiter="\t")
@@ -135,7 +141,8 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
             start_id_index = header.index(":START_ID")
             end_id_index = header.index(":END_ID")
             type_index = header.index(":TYPE")
-            message = "Edge ({start})-[{type}]->({end}) references missing node ID {missing_id}."
+            message = ("Edge ({start})-[{type}]->({end}) references "
+                       "missing node ID {missing_id}.")
             for row in tqdm(reader, unit="edges", leave=False):
                 type_value = row[type_index]
                 start_id_value = row[start_id_index]
@@ -195,8 +202,7 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                             )
                         )
             if len(records) > 0:
-                logger.info(
-                    "edges with missing node IDs found, wrote list to missing_edges.tsv"
-                )
+                logger.info("Edges with missing node IDs found, wrote "
+                            "list to missing_edges.tsv")
                 df = polars.from_dicts(records)
                 df.write_csv("missing_edges.tsv", separator="\t")
