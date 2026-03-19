@@ -31,7 +31,7 @@ class AudioProcessor:
         """
         self.sample_rate = sample_rate
         self.chunk_duration = chunk_duration
-        self.chunk_size = sample_rate * chunk_duration
+        self.chunk_size = int(sample_rate * chunk_duration)
         self.audio_buffer = np.array([], dtype=np.int16)
 
     def add_audio(self, audio_data: bytes) -> bool:
@@ -61,9 +61,7 @@ class AudioProcessor:
             chunk_id = str(uuid.uuid4())
             timestamp = time.time()
             chunk = self.audio_buffer[:self.chunk_size]
-            # Keep some overlap for better continuity (0.5 seconds)
-            overlap_size = int(self.sample_rate * 0.5)
-            self.audio_buffer = self.audio_buffer[self.chunk_size - overlap_size:]
+            self.audio_buffer = self.audio_buffer[self.chunk_size:]
             return (chunk_id, timestamp, chunk)
         return None
 
@@ -96,6 +94,7 @@ class Transcriber:
                         f"language={language}, task={task}")
             if peak < 0.001:
                 logger.warning("Audio appears to be silent (peak < 0.001)")
+                return "", []
 
             # Create temporary WAV file
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
