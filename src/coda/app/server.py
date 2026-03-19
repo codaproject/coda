@@ -455,6 +455,19 @@ async def websocket_endpoint(websocket: WebSocket):
         processor.clear_buffer()
 
 
+@app.post("/reset")
+async def reset_session():
+    """Reset session state: close save files and reset the inference agent."""
+    close_save_files()
+    try:
+        resp = await inference_client.post("/reset")
+        resp.raise_for_status()
+        logger.info("Inference agent reset")
+    except Exception as e:
+        logger.warning(f"Could not reset inference agent: {e}")
+    return {"status": "reset"}
+
+
 @app.get("/")
 async def get_index():
     """Serve the index page."""
