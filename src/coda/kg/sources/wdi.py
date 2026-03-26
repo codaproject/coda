@@ -40,7 +40,8 @@ class WDIExporter(KGSourceExporter):
     def _load_data(self):
         dev_df = pd.read_csv(HERE / "world_dev_indicator_data.tsv", sep="\t")
         health_df = pd.read_csv(HERE / "world_health_indicator_data.tsv", sep="\t")
-        mesh_df = pd.read_csv(HERE / "mesh_hierarchy_nodes.tsv", sep="\t")
+        kg_dir = self.nodes_file.parent
+        mesh_df = pd.read_csv(kg_dir / "mesh_hierarchy_nodes.tsv", sep="\t")
 
         return dev_df, health_df, mesh_df
 
@@ -49,7 +50,7 @@ class WDIExporter(KGSourceExporter):
     def _combine_data(self, dev_df, health_df):
         """
         Merge dev + health datasets
-        Remove overlapping Series Codes (same logic as original script - outbreak project)
+        Remove overlapping Series Codes
         """
         dev_codes = set(dev_df["Series Code"])
         health_df = health_df[
