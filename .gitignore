@@ -143,6 +143,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+pysb-1.16.0/
+*.tar.gz
 
 # Spyder project settings
 .spyderproject
@@ -208,3 +210,6 @@ __marimo__/
 
 # PyCharm
 .idea/*
+
+# KG module outputs
+/kg/
