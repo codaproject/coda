@@ -39,8 +39,8 @@ class WDIExporter(KGSourceExporter):
     # Data loading
 
     def _load_data(self):
-        dev_df = pd.read_csv(HERE / "world_dev_indicator_data.tsv", sep="\t")
-        health_df = pd.read_csv(HERE / "world_health_indicator_data.tsv", sep="\t")
+        dev_df = pd.read_csv(HERE / "world_dev_indicator_data.tsv.gz", sep="\t")
+        health_df = pd.read_csv(HERE / "world_health_indicator_data.tsv.gz", sep="\t")
         kg_dir = self.nodes_file.parent
         mesh_df = pd.read_csv(kg_dir / "mesh_hierarchy_nodes.tsv", sep="\t")
 
@@ -77,7 +77,6 @@ class WDIExporter(KGSourceExporter):
         """
         Keep only rows that can be grounded to MeSH geoloc nodes
         """
-        # geoloc_df = mesh_df[mesh_df[":LABEL"]]
 
         df = pd.merge(
             df,
