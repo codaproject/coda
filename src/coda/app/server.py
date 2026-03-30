@@ -12,13 +12,14 @@ import json
 import logging
 import os
 import shutil
+import time
 import uuid
 from datetime import datetime
 from typing import Dict, Optional
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from coda import CODA_BASE
@@ -85,6 +86,11 @@ class SettingsRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
+
+
+class UploadNoteRequest(BaseModel):
+    text: str
+    filename: Optional[str] = None
 
 
 def get_language_name(code: str) -> str:
@@ -566,6 +572,73 @@ async def handle_chunk(websocket: WebSocket, chunk_id, timestamp, chunk):
                             annotations, websocket)
         )
         pending_chunks[chunk_id] = inference_task
+
+
+MAX_NOTE_SIZE = 100_000  # 100KB limit for clinical notes
+
+
+@app.post("/upload-note")
+async def upload_note(req: UploadNoteRequest):
+    """Upload a clinical note for grounding and inference."""
+    if not req.text.strip():
+        return JSONResponse(status_code=400,
+                            content={"error": "Empty clinical note"})
+    if len(req.text) > MAX_NOTE_SIZE:
+        return JSONResponse(status_code=413,
+                            content={"error": "Clinical note too large (max 100KB)"})
+
+    chunk_id = "note-" + str(uuid.uuid4())
+    timestamp = time.time()
+
+    # Run grounding in the dedicated executor for SQLite thread safety
+    from coda.dialogue import Transcriber
+    loop = asyncio.get_running_loop()
+    annotations = await loop.run_in_executor(
+        Transcriber._grounding_executor,
+        transcriber.grounder.annotate,
+        req.text.strip(),
+    )
+
+    structured_annotations = [
+        {
+            "text": ann.text,
+            "start": ann.start,
+            "end": ann.end,
+            "curie": ann.matches[0].term.get_curie(),
+            "name": ann.matches[0].term.entry_name,
+        }
+        for ann in annotations
+    ] if annotations else []
+
+    # Save if enabled
+    if save_enabled:
+        if not save_files:
+            open_save_files(current_language)
+        save_transcript(req.text.strip(), "en")
+        save_annotated_chunk(chunk_id, timestamp, req.text.strip(), annotations)
+
+    # Send to inference agent
+    inference_result = None
+    try:
+        response = await inference_client.post("/infer", json={
+            "chunk_id": chunk_id,
+            "timestamp": timestamp,
+            "text": req.text.strip(),
+            "annotations": [a.to_json() for a in annotations] if annotations else [],
+        })
+        response.raise_for_status()
+        inference_result = response.json()
+    except Exception as e:
+        logger.error(f"Inference error for uploaded note: {e}", exc_info=True)
+        inference_result = {"error": str(e)}
+
+    return {
+        "chunk_id": chunk_id,
+        "timestamp": timestamp,
+        "annotations": structured_annotations,
+        "inference": inference_result,
+        "filename": req.filename,
+    }
 
 
 @app.post("/reset")
