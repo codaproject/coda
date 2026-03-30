@@ -27,9 +27,7 @@ from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
 
 app = FastAPI()
-transcriber = WhisperTranscriber(grounder=GildaGrounder(),
-                                 model_size="medium")
-final_rag_grounder = RagGrounder()
+
 
 # HTTP client for inference agent
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:5123")
@@ -54,28 +52,39 @@ save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_whisper_model = "medium"
+current_grounder = "gilda"
 current_llm_provider = "openai"
 current_llm_model = "gpt-5.4-mini"
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = "llm"
+transcriber: WhisperTranscriber
 
 
 class SettingsRequest(BaseModel):
     language: Optional[str] = None
     save_enabled: Optional[bool] = None
     whisper_model: Optional[str] = None
+    grounder: Optional[str] = None
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
 
 
-class FinalizeGroundingRequest(BaseModel):
-    text: str
-
-
 def get_language_name(code: str) -> str:
     return LANGUAGE_NAMES.get(code, code)
+
+
+def create_grounder(grounder_name: str):
+    if grounder_name == "rag":
+        return RagGrounder()
+    return GildaGrounder()
+
+
+transcriber = WhisperTranscriber(
+    grounder=create_grounder(current_grounder),
+    model_size=current_whisper_model,
+)
 
 
 def open_save_files(language: str):
@@ -263,6 +272,7 @@ async def get_settings():
         "save_enabled": save_enabled,
         "file_paths": file_paths,
         "whisper_model": current_whisper_model,
+        "grounder": current_grounder,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
@@ -275,6 +285,8 @@ async def update_settings(req: SettingsRequest):
     global current_language, save_enabled, transcriber
     global current_whisper_model, current_llm_provider, current_llm_model
     global translation_mode
+    global current_grounder
+    reload_transcriber = False
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -286,18 +298,34 @@ async def update_settings(req: SettingsRequest):
         else:
             close_save_files()
             logger.info("Transcript saving disabled")
+    if req.grounder is not None:
+        grounder = req.grounder.strip().lower()
+        if grounder not in {"gilda", "rag"}:
+            grounder = "gilda"
+        if grounder != current_grounder:
+            current_grounder = grounder
+            reload_transcriber = True
+            logger.info(f"Grounder set to: {current_grounder}")
     if req.whisper_model is not None and req.whisper_model != current_whisper_model:
         current_whisper_model = req.whisper_model
-        logger.info(f"Reloading Whisper model: {current_whisper_model}")
-        # Load in a thread to avoid blocking the event loop
+        reload_transcriber = True
+        logger.info(f"Whisper model set to: {current_whisper_model}")
+    if reload_transcriber:
+        # Reload transcriber if either model or grounder settings are touched.
         loop = asyncio.get_running_loop()
         new_transcriber = await loop.run_in_executor(
             None,
-            lambda: WhisperTranscriber(grounder=GildaGrounder(),
-                                       model_size=current_whisper_model)
+            lambda: WhisperTranscriber(
+                grounder=create_grounder(current_grounder),
+                model_size=current_whisper_model,
+            ),
         )
         transcriber = new_transcriber
-        logger.info(f"Whisper model reloaded: {current_whisper_model}")
+        logger.info(
+            "Transcriber reloaded with model=%s grounder=%s",
+            current_whisper_model,
+            current_grounder,
+        )
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider
         logger.info(f"LLM provider set to: {current_llm_provider}")
@@ -313,6 +341,7 @@ async def update_settings(req: SettingsRequest):
         "save_enabled": save_enabled,
         "file_paths": file_paths,
         "whisper_model": current_whisper_model,
+        "grounder": current_grounder,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
@@ -476,18 +505,6 @@ async def reset_session():
     except Exception as e:
         logger.warning(f"Could not reset inference agent: {e}")
     return {"status": "reset"}
-
-
-@app.post("/ground/finalize")
-async def finalize_grounding(req: FinalizeGroundingRequest):
-    """Run final RAG grounding over full transcript text."""
-    text = (req.text or "").strip()
-    if not text:
-        return {"text": "", "Concepts": []}
-
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(None, final_rag_grounder.process, text)
-    return result.model_dump()
 
 
 @app.get("/")
