@@ -288,6 +288,15 @@
                                             </select>
                                         </div>
                                         <div class="col-auto">
+                                            <label for="grounderSelect" class="mb-0">Grounder</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="grounderSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="gilda">Gilda</option>
+                                                <option value="rag">RAG</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
                                             <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary" style="display: none;">Load</button>
                                         </div>
                                         <div class="col-auto">
@@ -341,6 +350,9 @@
                             <button id="resetBtn" class="btn btn-sm btn-subtle ms-3" style="vertical-align: middle;">
                                 <i class="bi bi-arrow-counterclockwise"></i> New Recording
                             </button>
+                            <div class="mt-2">
+                                <span class="badge text-bg-light border" id="activeGrounderBadge">Grounder: Gilda</span>
+                            </div>
                             <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
                                 <span style="color: #ef4444; font-weight: 500; font-size: 0.85rem;">Recording</span>
@@ -374,13 +386,6 @@
                             <div id="inference" class="content-box" style="min-height: 120px;"></div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="section-label">Final RAG Grounding</div>
-                            <div id="finalRagGrounding" class="content-box" style="min-height: 120px;">
-                                <span class="text-muted">RAG grounding will run when recording stops.</span>
-                            </div>
-                        </div>
-
                         <div class="text-end">
                             <button id="copyBtn" class="btn btn-sm btn-subtle">
                                 <i class="bi bi-clipboard"></i> Copy Transcript
@@ -410,7 +415,6 @@
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
         const inference = document.getElementById('inference');
-        const finalRagGrounding = document.getElementById('finalRagGrounding');
 
         // Cause probability chart
         const CHART_COLORS = [
@@ -495,6 +499,8 @@
         const filePathDisplay = document.getElementById('filePathDisplay');
         const filePathText = document.getElementById('filePathText');
         const whisperModelSelect = document.getElementById('whisperModelSelect');
+        const grounderSelect = document.getElementById('grounderSelect');
+        const activeGrounderBadge = document.getElementById('activeGrounderBadge');
         const whisperWarning = document.getElementById('whisperWarning');
         const whisperApplyBtn = document.getElementById('whisperApplyBtn');
         const translationRow = document.getElementById('translationRow');
@@ -522,6 +528,11 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
+        function updateGrounderBadge(grounder) {
+            const label = (grounder || 'gilda').toLowerCase() === 'rag' ? 'RAG' : 'Gilda';
+            activeGrounderBadge.textContent = `Grounder: ${label}`;
+        }
+
         // Load languages and settings on page load
         async function loadSettings() {
             try {
@@ -542,6 +553,8 @@
                 languageSelect.value = data.language;
                 saveToggle.checked = data.save_enabled;
                 whisperModelSelect.value = data.whisper_model;
+                grounderSelect.value = data.grounder || 'gilda';
+                updateGrounderBadge(data.grounder || 'gilda');
                 loadedWhisperModel = data.whisper_model;
                 llmProviderSelect.value = data.llm_provider;
                 llmModelInput.value = data.llm_model;
@@ -563,6 +576,10 @@
                 });
                 const data = await resp.json();
                 updateFilePathDisplay(data.file_paths);
+                if (data.grounder) {
+                    grounderSelect.value = data.grounder;
+                    updateGrounderBadge(data.grounder);
+                }
                 if (changes.whisper_model) {
                     showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
                 }
@@ -611,15 +628,34 @@
         });
 
         whisperApplyBtn.addEventListener('click', async () => {
+            const selectedModel = whisperModelSelect.value;
             whisperApplyBtn.disabled = true;
-            whisperApplyBtn.textContent = 'Loading...';
-            showStatus(`Loading Whisper model "${whisperModelSelect.value}"...`, 'info');
-            await updateSettings({whisper_model: whisperModelSelect.value});
-            loadedWhisperModel = whisperModelSelect.value;
-            whisperApplyBtn.style.display = 'none';
-            whisperApplyBtn.disabled = false;
-            whisperApplyBtn.textContent = 'Load';
-            showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+            whisperApplyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading...';
+            showStatus(`Loading Whisper model "${selectedModel}"...`, 'info');
+            try {
+                await updateSettings({whisper_model: selectedModel});
+                loadedWhisperModel = selectedModel;
+                whisperApplyBtn.style.display = 'none';
+                showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+            } finally {
+                whisperApplyBtn.disabled = false;
+                whisperApplyBtn.textContent = 'Load';
+            }
+        });
+
+        grounderSelect.addEventListener('change', async () => {
+            const selectedGrounder = grounderSelect.value;
+            grounderSelect.disabled = true;
+            try {
+                showStatus(`Switching grounder to "${selectedGrounder}"...`, 'info');
+                await updateSettings({grounder: selectedGrounder});
+                updateGrounderBadge(selectedGrounder);
+                showStatus(`Grounder set to "${selectedGrounder}"`, 'success');
+            } finally {
+                if (!isRecording) {
+                    grounderSelect.disabled = false;
+                }
+            }
         });
 
         llmProviderSelect.addEventListener('change', () => {
@@ -652,6 +688,7 @@
                 // Disable model selects while recording
                 languageSelect.disabled = true;
                 whisperModelSelect.disabled = true;
+                grounderSelect.disabled = true;
 
                 // Connect to WebSocket
                 ws = new WebSocket('ws://localhost:8000/ws');
@@ -819,75 +856,7 @@
             }
         }
 
-        function renderFinalRagGrounding(data) {
-            const concepts = data?.Concepts || data?.concepts || [];
-            if (!concepts.length) {
-                finalRagGrounding.innerHTML = '<span class="text-muted">No concepts found in final RAG grounding.</span>';
-                return;
-            }
-
-            const html = concepts.map((conceptObj) => {
-                const concept = conceptObj?.Concept || conceptObj?.concept || '(unknown concept)';
-
-                let topName = 'No match';
-                let topCurie = '';
-                let topScore = null;
-
-                if (Array.isArray(conceptObj?.reranked_terms) && conceptObj.reranked_terms.length > 0) {
-                    const term = conceptObj.reranked_terms[0] || {};
-                    topName = term.name || topName;
-                    topCurie = term.id || topCurie;
-                } else if (Array.isArray(conceptObj?.retrieved_terms) && conceptObj.retrieved_terms.length > 0) {
-                    const pair = conceptObj.retrieved_terms[0];
-                    if (Array.isArray(pair) && pair.length >= 2) {
-                        const term = pair[0] || {};
-                        topName = term.name || topName;
-                        topCurie = term.id || topCurie;
-                        topScore = pair[1];
-                    }
-                }
-
-                const scoreText = typeof topScore === 'number' ? ` (${(topScore * 100).toFixed(0)}%)` : '';
-                const curieText = topCurie ? ` - ${topCurie}` : '';
-
-                return `
-                    <div class="mb-2">
-                        <div><strong>${escapeHtml(concept)}</strong></div>
-                        <div class="text-muted small">${escapeHtml(topName)}${escapeHtml(curieText)}${escapeHtml(scoreText)}</div>
-                    </div>
-                `;
-            }).join('');
-
-            finalRagGrounding.innerHTML = html;
-        }
-
-        async function finalizeRagGroundingRun() {
-            const requestSessionId = recordingSessionId;
-            const text = transcriptText.trim();
-            if (!text) return;
-            try {
-                const resp = await fetch('/ground/finalize', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({text}),
-                });
-                if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}`);
-                }
-                const data = await resp.json();
-                if (requestSessionId !== recordingSessionId) {
-                    // Ignore stale response from an older recording session.
-                    return;
-                }
-                renderFinalRagGrounding(data);
-                showStatus('Final RAG grounding complete', 'success');
-            } catch (e) {
-                console.error('Final RAG grounding failed:', e);
-                showStatus('Final RAG grounding failed', 'warning');
-            }
-        }
-
-        function stopRecording(runFinalize = true) {
+        function stopRecording() {
             isRecording = false;
 
             if (meterAnimFrame) {
@@ -914,10 +883,7 @@
             // Re-enable model selects
             languageSelect.disabled = false;
             whisperModelSelect.disabled = false;
-
-            if (runFinalize) {
-                void finalizeRagGroundingRun();
-            }
+            grounderSelect.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
@@ -930,14 +896,13 @@
 
         document.getElementById('resetBtn').addEventListener('click', async () => {
             if (isRecording) {
-                stopRecording(false);
+                stopRecording();
             }
             recordingSessionId += 1;
             transcriptText = '';
             chunkCount = 0;
             transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
             inference.innerHTML = '';
-            finalRagGrounding.innerHTML = '<span class="text-muted">RAG grounding will run when recording stops.</span>';
             inferenceCount = 0;
             causesChart.data.labels = [];
             causesChart.data.datasets = [];
