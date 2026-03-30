@@ -4,13 +4,14 @@ from pathlib import Path
 import pandas as pd
 
 from coda.kg.sources import KGSourceExporter
-from .constants import LOCATION_MESH_MAPPING
 
 # NOTE: This exporter assumes that MeSH country nodes are already present in the KG (via a separate module).
 # Country nodes are NOT created here, only referenced via CURIEs.
 
 HERE = Path(__file__).parent
-
+COUNTRY_MAPPING_FILE =  HERE.parent.parent/"resources"/"wdi_mesh_country_mapping.json"
+with open(COUNTRY_MAPPING_FILE, "rb") as file:
+    LOCATION_MESH_MAPPING = json.load(file)
 
 class WDIExporter(KGSourceExporter):
     name = "wdi"
@@ -76,13 +77,13 @@ class WDIExporter(KGSourceExporter):
         """
         Keep only rows that can be grounded to MeSH geoloc nodes
         """
-        geoloc_df = mesh_df[mesh_df[":LABEL"].str.contains("geoloc", na=False)]
+        # geoloc_df = mesh_df[mesh_df[":LABEL"]]
 
         df = pd.merge(
             df,
-            geoloc_df,
+            mesh_df,
             left_on="Country Name",
-            right_on="name:string",
+            right_on="name",
             how="inner",
         )[df.columns]
 
@@ -100,11 +101,11 @@ class WDIExporter(KGSourceExporter):
             series_name = row["Series Name"]
 
             # Get country CURIE (from mesh, NOT CREATED HERE)
-            country_info = mesh_df[mesh_df["name:string"] == country_name]
+            country_info = mesh_df[mesh_df["name"] == country_name]
             if country_info.empty:
                 continue
 
-            country_curie = country_info.iloc[0]["curie:ID"]
+            country_curie = country_info.iloc[0]["id:ID"]
 
             # Indicator node
             indicator_curie = f"wdi:{series_code}"
