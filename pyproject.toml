@@ -36,7 +36,6 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     "httpx>=0.25.0",
-    "indra",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +46,7 @@ test = [
 kg_build = [
     "openpyxl",
     "xlrd",
+    "indra",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 ]
 grounding = [

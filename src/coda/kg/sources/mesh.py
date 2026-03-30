@@ -1,16 +1,20 @@
 import csv
-from indra.databases import mesh_client
-from indra.ontology.bio import bio_ontology
 from coda.kg.sources import KGSourceExporter
 
 class MeshExporter(KGSourceExporter):
     name = "mesh_hierarchy"
+    def __init__(self):
+        super().__init__()
+
+        from indra.databases import mesh_client
+        self.mesh_client = mesh_client
 
     def export(self):
+        from indra.ontology.bio import bio_ontology
         edges = set()
         nodes = set()
 
-        for mesh_id, mesh_name in mesh_client.mesh_id_to_name.items():
+        for mesh_id, mesh_name in self.mesh_client.mesh_id_to_name.items():
             is_dis = self.is_disease("MESH", mesh_id)
             is_pat = self.is_pathogen("MESH", mesh_id)
             is_geo = self.is_geoloc("MESH", mesh_id)
@@ -81,20 +85,20 @@ class MeshExporter(KGSourceExporter):
 
     def is_geoloc(self, x_db, x_id):
         if x_db == 'MESH':
-            return mesh_client.mesh_isa(x_id, 'D005842')
+            return self.mesh_client.mesh_isa(x_id, 'D005842')
         return False
 
     def is_pathogen(self, x_db, x_id):
         if x_db == 'MESH':
             return (
-                mesh_client.mesh_isa(x_id, 'D001419') or
-                mesh_client.mesh_isa(x_id, 'D014780')
+                self.mesh_client.mesh_isa(x_id, 'D001419') or
+                self.mesh_client.mesh_isa(x_id, 'D014780')
             )
         return False
 
     def is_disease(self, x_db, x_id):
         if x_db == 'MESH':
-            return mesh_client.is_disease(x_id)
+            return self.mesh_client.is_disease(x_id)
         return False
 
 
