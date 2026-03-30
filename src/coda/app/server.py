@@ -23,11 +23,13 @@ from coda import CODA_BASE
 from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue import AudioProcessor
 from coda.grounding.gilda_grounder import GildaGrounder
+from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
 
 app = FastAPI()
 transcriber = WhisperTranscriber(grounder=GildaGrounder(),
                                  model_size="medium")
+final_rag_grounder = RagGrounder()
 
 # HTTP client for inference agent
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://localhost:5123")
@@ -66,6 +68,10 @@ class SettingsRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
+
+
+class FinalizeGroundingRequest(BaseModel):
+    text: str
 
 
 def get_language_name(code: str) -> str:
@@ -470,6 +476,18 @@ async def reset_session():
     except Exception as e:
         logger.warning(f"Could not reset inference agent: {e}")
     return {"status": "reset"}
+
+
+@app.post("/ground/finalize")
+async def finalize_grounding(req: FinalizeGroundingRequest):
+    """Run final RAG grounding over full transcript text."""
+    text = (req.text or "").strip()
+    if not text:
+        return {"text": "", "Concepts": []}
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, final_rag_grounder.process, text)
+    return result.model_dump()
 
 
 @app.get("/")

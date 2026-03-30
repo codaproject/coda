@@ -374,6 +374,13 @@
                             <div id="inference" class="content-box" style="min-height: 120px;"></div>
                         </div>
 
+                        <div class="mb-3">
+                            <div class="section-label">Final RAG Grounding</div>
+                            <div id="finalRagGrounding" class="content-box" style="min-height: 120px;">
+                                <span class="text-muted">RAG grounding will run when recording stops.</span>
+                            </div>
+                        </div>
+
                         <div class="text-end">
                             <button id="copyBtn" class="btn btn-sm btn-subtle">
                                 <i class="bi bi-clipboard"></i> Copy Transcript
@@ -395,6 +402,7 @@
         let analyser = null;
         let meterAnimFrame = null;
         let isRecording = false;
+        let recordingSessionId = 0;
         let transcriptText = '';
         let chunkCount = 0;
 
@@ -402,6 +410,7 @@
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
         const inference = document.getElementById('inference');
+        const finalRagGrounding = document.getElementById('finalRagGrounding');
 
         // Cause probability chart
         const CHART_COLORS = [
@@ -797,6 +806,7 @@
                 };
 
                 isRecording = true;
+                recordingSessionId += 1;
                 recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
                 recordBtn.classList.remove('btn-record-start');
                 recordBtn.classList.add('btn-record-stop');
@@ -809,7 +819,75 @@
             }
         }
 
-        function stopRecording() {
+        function renderFinalRagGrounding(data) {
+            const concepts = data?.Concepts || data?.concepts || [];
+            if (!concepts.length) {
+                finalRagGrounding.innerHTML = '<span class="text-muted">No concepts found in final RAG grounding.</span>';
+                return;
+            }
+
+            const html = concepts.map((conceptObj) => {
+                const concept = conceptObj?.Concept || conceptObj?.concept || '(unknown concept)';
+
+                let topName = 'No match';
+                let topCurie = '';
+                let topScore = null;
+
+                if (Array.isArray(conceptObj?.reranked_terms) && conceptObj.reranked_terms.length > 0) {
+                    const term = conceptObj.reranked_terms[0] || {};
+                    topName = term.name || topName;
+                    topCurie = term.id || topCurie;
+                } else if (Array.isArray(conceptObj?.retrieved_terms) && conceptObj.retrieved_terms.length > 0) {
+                    const pair = conceptObj.retrieved_terms[0];
+                    if (Array.isArray(pair) && pair.length >= 2) {
+                        const term = pair[0] || {};
+                        topName = term.name || topName;
+                        topCurie = term.id || topCurie;
+                        topScore = pair[1];
+                    }
+                }
+
+                const scoreText = typeof topScore === 'number' ? ` (${(topScore * 100).toFixed(0)}%)` : '';
+                const curieText = topCurie ? ` - ${topCurie}` : '';
+
+                return `
+                    <div class="mb-2">
+                        <div><strong>${escapeHtml(concept)}</strong></div>
+                        <div class="text-muted small">${escapeHtml(topName)}${escapeHtml(curieText)}${escapeHtml(scoreText)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            finalRagGrounding.innerHTML = html;
+        }
+
+        async function finalizeRagGroundingRun() {
+            const requestSessionId = recordingSessionId;
+            const text = transcriptText.trim();
+            if (!text) return;
+            try {
+                const resp = await fetch('/ground/finalize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text}),
+                });
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                const data = await resp.json();
+                if (requestSessionId !== recordingSessionId) {
+                    // Ignore stale response from an older recording session.
+                    return;
+                }
+                renderFinalRagGrounding(data);
+                showStatus('Final RAG grounding complete', 'success');
+            } catch (e) {
+                console.error('Final RAG grounding failed:', e);
+                showStatus('Final RAG grounding failed', 'warning');
+            }
+        }
+
+        function stopRecording(runFinalize = true) {
             isRecording = false;
 
             if (meterAnimFrame) {
@@ -836,6 +914,10 @@
             // Re-enable model selects
             languageSelect.disabled = false;
             whisperModelSelect.disabled = false;
+
+            if (runFinalize) {
+                void finalizeRagGroundingRun();
+            }
         }
 
         recordBtn.addEventListener('click', () => {
@@ -848,12 +930,14 @@
 
         document.getElementById('resetBtn').addEventListener('click', async () => {
             if (isRecording) {
-                stopRecording();
+                stopRecording(false);
             }
+            recordingSessionId += 1;
             transcriptText = '';
             chunkCount = 0;
             transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
             inference.innerHTML = '';
+            finalRagGrounding.innerHTML = '<span class="text-muted">RAG grounding will run when recording stops.</span>';
             inferenceCount = 0;
             causesChart.data.labels = [];
             causesChart.data.datasets = [];

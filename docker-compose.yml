@@ -41,6 +41,7 @@ services:
         required: false
     environment:
       - INFERENCE_URL=http://inference:5123
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       inference:
         condition: service_healthy
