@@ -16,6 +16,11 @@ COPY src/ ./src/
 
 # Install the package
 RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir \
+    "sentence-transformers" \
+    "scikit-learn" \
+    "openai>=1.0.0" \
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 
 # Download NLTK data and Gilda resources, then build sqlite db for fast startup
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \
