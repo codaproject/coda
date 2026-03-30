@@ -27,6 +27,11 @@ RUN if [ "$COMPUTE_DEVICE" = "cpu" ]; then \
         pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu ; \
     fi && \
     pip install --no-cache-dir .
+RUN pip install --no-cache-dir \
+    "sentence-transformers" \
+    "scikit-learn" \
+    "openai>=1.0.0" \
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 
 # Download NLTK data and Gilda resources, then build a namespace-filtered
 # SQLite grounding db (only the namespaces CODA grounds to) for fast startup.
