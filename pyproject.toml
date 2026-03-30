@@ -64,7 +64,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
-"coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}
