@@ -166,14 +166,22 @@ class RagGrounder(BaseGrounder):
             if not matches:
                 continue
 
-            start = 0
-            end = len(concept_text)
-            annotations.append(
-                Annotation(
-                    text=concept_text,
-                    matches=matches,
-                    start=start,
-                    end=end,
+            # Emit one mention-level annotation per evidence span so offsets
+            # refer to real positions in the input text.
+            for evidence in concept.evidence_spans:
+                if evidence.start is None or evidence.end is None:
+                    continue
+                start = int(evidence.start)
+                end = int(evidence.end)
+                if start < 0 or end > len(text) or end <= start:
+                    continue
+                span_text = text[start:end]
+                annotations.append(
+                    Annotation(
+                        text=span_text,
+                        matches=matches,
+                        start=start,
+                        end=end,
+                    )
                 )
-            )
         return annotations
