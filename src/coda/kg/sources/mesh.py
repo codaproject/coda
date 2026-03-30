@@ -15,6 +15,9 @@ class MeshExporter(KGSourceExporter):
         nodes = set()
 
         for mesh_id, mesh_name in self.mesh_client.mesh_id_to_name.items():
+            # TODO: we could consider adding other parts of MeSH as well
+            # that could have some relevance for CODA, e.g., Anatomy (A)
+            # analytical tecniques (E), etc.
             is_dis = self.is_disease("MESH", mesh_id)
             is_pat = self.is_pathogen("MESH", mesh_id)
             is_geo = self.is_geoloc("MESH", mesh_id)
@@ -22,18 +25,13 @@ class MeshExporter(KGSourceExporter):
             if not any([is_dis, is_pat, is_geo]):
                 continue
 
-            if is_dis:
-                node_type = "disease"
-            elif is_pat:
-                node_type = "pathogen"
-            else:
-                node_type = "geoloc"
-
+            # TODO: we could potentially add more informative labels
+            # like "Disease", "Pathogen", "Geoloc" instead of just "mesh"
             nodes.add(
                 (
-                    f"MESH:{mesh_id}",
+                    f"mesh:{mesh_id}",
                     mesh_name,
-                    node_type + ';entity'
+                    "mesh"
                 )
             )
 
@@ -50,15 +48,15 @@ class MeshExporter(KGSourceExporter):
 
                 new_edges.add(
                     (
-                        f"MESH:{mesh_id}",
-                        f"MESH:{parent}",
+                        f"mesh:{mesh_id}",
+                        f"mesh:{parent}",
                         "isa"
                     )
                 )
 
             edges |= new_edges
 
-        node_header = ['curie:ID', 'name:string', ':LABEL']
+        node_header = ['id:ID', 'name', ':LABEL']
         edge_header = [':START_ID', ':END_ID', ':TYPE']
 
         with open(self.edges_file, 'w') as fh:
@@ -68,20 +66,6 @@ class MeshExporter(KGSourceExporter):
         with open(self.nodes_file, 'w') as fh:
             writer = csv.writer(fh, delimiter='\t')
             writer.writerows([node_header] + sorted(list(nodes)))
-
-        # ---- write nodes ----
-        # with open(self.nodes_file, "w") as fh:
-        #     writer = csv.writer(fh, delimiter="\t")
-        #     writer.writerow(["id:ID", "name", ":LABEL"])
-        #     for node_id, name, label in sorted(nodes):
-        #         writer.writerow([node_id, name, label])
-
-        # ---- write edges ----
-        # with open(self.edges_file, "w") as fh:
-        #     writer = csv.writer(fh, delimiter="\t")
-        #     writer.writerow([":START_ID", ":END_ID", ":TYPE"])
-        #     for start, end, rel in sorted(edges):
-        #         writer.writerow([start, end, rel])
 
     def is_geoloc(self, x_db, x_id):
         if x_db == 'MESH':
