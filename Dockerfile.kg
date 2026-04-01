@@ -85,6 +85,8 @@ RUN neo4j-admin database import full \
     --nodes /sw/kg/hpo_nodes.tsv \
     --relationships /sw/kg/mesh_hierarchy_edges.tsv \
     --nodes /sw/kg/mesh_hierarchy_nodes.tsv \
+    --relationships /sw/kg/wdi_edges.tsv \
+    --nodes /sw/kg/wdi_nodes.tsv \
     --bad-tolerance=100000 \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 
