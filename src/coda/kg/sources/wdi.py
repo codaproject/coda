@@ -9,16 +9,24 @@ from coda.kg.sources import KGSourceExporter
 # Country nodes are NOT created here, only referenced via CURIEs.
 
 HERE = Path(__file__).parent
+KG_DIR = HERE.parent.parent.parent.parent / "kg"
+MESH_NODES = KG_DIR / "mesh_hierarchy_nodes.tsv"
+DEV_DATA = HERE / "world_dev_indicator_data.tsv.gz"
+HEALTH_DATA = HERE / "world_health_indicator_data.tsv.gz"
+
 COUNTRY_MAPPING_FILE =  HERE.parent.parent/"resources"/"wdi_mesh_country_mapping.json"
 with open(COUNTRY_MAPPING_FILE, "rb") as file:
     LOCATION_MESH_MAPPING = json.load(file)
+
 
 class WDIExporter(KGSourceExporter):
     name = "wdi"
 
     def export(self):
         # Load data
-        dev_df, health_df, mesh_df = self._load_data()
+        dev_df = pd.read_csv(DEV_DATA, sep="\t")
+        health_df = pd.read_csv(HEALTH_DATA, sep="\t")
+        mesh_lookup = get_mesh_id_lookup()
 
         # Combine datasets (deduplicate overlapping series)
         df = self._combine_data(dev_df, health_df)
@@ -26,25 +34,12 @@ class WDIExporter(KGSourceExporter):
         # Normalize country names
         df = self._normalize_countries(df)
 
-        # Ground countries to MeSH
-        df = self._ground_countries(df, mesh_df)
-
         # Build graph
-        nodes_df, edges_df = self._build_graph(df, mesh_df)
+        nodes_df, edges_df = self._build_graph(df, mesh_lookup)
 
         # Write output
         nodes_df.to_csv(self.nodes_file, sep="\t", index=False)
         edges_df.to_csv(self.edges_file, sep="\t", index=False)
-
-    # Data loading
-
-    def _load_data(self):
-        dev_df = pd.read_csv(HERE / "world_dev_indicator_data.tsv.gz", sep="\t")
-        health_df = pd.read_csv(HERE / "world_health_indicator_data.tsv.gz", sep="\t")
-        kg_dir = self.nodes_file.parent
-        mesh_df = pd.read_csv(kg_dir / "mesh_hierarchy_nodes.tsv", sep="\t")
-
-        return dev_df, health_df, mesh_df
 
     # Combine datasets
 
@@ -71,26 +66,8 @@ class WDIExporter(KGSourceExporter):
         )
         return df
 
-    # Ground countries to MeSH
-
-    def _ground_countries(self, df, mesh_df):
-        """
-        Keep only rows that can be grounded to MeSH geoloc nodes
-        """
-
-        df = pd.merge(
-            df,
-            mesh_df,
-            left_on="Country Name",
-            right_on="name",
-            how="inner",
-        )[df.columns]
-
-        return df
-
     # Build graph
-
-    def _build_graph(self, df, mesh_df):
+    def _build_graph(self, df, mesh_lookup):
         nodes = set()
         edges = []
 
@@ -100,11 +77,9 @@ class WDIExporter(KGSourceExporter):
             series_name = row["Series Name"]
 
             # Get country CURIE (from mesh, NOT CREATED HERE)
-            country_info = mesh_df[mesh_df["name"] == country_name]
-            if country_info.empty:
+            country_curie = mesh_lookup.get(country_name)
+            if not country_curie:
                 continue
-
-            country_curie = country_info.iloc[0]["id:ID"]
 
             # Indicator node
             indicator_curie = f"wdi:{series_code}"
@@ -156,6 +131,12 @@ class WDIExporter(KGSourceExporter):
                     continue
 
         return year_data
+
+
+def get_mesh_id_lookup():
+    mesh_df = pd.read_csv(MESH_NODES, sep="\t")
+    mesh_lookup = dict(zip(mesh_df["name"], mesh_df["id:ID"]))
+    return mesh_lookup
 
 
 if __name__ == "__main__":
