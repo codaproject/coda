@@ -23,8 +23,12 @@ RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab
 
 ENV GILDA_SQLITE_DB=/app/grounding_terms.db
 
+# LLM provider and model configuration for the inference agent
+ENV INFERENCE_LLM_PROVIDER=openai
+ENV INFERENCE_LLM_MODEL=gpt-5.4-mini
+
 # Expose the inference server port
 EXPOSE 5123
 
 # Run the inference agent
-CMD ["python", "-m", "coda.inference.agent"]
+CMD python -m coda.inference.agent --provider ${INFERENCE_LLM_PROVIDER} --model ${INFERENCE_LLM_MODEL}

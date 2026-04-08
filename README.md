@@ -58,6 +58,22 @@ contributed by each source:
 Running CODA using Docker
 -------------------------
 
+### Running without cloning the repository
+
+If you have Docker installed, you can run CODA without cloning the repository.
+Download the Docker Compose file and the example environment file, then configure
+your settings:
+
+```bash
+curl -O https://raw.githubusercontent.com/codaproject/coda/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/codaproject/coda/main/.env.example
+cp .env.example .env
+# Edit .env and set your OPENAI_API_KEY
+docker-compose up
+```
+
+This pulls pre-built images from Docker Hub and starts all services.
+
 ### Running with Docker compose
 
 The easiest way to run CODA is with Docker compose, which starts all services:
