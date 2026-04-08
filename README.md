@@ -99,3 +99,37 @@ To build and run just the CODA knowledge graph:
 docker build --tag coda.kg:latest -f Dockerfile.kg .
 docker run -it -p 7687:7687 -p 7474:7474 coda.kg:latest
 ```
+
+Running CODA locally with Python
+---------------------------------
+
+After installing the package, you can run CODA locally. Make sure your
+`OPENAI_API_KEY` environment variable is set.
+
+The quickest way is to use the startup script, which launches both the inference
+agent and web application and reports when the system is ready:
+
+```bash
+./startup.sh
+```
+
+Alternatively, you can start the services individually. Start the inference agent:
+
+```bash
+python -m coda.inference.agent
+```
+
+This runs the inference server on port 5123. You can specify the LLM provider
+and model:
+
+```bash
+python -m coda.inference.agent --provider openai --model gpt-5.4-mini
+```
+
+Then, in a separate terminal, start the web application:
+
+```bash
+python -m coda.app
+```
+
+The web UI will be available at http://localhost:8000.
