@@ -36,6 +36,8 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     "httpx>=0.25.0",
+    "openai>=1.0.0",
+    "ollama>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -48,10 +50,6 @@ kg_build = [
     "xlrd",
     "indra",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
-]
-grounding = [
-    "openai>=1.0.0",
-    "ollama>=0.1.0",
 ]
 
 [project.urls]
@@ -66,6 +64,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
+"coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}
