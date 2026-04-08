@@ -94,6 +94,6 @@ RUN neo4j-admin database import full \
 ENV DOCKERIZED="TRUE"
 ENV NEO4J_URL="bolt://localhost:7687"
 
-COPY startup.sh  /sw/startup.sh
+COPY docker_startup.sh  /sw/startup.sh
 
 ENTRYPOINT ["/bin/bash",  "/sw/startup.sh"]

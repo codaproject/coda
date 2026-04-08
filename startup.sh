@@ -1,17 +1,22 @@
 #!/bin/bash
+trap 'kill 0' EXIT
 
-set -eoxu pipefail
+export PYTHONPATH=$PYTHONPATH:src
 
-echo "Starting database"
-neo4j start
+python -m coda.inference.agent &
 
-echo "Waiting for database"
-until [ \
-  "$(curl -s -w '%{http_code}' -o /dev/null "http://localhost:7474")" \
-  -eq 200 ]
-do
-  sleep 5
+echo "Waiting for inference agent..."
+until curl -sf http://localhost:5123/health > /dev/null 2>&1; do
+    sleep 1
 done
+echo "Inference agent ready."
 
-neo4j status
-tail -f /var/log/neo4j/neo4j.log
+python -m coda.app &
+
+echo "Waiting for web application..."
+until curl -sf http://localhost:8000/health > /dev/null 2>&1; do
+    sleep 1
+done
+echo "CODA is running at http://localhost:8000"
+
+wait
