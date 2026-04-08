@@ -20,6 +20,9 @@ services:
       dockerfile: Dockerfile.inference
     ports:
       - "5123:5123"
+    env_file:
+      - path: .env
+        required: false
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5123/health"]
       interval: 10s
@@ -33,6 +36,9 @@ services:
       dockerfile: Dockerfile.app
     ports:
       - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
     environment:
       - INFERENCE_URL=http://inference:5123
     depends_on:
