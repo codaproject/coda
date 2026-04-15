@@ -264,6 +264,16 @@
                             </div>
                             <div class="collapse mt-2" id="settingsPanel">
                                 <div class="settings-bar">
+                                    <div class="row g-2 align-items-center mb-1">
+                                        <div class="col-auto">
+                                            <label for="micSelect" class="mb-0">Microphone</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="micSelect" class="form-select form-select-sm" style="width: auto; max-width: 300px;">
+                                                <option value="">Default</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <div class="row g-2 align-items-center">
                                         <div class="col-auto">
                                             <label for="languageSelect" class="mb-0">Language</label>
@@ -481,6 +491,7 @@
         }
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
+        const micSelect = document.getElementById('micSelect');
         const languageSelect = document.getElementById('languageSelect');
         const saveToggle = document.getElementById('saveToggle');
         const filePathDisplay = document.getElementById('filePathDisplay');
@@ -513,6 +524,27 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
+        // Populate microphone device list
+        async function populateMicList() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(d => d.kind === 'audioinput');
+            const previousValue = micSelect.value;
+            micSelect.innerHTML = '<option value="">Default</option>';
+            audioInputs.forEach((device, idx) => {
+                const opt = document.createElement('option');
+                opt.value = device.deviceId;
+                opt.textContent = device.label || `Microphone ${idx + 1}`;
+                micSelect.appendChild(opt);
+            });
+            // Restore previous selection if the device is still present
+            if (previousValue && [...micSelect.options].some(o => o.value === previousValue)) {
+                micSelect.value = previousValue;
+            }
+        }
+
+        // Refresh the list when devices are plugged in or unplugged
+        navigator.mediaDevices.addEventListener('devicechange', populateMicList);
+
         // Load languages and settings on page load
         async function loadSettings() {
             try {
@@ -540,6 +572,8 @@
                 updateFilePathDisplay(data.file_paths);
                 updateTranslationVisibility();
                 updateWhisperWarning();
+                // Populate mic list (labels may be blank until permission is granted)
+                await populateMicList();
             } catch (e) {
                 console.error('Failed to load settings:', e);
             }
@@ -640,7 +674,8 @@
 
         async function startRecording() {
             try {
-                // Disable model selects while recording
+                // Disable settings selects while recording
+                micSelect.disabled = true;
                 languageSelect.disabled = true;
                 whisperModelSelect.disabled = true;
 
@@ -756,14 +791,18 @@
                     console.log('WebSocket disconnected');
                 };
 
-                // Get user media
+                // Get user media with selected microphone
+                const audioConstraints = {
+                    channelCount: 1,
+                    sampleRate: 16000,
+                    sampleSize: 16,
+                    volume: 1.0
+                };
+                if (micSelect.value) {
+                    audioConstraints.deviceId = { exact: micSelect.value };
+                }
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 1,
-                        sampleRate: 16000,
-                        sampleSize: 16,
-                        volume: 1.0
-                    }
+                    audio: audioConstraints
                 });
 
                 // Create audio context for processing
@@ -835,9 +874,13 @@
             recordBtn.classList.add('btn-record-start');
             recordingStatus.style.display = 'none';
 
-            // Re-enable model selects
+            // Re-enable settings selects
+            micSelect.disabled = false;
             languageSelect.disabled = false;
             whisperModelSelect.disabled = false;
+
+            // Refresh mic list (labels become available after first permission grant)
+            populateMicList();
         }
 
         recordBtn.addEventListener('click', () => {
