@@ -14,13 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install the package
-RUN pip install --no-cache-dir .
-RUN pip install --no-cache-dir \
-    "sentence-transformers" \
-    "scikit-learn" \
-    "openai>=1.0.0" \
-    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
+# Install app dependencies (base + app optional extras)
+RUN pip install --no-cache-dir ".[app]"
 
 # Download NLTK data and Gilda resources, then build sqlite db for fast startup
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \

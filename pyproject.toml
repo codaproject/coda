@@ -51,6 +51,11 @@ kg_build = [
     "indra",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 ]
+app = [
+    "sentence-transformers",
+    "scikit-learn",
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
+]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"
