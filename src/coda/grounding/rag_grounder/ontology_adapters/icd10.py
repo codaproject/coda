@@ -1,93 +1,55 @@
 """
 ICD-10 ontology adapter for RAG retrieval terms.
+Fetches terms from the Neo4j knowledge graph at runtime.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any
+import os
 
-from openacme.icd10 import get_icd10_graph
+from neo4j import GraphDatabase
 
 from ..retrieval_term import RetrievalTerm
 
-
-def _to_string_list(value: Any) -> list[str]:
-    """Normalize unknown values into a list of non-empty strings."""
-    if value is None:
-        return []
-    if isinstance(value, str):
-        text = value.strip()
-        return [text] if text else []
-    if isinstance(value, Iterable):
-        values = []
-        for item in value:
-            if item is None:
-                continue
-            text = str(item).strip()
-            if text:
-                values.append(text)
-        return values
-    text = str(value).strip()
-    return [text] if text else []
+_DEFAULT_NEO4J_URL = "bolt://localhost:7687"
 
 
-def _extract_rubrics(data: Mapping[str, Any]) -> dict[str, list[str]]:
-    """Return normalized rubric lists keyed by rubric type."""
-    raw_rubrics = data.get("rubrics", {})
-    if not isinstance(raw_rubrics, Mapping):
-        return {}
+def load_icd10_retrieval_terms(
+    prefix: str = "icd10",
+    neo4j_url: str | None = None,
+) -> list[RetrievalTerm]:
+    url = neo4j_url or os.environ.get("NEO4J_URL", _DEFAULT_NEO4J_URL)
+    driver = GraphDatabase.driver(url, auth=None)
 
-    rubrics: dict[str, list[str]] = {}
-    for key, value in raw_rubrics.items():
-        normalized = _to_string_list(value)
-        if normalized:
-            rubrics[str(key)] = normalized
-    return rubrics
+    query = "MATCH (n:icd10) RETURN n.code AS code, n.name AS name, n.rubrics AS rubrics"
 
-
-def load_icd10_retrieval_terms(prefix: str = "icd10") -> list[RetrievalTerm]:
-    """
-    Load ICD-10 terms as RetrievalTerm objects for RAG indexing.
-
-    Parameters
-    ----------
-    prefix : str
-        CURIE namespace prefix used in returned term IDs.
-
-    Returns
-    -------
-    list[RetrievalTerm]
-        Deterministically ordered retrieval terms.
-    """
-    graph = get_icd10_graph()
     terms: list[RetrievalTerm] = []
+    with driver.session() as session:
+        for record in session.run(query):
+            node_id = f"{prefix}:{record['code']}"
+            name = record["name"] or node_id
+            rubrics = record["rubrics"] or {}
 
-    for code, data in graph.nodes(data=True):
-        data_mapping = data if isinstance(data, Mapping) else {}
-        rubrics = _extract_rubrics(data_mapping)
+            synonyms: list[str] = []
+            if isinstance(rubrics, dict):
+                for key, values in rubrics.items():
+                    if key == "preferred":
+                        continue
+                    if isinstance(values, list):
+                        synonyms.extend(v for v in values if v)
+                    elif values:
+                        synonyms.append(str(values))
+            synonyms = list(dict.fromkeys(synonyms))
 
-        preferred = rubrics.get("preferred", [])
-        name = preferred[0] if preferred else str(code)
-
-        synonyms: list[str] = []
-        for rubric_key, rubric_values in rubrics.items():
-            if rubric_key == "preferred":
-                continue
-            synonyms.extend(rubric_values)
-        # Deduplicate while preserving order.
-        synonyms = list(dict.fromkeys(synonyms))
-
-        definition = synonyms[0] if synonyms else None
-
-        terms.append(
-            RetrievalTerm(
-                id=f"{prefix}:{code}",
-                name=name,
-                definition=definition,
-                synonyms=synonyms or None,
+            terms.append(
+                RetrievalTerm(
+                    id=node_id,
+                    name=name,
+                    definition=synonyms[0] if synonyms else None,
+                    synonyms=synonyms or None,
+                )
             )
-        )
 
-    terms.sort(key=lambda term: term.id)
+    driver.close()
+    terms.sort(key=lambda t: t.id)
     return terms
