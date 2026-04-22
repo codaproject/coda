@@ -7,10 +7,7 @@ unlike the ICD-10 specific grounder. Terms and embeddings are kept in memory.
 from .retrieval_term import RetrievalTerm, TermStore
 from .config import RAGGrounderConfig
 from .core import RAGGrounderPipeline, PipelineResult, ProcessedConcept, EvidenceSpan
-from .ontology_adapters import (
-    load_icd10_retrieval_terms,
-    load_icd11_retrieval_terms,
-)
+from .neo4j import load_retrieval_terms
 from .grounder import RagGrounder
 
 __all__ = [
@@ -21,7 +18,6 @@ __all__ = [
     "PipelineResult",
     "ProcessedConcept",
     "EvidenceSpan",
-    "load_icd10_retrieval_terms",
-    "load_icd11_retrieval_terms",
+    "load_retrieval_terms",
     "RagGrounder",
 ]

@@ -2,8 +2,6 @@
 RAG-based grounder wrapper with ICD-10 defaults.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 
@@ -18,7 +16,7 @@ from coda.llm_api import LLMClient, create_llm_client
 
 from .config import RAGGrounderConfig
 from .core import PipelineResult, RAGGrounderPipeline
-from .ontology_adapters import load_icd10_retrieval_terms
+from .neo4j import load_retrieval_terms
 from .retrieval_term import RetrievalTerm
 from .setup import setup_retrieval_grounder
 
@@ -62,7 +60,7 @@ class RagGrounder(BaseGrounder):
         self._retrieval_min_similarity = retrieval_min_similarity
 
         logger.info("Initializing RagGrounder with cache at %s", self._cache_path)
-        terms = self._terms if self._terms is not None else load_icd10_retrieval_terms()
+        terms = self._terms if self._terms is not None else load_retrieval_terms("icd10")
         term_store = setup_retrieval_grounder(
             terms=terms,
             model_name=self._retrieval_model_name,
@@ -87,10 +85,7 @@ class RagGrounder(BaseGrounder):
 
     @staticmethod
     def _make_term(term: RetrievalTerm) -> Term:
-        if ":" in term.id:
-            db, raw_id = term.id.split(":", 1)
-        else:
-            db, raw_id = "icd10", term.id
+        db, raw_id = term.id.split(":", 1)
         entry_name = term.name.strip() if term.name else raw_id
         text = entry_name
         norm_text = normalize(text) if text else normalize(raw_id)
