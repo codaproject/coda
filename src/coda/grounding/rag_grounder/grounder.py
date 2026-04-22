@@ -16,7 +16,7 @@ from coda.llm_api import LLMClient, create_llm_client
 
 from .config import RAGGrounderConfig
 from .core import PipelineResult, RAGGrounderPipeline
-from .neo4j import load_retrieval_terms
+from .neo4j_utils import load_retrieval_terms
 from .retrieval_term import RetrievalTerm
 from .setup import setup_retrieval_grounder
 

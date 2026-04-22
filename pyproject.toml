@@ -54,6 +54,7 @@ kg_build = [
 rag = [
     "sentence-transformers",
     "scikit-learn",
+    "neo4j",
 ]
 
 [project.urls]
