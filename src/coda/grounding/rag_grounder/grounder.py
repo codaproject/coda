@@ -22,11 +22,8 @@ from .setup import setup_retrieval_grounder
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CACHE_PATH = CODA_BASE.join(
-    "rag_grounder",
-    "indexes",
-    name="term_index.icd10.pkl",
-)
+def _default_cache_path(ontology: str) -> Path:
+    return Path(CODA_BASE.join("rag_grounder", "indexes", name=f"term_index.{ontology}.pkl"))
 
 
 class RagGrounder(BaseGrounder):
@@ -40,6 +37,7 @@ class RagGrounder(BaseGrounder):
         llm_provider: str = "openai",
         llm_model: str = "gpt-5.4-mini",
         terms: list[RetrievalTerm] | None = None,
+        ontology: str = "icd10",
         cache_path: str | Path | None = None,
         force_rebuild: bool = False,
         retrieval_model_name: str = "all-MiniLM-L6-v2",
@@ -52,7 +50,8 @@ class RagGrounder(BaseGrounder):
         self._llm_provider = llm_provider
         self._llm_model = llm_model
         self._terms = terms
-        self._cache_path = Path(cache_path) if cache_path is not None else DEFAULT_CACHE_PATH
+        self._ontology = ontology
+        self._cache_path = Path(cache_path) if cache_path is not None else _default_cache_path(ontology)
         self._force_rebuild = force_rebuild
         self._retrieval_model_name = retrieval_model_name
         self._concept_type = concept_type
@@ -60,7 +59,7 @@ class RagGrounder(BaseGrounder):
         self._retrieval_min_similarity = retrieval_min_similarity
 
         logger.info("Initializing RagGrounder with cache at %s", self._cache_path)
-        terms = self._terms if self._terms is not None else load_retrieval_terms("icd10")
+        terms = self._terms if self._terms is not None else load_retrieval_terms(self._ontology)
         term_store = setup_retrieval_grounder(
             terms=terms,
             model_name=self._retrieval_model_name,
