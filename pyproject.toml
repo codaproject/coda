@@ -51,10 +51,9 @@ kg_build = [
     "indra",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 ]
-app = [
+rag = [
     "sentence-transformers",
     "scikit-learn",
-    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
 ]
 
 [project.urls]
