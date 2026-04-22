@@ -53,6 +53,7 @@ save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_whisper_model = "medium"
 current_grounder = "gilda"
+current_rag_ontology = "icd10"
 current_llm_provider = "openai"
 current_llm_model = "gpt-5.4-mini"
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
@@ -66,6 +67,7 @@ class SettingsRequest(BaseModel):
     save_enabled: Optional[bool] = None
     whisper_model: Optional[str] = None
     grounder: Optional[str] = None
+    rag_ontology: Optional[str] = None
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
@@ -75,14 +77,14 @@ def get_language_name(code: str) -> str:
     return LANGUAGE_NAMES.get(code, code)
 
 
-def create_grounder(grounder_name: str):
+def create_grounder(grounder_name: str, rag_ontology: str = "icd10"):
     if grounder_name == "rag":
-        return RagGrounder()
+        return RagGrounder(ontology=rag_ontology)
     return GildaGrounder()
 
 
 transcriber = WhisperTranscriber(
-    grounder=create_grounder(current_grounder),
+    grounder=create_grounder(current_grounder, current_rag_ontology),
     model_size=current_whisper_model,
 )
 
@@ -273,6 +275,7 @@ async def get_settings():
         "file_paths": file_paths,
         "whisper_model": current_whisper_model,
         "grounder": current_grounder,
+        "rag_ontology": current_rag_ontology,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
@@ -285,7 +288,7 @@ async def update_settings(req: SettingsRequest):
     global current_language, save_enabled, transcriber
     global current_whisper_model, current_llm_provider, current_llm_model
     global translation_mode
-    global current_grounder
+    global current_grounder, current_rag_ontology
     reload_transcriber = False
     if req.language is not None:
         current_language = req.language
@@ -306,6 +309,10 @@ async def update_settings(req: SettingsRequest):
             current_grounder = grounder
             reload_transcriber = True
             logger.info(f"Grounder set to: {current_grounder}")
+    if req.rag_ontology is not None and req.rag_ontology != current_rag_ontology:
+        current_rag_ontology = req.rag_ontology
+        reload_transcriber = True
+        logger.info(f"RAG ontology set to: {current_rag_ontology}")
     if req.whisper_model is not None and req.whisper_model != current_whisper_model:
         current_whisper_model = req.whisper_model
         reload_transcriber = True
@@ -316,7 +323,7 @@ async def update_settings(req: SettingsRequest):
         new_transcriber = await loop.run_in_executor(
             None,
             lambda: WhisperTranscriber(
-                grounder=create_grounder(current_grounder),
+                grounder=create_grounder(current_grounder, current_rag_ontology),
                 model_size=current_whisper_model,
             ),
         )
@@ -342,6 +349,7 @@ async def update_settings(req: SettingsRequest):
         "file_paths": file_paths,
         "whisper_model": current_whisper_model,
         "grounder": current_grounder,
+        "rag_ontology": current_rag_ontology,
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
