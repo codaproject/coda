@@ -139,6 +139,10 @@
             background: #c45a61;
             color: #fff;
         }
+        .btn-record:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
 
         .recording-indicator {
             display: inline-block;
@@ -297,9 +301,6 @@
                                             </select>
                                         </div>
                                         <div class="col-auto">
-                                            <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary" style="display: none;">Load</button>
-                                        </div>
-                                        <div class="col-auto">
                                             <div class="form-check form-switch mb-0">
                                                 <input class="form-check-input" type="checkbox" id="saveToggle">
                                                 <label class="form-check-label" for="saveToggle">Save</label>
@@ -347,12 +348,13 @@
                             <button id="recordBtn" class="btn-record btn-record-start">
                                 <i class="bi bi-mic-fill"></i>
                             </button>
+                            <span id="settingsSpinner" class="ms-2 text-muted" style="display: none;">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                <small>Loading settings...</small>
+                            </span>
                             <button id="resetBtn" class="btn btn-sm btn-subtle ms-3" style="vertical-align: middle;">
                                 <i class="bi bi-arrow-counterclockwise"></i> New Recording
                             </button>
-                            <div class="mt-2">
-                                <span class="badge text-bg-light border" id="activeGrounderBadge">Grounder: Gilda</span>
-                            </div>
                             <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
                                 <span style="color: #ef4444; font-weight: 500; font-size: 0.85rem;">Recording</span>
@@ -412,6 +414,7 @@
         let chunkCount = 0;
 
         const recordBtn = document.getElementById('recordBtn');
+        const settingsSpinner = document.getElementById('settingsSpinner');
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
         const inference = document.getElementById('inference');
@@ -500,9 +503,7 @@
         const filePathText = document.getElementById('filePathText');
         const whisperModelSelect = document.getElementById('whisperModelSelect');
         const grounderSelect = document.getElementById('grounderSelect');
-        const activeGrounderBadge = document.getElementById('activeGrounderBadge');
         const whisperWarning = document.getElementById('whisperWarning');
-        const whisperApplyBtn = document.getElementById('whisperApplyBtn');
         const translationRow = document.getElementById('translationRow');
         const translationModeSelect = document.getElementById('translationModeSelect');
         const llmSettingsRow = document.getElementById('llmSettingsRow');
@@ -528,13 +529,10 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
-        function updateGrounderBadge(grounder) {
-            const label = (grounder || 'gilda').toLowerCase() === 'rag' ? 'RAG' : 'Gilda';
-            activeGrounderBadge.textContent = `Grounder: ${label}`;
-        }
-
         // Load languages and settings on page load
         async function loadSettings() {
+            recordBtn.disabled = true;
+            settingsSpinner.style.display = 'inline';
             try {
                 // Fetch languages and populate dropdown
                 const langResp = await fetch('/languages');
@@ -554,8 +552,6 @@
                 saveToggle.checked = data.save_enabled;
                 whisperModelSelect.value = data.whisper_model;
                 grounderSelect.value = data.grounder || 'gilda';
-                updateGrounderBadge(data.grounder || 'gilda');
-                loadedWhisperModel = data.whisper_model;
                 llmProviderSelect.value = data.llm_provider;
                 llmModelInput.value = data.llm_model;
                 translationModeSelect.value = data.translation_mode;
@@ -564,10 +560,14 @@
                 updateWhisperWarning();
             } catch (e) {
                 console.error('Failed to load settings:', e);
+            } finally {
+                if (!isRecording) recordBtn.disabled = false;
+                settingsSpinner.style.display = 'none';
             }
         }
 
         async function updateSettings(changes) {
+            recordBtn.disabled = true;
             try {
                 const resp = await fetch('/settings', {
                     method: 'POST',
@@ -576,16 +576,11 @@
                 });
                 const data = await resp.json();
                 updateFilePathDisplay(data.file_paths);
-                if (data.grounder) {
-                    grounderSelect.value = data.grounder;
-                    updateGrounderBadge(data.grounder);
-                }
-                if (changes.whisper_model) {
-                    showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
-                }
             } catch (e) {
                 console.error('Failed to update settings:', e);
                 showStatus('Failed to update settings', 'danger');
+            } finally {
+                if (!isRecording) recordBtn.disabled = false;
             }
         }
 
@@ -615,47 +610,13 @@
             updateSettings({save_enabled: saveToggle.checked});
         });
 
-        let loadedWhisperModel = null;
-
         whisperModelSelect.addEventListener('change', () => {
             updateWhisperWarning();
-            // Show "Load" button if selection differs from what's currently loaded
-            if (whisperModelSelect.value !== loadedWhisperModel) {
-                whisperApplyBtn.style.display = 'inline-block';
-            } else {
-                whisperApplyBtn.style.display = 'none';
-            }
+            updateSettings({whisper_model: whisperModelSelect.value});
         });
 
-        whisperApplyBtn.addEventListener('click', async () => {
-            const selectedModel = whisperModelSelect.value;
-            whisperApplyBtn.disabled = true;
-            whisperApplyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading...';
-            showStatus(`Loading Whisper model "${selectedModel}"...`, 'info');
-            try {
-                await updateSettings({whisper_model: selectedModel});
-                loadedWhisperModel = selectedModel;
-                whisperApplyBtn.style.display = 'none';
-                showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
-            } finally {
-                whisperApplyBtn.disabled = false;
-                whisperApplyBtn.textContent = 'Load';
-            }
-        });
-
-        grounderSelect.addEventListener('change', async () => {
-            const selectedGrounder = grounderSelect.value;
-            grounderSelect.disabled = true;
-            try {
-                showStatus(`Switching grounder to "${selectedGrounder}"...`, 'info');
-                await updateSettings({grounder: selectedGrounder});
-                updateGrounderBadge(selectedGrounder);
-                showStatus(`Grounder set to "${selectedGrounder}"`, 'success');
-            } finally {
-                if (!isRecording) {
-                    grounderSelect.disabled = false;
-                }
-            }
+        grounderSelect.addEventListener('change', () => {
+            updateSettings({grounder: grounderSelect.value});
         });
 
         llmProviderSelect.addEventListener('change', () => {
