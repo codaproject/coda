@@ -11,7 +11,7 @@ def load_retrieval_terms(ontology: str, neo4j_url: str | None = None) -> list[Re
     url = neo4j_url or os.environ.get("NEO4J_URL", _DEFAULT_NEO4J_URL)
     driver = GraphDatabase.driver(url, auth=None)
 
-    query = f"MATCH (n:{ontology}) RETURN n.ID AS id, n.name AS name"
+    query = f"MATCH (n:{ontology}) RETURN n.id AS id, n.name AS name"
 
     terms: list[RetrievalTerm] = []
     with driver.session() as session:
