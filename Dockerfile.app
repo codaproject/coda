@@ -15,7 +15,7 @@ COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
 # Install app dependencies (base + app optional extras)
-RUN pip install --no-cache-dir ".[app]"
+RUN pip install --no-cache-dir ".[rag]"
 
 # Download NLTK data and Gilda resources, then build sqlite db for fast startup
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \
