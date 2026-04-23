@@ -8,18 +8,34 @@ interview process.
 Installation
 ------------
 
-Install directly from GitHub
-
-```bash
-pip install git+https://github.com/codaproject/coda.git
-```
-
-Or clone and install locally
+CODA requires Python 3.9 or newer. We recommend installing into a virtual
+environment to keep dependencies isolated from your system Python (this is
+especially important on macOS, where `pip install` against the system
+`python3` is discouraged).
 
 ```bash
 git clone https://github.com/codaproject/coda.git
 cd coda
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
+python -m nltk.downloader stopwords
+```
+
+Activate the environment (`source .venv/bin/activate`) in every new shell
+before running the commands below. On Windows, use `.venv\Scripts\activate`
+instead.
+
+The `nltk.downloader stopwords` step fetches an NLTK corpus that `gilda`
+loads at import time. It is stored under `~/nltk_data` and only needs to be
+run once per machine.
+
+Alternatively, install directly from GitHub (into an active virtual
+environment):
+
+```bash
+pip install git+https://github.com/codaproject/coda.git
+python -m nltk.downloader stopwords
 ```
 
 Modules
@@ -133,3 +149,107 @@ python -m coda.app
 ```
 
 The web UI will be available at http://localhost:8000.
+
+Using a local LLM with Ollama
+-----------------------------
+
+CODA can run inference entirely on-device through
+[Ollama](https://ollama.com), which is a practical default for development,
+offline demos, and deployments where sending dictation to a cloud provider is
+undesirable. No `OPENAI_API_KEY` is required in this mode.
+
+### 1. Install Ollama
+
+On macOS with Homebrew:
+
+```bash
+brew install ollama
+```
+
+On Linux:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+On Windows: download the installer from
+[https://ollama.com/download](https://ollama.com/download).
+
+### 2. Start the Ollama daemon
+
+The daemon exposes a local HTTP API on `http://127.0.0.1:11434` and must be
+running whenever CODA performs inference.
+
+On macOS (runs now and on every login):
+
+```bash
+brew services start ollama
+```
+
+Or as a one-shot foreground process (any platform):
+
+```bash
+ollama serve
+```
+
+Verify it's reachable:
+
+```bash
+curl -s http://127.0.0.1:11434/api/tags
+```
+
+### 3. Pull a model
+
+Pick a model sized for your machine. `llama3.2` (≈ 2 GB, 3 B parameters) is
+fast on any modern laptop and accurate enough for CODA's dictation-length
+inputs. `gpt-oss:20b` (≈ 13 GB) is more capable but requires substantial
+memory.
+
+```bash
+ollama pull llama3.2          # recommended default
+# or
+ollama pull gpt-oss:20b       # larger, slower, more capable
+```
+
+List available models at any time:
+
+```bash
+ollama list
+```
+
+### 4. Point CODA's inference agent at Ollama
+
+Start the inference agent with the Ollama provider and the model you pulled:
+
+```bash
+python -m coda.inference.agent --provider ollama --model llama3.2
+```
+
+If you use the startup script, edit `startup.sh` so the inference line reads:
+
+```bash
+python -m coda.inference.agent --provider ollama --model llama3.2 &
+```
+
+Then run `./startup.sh` as usual. The web UI at http://localhost:8000 will
+display live cause-of-death probabilities driven entirely by the local model.
+
+### Troubleshooting
+
+- **`model 'X' not found (status code: 404)`** — the inference agent is
+  configured for a model that isn't pulled. Run `ollama pull X` or pass
+  `--model <name-of-a-pulled-model>` when starting the agent.
+- **`Failed to connect to Ollama`** — the daemon isn't running. Start it with
+  `brew services start ollama` (macOS) or `ollama serve` (any platform).
+- **Inference is slow** — smaller models respond faster. Try `llama3.2`
+  (3 B) or `llama3.2:1b` (1 B) instead of larger variants.
+- **Freeing disk space** — `ollama rm <model>` removes a pulled model;
+  `brew uninstall ollama` (macOS) removes the daemon itself.
+
+### Stopping Ollama
+
+```bash
+brew services stop ollama     # macOS, keeps Ollama installed
+# or
+pkill ollama                   # any platform, if running as `ollama serve`
+```
