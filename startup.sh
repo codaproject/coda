@@ -3,7 +3,10 @@ trap 'kill 0' EXIT
 
 export PYTHONPATH=$PYTHONPATH:src
 
-python -m coda.inference.agent &
+python -m coda.inference.agent --provider ollama --model llama3.2 &
+# Alternatives:
+#   python -m coda.inference.agent --provider ollama --model gpt-oss:20b  (13 GB, pull first)
+#   python -m coda.inference.agent --provider openai --model gpt-5.4-mini
 
 echo "Waiting for inference agent..."
 until curl -sf http://localhost:5123/health > /dev/null 2>&1; do
