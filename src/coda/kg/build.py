@@ -8,6 +8,9 @@ from .sources import (
     acme,
     probbase,
     hpo,
+    wdi,
+    mesh,
+    semra,
     KG_BASE,
     KGSourceExporter,
 )
@@ -21,6 +24,9 @@ EXPORTERS: list[KGSourceExporter] = [
     acme.ACMEExporter(),
     probbase.ProbBaseExporter(),
     hpo.HpoExporter(),
+    wdi.WDIExporter(),
+    mesh.MeshExporter(),
+    semra.SemraExporter()
 ]
 
 
