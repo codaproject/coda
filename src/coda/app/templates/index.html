@@ -593,7 +593,7 @@
 
         async function updateSettings(changes) {
             pendingRequests++;
-            recordBtn.disabled = true;
+            if (!isRecording) recordBtn.disabled = true;
             try {
                 const resp = await fetch('/settings', {
                     method: 'POST',
