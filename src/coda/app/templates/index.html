@@ -288,6 +288,15 @@
                                             </select>
                                         </div>
                                         <div class="col-auto">
+                                            <label for="grounderSelect" class="mb-0">Grounder</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="grounderSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="gilda">Gilda</option>
+                                                <option value="rag">RAG</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto">
                                             <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary" style="display: none;">Load</button>
                                         </div>
                                         <div class="col-auto">
@@ -341,6 +350,9 @@
                             <button id="resetBtn" class="btn btn-sm btn-subtle ms-3" style="vertical-align: middle;">
                                 <i class="bi bi-arrow-counterclockwise"></i> New Recording
                             </button>
+                            <div class="mt-2">
+                                <span class="badge text-bg-light border" id="activeGrounderBadge">Grounder: Gilda</span>
+                            </div>
                             <div id="recordingStatus" class="mt-3" style="display: none; align-items: center; justify-content: center;">
                                 <span class="recording-indicator"></span>
                                 <span style="color: #ef4444; font-weight: 500; font-size: 0.85rem;">Recording</span>
@@ -395,6 +407,7 @@
         let analyser = null;
         let meterAnimFrame = null;
         let isRecording = false;
+        let recordingSessionId = 0;
         let transcriptText = '';
         let chunkCount = 0;
 
@@ -486,6 +499,8 @@
         const filePathDisplay = document.getElementById('filePathDisplay');
         const filePathText = document.getElementById('filePathText');
         const whisperModelSelect = document.getElementById('whisperModelSelect');
+        const grounderSelect = document.getElementById('grounderSelect');
+        const activeGrounderBadge = document.getElementById('activeGrounderBadge');
         const whisperWarning = document.getElementById('whisperWarning');
         const whisperApplyBtn = document.getElementById('whisperApplyBtn');
         const translationRow = document.getElementById('translationRow');
@@ -513,6 +528,11 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
+        function updateGrounderBadge(grounder) {
+            const label = (grounder || 'gilda').toLowerCase() === 'rag' ? 'RAG' : 'Gilda';
+            activeGrounderBadge.textContent = `Grounder: ${label}`;
+        }
+
         // Load languages and settings on page load
         async function loadSettings() {
             try {
@@ -533,6 +553,8 @@
                 languageSelect.value = data.language;
                 saveToggle.checked = data.save_enabled;
                 whisperModelSelect.value = data.whisper_model;
+                grounderSelect.value = data.grounder || 'gilda';
+                updateGrounderBadge(data.grounder || 'gilda');
                 loadedWhisperModel = data.whisper_model;
                 llmProviderSelect.value = data.llm_provider;
                 llmModelInput.value = data.llm_model;
@@ -554,6 +576,10 @@
                 });
                 const data = await resp.json();
                 updateFilePathDisplay(data.file_paths);
+                if (data.grounder) {
+                    grounderSelect.value = data.grounder;
+                    updateGrounderBadge(data.grounder);
+                }
                 if (changes.whisper_model) {
                     showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
                 }
@@ -602,15 +628,34 @@
         });
 
         whisperApplyBtn.addEventListener('click', async () => {
+            const selectedModel = whisperModelSelect.value;
             whisperApplyBtn.disabled = true;
-            whisperApplyBtn.textContent = 'Loading...';
-            showStatus(`Loading Whisper model "${whisperModelSelect.value}"...`, 'info');
-            await updateSettings({whisper_model: whisperModelSelect.value});
-            loadedWhisperModel = whisperModelSelect.value;
-            whisperApplyBtn.style.display = 'none';
-            whisperApplyBtn.disabled = false;
-            whisperApplyBtn.textContent = 'Load';
-            showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+            whisperApplyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading...';
+            showStatus(`Loading Whisper model "${selectedModel}"...`, 'info');
+            try {
+                await updateSettings({whisper_model: selectedModel});
+                loadedWhisperModel = selectedModel;
+                whisperApplyBtn.style.display = 'none';
+                showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+            } finally {
+                whisperApplyBtn.disabled = false;
+                whisperApplyBtn.textContent = 'Load';
+            }
+        });
+
+        grounderSelect.addEventListener('change', async () => {
+            const selectedGrounder = grounderSelect.value;
+            grounderSelect.disabled = true;
+            try {
+                showStatus(`Switching grounder to "${selectedGrounder}"...`, 'info');
+                await updateSettings({grounder: selectedGrounder});
+                updateGrounderBadge(selectedGrounder);
+                showStatus(`Grounder set to "${selectedGrounder}"`, 'success');
+            } finally {
+                if (!isRecording) {
+                    grounderSelect.disabled = false;
+                }
+            }
         });
 
         llmProviderSelect.addEventListener('change', () => {
@@ -643,6 +688,7 @@
                 // Disable model selects while recording
                 languageSelect.disabled = true;
                 whisperModelSelect.disabled = true;
+                grounderSelect.disabled = true;
 
                 // Connect to WebSocket
                 ws = new WebSocket('ws://localhost:8000/ws');
@@ -797,6 +843,7 @@
                 };
 
                 isRecording = true;
+                recordingSessionId += 1;
                 recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
                 recordBtn.classList.remove('btn-record-start');
                 recordBtn.classList.add('btn-record-stop');
@@ -836,6 +883,7 @@
             // Re-enable model selects
             languageSelect.disabled = false;
             whisperModelSelect.disabled = false;
+            grounderSelect.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
@@ -850,6 +898,7 @@
             if (isRecording) {
                 stopRecording();
             }
+            recordingSessionId += 1;
             transcriptText = '';
             chunkCount = 0;
             transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
