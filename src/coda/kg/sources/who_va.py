@@ -18,7 +18,7 @@ standard is from 2016).
 """
 import pandas as pd
 from coda.kg.sources import KGSourceExporter
-from openacme.icd10 import expand_icd10_range, get_icd10_graph
+from openacme.icd10 import Icd10Graph
 from coda.resources import get_resource_path
 
 # Example rows
@@ -38,7 +38,7 @@ class WhoVaExporter(KGSourceExporter):
         df = pd.read_csv(WHO_VA_ICD10_MAPPINGS)
 
         # Graph is used in expanding ICD-10 ranges
-        icd10_graph = get_icd10_graph()
+        icd10_graph = Icd10Graph()
 
         # Set WHO VA curies
         df["who_va_curie"] = df["who_va_id"].apply(lambda x: f"who.va:{x}")
@@ -72,8 +72,8 @@ class WhoVaExporter(KGSourceExporter):
                     code_part = code_part.strip()
                     if "-" in code_part:
                         start_code, end_code = code_part.split("-", 1)
-                        codes = expand_icd10_range(
-                            icd10_graph, start_code.strip(), end_code.strip()
+                        codes = icd10_graph.expand_icd10_range(
+                            start_code.strip(), end_code.strip()
                         )
                     else:
                         codes = [code_part]

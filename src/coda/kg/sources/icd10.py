@@ -26,7 +26,7 @@ class ICD10Exporter(KGSourceExporter):
         edges = []
         for node, data in g.nodes(data=True):
             # Find associated embedding and format for writing to tsv
-            node_idx = icd10_to_embedding_map.get(node) 
+            node_idx = icd10_to_embedding_map.get(node)
             embedding = (
                 ";".join(icd10_embeddings[node_idx].astype(str).tolist())
                 if node_idx is not None

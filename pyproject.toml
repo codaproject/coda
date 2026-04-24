@@ -49,7 +49,7 @@ kg_build = [
     "openpyxl",
     "xlrd",
     "indra",
-    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git"
+    "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
 ]
 
 [project.urls]

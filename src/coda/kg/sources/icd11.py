@@ -47,6 +47,8 @@ class ICD11Exporter(KGSourceExporter):
             foundation_id = row["Foundation URI"].split("/")[-1]
             foundation_curie = f"icd11:{foundation_id}"
             icd10_code = row["icd10Code"]
+            if icd10_code == 'No Mapping':
+                continue
             icd10_curie = f"icd10:{icd10_code}"
             icd11_to_10[foundation_curie] = icd10_curie
 
