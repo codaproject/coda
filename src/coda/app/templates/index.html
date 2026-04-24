@@ -547,8 +547,12 @@
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
+        // Tracks in-flight settings requests; mic stays disabled until all complete
+        let pendingRequests = 0;
+
         // Load languages and settings on page load
         async function loadSettings() {
+            pendingRequests++;
             recordBtn.disabled = true;
             settingsSpinner.style.display = 'inline';
             try {
@@ -581,12 +585,14 @@
             } catch (e) {
                 console.error('Failed to load settings:', e);
             } finally {
-                if (!isRecording) recordBtn.disabled = false;
+                pendingRequests--;
+                if (pendingRequests === 0 && !isRecording) recordBtn.disabled = false;
                 settingsSpinner.style.display = 'none';
             }
         }
 
         async function updateSettings(changes) {
+            pendingRequests++;
             recordBtn.disabled = true;
             try {
                 const resp = await fetch('/settings', {
@@ -600,7 +606,8 @@
                 console.error('Failed to update settings:', e);
                 showStatus('Failed to update settings', 'danger');
             } finally {
-                if (!isRecording) recordBtn.disabled = false;
+                pendingRequests--;
+                if (pendingRequests === 0 && !isRecording) recordBtn.disabled = false;
             }
         }
 
