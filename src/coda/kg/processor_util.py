@@ -52,7 +52,6 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
             else:
                 nodes_and_sources[node_id].add(exporter.name)
                 duplicate_ids.add(node_id)
-    all_node_attributes = set()
     joined_nodes = []
     conflicting_nodes_count: int = 0
     logger.info("Attempting to automatically resolve duplicated nodes...")
@@ -61,7 +60,6 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
         for source in nodes_and_sources[duplicate_id]:
             node_rep = all_nodes[source][duplicate_id]
             for key in node_rep.keys():
-                all_node_attributes.add(key)
                 if key not in joined_node:
                     joined_node[key] = node_rep[key]
                 elif joined_node.get(key) is None:
@@ -73,16 +71,16 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
                     logger.warning(
                         f"{duplicate_id} has conflicting information in "
                         f"{key} attribute from "
-                        f"{' '.join(list(nodes_and_sources[duplicate_id]))}"
+                        f"{' '.join(nodes_and_sources[duplicate_id])}"
                     )
         joined_node["source:string[]"] = \
-            ";".join(list(nodes_and_sources[duplicate_id]))
+            ";".join(nodes_and_sources[duplicate_id])
         joined_nodes.append(joined_node)
     if conflicting_nodes_count > 0 and strict:
         raise DuplicateNodeIDError(
             f"found conflicting information in {conflicting_nodes_count} nodes..."
         )
-    logger.info("Removing resolved duplicated from node resource files...")
+    logger.info("Removing resolved duplicates from node resource files...")
     if len(joined_nodes) > 0:
         joined_df = pd.DataFrame(joined_nodes)
         for exporter in exporters:
@@ -93,7 +91,7 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
         joined_df.to_csv(node_file, sep="\t", index=False)
 
 
-def check_missing_node_ids_in_edges(exporters, strict: bool = True):
+def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: bool = True):
     """Ensure every node ID referenced in the edges file exists in the
     exporters or combined_nodes node resource files.
 
@@ -160,8 +158,8 @@ def check_missing_node_ids_in_edges(exporters, strict: bool = True):
                         else:
                             records.append(record)
                             logger.warning(msg.format(**record))
-            if len(records) > 0:
-                logger.info("Edges with missing node IDs found, wrote "
-                            "list to missing_edges.tsv")
-                df = pd.DataFrame(records)
-                df.to_csv("missing_edges.tsv", sep="\t", index=False)
+        if len(records) > 0:
+            logger.info("Edges with missing node IDs found, wrote "
+                        "list to missing_edges.tsv")
+            df = pd.DataFrame(records)
+            df.to_csv("missing_edges.tsv", sep="\t", index=False)
