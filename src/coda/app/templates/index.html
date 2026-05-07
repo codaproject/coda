@@ -15,7 +15,10 @@
 
           var locale = localStorage.getItem("codaUiLocale") || "en";
           document.documentElement.setAttribute("lang", locale);
-          document.documentElement.setAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+          document.documentElement.setAttribute(
+            "dir",
+            locale === "ar" ? "rtl" : "ltr",
+          );
 
           if (localStorage.getItem("codaConsent") === "accepted") {
             document.documentElement.classList.add("consented");
@@ -34,7 +37,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
     />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <!-- Chart.js removed in favour of a hand-built stacked-bar chart;
+         see renderChart()/updateCausesChart() in the main script. -->
 
     <style>
       /* ---- Design tokens (Pencil: rose-cream) ------------------------ */
@@ -51,6 +55,12 @@
         --record-red-soft: #f4d9cd;
         --accent-sage: #7f9d89;
         --accent-sage-soft: #ecf1ee;
+        --chart-1: #4a4e69;
+        --chart-2: #7f9d89;
+        --chart-3: #e07a5f;
+        --chart-4: #c9ada7;
+        --chart-5: #9a8c98;
+        --chart-6: #8b7299;
         --success: #5c8a6f;
         --warning: #b45309;
         --radius-sm: 6px;
@@ -72,6 +82,12 @@
         --record-red-soft: #4a2e28;
         --accent-sage: #81b29a;
         --accent-sage-soft: #1f2e26;
+        --chart-1: #c9ada7;
+        --chart-2: #81b29a;
+        --chart-3: #e98770;
+        --chart-4: #9a8c98;
+        --chart-5: #6e6f87;
+        --chart-6: #b4a0c0;
         --success: #81b29a;
         --warning: #e3b45c;
       }
@@ -91,6 +107,12 @@
           --record-red-soft: #4a2e28;
           --accent-sage: #81b29a;
           --accent-sage-soft: #1f2e26;
+          --chart-1: #c9ada7;
+          --chart-2: #81b29a;
+          --chart-3: #e98770;
+          --chart-4: #9a8c98;
+          --chart-5: #6e6f87;
+          --chart-6: #b4a0c0;
           --success: #81b29a;
           --warning: #e3b45c;
         }
@@ -127,10 +149,7 @@
       h3,
       h4 {
         font-family:
-          "Inter Tight",
-          "Inter",
-          "Noto Sans Arabic",
-          "Noto Sans Bengali",
+          "Inter Tight", "Inter", "Noto Sans Arabic", "Noto Sans Bengali",
           sans-serif;
         font-weight: 700;
         letter-spacing: -0.01em;
@@ -148,7 +167,7 @@
 
       /* ---- App shell -------------------------------------------------- */
       .app {
-        max-width: 1440px;
+        /* max-width: 1440px; */
         margin: 0 auto;
         min-height: 100vh;
         display: flex;
@@ -197,6 +216,20 @@
         height: 20px;
         background: var(--border-warm);
         flex-shrink: 0;
+      }
+
+      /* Two-line tagline beside the CODA logo — hidden on narrow screens
+         (see mobile media query below). */
+      .logo-tagline {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 9px;
+        line-height: 1.2;
+        font-weight: 500;
+        color: var(--ink-muted);
+        white-space: nowrap;
+        padding-right: 4px;
       }
 
       /* Recording state badge + timer (visible only while recording) */
@@ -573,7 +606,7 @@
         flex-shrink: 0;
       }
       .cause-score {
-        font-family: 'Inter Tight', 'Inter', sans-serif;
+        font-family: "Inter Tight", "Inter", sans-serif;
         font-size: 14px;
         font-weight: 700;
         color: var(--ink-soft);
@@ -588,9 +621,15 @@
         color: var(--ink-faint);
         font-variant-numeric: tabular-nums;
       }
-      .cause-delta--up { color: var(--success); }
-      .cause-delta--down { color: var(--record-red); }
-      .cause-delta .bi { font-size: 10px; }
+      .cause-delta--up {
+        color: var(--success);
+      }
+      .cause-delta--down {
+        color: var(--record-red);
+      }
+      .cause-delta .bi {
+        font-size: 10px;
+      }
       .cause-bar {
         width: 100%;
         height: 4px;
@@ -639,7 +678,9 @@
 
       /* In result state, the top rank is presented in the hero banner above,
          so hide the duplicated top row inside the inference list. */
-      body[data-state="result"] .inference-card .cause-row--top { display: none; }
+      body[data-state="result"] .inference-card .cause-row--top {
+        display: none;
+      }
 
       /* Differentials — lives in the transcript (main) column, shown only
          when the session is finalised. Hidden during recording/idle where
@@ -651,7 +692,9 @@
         padding-bottom: 12px;
         border-bottom: 1px solid var(--border-warm);
       }
-      body[data-state="result"] .differentials-section { display: flex; }
+      body[data-state="result"] .differentials-section {
+        display: flex;
+      }
       /* And in result state the right-rail cause list is redundant */
       body[data-state="result"] .inference-col > .section-head,
       body[data-state="result"] .inference-col > #inference,
@@ -709,6 +752,57 @@
       .chart-container {
         position: relative;
         height: 180px;
+      }
+      /* Hand-built stacked-bar chart — replaces Chart.js. Each column is
+         one inference window; each column stacks segments (score × 100%)
+         bottom-up using flex-direction: column-reverse. */
+      .chart-bars {
+        display: flex;
+        align-items: stretch;
+        gap: 4px;
+        height: 100%;
+        width: 100%;
+      }
+      .chart-col {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .chart-col-stack {
+        flex: 1;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 2px;
+        overflow: hidden;
+        align-items: stretch;
+      }
+      .chart-seg {
+        flex-shrink: 0;
+        border-radius: 2px;
+        min-height: 2px;
+        transition: height 0.25s ease;
+      }
+      .chart-col-label {
+        flex-shrink: 0;
+        font-family: "Inter", sans-serif;
+        font-size: 9px;
+        color: var(--ink-muted);
+        text-align: center;
+        padding-top: 6px;
+      }
+      .chart-col-label--now {
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .chart-empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: var(--ink-faint);
+        font-style: italic;
       }
 
       .advisory {
@@ -1538,6 +1632,7 @@
       }
       .audio-bar-time .sep,
       .audio-bar-time .total {
+        font-family: "Inter", sans-serif;
         color: var(--ink-muted);
         font-weight: 500;
       }
@@ -1923,6 +2018,9 @@
         .top-divider {
           display: none;
         }
+        .logo-tagline {
+          display: none;
+        }
         .top-right {
           gap: 8px;
         }
@@ -2035,9 +2133,15 @@
           padding: 0 16px;
         }
 
-        .cause-row--top .cause-name { font-size: 15px; }
-        .cause-row--top .cause-score { font-size: 20px; }
-        .cause-row--top { padding: 12px; }
+        .cause-row--top .cause-name {
+          font-size: 15px;
+        }
+        .cause-row--top .cause-score {
+          font-size: 20px;
+        }
+        .cause-row--top {
+          padding: 12px;
+        }
 
         .chart-container {
           height: 160px;
@@ -2129,8 +2233,14 @@
       </div>
       <div class="onboard-body">
         <div class="onboard-card">
-          <span class="onboard-eyebrow" data-i18n="onboard.eyebrow">BEFORE YOU BEGIN</span>
-          <h1 id="onboardHeading" class="onboard-headline" data-i18n="onboard.headline">
+          <span class="onboard-eyebrow" data-i18n="onboard.eyebrow"
+            >BEFORE YOU BEGIN</span
+          >
+          <h1
+            id="onboardHeading"
+            class="onboard-headline"
+            data-i18n="onboard.headline"
+          >
             CODA helps you think. It does not replace your judgment.
           </h1>
           <div class="onboard-body-copy">
@@ -2171,7 +2281,9 @@
       <div class="onboard-foot">
         <div class="onboard-foot-left">
           <i class="bi bi-shield-check"></i>
-          <span data-i18n="onboard.footLeft">No data leaves this device. No sign-in required.</span>
+          <span data-i18n="onboard.footLeft"
+            >No data leaves this device. No sign-in required.</span
+          >
         </div>
         <div class="onboard-foot-right">CODA 1.0</div>
       </div>
@@ -2192,6 +2304,11 @@
               d="M27 0C30.3137 0 33 2.68629 33 6V29H26C24.3431 29 23 30.3431 23 32C23 33.6569 24.3431 35 26 35H33V59C33 62.3137 30.3137 65 27 65H6C2.68629 65 0 62.3137 0 59V6C0 2.68629 2.68629 0 6 0H27ZM103 0C106.314 0 109 2.68629 109 6V59C109 62.3137 106.314 65 103 65H82C78.6863 65 76 62.3137 76 59V35.9639C76.1633 35.9872 76.3302 36 76.5 36H82.5C84.433 36 86 34.433 86 32.5C86 30.567 84.433 29 82.5 29H76.5C76.3303 29 76.1633 29.0118 76 29.0352V6C76 2.68629 78.6863 0 82 0H103ZM141 0C144.314 0 147 2.68629 147 6V59C147 62.3137 144.314 65 141 65H133.964C133.987 64.8367 134 64.6698 134 64.5V58.5C134 56.567 132.433 55 130.5 55C128.567 55 127 56.567 127 58.5V64.5C127 64.6698 127.013 64.8367 127.036 65H120C116.686 65 114 62.3137 114 59V6C114 2.68629 116.686 0 120 0H141ZM65 0C68.3137 0 71 2.68629 71 6V59C71 62.3137 68.3137 65 65 65H44C40.6863 65 38 62.3137 38 59V6C38 2.68629 40.6863 0 44 0H65ZM51 29C49.3431 29 48 30.3431 48 32C48 33.6569 49.3431 35 51 35H59C60.6569 35 62 33.6569 62 32C62 30.3431 60.6569 29 59 29H51Z"
             />
           </svg>
+
+          <div class="logo-tagline" aria-hidden="true">
+            <span data-i18n="tagline.line1">Cause of Death</span>
+            <span data-i18n="tagline.line2">Determination Assistant</span>
+          </div>
 
           <div class="top-divider"></div>
 
@@ -2328,7 +2445,10 @@
         </div>
         <div class="idle-footer">
           <i class="bi bi-shield-check"></i>
-          <span data-i18n="idle.advisory">Advisory only · Final determination remains with the clinician</span>
+          <span data-i18n="idle.advisory"
+            >Advisory only · Final determination remains with the
+            clinician</span
+          >
         </div>
       </section>
 
@@ -2344,14 +2464,16 @@
           </div>
           <div class="history-head-actions">
             <button id="historyBackBtn" class="btn btn-ghost" title="Back">
-              <i class="bi bi-arrow-left"></i><span data-i18n="common.back">Back</span>
+              <i class="bi bi-arrow-left"></i
+              ><span data-i18n="common.back">Back</span>
             </button>
             <button
               id="historyClearBtn"
               class="btn btn-ghost"
               title="Clear all"
             >
-              <i class="bi bi-trash"></i><span data-i18n="common.clearAll">Clear all</span>
+              <i class="bi bi-trash"></i
+              ><span data-i18n="common.clearAll">Clear all</span>
             </button>
           </div>
         </header>
@@ -2359,11 +2481,14 @@
       </section>
 
       <section class="result-hero" aria-labelledby="resultHeading">
-        <span class="kicker" data-i18n="result.primary">Primary determination</span>
+        <span class="kicker" data-i18n="result.primary"
+          >Primary determination</span
+        >
         <h1 id="resultHeading"><span id="resultTitle">—</span></h1>
         <div class="result-hero-meta">
           <div class="result-hero-stat">
-            <strong id="resultConfidence">—</strong><span data-i18n="result.confidence">confidence</span>
+            <strong id="resultConfidence">—</strong
+            ><span data-i18n="result.confidence">confidence</span>
           </div>
           <div class="result-hero-divider"></div>
           <div class="result-hero-stat">
@@ -2387,7 +2512,9 @@
                based on data-state. -->
           <section id="differentialsSection" class="differentials-section">
             <div class="section-head">
-              <span class="kicker" data-i18n="record.differentials">Differentials</span>
+              <span class="kicker" data-i18n="record.differentials"
+                >Differentials</span
+              >
             </div>
             <div
               id="differentialsList"
@@ -2399,7 +2526,9 @@
           <div class="section-head">
             <span class="kicker" data-i18n="record.transcript">Transcript</span>
             <span class="section-meta"
-              ><span id="wordCount" data-i18n-dynamic="wordCount">0 words</span></span
+              ><span id="wordCount" data-i18n-dynamic="wordCount"
+                >0 words</span
+              ></span
             >
           </div>
           <div id="transcript" class="transcript-body" aria-live="polite">
@@ -2412,11 +2541,20 @@
 
         <aside class="inference-col">
           <div class="section-head">
-            <span class="kicker" data-i18n="record.probableCause">Probable cause</span>
-            <span id="updatingPill" class="updating-pill" style="display: none" data-i18n="record.updating"
+            <span class="kicker" data-i18n="record.probableCause"
+              >Probable cause</span
+            >
+            <span
+              id="updatingPill"
+              class="updating-pill"
+              style="display: none"
+              data-i18n="record.updating"
               >Updating</span
             >
-            <span class="kicker-probable-offline" id="offlinePill" data-i18n="record.offlinePill"
+            <span
+              class="kicker-probable-offline"
+              id="offlinePill"
+              data-i18n="record.offlinePill"
               >Offline</span
             >
           </div>
@@ -2431,7 +2569,9 @@
                 <i class="bi bi-wifi-off"></i>
               </div>
               <div>
-                <div class="ie-title" data-i18n="record.inferenceUnavailable">Inference unavailable</div>
+                <div class="ie-title" data-i18n="record.inferenceUnavailable">
+                  Inference unavailable
+                </div>
                 <p class="ie-body" data-i18n="record.inferenceBody">
                   The cause-of-death model isn't responding. Your transcript is
                   still being captured and saved locally.
@@ -2440,21 +2580,27 @@
             </div>
             <div class="ie-detail">
               <div class="ie-detail-label">
-                <span id="ieLastAgo" data-i18n="record.lastError">Last error</span>
+                <span id="ieLastAgo" data-i18n="record.lastError"
+                  >Last error</span
+                >
               </div>
               <div class="ie-detail-text" id="ieErrorText">—</div>
             </div>
             <div class="ie-acts">
               <button id="ieRetryBtn" class="btn btn-primary">
-                <i class="bi bi-arrow-clockwise"></i><span data-i18n="common.retry">Retry now</span>
+                <i class="bi bi-arrow-clockwise"></i
+                ><span data-i18n="common.retry">Retry now</span>
               </button>
               <button id="ieSettingsBtn" class="btn btn-ghost">
-                <i class="bi bi-gear"></i><span data-i18n="common.checkSettings">Check settings</span>
+                <i class="bi bi-gear"></i
+                ><span data-i18n="common.checkSettings">Check settings</span>
               </button>
             </div>
             <div class="ie-retry-meta">
               <i class="bi bi-arrow-repeat"></i>
-              <span id="ieCountdown" data-i18n="record.autoRetry">Auto-retrying on next chunk…</span>
+              <span id="ieCountdown" data-i18n="record.autoRetry"
+                >Auto-retrying on next chunk…</span
+              >
             </div>
           </div>
 
@@ -2462,14 +2608,17 @@
 
           <div class="evolution-block">
             <div class="section-head">
-              <span class="kicker" data-i18n="chart.evolution">How probabilities evolved</span>
+              <span class="kicker" data-i18n="chart.evolution"
+                >How probabilities evolved</span
+              >
               <span id="evolutionMeta" class="section-meta"></span>
             </div>
             <div id="chartLegend" class="chart-legend" aria-hidden="true"></div>
             <div class="chart-container">
-              <canvas id="causesChart"></canvas>
+              <div id="chartBars" class="chart-bars" aria-hidden="true"></div>
               <span class="chart-paused-chip" aria-hidden="true"
-                ><i class="bi bi-pause-fill"></i><span data-i18n="chart.paused">CHART PAUSED</span></span
+                ><i class="bi bi-pause-fill"></i
+                ><span data-i18n="chart.paused">CHART PAUSED</span></span
               >
             </div>
           </div>
@@ -2478,7 +2627,9 @@
 
           <div class="advisory">
             <i class="bi bi-info-circle"></i>
-            <span data-i18n="advisory.short">Advisory only — final determination is yours</span>
+            <span data-i18n="advisory.short"
+              >Advisory only — final determination is yours</span
+            >
           </div>
         </aside>
       </div>
@@ -2499,7 +2650,9 @@
       </div>
 
       <div class="settings-row">
-        <label for="uiLanguageSelect" data-i18n="settings.interfaceLang">Interface language</label>
+        <label for="uiLanguageSelect" data-i18n="settings.interfaceLang"
+          >Interface language</label
+        >
         <select id="uiLanguageSelect">
           <option value="en">English</option>
           <option value="sw">Kiswahili</option>
@@ -2511,14 +2664,18 @@
       </div>
 
       <div class="settings-row">
-        <label for="languageSelect" data-i18n="settings.transcriptionLang">Transcription language</label>
+        <label for="languageSelect" data-i18n="settings.transcriptionLang"
+          >Transcription language</label
+        >
         <select id="languageSelect">
           <option value="en">English (en)</option>
         </select>
       </div>
 
       <div class="settings-row">
-        <label for="whisperModelSelect" data-i18n="settings.transcriptionModel">Transcription model</label>
+        <label for="whisperModelSelect" data-i18n="settings.transcriptionModel"
+          >Transcription model</label
+        >
         <div class="row-inline">
           <select id="whisperModelSelect" style="flex: 1">
             <option value="tiny">Whisper tiny (39M)</option>
@@ -2570,7 +2727,10 @@
       </div>
 
       <div style="margin-top: 6px; margin-bottom: 22px">
-        <label class="kicker" style="display: block; margin-bottom: 10px" data-i18n="settings.appearance"
+        <label
+          class="kicker"
+          style="display: block; margin-bottom: 10px"
+          data-i18n="settings.appearance"
           >Appearance</label
         >
         <div class="theme-switch" role="radiogroup" aria-label="Theme">
@@ -2581,7 +2741,8 @@
             role="radio"
             aria-checked="true"
           >
-            <i class="bi bi-sun"></i><span data-i18n="settings.themeLight">Light</span>
+            <i class="bi bi-sun"></i
+            ><span data-i18n="settings.themeLight">Light</span>
           </button>
           <button
             type="button"
@@ -2590,7 +2751,8 @@
             role="radio"
             aria-checked="false"
           >
-            <i class="bi bi-moon"></i><span data-i18n="settings.themeDark">Dark</span>
+            <i class="bi bi-moon"></i
+            ><span data-i18n="settings.themeDark">Dark</span>
           </button>
           <button
             type="button"
@@ -2599,18 +2761,24 @@
             role="radio"
             aria-checked="false"
           >
-            <i class="bi bi-display"></i><span data-i18n="settings.themeSystem">System</span>
+            <i class="bi bi-display"></i
+            ><span data-i18n="settings.themeSystem">System</span>
           </button>
         </div>
       </div>
 
       <div>
-        <label class="kicker" style="display: block; margin-bottom: 10px" data-i18n="settings.localStorage"
+        <label
+          class="kicker"
+          style="display: block; margin-bottom: 10px"
+          data-i18n="settings.localStorage"
           >Local storage</label
         >
         <div class="switch-row">
           <div class="switch-body">
-            <strong data-i18n="settings.saveTitle">Save transcripts on this device</strong>
+            <strong data-i18n="settings.saveTitle"
+              >Save transcripts on this device</strong
+            >
             <small data-i18n="settings.saveBody"
               >Keep past sessions for reference. Otherwise they're discarded
               when you stop recording.</small
@@ -2651,16 +2819,25 @@
           "common.checkSettings": "Check settings",
           "common.seeAll": "See all",
           "common.history": "History",
+          "tagline.line1": "Cause of Death",
+          "tagline.line2": "Determination Assistant",
           "onboard.eyebrow": "BEFORE YOU BEGIN",
-          "onboard.headline": "CODA helps you think. It does not replace your judgment.",
-          "onboard.body1": "When you dictate a clinical narrative describing a patient's death, CODA transcribes what you say and surfaces probabilistic causes of death in real time. All processing happens on your device.",
-          "onboard.body2": "The output is advisory. Final cause-of-death determination remains with you — and, where applicable, with post-mortem confirmation.",
-          "onboard.consent": "I understand that CODA's output is advisory and not a substitute for clinical judgment.",
+          "onboard.headline":
+            "CODA helps you think. It does not replace your judgment.",
+          "onboard.body1":
+            "When you dictate a clinical narrative describing a patient's death, CODA transcribes what you say and surfaces probabilistic causes of death in real time. All processing happens on your device.",
+          "onboard.body2":
+            "The output is advisory. Final cause-of-death determination remains with you — and, where applicable, with post-mortem confirmation.",
+          "onboard.consent":
+            "I understand that CODA's output is advisory and not a substitute for clinical judgment.",
           "onboard.note": "You can adjust preferences in Settings at any time.",
-          "onboard.footLeft": "No data leaves this device. No sign-in required.",
+          "onboard.footLeft":
+            "No data leaves this device. No sign-in required.",
           "idle.begin": "Begin dictation",
-          "idle.helper": "Press the button or use the space bar. Your audio is transcribed on this device.",
-          "idle.advisory": "Advisory only · Final determination remains with the clinician",
+          "idle.helper":
+            "Press the button or use the space bar. Your audio is transcribed on this device.",
+          "idle.advisory":
+            "Advisory only · Final determination remains with the clinician",
           "idle.recent": "Recent",
           "record.recording": "RECORDING",
           "record.transcript": "Transcript",
@@ -2668,9 +2845,11 @@
           "record.differentials": "Differentials",
           "record.updating": "Updating",
           "record.offlinePill": "Offline",
-          "record.placeholder": "Press the mic to begin. Your audio is transcribed on this device.",
+          "record.placeholder":
+            "Press the mic to begin. Your audio is transcribed on this device.",
           "record.inferenceUnavailable": "Inference unavailable",
-          "record.inferenceBody": "The cause-of-death model isn't responding. Your transcript is still being captured and saved locally.",
+          "record.inferenceBody":
+            "The cause-of-death model isn't responding. Your transcript is still being captured and saved locally.",
           "record.lastError": "Last error",
           "record.autoRetry": "Auto-retrying on next chunk…",
           "result.primary": "Primary determination",
@@ -2688,9 +2867,11 @@
           "settings.themeDark": "Dark",
           "settings.themeSystem": "System",
           "settings.saveTitle": "Save transcripts on this device",
-          "settings.saveBody": "Keep past sessions for reference. Otherwise they're discarded when you stop recording.",
+          "settings.saveBody":
+            "Keep past sessions for reference. Otherwise they're discarded when you stop recording.",
           "history.title": "Past sessions",
-          "history.subtitle": "Everything is stored locally on this device. Nothing is synced or uploaded.",
+          "history.subtitle":
+            "Everything is stored locally on this device. Nothing is synced or uploaded.",
         },
         sw: {
           "common.new": "Mpya",
@@ -2703,15 +2884,23 @@
           "common.checkSettings": "Angalia mipangilio",
           "common.seeAll": "Ona zote",
           "common.history": "Historia",
+          "tagline.line1": "Sababu ya Kifo",
+          "tagline.line2": "Msaidizi wa Uamuzi",
           "onboard.eyebrow": "KABLA HUJAANZA",
-          "onboard.headline": "CODA inakusaidia kufikiri. Haichukui nafasi ya uamuzi wako.",
-          "onboard.body1": "Unapoandika kwa sauti maelezo ya kliniki kuhusu kifo cha mgonjwa, CODA hunakili unachosema na kuonyesha sababu zinazowezekana za kifo kwa wakati halisi. Usindikaji wote unafanyika kwenye kifaa chako.",
-          "onboard.body2": "Matokeo ni ya ushauri. Uamuzi wa mwisho wa sababu ya kifo unabaki kwako — na, panapohitajika, kwa uthibitisho baada ya kifo.",
-          "onboard.consent": "Ninaelewa kuwa matokeo ya CODA ni ya ushauri na siyo mbadala wa uamuzi wa kliniki.",
+          "onboard.headline":
+            "CODA inakusaidia kufikiri. Haichukui nafasi ya uamuzi wako.",
+          "onboard.body1":
+            "Unapoandika kwa sauti maelezo ya kliniki kuhusu kifo cha mgonjwa, CODA hunakili unachosema na kuonyesha sababu zinazowezekana za kifo kwa wakati halisi. Usindikaji wote unafanyika kwenye kifaa chako.",
+          "onboard.body2":
+            "Matokeo ni ya ushauri. Uamuzi wa mwisho wa sababu ya kifo unabaki kwako — na, panapohitajika, kwa uthibitisho baada ya kifo.",
+          "onboard.consent":
+            "Ninaelewa kuwa matokeo ya CODA ni ya ushauri na siyo mbadala wa uamuzi wa kliniki.",
           "onboard.note": "Unaweza kubadilisha mipangilio wakati wowote.",
-          "onboard.footLeft": "Hakuna data inayotoka kwenye kifaa hiki. Hakuna kuingia kunakohitajika.",
+          "onboard.footLeft":
+            "Hakuna data inayotoka kwenye kifaa hiki. Hakuna kuingia kunakohitajika.",
           "idle.begin": "Anza kuandika kwa sauti",
-          "idle.helper": "Bonyeza kitufe au tumia upau wa nafasi. Sauti yako inaandikwa kwenye kifaa hiki.",
+          "idle.helper":
+            "Bonyeza kitufe au tumia upau wa nafasi. Sauti yako inaandikwa kwenye kifaa hiki.",
           "idle.advisory": "Ushauri tu · Uamuzi wa mwisho ni wa daktari",
           "idle.recent": "Hivi karibuni",
           "record.recording": "INAREKODI",
@@ -2720,9 +2909,11 @@
           "record.differentials": "Tofauti",
           "record.updating": "Inasasisha",
           "record.offlinePill": "Nje ya mtandao",
-          "record.placeholder": "Bonyeza mikrofoni kuanza. Sauti yako inaandikwa kwenye kifaa hiki.",
+          "record.placeholder":
+            "Bonyeza mikrofoni kuanza. Sauti yako inaandikwa kwenye kifaa hiki.",
           "record.inferenceUnavailable": "Ubashiri haupatikani",
-          "record.inferenceBody": "Muundo wa sababu ya kifo haujibu. Maandishi yako bado yanarekodiwa na kuhifadhiwa kwenye kifaa.",
+          "record.inferenceBody":
+            "Muundo wa sababu ya kifo haujibu. Maandishi yako bado yanarekodiwa na kuhifadhiwa kwenye kifaa.",
           "record.lastError": "Kosa la mwisho",
           "record.autoRetry": "Kujaribu tena kwa sehemu ijayo…",
           "result.primary": "Uamuzi wa msingi",
@@ -2740,9 +2931,11 @@
           "settings.themeDark": "Giza",
           "settings.themeSystem": "Mfumo",
           "settings.saveTitle": "Hifadhi maandishi kwenye kifaa hiki",
-          "settings.saveBody": "Weka vikao vilivyopita kwa rejeleo. Vinginevyo vinatupwa unapomaliza kurekodi.",
+          "settings.saveBody":
+            "Weka vikao vilivyopita kwa rejeleo. Vinginevyo vinatupwa unapomaliza kurekodi.",
           "history.title": "Vikao vilivyopita",
-          "history.subtitle": "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
+          "history.subtitle":
+            "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
         },
         fr: {
           "common.new": "Nouveau",
@@ -2755,16 +2948,26 @@
           "common.checkSettings": "Vérifier les paramètres",
           "common.seeAll": "Tout voir",
           "common.history": "Historique",
+          "tagline.line1": "Cause du décès",
+          "tagline.line2": "Assistant de détermination",
           "onboard.eyebrow": "AVANT DE COMMENCER",
-          "onboard.headline": "CODA vous aide à penser. Il ne remplace pas votre jugement.",
-          "onboard.body1": "Lorsque vous dictez un récit clinique décrivant le décès d'un patient, CODA transcrit vos paroles et propose en temps réel des causes de décès probabilistes. Tout le traitement se fait sur votre appareil.",
-          "onboard.body2": "La sortie est consultative. La détermination finale de la cause du décès reste de votre responsabilité — et, le cas échéant, avec confirmation post-mortem.",
-          "onboard.consent": "Je comprends que la sortie de CODA est consultative et ne remplace pas le jugement clinique.",
-          "onboard.note": "Vous pouvez ajuster les préférences dans Paramètres à tout moment.",
-          "onboard.footLeft": "Aucune donnée ne quitte cet appareil. Aucune connexion requise.",
+          "onboard.headline":
+            "CODA vous aide à penser. Il ne remplace pas votre jugement.",
+          "onboard.body1":
+            "Lorsque vous dictez un récit clinique décrivant le décès d'un patient, CODA transcrit vos paroles et propose en temps réel des causes de décès probabilistes. Tout le traitement se fait sur votre appareil.",
+          "onboard.body2":
+            "La sortie est consultative. La détermination finale de la cause du décès reste de votre responsabilité — et, le cas échéant, avec confirmation post-mortem.",
+          "onboard.consent":
+            "Je comprends que la sortie de CODA est consultative et ne remplace pas le jugement clinique.",
+          "onboard.note":
+            "Vous pouvez ajuster les préférences dans Paramètres à tout moment.",
+          "onboard.footLeft":
+            "Aucune donnée ne quitte cet appareil. Aucune connexion requise.",
           "idle.begin": "Commencer la dictée",
-          "idle.helper": "Appuyez sur le bouton ou la barre d'espace. Votre audio est transcrit sur cet appareil.",
-          "idle.advisory": "Consultatif uniquement · La décision finale appartient au clinicien",
+          "idle.helper":
+            "Appuyez sur le bouton ou la barre d'espace. Votre audio est transcrit sur cet appareil.",
+          "idle.advisory":
+            "Consultatif uniquement · La décision finale appartient au clinicien",
           "idle.recent": "Récent",
           "record.recording": "ENREGISTREMENT",
           "record.transcript": "Transcription",
@@ -2772,16 +2975,19 @@
           "record.differentials": "Diagnostics différentiels",
           "record.updating": "Mise à jour",
           "record.offlinePill": "Hors ligne",
-          "record.placeholder": "Appuyez sur le micro pour commencer. Votre audio est transcrit sur cet appareil.",
+          "record.placeholder":
+            "Appuyez sur le micro pour commencer. Votre audio est transcrit sur cet appareil.",
           "record.inferenceUnavailable": "Inférence indisponible",
-          "record.inferenceBody": "Le modèle de cause de décès ne répond pas. Votre transcription est toujours capturée et sauvegardée localement.",
+          "record.inferenceBody":
+            "Le modèle de cause de décès ne répond pas. Votre transcription est toujours capturée et sauvegardée localement.",
           "record.lastError": "Dernière erreur",
           "record.autoRetry": "Nouvelle tentative au prochain segment…",
           "result.primary": "Détermination principale",
           "result.confidence": "confiance",
           "chart.evolution": "Évolution des probabilités",
           "chart.paused": "GRAPHIQUE EN PAUSE",
-          "advisory.short": "Consultatif uniquement — la décision finale vous appartient",
+          "advisory.short":
+            "Consultatif uniquement — la décision finale vous appartient",
           "settings.title": "Paramètres",
           "settings.interfaceLang": "Langue de l'interface",
           "settings.transcriptionLang": "Langue de transcription",
@@ -2791,10 +2997,13 @@
           "settings.themeLight": "Clair",
           "settings.themeDark": "Sombre",
           "settings.themeSystem": "Système",
-          "settings.saveTitle": "Enregistrer les transcriptions sur cet appareil",
-          "settings.saveBody": "Conservez les sessions passées pour référence. Sinon, elles sont supprimées à l'arrêt de l'enregistrement.",
+          "settings.saveTitle":
+            "Enregistrer les transcriptions sur cet appareil",
+          "settings.saveBody":
+            "Conservez les sessions passées pour référence. Sinon, elles sont supprimées à l'arrêt de l'enregistrement.",
           "history.title": "Sessions précédentes",
-          "history.subtitle": "Tout est stocké localement sur cet appareil. Rien n'est synchronisé ni téléchargé.",
+          "history.subtitle":
+            "Tout est stocké localement sur cet appareil. Rien n'est synchronisé ni téléchargé.",
         },
         ar: {
           "common.new": "جديد",
@@ -2807,15 +3016,22 @@
           "common.checkSettings": "مراجعة الإعدادات",
           "common.seeAll": "عرض الكل",
           "common.history": "السجل",
+          "tagline.line1": "سبب الوفاة",
+          "tagline.line2": "مساعد التحديد",
           "onboard.eyebrow": "قبل البدء",
           "onboard.headline": "CODA يساعدك على التفكير. لا يحل محل حكمك.",
-          "onboard.body1": "عند إملاء سرد سريري يصف وفاة مريض، يقوم CODA بنسخ ما تقوله وعرض الأسباب الاحتمالية للوفاة في الوقت الفعلي. تتم جميع المعالجة على جهازك.",
-          "onboard.body2": "المخرجات استشارية. يبقى التحديد النهائي لسبب الوفاة بيدك — وعند الاقتضاء بتأكيد تشريحي.",
-          "onboard.consent": "أفهم أن مخرجات CODA استشارية وليست بديلاً عن الحكم السريري.",
+          "onboard.body1":
+            "عند إملاء سرد سريري يصف وفاة مريض، يقوم CODA بنسخ ما تقوله وعرض الأسباب الاحتمالية للوفاة في الوقت الفعلي. تتم جميع المعالجة على جهازك.",
+          "onboard.body2":
+            "المخرجات استشارية. يبقى التحديد النهائي لسبب الوفاة بيدك — وعند الاقتضاء بتأكيد تشريحي.",
+          "onboard.consent":
+            "أفهم أن مخرجات CODA استشارية وليست بديلاً عن الحكم السريري.",
           "onboard.note": "يمكنك تعديل التفضيلات في الإعدادات في أي وقت.",
-          "onboard.footLeft": "لا تغادر أي بيانات هذا الجهاز. لا يلزم تسجيل الدخول.",
+          "onboard.footLeft":
+            "لا تغادر أي بيانات هذا الجهاز. لا يلزم تسجيل الدخول.",
           "idle.begin": "ابدأ الإملاء",
-          "idle.helper": "اضغط الزر أو استخدم مسطرة المسافة. يتم نسخ صوتك على هذا الجهاز.",
+          "idle.helper":
+            "اضغط الزر أو استخدم مسطرة المسافة. يتم نسخ صوتك على هذا الجهاز.",
           "idle.advisory": "استشاري فقط · القرار النهائي يعود للطبيب",
           "idle.recent": "الحديثة",
           "record.recording": "يسجل",
@@ -2824,9 +3040,11 @@
           "record.differentials": "التشخيصات التفريقية",
           "record.updating": "يُحدِّث",
           "record.offlinePill": "غير متصل",
-          "record.placeholder": "اضغط الميكروفون للبدء. يتم نسخ صوتك على هذا الجهاز.",
+          "record.placeholder":
+            "اضغط الميكروفون للبدء. يتم نسخ صوتك على هذا الجهاز.",
           "record.inferenceUnavailable": "الاستدلال غير متاح",
-          "record.inferenceBody": "نموذج سبب الوفاة لا يستجيب. لا يزال يتم تسجيل النص وحفظه محلياً.",
+          "record.inferenceBody":
+            "نموذج سبب الوفاة لا يستجيب. لا يزال يتم تسجيل النص وحفظه محلياً.",
           "record.lastError": "آخر خطأ",
           "record.autoRetry": "إعادة المحاولة تلقائياً في المقطع التالي…",
           "result.primary": "التحديد الأساسي",
@@ -2844,9 +3062,11 @@
           "settings.themeDark": "داكن",
           "settings.themeSystem": "النظام",
           "settings.saveTitle": "حفظ النصوص على هذا الجهاز",
-          "settings.saveBody": "احتفظ بالجلسات السابقة للرجوع إليها. وإلا يتم حذفها عند إيقاف التسجيل.",
+          "settings.saveBody":
+            "احتفظ بالجلسات السابقة للرجوع إليها. وإلا يتم حذفها عند إيقاف التسجيل.",
           "history.title": "الجلسات السابقة",
-          "history.subtitle": "يتم تخزين كل شيء محلياً على هذا الجهاز. لا شيء متزامن أو مرفوع.",
+          "history.subtitle":
+            "يتم تخزين كل شيء محلياً على هذا الجهاز. لا شيء متزامن أو مرفوع.",
         },
         bn: {
           "common.new": "নতুন",
@@ -2859,15 +3079,24 @@
           "common.checkSettings": "সেটিংস দেখুন",
           "common.seeAll": "সব দেখুন",
           "common.history": "ইতিহাস",
+          "tagline.line1": "মৃত্যুর কারণ",
+          "tagline.line2": "নির্ধারণ সহকারী",
           "onboard.eyebrow": "শুরু করার আগে",
-          "onboard.headline": "CODA আপনাকে চিন্তা করতে সাহায্য করে। এটি আপনার বিচারবুদ্ধির বিকল্প নয়।",
-          "onboard.body1": "যখন আপনি কোনো রোগীর মৃত্যুর ক্লিনিকাল বিবরণ উচ্চারণ করেন, CODA আপনার কথা প্রতিলিপি করে এবং সম্ভাব্য মৃত্যুর কারণগুলো রিয়েল-টাইমে দেখায়। সমস্ত প্রক্রিয়াকরণ আপনার ডিভাইসেই হয়।",
-          "onboard.body2": "ফলাফল পরামর্শমূলক। মৃত্যুর কারণের চূড়ান্ত নির্ধারণ আপনারই হাতে — এবং প্রযোজ্য হলে পোস্ট-মর্টেম নিশ্চিতকরণের সাথে।",
-          "onboard.consent": "আমি বুঝি যে CODA-র ফলাফল পরামর্শমূলক এবং ক্লিনিকাল বিচারের বিকল্প নয়।",
-          "onboard.note": "আপনি যেকোনো সময় সেটিংসে পছন্দ পরিবর্তন করতে পারবেন।",
-          "onboard.footLeft": "কোনো ডেটা এই ডিভাইস ছেড়ে যায় না। সাইন-ইন লাগে না।",
+          "onboard.headline":
+            "CODA আপনাকে চিন্তা করতে সাহায্য করে। এটি আপনার বিচারবুদ্ধির বিকল্প নয়।",
+          "onboard.body1":
+            "যখন আপনি কোনো রোগীর মৃত্যুর ক্লিনিকাল বিবরণ উচ্চারণ করেন, CODA আপনার কথা প্রতিলিপি করে এবং সম্ভাব্য মৃত্যুর কারণগুলো রিয়েল-টাইমে দেখায়। সমস্ত প্রক্রিয়াকরণ আপনার ডিভাইসেই হয়।",
+          "onboard.body2":
+            "ফলাফল পরামর্শমূলক। মৃত্যুর কারণের চূড়ান্ত নির্ধারণ আপনারই হাতে — এবং প্রযোজ্য হলে পোস্ট-মর্টেম নিশ্চিতকরণের সাথে।",
+          "onboard.consent":
+            "আমি বুঝি যে CODA-র ফলাফল পরামর্শমূলক এবং ক্লিনিকাল বিচারের বিকল্প নয়।",
+          "onboard.note":
+            "আপনি যেকোনো সময় সেটিংসে পছন্দ পরিবর্তন করতে পারবেন।",
+          "onboard.footLeft":
+            "কোনো ডেটা এই ডিভাইস ছেড়ে যায় না। সাইন-ইন লাগে না।",
           "idle.begin": "ডিকটেশন শুরু করুন",
-          "idle.helper": "বোতাম টিপুন বা স্পেস বার ব্যবহার করুন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
+          "idle.helper":
+            "বোতাম টিপুন বা স্পেস বার ব্যবহার করুন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
           "idle.advisory": "শুধু পরামর্শ · চূড়ান্ত সিদ্ধান্ত চিকিৎসকের",
           "idle.recent": "সাম্প্রতিক",
           "record.recording": "রেকর্ড হচ্ছে",
@@ -2876,9 +3105,11 @@
           "record.differentials": "পৃথকীকরণ",
           "record.updating": "আপডেট হচ্ছে",
           "record.offlinePill": "অফলাইন",
-          "record.placeholder": "শুরু করতে মাইকে চাপ দিন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
+          "record.placeholder":
+            "শুরু করতে মাইকে চাপ দিন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
           "record.inferenceUnavailable": "অনুমান অনুপলব্ধ",
-          "record.inferenceBody": "মৃত্যুর কারণের মডেল সাড়া দিচ্ছে না। আপনার প্রতিলিপি এখনো ধারণ করা হচ্ছে এবং স্থানীয়ভাবে সংরক্ষিত হচ্ছে।",
+          "record.inferenceBody":
+            "মৃত্যুর কারণের মডেল সাড়া দিচ্ছে না। আপনার প্রতিলিপি এখনো ধারণ করা হচ্ছে এবং স্থানীয়ভাবে সংরক্ষিত হচ্ছে।",
           "record.lastError": "সর্বশেষ ত্রুটি",
           "record.autoRetry": "পরবর্তী অংশে স্বয়ংক্রিয় পুনঃচেষ্টা…",
           "result.primary": "প্রাথমিক নির্ধারণ",
@@ -2896,9 +3127,11 @@
           "settings.themeDark": "অন্ধকার",
           "settings.themeSystem": "সিস্টেম",
           "settings.saveTitle": "এই ডিভাইসে প্রতিলিপি সংরক্ষণ করুন",
-          "settings.saveBody": "রেফারেন্সের জন্য অতীত সেশন রাখুন। অন্যথায় রেকর্ডিং বন্ধ করলে মুছে যায়।",
+          "settings.saveBody":
+            "রেফারেন্সের জন্য অতীত সেশন রাখুন। অন্যথায় রেকর্ডিং বন্ধ করলে মুছে যায়।",
           "history.title": "পূর্ববর্তী সেশন",
-          "history.subtitle": "সবকিছু স্থানীয়ভাবে এই ডিভাইসে সংরক্ষিত। কিছুই সিঙ্ক বা আপলোড করা হয় না।",
+          "history.subtitle":
+            "সবকিছু স্থানীয়ভাবে এই ডিভাইসে সংরক্ষিত। কিছুই সিঙ্ক বা আপলোড করা হয় না।",
         },
         es: {
           "common.new": "Nuevo",
@@ -2911,16 +3144,26 @@
           "common.checkSettings": "Revisar ajustes",
           "common.seeAll": "Ver todas",
           "common.history": "Historial",
+          "tagline.line1": "Causa de muerte",
+          "tagline.line2": "Asistente de determinación",
           "onboard.eyebrow": "ANTES DE EMPEZAR",
-          "onboard.headline": "CODA te ayuda a pensar. No reemplaza tu criterio.",
-          "onboard.body1": "Cuando dictas un relato clínico que describe la muerte de un paciente, CODA transcribe lo que dices y muestra causas de muerte probabilísticas en tiempo real. Todo el procesamiento ocurre en tu dispositivo.",
-          "onboard.body2": "La salida es orientativa. La determinación final de la causa de muerte sigue siendo tuya — y, cuando corresponda, con confirmación post-mortem.",
-          "onboard.consent": "Entiendo que la salida de CODA es orientativa y no sustituye al criterio clínico.",
-          "onboard.note": "Puedes ajustar las preferencias en Ajustes en cualquier momento.",
-          "onboard.footLeft": "Ningún dato sale de este dispositivo. No se requiere inicio de sesión.",
+          "onboard.headline":
+            "CODA te ayuda a pensar. No reemplaza tu criterio.",
+          "onboard.body1":
+            "Cuando dictas un relato clínico que describe la muerte de un paciente, CODA transcribe lo que dices y muestra causas de muerte probabilísticas en tiempo real. Todo el procesamiento ocurre en tu dispositivo.",
+          "onboard.body2":
+            "La salida es orientativa. La determinación final de la causa de muerte sigue siendo tuya — y, cuando corresponda, con confirmación post-mortem.",
+          "onboard.consent":
+            "Entiendo que la salida de CODA es orientativa y no sustituye al criterio clínico.",
+          "onboard.note":
+            "Puedes ajustar las preferencias en Ajustes en cualquier momento.",
+          "onboard.footLeft":
+            "Ningún dato sale de este dispositivo. No se requiere inicio de sesión.",
           "idle.begin": "Empezar dictado",
-          "idle.helper": "Presiona el botón o la barra espaciadora. Tu audio se transcribe en este dispositivo.",
-          "idle.advisory": "Solo orientativo · La decisión final es del clínico",
+          "idle.helper":
+            "Presiona el botón o la barra espaciadora. Tu audio se transcribe en este dispositivo.",
+          "idle.advisory":
+            "Solo orientativo · La decisión final es del clínico",
           "idle.recent": "Recientes",
           "record.recording": "GRABANDO",
           "record.transcript": "Transcripción",
@@ -2928,9 +3171,11 @@
           "record.differentials": "Diagnósticos diferenciales",
           "record.updating": "Actualizando",
           "record.offlinePill": "Sin conexión",
-          "record.placeholder": "Pulsa el micrófono para empezar. Tu audio se transcribe en este dispositivo.",
+          "record.placeholder":
+            "Pulsa el micrófono para empezar. Tu audio se transcribe en este dispositivo.",
           "record.inferenceUnavailable": "Inferencia no disponible",
-          "record.inferenceBody": "El modelo de causa de muerte no responde. Tu transcripción se sigue capturando y guardando localmente.",
+          "record.inferenceBody":
+            "El modelo de causa de muerte no responde. Tu transcripción se sigue capturando y guardando localmente.",
           "record.lastError": "Último error",
           "record.autoRetry": "Reintento automático en el próximo fragmento…",
           "result.primary": "Determinación principal",
@@ -2948,9 +3193,11 @@
           "settings.themeDark": "Oscuro",
           "settings.themeSystem": "Sistema",
           "settings.saveTitle": "Guardar transcripciones en este dispositivo",
-          "settings.saveBody": "Conserva sesiones pasadas para referencia. Si no, se descartan al detener la grabación.",
+          "settings.saveBody":
+            "Conserva sesiones pasadas para referencia. Si no, se descartan al detener la grabación.",
           "history.title": "Sesiones anteriores",
-          "history.subtitle": "Todo se almacena localmente en este dispositivo. Nada se sincroniza ni sube.",
+          "history.subtitle":
+            "Todo se almacena localmente en este dispositivo. Nada se sincroniza ni sube.",
         },
       };
 
@@ -2968,7 +3215,9 @@
       function applyLocale(locale) {
         if (!I18N_STRINGS[locale]) locale = "en";
         uiLocale = locale;
-        try { localStorage.setItem(UI_LOCALE_KEY, locale); } catch (_) {}
+        try {
+          localStorage.setItem(UI_LOCALE_KEY, locale);
+        } catch (_) {}
         document.documentElement.setAttribute("lang", locale);
         document.documentElement.setAttribute(
           "dir",
@@ -3054,8 +3303,11 @@
 
           // Compute delta vs. previous snapshot, if provided
           let deltaHtml = "";
-          if (previousCauses && previousCauses[curie] &&
-              typeof previousCauses[curie].score === "number") {
+          if (
+            previousCauses &&
+            previousCauses[curie] &&
+            typeof previousCauses[curie].score === "number"
+          ) {
             const prev = previousCauses[curie].score;
             const diffPct = Math.round((score - prev) * 100);
             if (diffPct !== 0) {
@@ -3294,9 +3546,7 @@
         if (diffElReplay) diffElReplay.innerHTML = replayHtml;
 
         // Rebuild evolution chart
-        causesChart.data.labels = [];
-        causesChart.data.datasets = [];
-        inferenceCount = 0;
+        clearChart();
         const snaps =
           session.evolution && session.evolution.length
             ? session.evolution
@@ -3523,99 +3773,121 @@
         "#5C8A6F", // success-green
       ];
 
-      let inferenceCount = 0;
-      const causesChart = new Chart(document.getElementById("causesChart"), {
-        type: "bar",
-        data: { labels: [], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          interaction: { mode: "index", intersect: false },
-          scales: {
-            x: {
-              stacked: true,
-              grid: { display: false },
-              ticks: {
-                font: { family: "'Inter', sans-serif", size: 10 },
-                color: "#9A8C98",
-              },
-            },
-            y: {
-              stacked: true,
-              min: 0,
-              max: 1,
-              grid: { color: "rgba(34, 34, 59, 0.06)", drawBorder: false },
-              ticks: {
-                font: { family: "'Inter', sans-serif", size: 10 },
-                color: "#9A8C98",
-                callback: (v) => (v * 100).toFixed(0) + "%",
-              },
-            },
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) =>
-                  `${ctx.dataset.label}: ${(ctx.parsed.y * 100).toFixed(0)}%`,
-              },
-            },
-          },
-        },
-      });
+      // ---- Hand-built stacked-bar evolution chart ---------------------
+      // Replaces Chart.js. One column per inference window; each column
+      // stacks <div.chart-seg> children whose heights equal score × 100%,
+      // bottom-up via CSS `flex-direction: column-reverse`. Cause→color
+      // mapping is stable across windows (first cause seen gets CHART_COLORS[0],
+      // second gets [1], etc.) so the legend + the bars stay in sync.
+      const chartBarsEl = document.getElementById("chartBars");
+      const chartLegendEl = document.getElementById("chartLegend");
+      const CHART_PALETTE_SIZE = 6;
+      const chartState = {
+        buckets: [], // [{ segments: [{ name, idx, score }] }]
+        seen: new Map(), // name → palette index (0..CHART_PALETTE_SIZE-1)
+      };
+
+      function chartIdxForCause(name) {
+        if (!chartState.seen.has(name)) {
+          chartState.seen.set(name, chartState.seen.size % CHART_PALETTE_SIZE);
+        }
+        return chartState.seen.get(name);
+      }
+
+      // Palette is read from CSS custom properties so the chart re-themes
+      // automatically on light/dark flip — we only need to re-render.
+      function getChartPalette() {
+        const style = getComputedStyle(document.documentElement);
+        const out = [];
+        for (let i = 1; i <= CHART_PALETTE_SIZE; i++) {
+          out.push(style.getPropertyValue("--chart-" + i).trim() || "#4a4e69");
+        }
+        return out;
+      }
+
+      function renderChart() {
+        if (!chartBarsEl) return;
+        if (!chartState.buckets.length) {
+          chartBarsEl.innerHTML =
+            '<div class="chart-empty">' +
+            escapeHtml(t("chart.empty") || "No inferences yet") +
+            "</div>";
+          return;
+        }
+        const palette = getChartPalette();
+        const lastIdx = chartState.buckets.length - 1;
+        const nowLabel = t("chart.now") || "now";
+        const html = chartState.buckets
+          .map((bucket, bIdx) => {
+            const segs = bucket.segments
+              .map((s) => {
+                const color = palette[s.idx] || palette[0];
+                const pct = (s.score * 100).toFixed(1);
+                const label = (s.score * 100).toFixed(0);
+                return (
+                  `<div class="chart-seg" style="height:${pct}%; background:${color};"` +
+                  ` title="${escapeHtml(s.name)}: ${label}%"></div>`
+                );
+              })
+              .join("");
+            const label = bIdx === lastIdx ? nowLabel : "t" + (bIdx + 1);
+            const labelCls =
+              "chart-col-label" +
+              (bIdx === lastIdx ? " chart-col-label--now" : "");
+            return (
+              `<div class="chart-col">` +
+              `<div class="chart-col-stack">${segs}</div>` +
+              `<div class="${labelCls}">${escapeHtml(label)}</div>` +
+              `</div>`
+            );
+          })
+          .join("");
+        chartBarsEl.innerHTML = html;
+      }
 
       function updateCausesChart(causes) {
-        inferenceCount++;
-        causesChart.data.labels.push(inferenceCount);
-
-        const currentNames = new Set(
-          causesChart.data.datasets.map((ds) => ds.label),
-        );
-
-        for (const [curie, causeObj] of Object.entries(causes)) {
-          if (!currentNames.has(causeObj.name)) {
-            const colorIdx =
-              causesChart.data.datasets.length % CHART_COLORS.length;
-            causesChart.data.datasets.push({
-              label: causeObj.name,
-              data: new Array(inferenceCount - 1).fill(null),
-              backgroundColor: CHART_COLORS[colorIdx],
-              borderColor: CHART_COLORS[colorIdx],
-              borderWidth: 0,
-              borderRadius: 2,
-            });
-          }
-        }
-
-        for (const ds of causesChart.data.datasets) {
-          const match = Object.values(causes).find((c) => c.name === ds.label);
-          ds.data.push(match ? match.score : null);
-        }
-
-        causesChart.update();
+        // Order segments by rank descending so the top cause sits at the
+        // bottom of the stack (matches the Pencil design).
+        const segments = Object.values(causes || {})
+          .filter((c) => c && typeof c.score === "number")
+          .sort((a, b) => b.score - a.score)
+          .map((c) => ({
+            name: c.name,
+            idx: chartIdxForCause(c.name),
+            score: Math.max(0, Math.min(1, c.score)),
+          }));
+        chartState.buckets.push({ segments });
+        renderChart();
         renderChartLegend();
       }
 
-      // Custom legend — thin-line swatches + compact labels. Replaces the
-      // default Chart.js legend so it matches the Pencil design exactly.
-      const chartLegendEl = document.getElementById("chartLegend");
+      function clearChart() {
+        chartState.buckets = [];
+        chartState.seen = new Map();
+        renderChart();
+        renderChartLegend();
+      }
+
+      // Custom legend — thin-line swatches + compact labels.
       function renderChartLegend() {
         if (!chartLegendEl) return;
-        const items = causesChart.data.datasets.map((ds) => ({
-          label: ds.label,
-          color: ds.backgroundColor || ds.borderColor || "#4A4E69",
-        }));
+        const palette = getChartPalette();
+        const items = Array.from(chartState.seen.entries()).map(
+          ([name, idx]) => ({ name, color: palette[idx] || palette[0] }),
+        );
         chartLegendEl.innerHTML = items
           .map(
             (it) =>
               `<span class="chart-legend-item">` +
               `<span class="chart-legend-swatch" style="background:${it.color}"></span>` +
-              `${escapeHtml(it.label)}` +
+              `${escapeHtml(it.name)}` +
               `</span>`,
           )
           .join("");
       }
+
+      // Render the initial empty state.
+      renderChart();
 
       // Settings wiring
       const copyBtn = document.getElementById("copyBtn");
@@ -3804,24 +4076,11 @@
         }
       }
 
+      // Re-render the hand-built chart whenever the theme changes so that
+      // the bar colors (pulled from CSS custom properties) refresh.
       function updateChartTheme() {
-        const style = getComputedStyle(document.documentElement);
-        const inkMuted =
-          style.getPropertyValue("--ink-muted").trim() || "#9A8C98";
-        const inkSoft =
-          style.getPropertyValue("--ink-soft").trim() || "#4A4E69";
-        const gridColor =
-          document.documentElement.getAttribute("data-theme") === "dark" ||
-          (document.documentElement.getAttribute("data-theme") === "system" &&
-            systemMedia.matches)
-            ? "rgba(242, 233, 228, 0.08)"
-            : "rgba(34, 34, 59, 0.06)";
-        const opts = causesChart.options;
-        opts.scales.x.ticks.color = inkMuted;
-        opts.scales.y.ticks.color = inkMuted;
-        opts.scales.y.grid.color = gridColor;
-        opts.plugins.legend.labels.color = inkSoft;
-        causesChart.update("none");
+        renderChart();
+        renderChartLegend();
       }
 
       function applyTheme(mode) {
@@ -3959,7 +4218,11 @@
               latestCauses = data.causes || {};
               evolution.push({ t: Date.now(), causes: latestCauses });
 
-              const html = renderCauseList(latestCauses, previous, data.reasoning);
+              const html = renderCauseList(
+                latestCauses,
+                previous,
+                data.reasoning,
+              );
               inference.insertAdjacentHTML("afterbegin", html);
               // Mirror into the main-column differentials container so the
               // Session Result screen can show them in the primary area
@@ -4198,11 +4461,7 @@
           inference.innerHTML = "";
           const diffElReset = document.getElementById("differentialsList");
           if (diffElReset) diffElReset.innerHTML = "";
-          inferenceCount = 0;
-          causesChart.data.labels = [];
-          causesChart.data.datasets = [];
-          causesChart.update();
-          renderChartLegend();
+          clearChart();
           timerEl.textContent = "00:00";
           updateWordCount();
           latestCauses = null;
@@ -4251,7 +4510,9 @@
         if (!sel) return;
         // Reflect stored choice into the select, then apply.
         const stored = localStorage.getItem(UI_LOCALE_KEY) || "en";
-        const supported = Array.from(sel.options).some((o) => o.value === stored);
+        const supported = Array.from(sel.options).some(
+          (o) => o.value === stored,
+        );
         sel.value = supported ? stored : "en";
         applyLocale(sel.value);
         sel.addEventListener("change", () => applyLocale(sel.value));
