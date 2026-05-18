@@ -88,6 +88,10 @@ RUN neo4j-admin database import full \
     --relationships /sw/kg/wdi_edges.tsv \
     --nodes /sw/kg/wdi_nodes.tsv \
     --nodes /sw/kg/combined_nodes.tsv \
+    --relationships /sw/kg/who_mortality_edges.tsv \
+    --nodes /sw/kg/who_mortality_nodes.tsv \
+    --relationships /sw/kg/semra_edges.tsv \
+    --bad-tolerance=100000 \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 
 
