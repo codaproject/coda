@@ -17,15 +17,14 @@ class ACMEExporter(KGSourceExporter):
             nodes.append(
                 [
                     f"icd10:{node}",  # id:ID
-                    "icd10",  # kind -> :LABEL
-                    data.get("type"),  # type
+                    "icd10",  # :LABEL
                     data.get("kind"),  # class_kind
                     node,  # code
                 ]
             )
         nodes_df = pd.DataFrame(
             nodes,
-            columns=["id:ID", ":LABEL", "type", "class_kind", "code"],
+            columns=["id:ID", ":LABEL", "class_kind", "code"],
         )
         nodes_df.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
 

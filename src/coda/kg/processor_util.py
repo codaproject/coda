@@ -1,8 +1,11 @@
-import logging
-import pandas as pd
 import csv
-from tqdm import tqdm
 import os
+import gzip
+import logging
+
+import pandas as pd
+from tqdm import tqdm
+
 from coda.kg.sources import KGSourceExporter, KG_BASE
 
 logger = logging.getLogger(__name__)
@@ -82,7 +85,7 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     # Write combined node representation to a `kg/combined_nodes.tsv`
     if len(joined_nodes) > 0:
         joined_df = pd.DataFrame(joined_nodes)
-        node_file = KG_BASE / "combined_nodes.tsv"
+        node_file = KG_BASE / "combined_nodes.tsv.gz"
         joined_df.to_csv(node_file, sep="\t", index=False)
 
 
@@ -106,7 +109,7 @@ def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: b
     # Get all node ids
     for exporter in tqdm(exporters, desc="loading all graph nodes",
                          unit="source"):
-        with open(exporter.nodes_file, "r") as f:
+        with gzip.open(exporter.nodes_file, "rt") as f:
             reader = csv.reader(f, delimiter="\t")
             header = next(reader)
             id_index = header.index("id:ID")
@@ -114,9 +117,9 @@ def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: b
                 id_value = row[id_index]
                 node_ids.add(id_value)
     # Also check file that stores combined nodes just in case
-    combined_nodes_path = KG_BASE.joinpath("combined_nodes.tsv")
+    combined_nodes_path = KG_BASE.joinpath("combined_nodes.tsv.gz")
     if os.path.exists(combined_nodes_path):
-        with open(combined_nodes_path, "r") as f:
+        with gzip.open(combined_nodes_path, "rt") as f:
             reader = csv.reader(f, delimiter="\t")
             header = next(reader)
             id_index = header.index("id:ID")
@@ -128,7 +131,7 @@ def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: b
     for exporter in tqdm(exporters, desc="checking exporter edge existence",
                          unit="source"):
         tqdm.write(f"Checking {exporter.name} edges")
-        with open(exporter.edges_file, mode="r") as f:
+        with gzip.open(exporter.edges_file, mode="rt") as f:
             reader = csv.reader(f, delimiter="\t")
             header = next(reader)
             start_id_index = header.index(":START_ID")

@@ -12,8 +12,8 @@ class KGSourceExporter(ABC):
     name: str = NotImplemented
 
     def __init__(self):
-        self.nodes_file: Path = KG_BASE / f'{self.name}_nodes.tsv'
-        self.edges_file: Path = KG_BASE / f'{self.name}_edges.tsv'
+        self.nodes_file: Path = KG_BASE / f'{self.name}_nodes.tsv.gz'
+        self.edges_file: Path = KG_BASE / f'{self.name}_edges.tsv.gz'
 
     @abstractmethod
     def export(self):

@@ -38,7 +38,7 @@ class ProbBaseExporter(KGSourceExporter):
         va_question_cols = {
             col: process_va_col(col) for col in df.columns if col.startswith("b_")
         }
-        nodes = df[["who_curie", name_column, *prop_columns]]
+        nodes = df[["who_curie", name_column, *prop_columns]].copy()
         nodes[":LABEL"] = "who.va.q"
         nodes = nodes.rename(columns={"who_curie": "id:ID", name_column: "name"})
         nodes = nodes.dropna(subset=["indic"])

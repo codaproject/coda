@@ -10,7 +10,7 @@ from coda.kg.sources import KGSourceExporter
 
 HERE = Path(__file__).parent
 KG_DIR = HERE.parent.parent.parent.parent / "kg"
-MESH_NODES = KG_DIR / "mesh_hierarchy_nodes.tsv"
+MESH_NODES = KG_DIR / "mesh_hierarchy_nodes.tsv.gz"
 DEV_DATA = HERE / "world_dev_indicator_data.tsv.gz"
 HEALTH_DATA = HERE / "world_health_indicator_data.tsv.gz"
 

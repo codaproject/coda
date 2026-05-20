@@ -36,7 +36,7 @@ class ICD10Exporter(KGSourceExporter):
             nodes.append(
                 [
                     f"icd10:{node}",  # id:ID
-                    "icd10",  # kind -> :LABEL
+                    "icd10",  # :LABEL
                     data.get("rubrics", {}),  # rubrics
                     data.get("rubrics", {}).pop("preferred", [None])[0],  # name
                     data.get("kind"),  # class_kind
