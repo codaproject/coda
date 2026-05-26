@@ -1,19 +1,16 @@
 """WHO Mortality Database exporter for the CODA knowledge graph.
 
-Ingests:
-  - Morticd10_part6 (ICD-10 mortality data, 2021 onwards), downloaded
-    on demand via pystow from the WHO CDN as a zip and read in place
+Ingests (all downloaded on demand via pystow and read in place from the zips):
+  - Morticd10_part6 (ICD-10 mortality data, 2021 onwards)
   - pop.csv (mid-year population and live births)
-  - country_codes.csv (WHO country code → name mapping)
+  - country_codes.csv (WHO country code -> name mapping)
 
 Produces:
   - who_mortality_nodes.tsv  (country nodes with population properties)
-  - who_mortality_edges.tsv  (country → icd10 cause edges with death counts)
+  - who_mortality_edges.tsv  (country -> icd10 cause edges with death counts)
 
-The pop.csv and country_codes.csv files must be downloaded manually from:
+Source:
   https://www.who.int/data/data-collection-tools/who-mortality-database
-
-Place them in the src/coda/resources/ directory.
 """
 
 import logging
@@ -23,19 +20,28 @@ from pathlib import Path
 import pandas as pd
 import pystow
 
-# from coda import CODA_BASE
+from coda import CODA_BASE
 from coda.kg.sources import KGSourceExporter, KG_BASE
 
 logger = logging.getLogger(__name__)
 HERE = Path(__file__).parent
-WHO_MORTALITY_BASE = HERE.parent.parent/"resources"
+WHO_MORTALITY_BASE = CODA_BASE.module("who_mortality")
 
-MORT_PART6_URL = ("https://cdn.who.int/media/docs/default-source/"
-                  "world-health-data-platform/mortality-raw-data/"
-                  "morticd10_part6.zip")
-MORT_PART6_INNER = "Morticd10_part6"
-COUNTRY_CODES_FILENAME = "country_codes.csv"
-POP_FILENAME = "pop.csv"
+BASE_URL = ("https://cdn.who.int/media/docs/default-source/"
+            "world-health-data-platform/mortality-raw-data")
+MORT_PART6_URL = BASE_URL + "/morticd10_part6.zip"
+MORT_PART6_FILENAME = "Morticd10_part6"
+COUNTRY_CODES_URL = BASE_URL + "/mort_country_codes.zip"
+COUNTRY_CODES_FILENAME = "country_codes"
+POP_URL = BASE_URL + "/mort_pop.zip"
+POP_FILENAME = "pop"
+
+# The WHO CDN returns 403 for the default Python-urllib User-Agent, so we
+# force the requests backend with a browser-like UA.
+DOWNLOAD_KWARGS = {
+    "backend": "requests",
+    "headers": {"User-Agent": "Mozilla/5.0"},
+}
 
 # ICD-10 List codes to include (skip 101 = tabulation, UE1 = Portugal special)
 VALID_LISTS = {"103", "104", "10M"}
@@ -56,9 +62,8 @@ DEATH_COLS = [f"Deaths{i}" for i in range(2, 27)]
 POP_COLS = [f"Pop{i}" for i in range(2, 27)]
 
 
-def _normalise_icd10_cause(cause: str) -> str:
-    
-    """Normalise a WHO ICD-10 cause code to match KG node format.
+def _normalize_icd10_cause(cause: str) -> str:
+    """Normalize a WHO ICD-10 cause code to match KG node format.
     - Insert dot for 4-char codes: A000 -> a00.0
     - 3-char codes keep as-is
     """
@@ -86,22 +91,23 @@ def _pick_most_granular(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _load_country_codes(path: Path) -> dict[int, str]:
-    
-    """Load WHO country code -> name mapping."""
+def _load_country_codes(source) -> dict[int, str]:
 
-    df = pd.read_csv(path, encoding="latin1")
+    """Load WHO country code -> name mapping from a path or file-like object."""
+
+    df = pd.read_csv(source, encoding="latin1")
     return dict(zip(df["country"].astype(int), df["name"].str.strip()))
 
 
-def _build_population_lookup(pop_path: Path) -> dict[int, dict]:
-    
+def _build_population_lookup(source) -> dict[int, dict]:
+
     """Build a lookup: country_code -> {year_sex -> {pop_total, age_pops, live_births}}.
 
-    Returns a nested dict for attaching population to country nodes.
+    Accepts a path or file-like object. Returns a nested dict for attaching
+    population to country nodes.
     """
 
-    df = pd.read_csv(pop_path, encoding="latin1")
+    df = pd.read_csv(source, encoding="latin1")
     # Filter to national-level data
     df = df[df["Admin1"].isna()]
     # Filter for data starting 2021
@@ -135,30 +141,28 @@ class WhoMortalityExporter(KGSourceExporter):
     name = "who_mortality"
 
     def export(self):
-        country_codes_path = WHO_MORTALITY_BASE / COUNTRY_CODES_FILENAME
-        pop_path = WHO_MORTALITY_BASE / POP_FILENAME
+        country_codes_zip = pystow.ensure(
+            "coda", "who_mortality", url=COUNTRY_CODES_URL,
+            download_kwargs=DOWNLOAD_KWARGS)
+        pop_zip = pystow.ensure(
+            "coda", "who_mortality", url=POP_URL,
+            download_kwargs=DOWNLOAD_KWARGS)
+        mort_zip_path = pystow.ensure(
+            "coda", "who_mortality", url=MORT_PART6_URL,
+            download_kwargs=DOWNLOAD_KWARGS)
 
-        for path, desc in [
-            (country_codes_path, "country_codes"),
-            (pop_path, "pop"),
-        ]:
-            if not Path(path).exists():
-                raise FileNotFoundError(
-                    f"{desc} not found at {path}. Download from:\n"
-                    "https://www.who.int/data/data-collection-tools/who-mortality-database\n"
-                    f"Extract and place the CSV in {WHO_MORTALITY_BASE}"
-                )
-
-        mort_zip_path = pystow.ensure("coda", "who_mortality", url=MORT_PART6_URL)
-
-        country_names = _load_country_codes(Path(country_codes_path))
-        pop_data = _build_population_lookup(Path(pop_path))
+        with zipfile.ZipFile(country_codes_zip) \
+                as zf, zf.open(COUNTRY_CODES_FILENAME) as f:
+            country_names = _load_country_codes(f)
+        with zipfile.ZipFile(pop_zip) as zf, zf.open(POP_FILENAME) as f:
+            pop_data = _build_population_lookup(f)
         logger.info("Loaded %d country codes, population data for %d countries",
                      len(country_names), len(pop_data))
 
         logger.info("Loading mortality data from %s (%s) ...",
-                    mort_zip_path, MORT_PART6_INNER)
-        with zipfile.ZipFile(mort_zip_path) as zf, zf.open(MORT_PART6_INNER) as f:
+                    mort_zip_path, MORT_PART6_FILENAME)
+        with zipfile.ZipFile(mort_zip_path) \
+                as zf, zf.open(MORT_PART6_FILENAME) as f:
             df = pd.read_csv(f, encoding="latin1", low_memory=False)
         original_rows = len(df)
 
@@ -182,7 +186,7 @@ class WhoMortalityExporter(KGSourceExporter):
         df = df[df["Cause"].str.upper() != "AAA"]
 
         # Normalise cause codes
-        df["cause_normalised"] = df["Cause"].map(_normalise_icd10_cause)
+        df["cause_normalized"] = df["Cause"].map(_normalize_icd10_cause)
 
         # --- Build nodes (countries) ---
         countries_in_data = set(df["Country"].unique())
@@ -209,7 +213,7 @@ class WhoMortalityExporter(KGSourceExporter):
         for _, row in df.iterrows():
             country_code = int(row["Country"])
             start_id = f"who_mortality:{country_code}"
-            end_id = f"icd10:{row['cause_normalised']}"
+            end_id = f"icd10:{row['cause_normalized']}"
 
             year = int(row["Year"])
             sex = SEX_MAP.get(int(row["Sex"]), str(int(row["Sex"])))
