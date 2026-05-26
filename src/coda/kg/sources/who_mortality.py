@@ -1,7 +1,8 @@
 """WHO Mortality Database exporter for the CODA knowledge graph.
 
 Ingests:
-  - Morticd10_part6.csv (ICD-10 mortality data, 2021 onwards)
+  - Morticd10_part6 (ICD-10 mortality data, 2021 onwards), downloaded
+    on demand via pystow from the WHO CDN as a zip and read in place
   - pop.csv (mid-year population and live births)
   - country_codes.csv (WHO country code → name mapping)
 
@@ -9,16 +10,18 @@ Produces:
   - who_mortality_nodes.tsv  (country nodes with population properties)
   - who_mortality_edges.tsv  (country → icd10 cause edges with death counts)
 
-Download the source files manually from:
+The pop.csv and country_codes.csv files must be downloaded manually from:
   https://www.who.int/data/data-collection-tools/who-mortality-database
 
-Place the extracted CSVs in the src/coda/resources/ directory.
+Place them in the src/coda/resources/ directory.
 """
 
 import logging
+import zipfile
 from pathlib import Path
 
 import pandas as pd
+import pystow
 
 # from coda import CODA_BASE
 from coda.kg.sources import KGSourceExporter, KG_BASE
@@ -27,8 +30,10 @@ logger = logging.getLogger(__name__)
 HERE = Path(__file__).parent
 WHO_MORTALITY_BASE = HERE.parent.parent/"resources"
 
-# Filenames after extracting the ZIPs
-MORT_PART6_FILENAME = "Morticd10_part6.csv"
+MORT_PART6_URL = ("https://cdn.who.int/media/docs/default-source/"
+                  "world-health-data-platform/mortality-raw-data/"
+                  "morticd10_part6.zip")
+MORT_PART6_INNER = "Morticd10_part6"
 COUNTRY_CODES_FILENAME = "country_codes.csv"
 POP_FILENAME = "pop.csv"
 
@@ -130,13 +135,10 @@ class WhoMortalityExporter(KGSourceExporter):
     name = "who_mortality"
 
     def export(self):
-        # Resolve file paths
-        mort_path = WHO_MORTALITY_BASE / MORT_PART6_FILENAME
         country_codes_path = WHO_MORTALITY_BASE / COUNTRY_CODES_FILENAME
         pop_path = WHO_MORTALITY_BASE / POP_FILENAME
 
         for path, desc in [
-            (mort_path, "Morticd10_part6"),
             (country_codes_path, "country_codes"),
             (pop_path, "pop"),
         ]:
@@ -147,15 +149,17 @@ class WhoMortalityExporter(KGSourceExporter):
                     f"Extract and place the CSV in {WHO_MORTALITY_BASE}"
                 )
 
-        # --- Load reference data ---
+        mort_zip_path = pystow.ensure("coda", "who_mortality", url=MORT_PART6_URL)
+
         country_names = _load_country_codes(Path(country_codes_path))
         pop_data = _build_population_lookup(Path(pop_path))
         logger.info("Loaded %d country codes, population data for %d countries",
                      len(country_names), len(pop_data))
 
-        # --- Load mortality data ---
-        logger.info("Loading mortality data from %s ...", mort_path)
-        df = pd.read_csv(Path(mort_path), encoding="latin1", low_memory=False)
+        logger.info("Loading mortality data from %s (%s) ...",
+                    mort_zip_path, MORT_PART6_INNER)
+        with zipfile.ZipFile(mort_zip_path) as zf, zf.open(MORT_PART6_INNER) as f:
+            df = pd.read_csv(f, encoding="latin1", low_memory=False)
         original_rows = len(df)
 
         # Treat List and Cause as strings
