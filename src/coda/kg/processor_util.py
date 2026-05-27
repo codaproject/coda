@@ -39,12 +39,10 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     duplicate_ids = set()
     # Each source's representation of all nodes
     all_nodes: dict[str, dict[str, dict]] = {}
-    # Data frames for all nodes
-    frames: dict[str, pd.DataFrame] = {}
     for exporter in exporters:
-        frames[exporter.name] = pd.read_csv(exporter.nodes_file, sep="\t")
+        df = pd.read_csv(exporter.nodes_file, sep="\t")
         all_nodes[exporter.name] = {}
-        for node in frames[exporter.name].to_dict(orient="records"):
+        for node in df.to_dict(orient="records"):
             node_id = node.get("id:ID", "")
             all_nodes[exporter.name][node_id] = node
             if node_id not in nodes_and_sources:
@@ -76,17 +74,14 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
         joined_node["source:string[]"] = \
             ";".join(nodes_and_sources[duplicate_id])
         joined_nodes.append(joined_node)
+    # Will crash program if any duplicate nodes are found
     if conflicting_nodes_count > 0 and strict:
         raise DuplicateNodeIDError(
             f"found conflicting information in {conflicting_nodes_count} nodes..."
         )
-    logger.info("Removing resolved duplicates from node resource files...")
+    # Write combined node representation to a `kg/combined_nodes.tsv`
     if len(joined_nodes) > 0:
         joined_df = pd.DataFrame(joined_nodes)
-        for exporter in exporters:
-            frame = frames[exporter.name]
-            frame = frame[~frame["id:ID"].isin(joined_df["id:ID"])]
-            frame.sort_values("id:ID").to_csv(exporter.nodes_file, sep="\t", index=False)
         node_file = KG_BASE / "combined_nodes.tsv"
         joined_df.to_csv(node_file, sep="\t", index=False)
 
