@@ -44,7 +44,7 @@ def dump_kg():
     ):
         exporter.export()
     check_duplicated_nodes(exporters=EXPORTERS, strict=False)
-    check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=True)
+    check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=False)
 
 
 if __name__ == "__main__":

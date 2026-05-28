@@ -1,4 +1,5 @@
 import csv
+import gzip
 from coda.kg.sources import KGSourceExporter
 
 class MeshExporter(KGSourceExporter):
@@ -59,13 +60,13 @@ class MeshExporter(KGSourceExporter):
         node_header = ['id:ID', 'name', ':LABEL']
         edge_header = [':START_ID', ':END_ID', ':TYPE']
 
-        with open(self.edges_file, 'w') as fh:
+        with gzip.open(self.edges_file, 'wt') as fh:
             writer = csv.writer(fh, delimiter='\t')
-            writer.writerows([edge_header] + sorted(list(edges)))
+            writer.writerows([edge_header] + sorted(edges))
 
-        with open(self.nodes_file, 'w') as fh:
+        with gzip.open(self.nodes_file, 'wt') as fh:
             writer = csv.writer(fh, delimiter='\t')
-            writer.writerows([node_header] + sorted(list(nodes)))
+            writer.writerows([node_header] + sorted(nodes))
 
     def is_geoloc(self, x_db, x_id):
         if x_db == 'MESH':

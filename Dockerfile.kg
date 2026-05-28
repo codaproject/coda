@@ -69,27 +69,27 @@ RUN neo4j-admin database import full \
     --delimiter='TAB' \
     --skip-duplicate-nodes=true \
     --skip-bad-relationships=true \
-    --nodes /sw/kg/combined_nodes.tsv \
-    --relationships /sw/kg/icd10_edges.tsv \
-    --nodes /sw/kg/icd10_nodes.tsv \
-    --relationships /sw/kg/acme_edges.tsv \
-    --nodes /sw/kg/acme_nodes.tsv \
-    --relationships /sw/kg/icd11_edges.tsv \
-    --nodes /sw/kg/icd11_nodes.tsv \
-    --relationships /sw/kg/who_va_edges.tsv \
-    --nodes /sw/kg/who_va_nodes.tsv \
-    --relationships /sw/kg/phmrc_edges.tsv \
-    --nodes /sw/kg/phmrc_nodes.tsv \
-    --relationships /sw/kg/probbase_edges.tsv \
-    --nodes /sw/kg/probbase_nodes.tsv \
-    --relationships /sw/kg/hpo_edges.tsv \
-    --nodes /sw/kg/hpo_nodes.tsv \
-    --relationships /sw/kg/mesh_hierarchy_edges.tsv \
-    --nodes /sw/kg/mesh_hierarchy_nodes.tsv \
-    --relationships /sw/kg/wdi_edges.tsv \
-    --nodes /sw/kg/wdi_nodes.tsv \
-    --relationships /sw/kg/who_mortality_edges.tsv \
-    --nodes /sw/kg/who_mortality_nodes.tsv \
+    --nodes /sw/kg/combined_nodes.tsv.gz \
+    --relationships /sw/kg/icd10_edges.tsv.gz \
+    --nodes /sw/kg/icd10_nodes.tsv.gz \
+    --relationships /sw/kg/acme_edges.tsv.gz \
+    --nodes /sw/kg/acme_nodes.tsv.gz \
+    --relationships /sw/kg/icd11_edges.tsv.gz \
+    --nodes /sw/kg/icd11_nodes.tsv.gz \
+    --relationships /sw/kg/who_va_edges.tsv.gz \
+    --nodes /sw/kg/who_va_nodes.tsv.gz \
+    --relationships /sw/kg/phmrc_edges.tsv.gz \
+    --nodes /sw/kg/phmrc_nodes.tsv.gz \
+    --relationships /sw/kg/probbase_edges.tsv.gz \
+    --nodes /sw/kg/probbase_nodes.tsv.gz \
+    --relationships /sw/kg/hpo_edges.tsv.gz \
+    --nodes /sw/kg/hpo_nodes.tsv.gz \
+    --relationships /sw/kg/mesh_hierarchy_edges.tsv.gz \
+    --nodes /sw/kg/mesh_hierarchy_nodes.tsv.gz \
+    --relationships /sw/kg/wdi_edges.tsv.gz \
+    --nodes /sw/kg/wdi_nodes.tsv.gz \
+    --relationships /sw/kg/who_mortality_edges.tsv.gz \
+    --nodes /sw/kg/who_mortality_nodes.tsv.gz \
     --bad-tolerance 1000000000000000 \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 

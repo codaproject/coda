@@ -208,6 +208,3 @@ __marimo__/
 
 # PyCharm
 .idea/*
-
-# KG module outputs
-/kg/

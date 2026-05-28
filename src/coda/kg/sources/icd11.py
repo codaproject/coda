@@ -32,7 +32,7 @@ class ICD11Exporter(KGSourceExporter):
 
         with zipfile.ZipFile(zip_path, "r") as zf:
             with zf.open(ICD11_FNAME) as fh:
-                df = pd.read_csv(fh, sep="\t")
+                df = pd.read_csv(fh, sep="\t", low_memory=False)
 
         # Foundation URI	icd11Code	icd11Chapter	icd11Title	icd10Code	icd10Title
         # http://id.who.int/icd/entity/1435254666	01	01	Certain infectious or parasitic diseases	I	Certain infectious and parasitic diseases

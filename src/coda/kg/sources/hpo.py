@@ -19,7 +19,7 @@ class HpoExporter(KGSourceExporter):
     def export(self):
         hpoa_file = HPO_BASE.ensure(url=HPOA_URL)
         hpo_file = HPO_BASE.ensure(url=HPO_URL)
-        df = pd.read_csv(hpoa_file, sep="\t", skiprows=4)
+        df = pd.read_csv(hpoa_file, sep="\t", skiprows=4, low_memory=False)
 
         # Set curies and types
         df["disease_curie"] = df["database_id"].str.lower()

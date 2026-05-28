@@ -6,8 +6,8 @@ Ingests (all downloaded on demand via pystow and read in place from the zips):
   - country_codes.csv (WHO country code -> name mapping)
 
 Produces:
-  - who_mortality_nodes.tsv  (country nodes with population properties)
-  - who_mortality_edges.tsv  (country -> icd10 cause edges with death counts)
+  - who_mortality_nodes.tsv.gz  (country nodes with population properties)
+  - who_mortality_edges.tsv.gz  (country -> icd10 cause edges with death counts)
 
 Source:
   https://www.who.int/data/data-collection-tools/who-mortality-database
@@ -21,7 +21,7 @@ import pandas as pd
 import pystow
 
 from coda import CODA_BASE
-from coda.kg.sources import KGSourceExporter, KG_BASE
+from coda.kg.sources import KGSourceExporter
 
 logger = logging.getLogger(__name__)
 HERE = Path(__file__).parent
