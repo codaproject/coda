@@ -62,10 +62,10 @@ RUN echo "apoc.export.file.enabled=true" >> /etc/neo4j/apoc.conf
 # Set up external traffic and basic auth
 RUN sed -i 's/#server.default_listen_address/server.default_listen_address/' /etc/neo4j/neo4j.conf
 
-# Ingest graph content into neo4j
-COPY kg /sw/kg
-
-RUN neo4j-admin database import full \
+# Ingest graph content into neo4j. The TSVs are bind-mounted only for the
+# duration of this RUN, so they are never written into an image layer.
+RUN --mount=type=bind,source=kg,target=/sw/kg \
+    neo4j-admin database import full \
     --delimiter='TAB' \
     --skip-duplicate-nodes=true \
     --skip-bad-relationships=true \
