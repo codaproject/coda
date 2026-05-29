@@ -1,5 +1,11 @@
 FROM python:3.13-slim
 
+# Compute device for PyTorch / Whisper. "cpu" (default) installs the CPU-only
+# torch wheel, producing a much smaller image with no CUDA libraries. "cuda"
+# keeps the default CUDA-enabled torch wheel for NVIDIA GPU hosts; run that
+# image with `docker run --gpus all ...`.
+ARG COMPUTE_DEVICE=cpu
+
 WORKDIR /app
 
 # Install system dependencies for Whisper, audio processing, and building Python packages
@@ -14,8 +20,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install the package
-RUN pip install --no-cache-dir .
+# Install the package. For the CPU device, pre-install the CPU-only torch wheel
+# first so the package install reuses it instead of pulling the multi-GB CUDA
+# build that ships by default.
+RUN if [ "$COMPUTE_DEVICE" = "cpu" ]; then \
+        pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu ; \
+    fi && \
+    pip install --no-cache-dir .
 
 # Download NLTK data and Gilda resources, then build sqlite db for fast startup
 RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab')" && \
@@ -23,6 +34,10 @@ RUN python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt_tab
     python -m gilda.resources.sqlite_adapter /app/grounding_terms.db
 
 ENV GILDA_SQLITE_DB=/app/grounding_terms.db
+
+# Device used by the app at runtime; matches the torch build above. Overridable,
+# and the app falls back to CPU if CUDA is requested but unavailable.
+ENV CODA_DEVICE=${COMPUTE_DEVICE}
 
 # Pre-download Whisper model (assumes medium here)
 RUN python -c "import whisper; whisper.load_model('medium')"

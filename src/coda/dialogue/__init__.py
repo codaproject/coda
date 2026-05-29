@@ -106,7 +106,7 @@ class Transcriber:
                 tmp_filename,
                 language=language,
                 task=task,
-                fp16=False,
+                fp16=getattr(self, "fp16", False),
                 verbose=False
             )
 

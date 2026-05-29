@@ -25,6 +25,7 @@ jobs:
           - name: app
             dockerfile: Dockerfile.app
             image: gyorilab/coda.app
+            build_args: COMPUTE_DEVICE=cpu
             platform: linux/amd64
             platform_pair: linux-amd64
             port: 8000
@@ -36,6 +37,7 @@ jobs:
           - name: app
             dockerfile: Dockerfile.app
             image: gyorilab/coda.app
+            build_args: COMPUTE_DEVICE=cpu
             platform: linux/arm64
             platform_pair: linux-arm64
             lfs: false
@@ -87,6 +89,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           tags: ${{ matrix.image }}:test
           platforms: ${{ matrix.platform }}
           load: ${{ matrix.smoke_test }}
@@ -170,6 +173,7 @@ jobs:
           - name: app
             dockerfile: Dockerfile.app
             image: gyorilab/coda.app
+            build_args: COMPUTE_DEVICE=cpu
             platform: linux/amd64
             platform_pair: linux-amd64
             port: 8000
@@ -181,6 +185,7 @@ jobs:
           - name: app
             dockerfile: Dockerfile.app
             image: gyorilab/coda.app
+            build_args: COMPUTE_DEVICE=cpu
             platform: linux/arm64
             platform_pair: linux-arm64
             lfs: false
@@ -239,6 +244,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           provenance: false

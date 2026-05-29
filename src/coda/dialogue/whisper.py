@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import os
 
+import torch
 import whisper
 
 from . import Transcriber
@@ -26,9 +28,28 @@ class WhisperTranscriber(Transcriber):
             no_speech_threshold if no_speech_threshold is not None
             else DEFAULT_NO_SPEECH_THRESHOLD
         )
-        logger.info(f"Loading Whisper model: {model_size}")
-        self.model = whisper.load_model(model_size)
+        self.device = self._resolve_device()
+        # Whisper only supports fp16 on CUDA; CPU inference must use fp32.
+        self.fp16 = self.device == "cuda"
+        logger.info(f"Loading Whisper model: {model_size} (device={self.device})")
+        self.model = whisper.load_model(model_size, device=self.device)
         logger.info("Whisper model loaded successfully")
+
+    @staticmethod
+    def _resolve_device() -> str:
+        """Determine the torch device, honoring the CODA_DEVICE env var.
+
+        Defaults to CPU. If "cuda" is requested but no CUDA device is
+        available (e.g. a GPU image launched without --gpus), fall back to CPU.
+        """
+        requested = os.environ.get("CODA_DEVICE", "cpu").lower()
+        if requested == "cuda" and not torch.cuda.is_available():
+            logger.warning(
+                "CODA_DEVICE=cuda requested but no CUDA device is available; "
+                "falling back to CPU"
+            )
+            return "cpu"
+        return requested
 
     async def transcribe_file(self, file_path: str, language: str = "en",
                               task: str = "transcribe",

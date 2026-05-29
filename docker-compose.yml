@@ -34,6 +34,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.app
+      # CPU-only build (default). For a GPU host, build with
+      # COMPUTE_DEVICE=cuda, run with the NVIDIA container runtime, and add a
+      # `deploy.resources.reservations.devices` GPU reservation here.
+      args:
+        COMPUTE_DEVICE: cpu
     ports:
       - "8000:8000"
     env_file:
