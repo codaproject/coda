@@ -14,7 +14,7 @@ import logging
 from collections import defaultdict
 
 import pandas as pd
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from coda.resources import get_resource_path
 
 
@@ -80,13 +80,11 @@ class PhmrcExporter(KGSourceExporter):
         phmrc_nodes = pd.DataFrame(merged_phmrc_records)
         edges = pd.DataFrame(edge_records)
 
-        phmrc_nodes.sort_values("id:ID").to_csv(
-            self.nodes_file, sep="\t", index=False
-        )
+        write_tsv_gz(phmrc_nodes.sort_values("id:ID"), self.nodes_file)
 
         # Dump the mappings as edges
-        edges.sort_values([":START_ID", ":END_ID"]).to_csv(
-            self.edges_file, sep="\t", index=False
+        write_tsv_gz(
+            edges.sort_values([":START_ID", ":END_ID"]), self.edges_file
         )
 
 

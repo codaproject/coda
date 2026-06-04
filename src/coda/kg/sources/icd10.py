@@ -1,6 +1,6 @@
 import pandas as pd
 
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from openacme.icd10 import get_icd10_graph
 from openacme.icd10.generate_embeddings import load_embeddings, get_code_index
 from openacme import OPENACME_BASE
@@ -56,7 +56,7 @@ class ICD10Exporter(KGSourceExporter):
                 "embedding:float[]",
             ],
         )
-        nodes_df.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
+        write_tsv_gz(nodes_df.sort_values("id:ID"), self.nodes_file)
 
         for source, target, data in g.edges(data=True):
             edges.append(
@@ -67,8 +67,8 @@ class ICD10Exporter(KGSourceExporter):
                 ]
             )
         edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
-        edges_df.sort_values([":START_ID", ":END_ID"]).to_csv(
-            self.edges_file, sep="\t", index=False
+        write_tsv_gz(
+            edges_df.sort_values([":START_ID", ":END_ID"]), self.edges_file
         )
 
 

@@ -21,7 +21,7 @@ import pandas as pd
 import pystow
 
 from coda import CODA_BASE
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 logger = logging.getLogger(__name__)
 HERE = Path(__file__).parent
@@ -205,7 +205,7 @@ class WhoMortalityExporter(KGSourceExporter):
             nodes.append([node_id, "who_mortality", name, pop_json])
 
         nodes_df = pd.DataFrame(nodes, columns=["id:ID", ":LABEL", "name", "population_data"])
-        nodes_df.to_csv(self.nodes_file, sep="\t", index=False)
+        write_tsv_gz(nodes_df, self.nodes_file)
         logger.info("Wrote %d country nodes to %s", len(nodes_df), self.nodes_file)
 
         # --- Build edges (country → icd10 cause) ---
@@ -243,7 +243,7 @@ class WhoMortalityExporter(KGSourceExporter):
             "age_groups:string[]", "age_deaths:string[]",
         ])
         edges_df = edges_df.sort_values([":START_ID", ":END_ID", "year:int"])
-        edges_df.to_csv(self.edges_file, sep="\t", index=False)
+        write_tsv_gz(edges_df, self.edges_file)
         logger.info("Wrote %d mortality edges to %s", len(edges_df), self.edges_file)
 
 

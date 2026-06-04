@@ -9,7 +9,7 @@ __all__ = ["ProbBaseExporter"]
 
 import pandas as pd
 
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 PROBBASE_URL = (
     "https://github.com/verbal-autopsy-software/interva/raw/"
@@ -43,8 +43,8 @@ class ProbBaseExporter(KGSourceExporter):
         nodes = nodes.rename(columns={"who_curie": "id:ID", name_column: "name"})
         nodes = nodes.dropna(subset=["indic"])
 
-        nodes.sort_values("id:ID").drop_duplicates().to_csv(
-            self.nodes_file, sep="\t", index=False
+        write_tsv_gz(
+            nodes.sort_values("id:ID").drop_duplicates(), self.nodes_file
         )
 
         edges = []
@@ -68,7 +68,7 @@ class ProbBaseExporter(KGSourceExporter):
             axis=1,
         )
         edge_df = edge_df.sort_values([":START_ID", ":END_ID"])
-        edge_df.drop_duplicates().to_csv(self.edges_file, sep="\t", index=False)
+        write_tsv_gz(edge_df.drop_duplicates(), self.edges_file)
 
 
 if __name__ == "__main__":

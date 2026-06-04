@@ -1,10 +1,8 @@
-"""Generation of human-readable build reports and QC statistics.
+"""Descriptive build reports written to kg/reports/ on every build.
 
-These reports are written to ``kg/reports/`` on every build and are not
-version controlled. They are meant for debugging and summarizing the
-composition of the knowledge graph. Integrity checks that also emit reports
-(``missing_nodes.tsv``, ``duplicate_nodes.tsv``) live in
-:mod:`coda.kg.processor_util`; this module holds the descriptive ones.
+These are regenerated each build and not version controlled. The QC checks
+that also emit reports (missing_nodes.tsv, duplicate_nodes.tsv) live in
+processor_util; this module holds the descriptive ones.
 """
 import csv
 import gzip
@@ -38,10 +36,10 @@ def _read_tsv_gz(path):
 
 
 def generate_source_summary(exporters: list[KGSourceExporter]):
-    """Write one row per source with node/edge counts and label/type makeup.
+    """Write source_summary.tsv: one row per source with node/edge counts.
 
-    Produces ``reports/source_summary.tsv`` - a quick sanity table to confirm
-    each source contributed roughly the expected volume and structure.
+    A quick sanity table to confirm each source contributed the expected
+    volume and the right node labels and edge types.
     """
     records = []
     for exporter in tqdm(exporters, desc="summarizing sources", unit="source"):
@@ -77,11 +75,10 @@ def generate_source_summary(exporters: list[KGSourceExporter]):
 
 
 def generate_namespace_bridge_matrix(exporters: list[KGSourceExporter]):
-    """Count edges by (source, start namespace, end namespace).
+    """Write namespace_bridge_matrix.tsv: edge counts by namespace pair.
 
-    Produces ``reports/namespace_bridge_matrix.tsv`` showing how namespaces
-    are linked across the KG, e.g. how many ``mondo`` to ``omim`` edges the
-    MONDO source contributes. Useful for understanding cross-ontology bridges.
+    Counts edges per (source, start namespace, end namespace), e.g. how many
+    mondo to omim edges MONDO contributes, to show how the ontologies link up.
     """
     counts: Counter = Counter()
     for exporter in tqdm(
@@ -137,11 +134,10 @@ def _count_rows(path) -> int:
 def generate_build_manifest(
     exporters: list[KGSourceExporter], build_seconds: float | None = None
 ):
-    """Write a JSON manifest of the build for provenance and diffing.
+    """Write build_manifest.json for provenance and diffing builds.
 
-    Produces ``reports/build_manifest.json`` recording the CODA version, build
-    timestamp, and per-source file sizes, row counts, and SHA-256 checksums so
-    builds can be compared over time.
+    Records the CODA version, build timestamp, and per-source file sizes, row
+    counts, and SHA-256 checksums so builds can be compared over time.
     """
     sources = []
     for exporter in tqdm(exporters, desc="manifest", unit="source"):
@@ -176,7 +172,7 @@ def generate_build_manifest(
 def generate_reports(
     exporters: list[KGSourceExporter], build_seconds: float | None = None
 ):
-    """Generate all descriptive build reports under ``kg/reports/``."""
+    """Generate all descriptive build reports under kg/reports/."""
     generate_source_summary(exporters)
     generate_namespace_bridge_matrix(exporters)
     generate_build_manifest(exporters, build_seconds=build_seconds)

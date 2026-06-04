@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 # NOTE: This exporter assumes that MeSH country nodes are already present in the KG (via a separate module).
 # Country nodes are NOT created here, only referenced via CURIEs.
@@ -38,8 +38,8 @@ class WDIExporter(KGSourceExporter):
         nodes_df, edges_df = self._build_graph(df, mesh_lookup)
 
         # Write output
-        nodes_df.to_csv(self.nodes_file, sep="\t", index=False)
-        edges_df.to_csv(self.edges_file, sep="\t", index=False)
+        write_tsv_gz(nodes_df, self.nodes_file)
+        write_tsv_gz(edges_df, self.edges_file)
 
     # Combine datasets
 

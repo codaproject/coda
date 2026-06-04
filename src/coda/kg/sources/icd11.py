@@ -12,7 +12,7 @@ import zipfile
 
 import pandas as pd
 
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from openacme import OPENACME_BASE
 
 ICD11_BASE = OPENACME_BASE.module("icd11")
@@ -103,16 +103,17 @@ class ICD11Exporter(KGSourceExporter):
         node_df = pd.DataFrame(
             nodes, columns=["id:ID", ":LABEL", "code", "name", "class_kind"]
         )
-        node_df.drop_duplicates().sort_values("id:ID").to_csv(
-            self.nodes_file, sep="\t", index=False
+        write_tsv_gz(
+            node_df.drop_duplicates().sort_values("id:ID"), self.nodes_file
         )
 
         edge_df = pd.DataFrame(
             edges, columns=[":START_ID", ":END_ID", ":TYPE"]
         )
-        edge_df.drop_duplicates().sort_values(
+        edge_df = edge_df.drop_duplicates().sort_values(
             [":START_ID", ":END_ID"]
-        ).to_csv(self.edges_file, sep="\t", index=False)
+        )
+        write_tsv_gz(edge_df, self.edges_file)
 
 
 if __name__ == "__main__":

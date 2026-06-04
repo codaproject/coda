@@ -17,7 +17,7 @@ due to updates (the paper is from 2012 whereas the latest WHO VA
 standard is from 2016).
 """
 import pandas as pd
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from openacme.icd10 import Icd10Graph
 from coda.resources import get_resource_path
 
@@ -52,7 +52,7 @@ class WhoVaExporter(KGSourceExporter):
             axis=1,
         )
         nodes[":LABEL"] = "who.va"
-        nodes.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
+        write_tsv_gz(nodes.sort_values("id:ID"), self.nodes_file)
 
         edges = []
         for _, row in df.iterrows():
@@ -83,8 +83,8 @@ class WhoVaExporter(KGSourceExporter):
                         edges.append((icd10_curie, who_va_curie, "maps_to"))
 
         edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
-        edges_df.sort_values([":START_ID", ":END_ID"]).to_csv(
-            self.edges_file, sep="\t", index=False
+        write_tsv_gz(
+            edges_df.sort_values([":START_ID", ":END_ID"]), self.edges_file
         )
 
 

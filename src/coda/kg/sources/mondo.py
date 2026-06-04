@@ -2,7 +2,7 @@ import obonet
 import pandas as pd
 
 from coda import CODA_BASE
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 MONDO_BASE = CODA_BASE.module("mondo")
 MONDO_URL = "https://purl.obolibrary.org/obo/mondo.obo"
@@ -60,13 +60,14 @@ class MondoExporter(KGSourceExporter):
                 edges.append([mondo_curie, target_curie, EXACT_MATCH])
 
         nodes_df = pd.DataFrame(nodes, columns=["id:ID", ":LABEL", "name"])
-        nodes_df.drop_duplicates().sort_values("id:ID").to_csv(
-            self.nodes_file, sep="\t", index=False
+        write_tsv_gz(
+            nodes_df.drop_duplicates().sort_values("id:ID"), self.nodes_file
         )
 
         edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
-        edges_df.drop_duplicates().sort_values([":START_ID", ":END_ID"]).to_csv(
-            self.edges_file, sep="\t", index=False
+        write_tsv_gz(
+            edges_df.drop_duplicates().sort_values([":START_ID", ":END_ID"]),
+            self.edges_file,
         )
 
 

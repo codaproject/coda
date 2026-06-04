@@ -7,7 +7,7 @@ from collections import Counter
 import pandas as pd
 from tqdm import tqdm
 
-from coda.kg.sources import KGSourceExporter, KG_BASE, REPORTS_BASE
+from coda.kg.sources import KGSourceExporter, KG_BASE, REPORTS_BASE, write_tsv_gz
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     # Write combined node representation to a `kg/combined_nodes.tsv.gz`
     if len(joined_nodes) > 0:
         joined_df = pd.DataFrame(joined_nodes)
-        joined_df.to_csv(COMBINED_NODES_PATH, sep="\t", index=False)
+        write_tsv_gz(joined_df, COMBINED_NODES_PATH)
     # Write a report of duplicated node IDs, conflicts first
     if dup_records:
         REPORTS_BASE.mkdir(parents=True, exist_ok=True)

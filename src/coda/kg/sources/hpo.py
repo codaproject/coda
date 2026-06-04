@@ -2,7 +2,7 @@ import pandas as pd
 import obonet
 
 from coda import CODA_BASE
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 HPO_BASE = CODA_BASE.module("hpo")
 HPOA_URL = "https://purl.obolibrary.org/obo/hp/phenotype.hpoa"
@@ -34,7 +34,7 @@ class HpoExporter(KGSourceExporter):
         )
 
         # Dump disease and phenotype nodes
-        pd.concat(
+        nodes_df = pd.concat(
             [
                 df[["disease_curie", "disease_type", "disease_name"]].rename(
                     columns={
@@ -51,9 +51,8 @@ class HpoExporter(KGSourceExporter):
                     }
                 ),
             ]
-        ).sort_values("id:ID").drop_duplicates().to_csv(
-            self.nodes_file, index=False, sep="\t"
-        )
+        ).sort_values("id:ID").drop_duplicates()
+        write_tsv_gz(nodes_df, self.nodes_file)
 
         # Dump edges
         edges = df[
@@ -77,7 +76,7 @@ class HpoExporter(KGSourceExporter):
         )
         edges[":TYPE"] = "has_phenotype"
         edges = edges.sort_values([":START_ID", ":END_ID"])
-        edges.drop_duplicates().to_csv(self.edges_file, sep="\t", index=False)
+        write_tsv_gz(edges.drop_duplicates(), self.edges_file)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import pandas as pd
 
 from openacme.acme import get_acme_graph
-from coda.kg.sources import KGSourceExporter
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 
 class ACMEExporter(KGSourceExporter):
@@ -26,7 +26,7 @@ class ACMEExporter(KGSourceExporter):
             nodes,
             columns=["id:ID", ":LABEL", "class_kind", "code"],
         )
-        nodes_df.sort_values("id:ID").to_csv(self.nodes_file, sep="\t", index=False)
+        write_tsv_gz(nodes_df.sort_values("id:ID"), self.nodes_file)
 
         for source, target, data in g.edges(data=True):
             edges.append(
@@ -37,8 +37,8 @@ class ACMEExporter(KGSourceExporter):
                 ]
             )
         edges_df = pd.DataFrame(edges, columns=[":START_ID", ":END_ID", ":TYPE"])
-        edges_df.sort_values([":START_ID", ":END_ID"]).to_csv(
-            self.edges_file, sep="\t", index=False
+        write_tsv_gz(
+            edges_df.sort_values([":START_ID", ":END_ID"]), self.edges_file
         )
 
 
