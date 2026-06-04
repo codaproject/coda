@@ -16,6 +16,8 @@ who_mortality_nodes.tsv.gz filter=lfs diff=lfs merge=lfs -text
 hpo_nodes.tsv.gz filter=lfs diff=lfs merge=lfs -text
 icd10_nodes.tsv.gz filter=lfs diff=lfs merge=lfs -text
 mesh_hierarchy_edges.tsv.gz filter=lfs diff=lfs merge=lfs -text
+mondo_nodes.tsv.gz filter=lfs diff=lfs merge=lfs -text
+mondo_edges.tsv.gz filter=lfs diff=lfs merge=lfs -text
 probbase_nodes.tsv.gz filter=lfs diff=lfs merge=lfs -text
 who_mortality_edges.tsv.gz filter=lfs diff=lfs merge=lfs -text
 who_va_edges.tsv.gz filter=lfs diff=lfs merge=lfs -text

@@ -86,6 +86,8 @@ RUN --mount=type=bind,source=kg,target=/sw/kg \
     --nodes /sw/kg/hpo_nodes.tsv.gz \
     --relationships /sw/kg/mesh_hierarchy_edges.tsv.gz \
     --nodes /sw/kg/mesh_hierarchy_nodes.tsv.gz \
+    --relationships /sw/kg/mondo_edges.tsv.gz \
+    --nodes /sw/kg/mondo_nodes.tsv.gz \
     --relationships /sw/kg/wdi_edges.tsv.gz \
     --nodes /sw/kg/wdi_nodes.tsv.gz \
     --relationships /sw/kg/who_mortality_edges.tsv.gz \
