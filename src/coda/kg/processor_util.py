@@ -2,11 +2,12 @@ import csv
 import os
 import gzip
 import logging
+from collections import Counter
 
 import pandas as pd
 from tqdm import tqdm
 
-from coda.kg.sources import KGSourceExporter, KG_BASE
+from coda.kg.sources import KGSourceExporter, KG_BASE, REPORTS_BASE
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +58,12 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
                 duplicate_ids.add(node_id)
     joined_nodes = []
     conflicting_nodes_count: int = 0
+    # One record per duplicated node ID for the duplicate_nodes.tsv report
+    dup_records: list = []
     logger.info("Attempting to automatically resolve duplicated nodes...")
     for duplicate_id in duplicate_ids:
         joined_node = {}
+        conflicting_keys: set[str] = set()
         for source in nodes_and_sources[duplicate_id]:
             node_rep = all_nodes[source][duplicate_id]
             for key in node_rep.keys():
@@ -71,6 +75,7 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
                     pass
                 else:
                     conflicting_nodes_count += 1
+                    conflicting_keys.add(key)
                     logger.warning(
                         f"{duplicate_id} has conflicting information in "
                         f"{key} attribute from "
@@ -79,6 +84,13 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
         joined_node["source:string[]"] = \
             ";".join(nodes_and_sources[duplicate_id])
         joined_nodes.append(joined_node)
+        dup_records.append({
+            "id": duplicate_id,
+            "n_sources": len(nodes_and_sources[duplicate_id]),
+            "sources": ";".join(sorted(nodes_and_sources[duplicate_id])),
+            "n_conflicting_attrs": len(conflicting_keys),
+            "conflicting_attrs": ";".join(sorted(conflicting_keys)),
+        })
     # Will crash program if any duplicate nodes are found
     if conflicting_nodes_count > 0 and strict:
         raise DuplicateNodeIDError(
@@ -88,6 +100,16 @@ def check_duplicated_nodes(exporters: list[KGSourceExporter], strict: bool = Tru
     if len(joined_nodes) > 0:
         joined_df = pd.DataFrame(joined_nodes)
         joined_df.to_csv(COMBINED_NODES_PATH, sep="\t", index=False)
+    # Write a report of duplicated node IDs, conflicts first
+    if dup_records:
+        REPORTS_BASE.mkdir(parents=True, exist_ok=True)
+        dup_df = pd.DataFrame(dup_records).sort_values(
+            ["n_conflicting_attrs", "n_sources", "id"],
+            ascending=[False, False, True],
+        )
+        dup_df.to_csv(
+            REPORTS_BASE.joinpath("duplicate_nodes.tsv"), sep="\t", index=False
+        )
 
 
 def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: bool = True):
@@ -126,8 +148,11 @@ def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: b
             for row in reader:
                 id_value = row[id_index]
                 node_ids.add(id_value)
-    # Check that all nodes exist in the edge file
-    records: list = []
+    # Check that all nodes referenced in edges are defined. The same undefined
+    # node is typically referenced by many distinct edges, so rather than one
+    # row per edge we count, per source, how many times each undefined node is
+    # referenced and write one row per (source, missing node).
+    missing_counts: Counter = Counter()
     for exporter in tqdm(exporters, desc="checking exporter edge existence",
                          unit="source"):
         tqdm.write(f"Checking {exporter.name} edges")
@@ -145,20 +170,29 @@ def check_missing_node_ids_in_edges(exporters: list[KGSourceExporter], strict: b
                 type_value = row[type_index]
                 for node_id in (start_id_value, end_id_value):
                     if node_id not in node_ids:
-                        record = {
-                            "start": start_id_value,
-                            "type": type_value,
-                            "end": end_id_value,
-                            "missing_id": node_id,
-                        }
                         if strict:
-                            raise MissingNodeIDError(msg.format(**record))
-                        else:
-                            records.append(record)
-                            logger.warning(msg.format(**record))
-        if len(records) > 0:
-            logger.info("Edges with missing node IDs found, wrote "
-                        "list to missing_edges.tsv")
-            df = pd.DataFrame(records)
-            df.to_csv(KG_BASE.join(name="missing_edges.tsv"),
-                      sep="\t", index=False)
+                            raise MissingNodeIDError(msg.format(
+                                start=start_id_value,
+                                type=type_value,
+                                end=end_id_value,
+                                missing_id=node_id,
+                            ))
+                        missing_counts[(exporter.name, node_id)] += 1
+    if missing_counts:
+        logger.warning(
+            "Found %d distinct nodes referenced in edges but not defined; "
+            "wrote list to missing_nodes.tsv", len(missing_counts)
+        )
+        df = pd.DataFrame(
+            [
+                {"source": source, "missing_id": node_id, "count": count}
+                for (source, node_id), count in missing_counts.items()
+            ]
+        )
+        df = df.sort_values(
+            ["source", "count", "missing_id"],
+            ascending=[True, False, True],
+        )
+        REPORTS_BASE.mkdir(parents=True, exist_ok=True)
+        df.to_csv(REPORTS_BASE.joinpath("missing_nodes.tsv"),
+                  sep="\t", index=False)

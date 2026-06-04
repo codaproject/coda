@@ -1,3 +1,5 @@
+import time
+
 from tqdm import tqdm
 
 from coda.kg.sources import (
@@ -13,10 +15,12 @@ from coda.kg.sources import (
     wdi,
     who_mortality,
     KG_BASE,
+    REPORTS_BASE,
     KGSourceExporter,
 )
 from coda.kg.processor_util import check_duplicated_nodes, \
     check_missing_node_ids_in_edges
+from coda.kg.reports import generate_reports
 
 
 EXPORTERS: list[KGSourceExporter] = [
@@ -36,9 +40,11 @@ EXPORTERS: list[KGSourceExporter] = [
 
 def dump_kg():
     """Dump the knowledge graph to file."""
-    # Make folder if needed
+    # Make folders if needed
     KG_BASE.mkdir(exist_ok=True)
+    REPORTS_BASE.mkdir(parents=True, exist_ok=True)
 
+    start = time.time()
     for exporter in tqdm(
         EXPORTERS,
         desc="Exporting KG sources",
@@ -47,6 +53,7 @@ def dump_kg():
         exporter.export()
     check_duplicated_nodes(exporters=EXPORTERS, strict=False)
     check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=False)
+    generate_reports(EXPORTERS, build_seconds=time.time() - start)
 
 
 if __name__ == "__main__":

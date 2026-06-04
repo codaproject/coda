@@ -4,6 +4,9 @@ from pathlib import Path
 HERE = Path(__file__).parent
 REPO_ROOT = HERE.parent.parent.parent.parent
 KG_BASE = REPO_ROOT.joinpath('kg')
+# Directory for human-readable build reports and QC statistics. These are
+# regenerated on every build and are not version controlled.
+REPORTS_BASE = KG_BASE.joinpath('reports')
 
 
 class KGSourceExporter(ABC):

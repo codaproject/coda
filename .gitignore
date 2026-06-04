@@ -208,3 +208,6 @@ __marimo__/
 
 # PyCharm
 .idea/*
+
+# CODA KG build reports (regenerated each build, not version controlled)
+kg/reports/
