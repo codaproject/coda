@@ -55,6 +55,7 @@ rag = [
     "sentence-transformers",
     "scikit-learn",
     "neo4j",
+    "pyyaml",
 ]
 
 [project.urls]
@@ -69,6 +70,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
+"coda.grounding.rag_grounder" = ["default_config.yaml"]
 "coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]

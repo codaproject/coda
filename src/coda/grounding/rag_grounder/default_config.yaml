@@ -1,0 +1,11 @@
+extractor:
+  concept_type: disease
+
+retriever:
+  ontology: icd10
+  embedding_model: all-MiniLM-L6-v2
+  top_k: 10
+  min_similarity: 0.0
+
+llm:
+  model: gpt-4o-mini
