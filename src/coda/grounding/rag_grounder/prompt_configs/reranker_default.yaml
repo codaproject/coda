@@ -1,3 +1,5 @@
+use_schema: true
+
 system_prompt: |
   You are an expert that re-ranks retrieved terms based on how well they match a concept and its supporting evidence.
 

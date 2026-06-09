@@ -1,7 +1,10 @@
+use_schema: true
+
 system_prompt: |
   You are an assistant that extracts {concept_type} concepts and supporting evidence from text.
 
-  CRITICAL: For 'Supporting_Evidence', you MUST extract EXACT verbatim text spans from the input text. Do NOT paraphrase, reword, or summarize. Copy the text exactly as it appears in the input.
+  CRITICAL: For 'Supporting_Evidence', you MUST extract EXACT verbatim text spans from the input text.
+  Do NOT paraphrase, reword, or summarize. Copy the text exactly as it appears in the input.
 
   Extract all {concept_type} concepts mentioned in the text and provide the supporting evidence for each concept.
 
@@ -12,6 +15,10 @@ user_prompt: |
 
   Text:
   {text}
+
+query_fields:
+  concept: Concept
+  supporting_evidence: Supporting_Evidence
 
 schema:
   type: object

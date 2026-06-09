@@ -1,5 +1,10 @@
+concept_type: disease
+
+llm:
+  model: gpt-4o-mini
+
 extractor:
-  concept_type: disease
+  prompt_config_path: "prompt_configs/extractor_default.yaml"
 
 retriever:
   ontology: icd10
@@ -7,5 +12,5 @@ retriever:
   top_k: 10
   min_similarity: 0.0
 
-llm:
-  model: gpt-4o-mini
+reranker:
+  prompt_config_path: "prompt_configs/reranker_default.yaml"

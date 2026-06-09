@@ -4,7 +4,7 @@ Term retrieval using neo4j vector search.
 import logging
 from typing import List, Tuple
 
-from neo4j import Driver
+from neo4j import GraphDatabase
 from sentence_transformers import SentenceTransformer
 
 from .types import RetrievalTerm
@@ -19,13 +19,16 @@ class Retriever:
 
     def __init__(
         self,
-        driver: Driver,
         ontology: str,
         model_name: str,
+        top_k: int,
+        min_similarity: float
     ):
-        self.driver = driver
+        self.driver = GraphDatabase.driver("bolt://localhost:7687", auth=None)
         self.ontology = ontology
         self.model_name = model_name
+        self.top_k = top_k
+        self.min_similarity = min_similarity
         self._model = None
         self._ensure_vector_index()
 
@@ -54,26 +57,8 @@ class Retriever:
 
     def retrieve(
         self,
-        query_text: str,
-        top_k: int = 10,
-        min_similarity: float = 0.0,
+        query_text: str
     ) -> List[Tuple[RetrievalTerm, float]]:
-        """Retrieve top-k most similar terms for query text.
-
-        Parameters
-        ----------
-        query_text : str
-            Query text to search for.
-        top_k : int
-            Number of top terms to return.
-        min_similarity : float
-            Minimum similarity threshold (0.0 to 1.0).
-
-        Returns
-        -------
-        list of tuple (RetrievalTerm, float)
-            Terms ordered by similarity descending.
-        """
         if not query_text or not query_text.strip():
             return []
 
@@ -93,9 +78,9 @@ class Retriever:
                 RETURN node.id AS id, node.name AS name, score
                 """,
                 index_name=index_name,
-                top_k=top_k,
+                top_k=self.top_k,
                 query_embedding=query_embedding,
-                min_similarity=min_similarity,
+                min_similarity=self.min_similarity,
             )
             return [
                 (RetrievalTerm(id=record["id"], name=record["name"]), record["score"])
