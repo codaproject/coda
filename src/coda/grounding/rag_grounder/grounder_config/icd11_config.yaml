@@ -1,0 +1,18 @@
+concept_type: disease
+
+llm:
+  provider: openai
+  model: gpt-4o-mini
+
+extractor:
+  prompt_config_path: "../prompt_configs/extractor_default.yaml"
+
+retriever:
+  ontology: icd11
+  embedding_model: all-MiniLM-L6-v2
+  top_k: 10
+  min_similarity: 0.0
+
+reranker:
+  enabled: true
+  prompt_config_path: "../prompt_configs/reranker_default.yaml"

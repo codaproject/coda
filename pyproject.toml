@@ -33,6 +33,7 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "websockets>=12.0",
     "openai-whisper>=20231117",
+    "torch>=2.5.0",
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     "httpx>=0.25.0",
@@ -49,7 +50,15 @@ kg_build = [
     "openpyxl",
     "xlrd",
     "indra",
+    "pysb @ git+https://github.com/pysb/pysb.git",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
+    "sentence-transformers",
+]
+rag = [
+    "sentence-transformers",
+    "scikit-learn",
+    "neo4j",
+    "pyyaml",
 ]
 
 [project.urls]
@@ -64,6 +73,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
+"coda.grounding.rag_grounder" = ["grounder_config/*.yaml", "prompt_configs/*.yaml"]
 "coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]

@@ -1,0 +1,43 @@
+use_schema: true
+
+system_prompt: |
+  You are an expert that re-ranks retrieved terms based on how well they match a concept and its supporting evidence.
+
+  Consider these factors (in order of importance):
+  1. Concept alignment: Does the term accurately represent the concept?
+  2. Evidence alignment: Does the term match the supporting evidence?
+  3. Specificity: Prefer more specific terms over general ones when appropriate
+  4. Retrieval relevance: Consider how well the term matches semantically
+
+  Return ONLY JSON that matches the provided schema, ordered from most to least appropriate.
+
+user_prompt: |
+  Given this concept and evidences, rerank these terms:
+
+  Concept:
+  {concept}
+
+  Supporting evidence:
+  {evidence_text}
+
+  Retrieved candidate terms:
+  {retrieved_terms}
+
+  Re-rank these terms based on how well they match the concept and evidence.
+
+schema:
+  type: object
+  properties:
+    Reranked_Terms:
+      type: array
+      items:
+        type: object
+        properties:
+          Term_Identifier:
+            type: string
+          Term_Name:
+            type: string
+        required: [Term_Identifier, Term_Name]
+        additionalProperties: false
+  required: [Reranked_Terms]
+  additionalProperties: false

@@ -18,9 +18,14 @@ from coda.kg.sources import (
     REPORTS_BASE,
     KGSourceExporter,
 )
+from coda.kg.embed_nodes import embed_nodes
 from coda.kg.processor_util import check_duplicated_nodes, \
     check_missing_node_ids_in_edges
 from coda.kg.reports import generate_reports
+
+# Sources that don't pre-compute embeddings during export and need a
+# post-export embedding pass.
+EMBED_SOURCES = ["icd11"]
 
 
 EXPORTERS: list[KGSourceExporter] = [
@@ -51,6 +56,9 @@ def dump_kg():
         unit="source",
     ):
         exporter.export()
+    for exporter in EXPORTERS:
+        if exporter.name in EMBED_SOURCES:
+            embed_nodes(exporter.nodes_file)
     check_duplicated_nodes(exporters=EXPORTERS, strict=False)
     check_missing_node_ids_in_edges(exporters=EXPORTERS, strict=False)
     generate_reports(EXPORTERS, build_seconds=time.time() - start)

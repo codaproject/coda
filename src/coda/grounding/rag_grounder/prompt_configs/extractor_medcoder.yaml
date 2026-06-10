@@ -1,0 +1,37 @@
+# Verbatim prompt from MedCodER paper for ICD-10 coding from clinical text.
+# use_schema: false because the original prompt asks for a raw JSON array.
+use_schema: false
+
+system_prompt: ""
+
+user_prompt: |
+  You are an expert clinical coder. Your task is to identify all the disease diagnoses present in the given
+  Medical Note.
+  Medical Note:
+  {text}
+  The output must be a valid JSON list, where each element of the list must contain the following:
+  1. Disease: The disease mentioned in the Medical Note.
+  2. Supporting Evidence: The list of sentences from the Medical Note which contain information related
+  to diagnosis, assessment, medical reasoning, treatment plans, medications, referrals for the Disease.
+  Do not include sentences about the medical history of the patient.
+  3. ICD-10-CM Code: The ICD-10 code for the Disease.
+  Here is an example output:
+  [
+  {
+  "Disease": "<disease diagnosis 1>",
+  "Supporting Evidence": [<list of sentences which contain any kind of information related to
+  diagnosis, assessment, medical reasoning, treatment plans, medications, referrals for disease diagnosis 1>],
+  "ICD-10-CM Code": <ICD-10-CM Code for diagnosis 1>
+  },
+  {
+  "Disease": "<disease diagnosis 2>",
+  "Supporting Evidence": [<list of sentences which contain any kind of information related to
+  diagnosis, assessment, medical reasoning, treatment plans, medications, referrals for disease diagnosis 2>],
+  "ICD-10-CM Code": <ICD-10-CM Code for diagnosis 2>
+  },
+  ]
+  Output only the JSON and nothing else.
+  Output:
+
+concept_key: Disease
+supporting_evidence_field: Supporting Evidence

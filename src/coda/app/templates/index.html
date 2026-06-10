@@ -139,6 +139,10 @@
             background: #c45a61;
             color: #fff;
         }
+        .btn-record:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
 
         .recording-indicator {
             display: inline-block;
@@ -288,7 +292,43 @@
                                             </select>
                                         </div>
                                         <div class="col-auto">
-                                            <button id="whisperApplyBtn" class="btn btn-sm btn-outline-primary" style="display: none;">Load</button>
+                                            <label for="grounderSelect" class="mb-0">Grounder</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select id="grounderSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="gilda">Gilda</option>
+                                                <option value="rag">RAG</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <label for="ragProviderSelect" class="mb-0">RAG Provider</label>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <select id="ragProviderSelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="openai">OpenAI</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <label for="ragModelSelect" class="mb-0">Model</label>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <select id="ragModelSelect" class="form-select form-select-sm" style="width: auto;">
+                                            </select>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <label for="ragOntologySelect" class="mb-0">Ontology</label>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <select id="ragOntologySelect" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="icd10">ICD-10</option>
+                                                <option value="icd11">ICD-11</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-auto rag-option" style="display: none;">
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" id="ragRerankerToggle" checked>
+                                                <label class="form-check-label" for="ragRerankerToggle">Reranker</label>
+                                            </div>
                                         </div>
                                         <div class="col-auto">
                                             <div class="form-check form-switch mb-0">
@@ -313,13 +353,16 @@
                                     </div>
                                     <div class="row g-2 align-items-center mt-1" id="llmSettingsRow" style="display: none;">
                                         <div class="col-auto">
-                                            <label for="llmProviderSelect" class="mb-0">Translation LLM</label>
+                                            <label for="llmProviderSelect" class="mb-0">Translation Provider</label>
                                         </div>
                                         <div class="col-auto">
                                             <select id="llmProviderSelect" class="form-select form-select-sm" style="width: auto;">
                                                 <option value="openai">OpenAI</option>
                                                 <option value="ollama">Ollama</option>
                                             </select>
+                                        </div>
+                                        <div class="col-auto">
+                                            <label for="llmModelInput" class="mb-0">Model</label>
                                         </div>
                                         <div class="col-auto">
                                             <input type="text" id="llmModelInput" class="form-control form-control-sm"
@@ -338,6 +381,10 @@
                             <button id="recordBtn" class="btn-record btn-record-start">
                                 <i class="bi bi-mic-fill"></i>
                             </button>
+                            <span id="settingsSpinner" class="ms-2 text-muted" style="display: none;">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                <small>Loading settings...</small>
+                            </span>
                             <button id="resetBtn" class="btn btn-sm btn-subtle ms-3" style="vertical-align: middle;">
                                 <i class="bi bi-arrow-counterclockwise"></i> New Recording
                             </button>
@@ -395,10 +442,12 @@
         let analyser = null;
         let meterAnimFrame = null;
         let isRecording = false;
+        let recordingSessionId = 0;
         let transcriptText = '';
         let chunkCount = 0;
 
         const recordBtn = document.getElementById('recordBtn');
+        const settingsSpinner = document.getElementById('settingsSpinner');
         const recordingStatus = document.getElementById('recordingStatus');
         const transcript = document.getElementById('transcript');
         const inference = document.getElementById('inference');
@@ -486,8 +535,13 @@
         const filePathDisplay = document.getElementById('filePathDisplay');
         const filePathText = document.getElementById('filePathText');
         const whisperModelSelect = document.getElementById('whisperModelSelect');
+        const grounderSelect = document.getElementById('grounderSelect');
+        const ragProviderSelect = document.getElementById('ragProviderSelect');
+        const ragModelSelect = document.getElementById('ragModelSelect');
+        const ragOntologySelect = document.getElementById('ragOntologySelect');
+        const ragRerankerToggle = document.getElementById('ragRerankerToggle');
+        const ragOptionEls = document.querySelectorAll('.rag-option');
         const whisperWarning = document.getElementById('whisperWarning');
-        const whisperApplyBtn = document.getElementById('whisperApplyBtn');
         const translationRow = document.getElementById('translationRow');
         const translationModeSelect = document.getElementById('translationModeSelect');
         const llmSettingsRow = document.getElementById('llmSettingsRow');
@@ -507,14 +561,49 @@
             llmSettingsRow.style.display = (isNonEnglish && translationModeSelect.value === 'llm') ? 'flex' : 'none';
         }
 
+        // Models offered per RAG LLM provider
+        const ragModels = {
+            openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-5.4-mini'],
+        };
+
+        function populateRagModels(provider, selected) {
+            ragModelSelect.innerHTML = '';
+            const models = ragModels[provider] || [];
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                ragModelSelect.appendChild(opt);
+            });
+            // Keep showing a model that isn't in the list (e.g. set via the API)
+            if (selected && !models.includes(selected)) {
+                const opt = document.createElement('option');
+                opt.value = selected;
+                opt.textContent = selected;
+                ragModelSelect.appendChild(opt);
+            }
+            if (selected) ragModelSelect.value = selected;
+        }
+
+        function updateRagVisibility() {
+            const isRag = grounderSelect.value === 'rag';
+            ragOptionEls.forEach(el => el.style.display = isRag ? '' : 'none');
+        }
+
         // Show/hide whisper warning for large models
         function updateWhisperWarning() {
             const val = whisperModelSelect.value;
             whisperWarning.style.display = val.startsWith('large') ? 'block' : 'none';
         }
 
+        // Tracks in-flight settings requests; mic stays disabled until all complete
+        let pendingRequests = 0;
+
         // Load languages and settings on page load
         async function loadSettings() {
+            pendingRequests++;
+            recordBtn.disabled = true;
+            settingsSpinner.style.display = 'inline';
             try {
                 // Fetch languages and populate dropdown
                 const langResp = await fetch('/languages');
@@ -533,7 +622,12 @@
                 languageSelect.value = data.language;
                 saveToggle.checked = data.save_enabled;
                 whisperModelSelect.value = data.whisper_model;
-                loadedWhisperModel = data.whisper_model;
+                grounderSelect.value = data.grounder || 'gilda';
+                ragProviderSelect.value = data.rag_provider || 'openai';
+                populateRagModels(ragProviderSelect.value, data.rag_model);
+                ragOntologySelect.value = data.rag_ontology || 'icd10';
+                ragRerankerToggle.checked = data.rag_use_reranker !== false;
+                updateRagVisibility();
                 llmProviderSelect.value = data.llm_provider;
                 llmModelInput.value = data.llm_model;
                 translationModeSelect.value = data.translation_mode;
@@ -542,10 +636,16 @@
                 updateWhisperWarning();
             } catch (e) {
                 console.error('Failed to load settings:', e);
+            } finally {
+                pendingRequests--;
+                if (pendingRequests === 0 && !isRecording) recordBtn.disabled = false;
+                settingsSpinner.style.display = 'none';
             }
         }
 
         async function updateSettings(changes) {
+            pendingRequests++;
+            if (!isRecording) recordBtn.disabled = true;
             try {
                 const resp = await fetch('/settings', {
                     method: 'POST',
@@ -554,12 +654,12 @@
                 });
                 const data = await resp.json();
                 updateFilePathDisplay(data.file_paths);
-                if (changes.whisper_model) {
-                    showStatus(`Whisper model changed to ${changes.whisper_model} - loading...`, 'info');
-                }
             } catch (e) {
                 console.error('Failed to update settings:', e);
                 showStatus('Failed to update settings', 'danger');
+            } finally {
+                pendingRequests--;
+                if (pendingRequests === 0 && !isRecording) recordBtn.disabled = false;
             }
         }
 
@@ -589,28 +689,32 @@
             updateSettings({save_enabled: saveToggle.checked});
         });
 
-        let loadedWhisperModel = null;
-
         whisperModelSelect.addEventListener('change', () => {
             updateWhisperWarning();
-            // Show "Load" button if selection differs from what's currently loaded
-            if (whisperModelSelect.value !== loadedWhisperModel) {
-                whisperApplyBtn.style.display = 'inline-block';
-            } else {
-                whisperApplyBtn.style.display = 'none';
-            }
+            updateSettings({whisper_model: whisperModelSelect.value});
         });
 
-        whisperApplyBtn.addEventListener('click', async () => {
-            whisperApplyBtn.disabled = true;
-            whisperApplyBtn.textContent = 'Loading...';
-            showStatus(`Loading Whisper model "${whisperModelSelect.value}"...`, 'info');
-            await updateSettings({whisper_model: whisperModelSelect.value});
-            loadedWhisperModel = whisperModelSelect.value;
-            whisperApplyBtn.style.display = 'none';
-            whisperApplyBtn.disabled = false;
-            whisperApplyBtn.textContent = 'Load';
-            showStatus(`Whisper model "${loadedWhisperModel}" loaded`, 'success');
+        grounderSelect.addEventListener('change', () => {
+            updateRagVisibility();
+            updateSettings({grounder: grounderSelect.value});
+        });
+
+        ragProviderSelect.addEventListener('change', () => {
+            const provider = ragProviderSelect.value;
+            populateRagModels(provider, (ragModels[provider] || [])[0]);
+            updateSettings({rag_provider: provider, rag_model: ragModelSelect.value});
+        });
+
+        ragModelSelect.addEventListener('change', () => {
+            updateSettings({rag_model: ragModelSelect.value});
+        });
+
+        ragOntologySelect.addEventListener('change', () => {
+            updateSettings({rag_ontology: ragOntologySelect.value});
+        });
+
+        ragRerankerToggle.addEventListener('change', () => {
+            updateSettings({rag_use_reranker: ragRerankerToggle.checked});
         });
 
         llmProviderSelect.addEventListener('change', () => {
@@ -643,6 +747,11 @@
                 // Disable model selects while recording
                 languageSelect.disabled = true;
                 whisperModelSelect.disabled = true;
+                grounderSelect.disabled = true;
+                ragProviderSelect.disabled = true;
+                ragModelSelect.disabled = true;
+                ragOntologySelect.disabled = true;
+                ragRerankerToggle.disabled = true;
 
                 // Connect to WebSocket
                 const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -799,6 +908,7 @@
                 };
 
                 isRecording = true;
+                recordingSessionId += 1;
                 recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
                 recordBtn.classList.remove('btn-record-start');
                 recordBtn.classList.add('btn-record-stop');
@@ -838,6 +948,11 @@
             // Re-enable model selects
             languageSelect.disabled = false;
             whisperModelSelect.disabled = false;
+            grounderSelect.disabled = false;
+            ragProviderSelect.disabled = false;
+            ragModelSelect.disabled = false;
+            ragOntologySelect.disabled = false;
+            ragRerankerToggle.disabled = false;
         }
 
         recordBtn.addEventListener('click', () => {
@@ -852,6 +967,7 @@
             if (isRecording) {
                 stopRecording();
             }
+            recordingSessionId += 1;
             transcriptText = '';
             chunkCount = 0;
             transcript.innerHTML = '<span class="text-muted">Click the mic to begin...</span>';
