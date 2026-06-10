@@ -1,10 +1,8 @@
 import pandas as pd
-from pathlib import Path
 
 from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from openacme.icd10 import get_icd10_graph
-from openacme.icd10.generate_embeddings import (generate_icd10_embeddings, 
-                                                load_embeddings, get_code_index)
+from openacme.icd10.generate_embeddings import load_embeddings, get_code_index
 from openacme import OPENACME_BASE
 
 ICD10_EMBEDDINGS_BASE = OPENACME_BASE.module("icd10_embeddings")
@@ -16,10 +14,9 @@ class ICD10Exporter(KGSourceExporter):
     def export(self):
         g = get_icd10_graph()
         # Load associated ICD10 embeddings
-        if not (Path(ICD10_EMBEDDINGS_BASE.base) / "embeddings.npy").exists():
-            _ = generate_icd10_embeddings()
-        icd10_embeddings, definitions_data = load_embeddings()
-
+        icd10_embeddings, definitions_data = load_embeddings(
+            embeddings_base=ICD10_EMBEDDINGS_BASE
+        )
         icd10_to_embedding_map = get_code_index(definitions_data=definitions_data)[
             "code_to_idx"
         ]
