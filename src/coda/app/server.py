@@ -424,24 +424,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 if result is not None:
                     chunk_id, timestamp, chunk = result
 
-                    # Transcribe audio
+                    # Transcribe audio to text
                     original_transcript = None
                     if (current_language != "en"
                             and translation_mode == "whisper_translate"):
                         # Whisper translates directly to English
-                        transcript, annotations = (
-                            await transcriber.transcribe_audio(
-                                chunk, language=current_language,
-                                task="translate"
-                            )
+                        english_text = await transcriber.transcribe_audio(
+                            chunk, language=current_language, task="translate"
                         )
-                        english_text = transcript
                     else:
                         # Transcribe in the configured language
-                        transcript, annotations = (
-                            await transcriber.transcribe_audio(
-                                chunk, language=current_language
-                            )
+                        transcript = await transcriber.transcribe_audio(
+                            chunk, language=current_language
                         )
                         english_text = transcript
 
@@ -454,15 +448,14 @@ async def websocket_endpoint(websocket: WebSocket):
                             english_text = await translate_text(
                                 transcript, current_language
                             )
-                            # Re-ground on the English translation (use
-                            # dedicated executor for SQLite thread safety)
-                            from coda.dialogue import Transcriber
-                            loop = asyncio.get_running_loop()
-                            annotations = await loop.run_in_executor(
-                                Transcriber._grounding_executor,
-                                transcriber.grounder.annotate,
-                                english_text,
-                            )
+
+                    # Ground the (final, English) text in a worker thread
+                    annotations = []
+                    if english_text:
+                        loop = asyncio.get_running_loop()
+                        annotations = await loop.run_in_executor(
+                            None, grounder.annotate, english_text
+                        )
 
                     if english_text:
 
