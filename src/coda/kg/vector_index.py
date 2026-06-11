@@ -28,8 +28,6 @@ EMBEDDED_LABELS = {
 
 def _embedding_dim(session, label, prop):
     """Read the embedding dimension for a label/property from imported data."""
-    # Label/property names cannot be parameterised in Cypher, so we use an
-    # f-string. These come from EMBEDDED_LABELS, not user input.
     record = session.run(
         f"""
         MATCH (n:`{label}`)
