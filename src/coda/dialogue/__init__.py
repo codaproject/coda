@@ -13,9 +13,12 @@ from scipy.io import wavfile
 
 logger = logging.getLogger(__name__)
 
+# Default chunk length (seconds) used by the live app's audio pipeline.
+DEFAULT_CHUNK_DURATION = 3
+
 
 class AudioProcessor:
-    def __init__(self, sample_rate=16000, chunk_duration=3):
+    def __init__(self, sample_rate=16000, chunk_duration=DEFAULT_CHUNK_DURATION):
         """Initialize audio processor.
 
         Parameters
