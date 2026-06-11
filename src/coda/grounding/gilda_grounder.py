@@ -20,11 +20,10 @@ class GildaGrounder(BaseGrounder):
     uses it for near-instant startup. Otherwise it falls back to
     loading the default TSV terms into memory.
 
-    Gilda's SQLite adapter caches a single connection, which is bound to
-    the thread that first triggers it.  To avoid cross-thread errors the
-    grounder is created lazily on the first call to ``ground`` or
-    ``annotate``, so it binds to whichever thread actually uses it (e.g.
-    a dedicated executor thread).
+    Gilda's SQLite backend keeps a per-thread connection (via
+    ``threading.local``), so grounding is safe to call from any thread.
+    The underlying grounder is still built lazily on the first
+    ``ground``/``annotate`` call to keep startup cheap.
     """
 
     def __init__(self, namespaces=None, db_path=None):

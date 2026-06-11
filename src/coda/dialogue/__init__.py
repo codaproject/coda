@@ -1,19 +1,15 @@
 __all__ = ["AudioProcessor", "Transcriber"]
 
-import asyncio
 import os
 import logging
 import tempfile
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
 
 import gilda
 import numpy as np
 from scipy.io import wavfile
-
-from coda.grounding import BaseGrounder
 
 logger = logging.getLogger(__name__)
 
@@ -71,17 +67,10 @@ class AudioProcessor:
 
 
 class Transcriber:
-    # Single-thread executor for grounding so Gilda's SQLite connection
-    # is always used from the same thread
-    _grounding_executor = ThreadPoolExecutor(max_workers=1)
-
-    def __init__(self, grounder: BaseGrounder):
-        self.grounder = grounder
-
     async def transcribe_audio(self, audio_data: np.ndarray,
                                sample_rate: int = 16000,
                                language: str = "en",
-                               task: str = "transcribe"):
+                               task: str = "transcribe") -> str:
         try:
             # Convert int16 to float32
             audio_float = audio_data.astype(np.float32) / 32768.0
@@ -94,7 +83,7 @@ class Transcriber:
                         f"language={language}, task={task}")
             if peak < 0.001:
                 logger.warning("Audio appears to be silent (peak < 0.001)")
-                return "", []
+                return ""
 
             # Create temporary WAV file
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
@@ -130,22 +119,14 @@ class Transcriber:
             # Only applied for English - Whisper's no_speech_prob is
             # unreliable for other languages.
             text = self._filter_segments(result, language=language)
-
-            # Run grounding in a dedicated single-thread executor to avoid
-            # SQLite cross-thread errors from Gilda's connection
-            loop = asyncio.get_running_loop()
-            annotations = await loop.run_in_executor(
-                self._grounding_executor, self.grounder.annotate, text
-            )
-
-            return text, annotations
+            return text
 
         except Exception as e:
             logger.error(f"Transcription error: {e}")
             # Show full trace
             import traceback
             traceback.print_exc()
-            return "", {}
+            return ""
 
     async def transcribe_file(self, file_path: str, language: str = "en",
                               task: str = "transcribe",
