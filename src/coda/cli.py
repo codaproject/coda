@@ -54,28 +54,45 @@ def load_audio_int16(input_path: str) -> np.ndarray:
     return (np.clip(audio_f32, -1.0, 1.0) * 32767.0).astype(np.int16)
 
 
-async def _transcribe_and_infer(transcriber, agent, chunk_id, audio, language, task, ts):
-    """Run transcription (incl. grounding) and inference, timing each step."""
-    t0 = time.perf_counter()
-    text, annotations = await transcriber.transcribe_audio(
+def _ground(grounder, text):
+    """Ground text to annotations; returns (annotations, elapsed_seconds)."""
+    t = time.perf_counter()
+    annotations = grounder.annotate(text) if text else []
+    return annotations, round(time.perf_counter() - t, 3)
+
+
+async def _infer(agent, chunk_id, text, annotations, ts):
+    """Run inference for one chunk; returns (inference, elapsed_seconds)."""
+    t = time.perf_counter()
+    inference = await agent.process_chunk(chunk_id, text, annotations, ts)
+    return inference, round(time.perf_counter() - t, 3)
+
+
+async def _transcribe_and_infer(transcriber, grounder, agent, chunk_id, audio,
+                                language, task, ts):
+    """Transcribe, ground, and infer for one audio chunk, timing each step."""
+    t = time.perf_counter()
+    text = await transcriber.transcribe_audio(
         audio, sample_rate=SAMPLE_RATE, language=language, task=task
     )
-    t1 = time.perf_counter()
-    inference = await agent.process_chunk(chunk_id, text, annotations, ts)
-    t2 = time.perf_counter()
-    timings = {"transcription_s": round(t1 - t0, 3), "inference_s": round(t2 - t1, 3)}
+    transcription_s = round(time.perf_counter() - t, 3)
+    annotations, grounding_s = _ground(grounder, text)
+    inference, inference_s = await _infer(agent, chunk_id, text, annotations, ts)
+    timings = {"transcription_s": transcription_s, "grounding_s": grounding_s,
+               "inference_s": inference_s}
     return chunk_id, text, annotations, inference, timings
 
 
-async def run_whole_file(transcriber, agent, audio_i16, language, task):
+async def run_whole_file(transcriber, grounder, agent, audio_i16, language, task):
     """Transcribe the entire recording in one pass, then a single inference call."""
     row = await _transcribe_and_infer(
-        transcriber, agent, "chunk-0", audio_i16, language, task, time.time()
+        transcriber, grounder, agent, "chunk-0", audio_i16, language, task, time.time()
     )
     return row[1], [row]
 
 
-async def run_chunked(transcriber, agent, audio_i16, language, task, chunk_duration):
+async def run_chunked(transcriber, grounder, agent, audio_i16, language, task,
+                      chunk_duration):
     """Simulate the live pipeline: feed fixed-duration chunks and infer per chunk."""
     processor = AudioProcessor(sample_rate=SAMPLE_RATE, chunk_duration=chunk_duration)
     processor.add_audio(audio_i16.tobytes())
@@ -87,14 +104,14 @@ async def run_chunked(transcriber, agent, audio_i16, language, task, chunk_durat
             break
         chunk_id, ts, audio = chunk
         per_chunk.append(await _transcribe_and_infer(
-            transcriber, agent, chunk_id, audio, language, task, ts
+            transcriber, grounder, agent, chunk_id, audio, language, task, ts
         ))
 
     # Process the trailing remainder (< chunk_size) that get_chunk() leaves behind
     tail = processor.audio_buffer
     if tail.size > 0:
         per_chunk.append(await _transcribe_and_infer(
-            transcriber, agent, "chunk-tail", tail, language, task, time.time()
+            transcriber, grounder, agent, "chunk-tail", tail, language, task, time.time()
         ))
 
     return agent.all_text.strip(), per_chunk
@@ -102,12 +119,9 @@ async def run_chunked(transcriber, agent, audio_i16, language, task, chunk_durat
 
 async def run_text(grounder, agent, text):
     """Ground a pre-existing transcript and run a single inference call."""
-    t0 = time.perf_counter()
-    annotations = grounder.annotate(text)
-    t1 = time.perf_counter()
-    inference = await agent.process_chunk("chunk-0", text, annotations, time.time())
-    t2 = time.perf_counter()
-    timings = {"grounding_s": round(t1 - t0, 3), "inference_s": round(t2 - t1, 3)}
+    annotations, grounding_s = _ground(grounder, text)
+    inference, inference_s = await _infer(agent, "chunk-0", text, annotations, time.time())
+    timings = {"grounding_s": grounding_s, "inference_s": inference_s}
     return text, [("chunk-0", text, annotations, inference, timings)]
 
 
@@ -136,15 +150,15 @@ def write_outputs(output_dir: Path, full_text: str, per_chunk: list, meta: dict)
                 "timing": timings,
             }) + "\n")
 
-    # Roll up timing across all chunks. The audio path folds grounding into
-    # transcription_s; the text path reports grounding_s separately.
+    # Roll up timing across all chunks (steps timed separately; the text path
+    # has no transcription step, the audio path has all three).
     transcription_s = round(sum(t.get("transcription_s", 0) for *_, t in per_chunk), 3)
     grounding_s = round(sum(t.get("grounding_s", 0) for *_, t in per_chunk), 3)
     inference_s = round(sum(t.get("inference_s", 0) for *_, t in per_chunk), 3)
     audio_s = meta.get("audio_duration_s") or 0
     timing = {
-        "transcription_s": transcription_s,  # includes grounding (audio path)
-        "grounding_s": grounding_s,  # text path only
+        "transcription_s": transcription_s,
+        "grounding_s": grounding_s,
         "inference_s": inference_s,
         "total_s": round(transcription_s + grounding_s + inference_s, 3),
         # real-time factor: <1 means faster than real time
@@ -169,11 +183,13 @@ def print_summary(full_text: str, per_chunk: list):
     transcription_s = sum(t.get("transcription_s", 0) for *_, t in per_chunk)
     grounding_s = sum(t.get("grounding_s", 0) for *_, t in per_chunk)
     inference_s = sum(t.get("inference_s", 0) for *_, t in per_chunk)
+    parts = []
+    if transcription_s:
+        parts.append(f"transcription {transcription_s:.1f}s")
     if grounding_s:
-        print(f"\nTiming: grounding {grounding_s:.1f}s, inference {inference_s:.1f}s")
-    else:
-        print(f"\nTiming: transcription {transcription_s:.1f}s (incl. grounding), "
-              f"inference {inference_s:.1f}s")
+        parts.append(f"grounding {grounding_s:.1f}s")
+    parts.append(f"inference {inference_s:.1f}s")
+    print("\nTiming: " + ", ".join(parts))
     print(f"\nTranscript ({len(full_text)} chars):")
     print(f"  {full_text[:500]}{'...' if len(full_text) > 500 else ''}\n")
     if not causes:
@@ -244,7 +260,7 @@ def main():
             **common_meta,
         }
     else:
-        transcriber = WhisperTranscriber(grounder=grounder, model_size=args.whisper_model)
+        transcriber = WhisperTranscriber(model_size=args.whisper_model)
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)
         duration_s = len(audio_i16) / SAMPLE_RATE
@@ -254,12 +270,13 @@ def main():
 
         if args.chunking is None:
             full_text, per_chunk = asyncio.run(
-                run_whole_file(transcriber, agent, audio_i16, args.language, args.task)
+                run_whole_file(transcriber, grounder, agent, audio_i16,
+                               args.language, args.task)
             )
         else:
             full_text, per_chunk = asyncio.run(
-                run_chunked(transcriber, agent, audio_i16, args.language, args.task,
-                            args.chunking)
+                run_chunked(transcriber, grounder, agent, audio_i16,
+                            args.language, args.task, args.chunking)
             )
         meta = {
             "input": str(Path(args.input).resolve()),
