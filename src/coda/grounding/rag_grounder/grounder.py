@@ -15,7 +15,7 @@ from coda.grounding import BaseGrounder
 from coda.llm_api import LLMClient, create_llm_client
 
 from .config import RAGGrounderConfig
-from .extractor import Extractor
+from .extractor import Extractor, Hunflair2Extractor, LLMExtractor
 from .reranker import Reranker
 from .retriever import Retriever
 from .utils import find_evidence_spans
@@ -63,11 +63,17 @@ class RagGrounder(BaseGrounder):
         self.reranker = self._build_reranker()
 
     def _build_extractor(self) -> Extractor:
-        return Extractor(
-            concept_type=self.config.concept_type,
-            prompt_config_path=self.config.extractor.prompt_config_path,
-            llm_client=self.llm_client,
-        )
+        match self.config.extractor.type.lower().strip():
+            case "llm":
+                return LLMExtractor(
+                    concept_type=self.config.concept_type,
+                    prompt_config_path=self.config.extractor.prompt_config_path,
+                    llm_client=self.llm_client,
+                )
+            case "hunflair":
+                return Hunflair2Extractor(concept_type=self.config.concept_type)
+            case _:
+                raise ValueError(f"Unrecognized extractor type: {self.config.extractor.type}")
 
     def _build_retriever(self) -> Retriever:
         return Retriever(

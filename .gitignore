@@ -214,3 +214,5 @@ kg/reports/
 
 # macOS
 .DS_Store
+
+data/
