@@ -42,6 +42,7 @@ dependencies = [
     "scikit-learn",
     "neo4j",
     "pyyaml",
+    "flair>=0.15.1",
 ]
 
 [project.optional-dependencies]

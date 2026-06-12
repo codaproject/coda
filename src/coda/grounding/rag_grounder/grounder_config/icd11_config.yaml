@@ -5,6 +5,7 @@ llm:
   model: gpt-4o-mini
 
 extractor:
+  type: LLM
   prompt_config_path: "../prompt_configs/extractor_default.yaml"
 
 retriever:
