@@ -211,3 +211,6 @@ __marimo__/
 
 # CODA KG build reports (regenerated each build, not version controlled)
 kg/reports/
+
+# macOS
+.DS_Store
