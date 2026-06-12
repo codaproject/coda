@@ -1,10 +1,13 @@
 """
 LLM-based concept extraction from text.
 """
+from abc import ABC, abstractmethod
 import json
 import logging
 from pathlib import Path
 from typing import Any, Dict
+from flair.nn import Classifier
+from flair.splitter import SegtokSentenceSplitter
 
 from coda.llm_api import LLMClient
 
@@ -12,8 +15,14 @@ from .config import PromptConfig
 
 logger = logging.getLogger(__name__)
 
+class Extractor(ABC):
+    """ Base class for different type of extractors """
 
-class Extractor:
+    @abstractmethod
+    def extract(self, text: str) -> Dict[str, Any]:
+        ...
+
+class LLMExtractor(Extractor):
     """Extract concepts and supporting evidence from text using LLM."""
 
     def __init__(
@@ -91,3 +100,37 @@ class Extractor:
         except Exception as e:
             logger.error(f"Failed to extract concepts: {e}", exc_info=True)
             return {"Concepts": []}
+
+
+class Hunflair2Extractor(Extractor):
+    """ Extracts concepts and diseases from text using the Hunflair2 disease NER """
+
+    def __init__(
+            self,
+            concept_type: str
+    ):
+        self.concept_type = concept_type
+        self.tagger = Classifier.load("hunflair2")
+        self.splitter = SegtokSentenceSplitter()
+
+    def extract(self, text: str) -> Dict[str, Any]:
+        """ Runs Hunflair NER pipeline"""
+        # List with the output of the NER
+        ret = []
+
+        # For now, we only do diseases
+        if self.concept_type == "disease":
+            sents = self.splitter.split(text)
+            self.tagger.predict(sentences=sents)
+            
+            for sent in sents:
+                print(f"Sentence: {sent.text}")
+                for label in sent.get_labels("ner"):
+                    if label.value != "Disease":
+                        continue
+                    span = label.data_point
+                    print(f"Span: {span.text}")
+                    ret.append({"Concept": span.text, "Supporting_Evidence":[sent.text]})
+                    
+        
+        return {"Concepts": ret} # Later implement with some value

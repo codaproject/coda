@@ -9,7 +9,8 @@ _DEFAULT_CONFIG_PATH = Path(__file__).parent / "grounder_config" / "icd10_config
 
 @dataclass
 class ExtractorConfig:
-    prompt_config_path: str
+    type: str     # Specifies the extractor type: LLM or Encoder based
+    prompt_config_path: str # For the LLM based extractor, specify the path to the system prompt
 
 
 @dataclass
