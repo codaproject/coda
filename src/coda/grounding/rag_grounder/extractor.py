@@ -6,8 +6,9 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict
+from flair.data import Sentence
 from flair.nn import Classifier
-from flair.splitter import SegtokSentenceSplitter
+from wtpsplit_lite import SaT
 
 from coda.llm_api import LLMClient
 
@@ -111,7 +112,7 @@ class Hunflair2Extractor(Extractor):
     ):
         self.concept_type = concept_type
         self.tagger = Classifier.load("hunflair2")
-        self.splitter = SegtokSentenceSplitter()
+        self.splitter = SaT("sat-3l-sm") # This is a more robust sentence splitter than Hunflai
 
     def extract(self, text: str) -> Dict[str, Any]:
         """ Runs Hunflair NER pipeline"""
@@ -120,7 +121,7 @@ class Hunflair2Extractor(Extractor):
 
         # For now, we only do diseases
         if self.concept_type == "disease":
-            sents = self.splitter.split(text)
+            sents = [Sentence(s) for s in self.splitter.split(text)]
             self.tagger.predict(sentences=sents)
             
             for sent in sents:

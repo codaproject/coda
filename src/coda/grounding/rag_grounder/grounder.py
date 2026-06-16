@@ -41,8 +41,9 @@ class RagGrounder(BaseGrounder):
             handler = logging.FileHandler(log_path, mode="w")
             handler.setLevel(logging.DEBUG)
             handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%H:%M:%S"))
-            logger.parent.addHandler(handler)
-            logger.parent.setLevel(logging.DEBUG)
+            if logger.parent is not None:
+                logger.parent.addHandler(handler)
+                logger.parent.setLevel(logging.DEBUG)
 
         # Initialize config from yaml if provided, else use default yaml file
         if config_path is not None:

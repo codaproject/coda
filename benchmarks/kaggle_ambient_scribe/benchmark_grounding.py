@@ -102,7 +102,7 @@ def get_annotation_cache_path(encounter_id: int, source: str, model_size: str = 
         return RESULTS_BASE.join(f"annotations-whisper-{model_size}", name=f"encounter_{encounter_id}_annotations.json")
 
 
-def load_cached_annotations(encounter_id: int, source: str, model_size: str = None) -> Optional[List[Dict]]:
+def load_cached_annotations(encounter_id: int, source: str, model_size: str | None = None) -> Optional[List[Dict]]:
     """Load cached annotations if they exist."""
     path = get_annotation_cache_path(encounter_id, source, model_size)
     if path.exists():
@@ -111,7 +111,7 @@ def load_cached_annotations(encounter_id: int, source: str, model_size: str = No
     return None
 
 
-def save_annotations(encounter_id: int, source: str, annotations: List[Dict], model_size: str = None):
+def save_annotations(encounter_id: int, source: str, annotations: List[Dict], model_size: str | None = None):
     """Save annotations to cache."""
     path = get_annotation_cache_path(encounter_id, source, model_size)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,7 +141,7 @@ def annotations_to_serializable(annotations) -> List[Dict]:
     return result
 
 
-def annotate_text(text: str, encounter_id: int, source: str, model_size: str = None, grounder=None) -> List[Dict]:
+def annotate_text(text: str, encounter_id: int, source: str, model_size: Optional[str] = None, grounder=None) -> List[Dict]:
     """Annotate text with ICD-10 codes using RAGGrounder, with caching.
 
     Parameters
@@ -167,8 +167,8 @@ def annotate_text(text: str, encounter_id: int, source: str, model_size: str = N
 
     # Use provided grounder or create new one
     if grounder is None:
-        from coda.grounding.icd10_rag_grounder import RAGGrounder
-        grounder = RAGGrounder()
+        from coda.grounding.rag_grounder import RagGrounder
+        grounder = RagGrounder()
 
     annotations = grounder.annotate(text)
 
@@ -363,8 +363,9 @@ def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: str = None) -> 
             wh_cached = load_cached_annotations(enc_id, "whisper", model_size)
             if grounder is None and (ref_cached is None or wh_cached is None):
                 logger.info("Initializing RAGGrounder...")
-                from coda.grounding.icd10_rag_grounder import RAGGrounder
-                grounder = RAGGrounder()
+                from coda.grounding.rag_grounder import RagGrounder
+                # from coda.grounding.icd10_rag_grounder import RAGGrounder
+                grounder = RagGrounder()
 
             # Annotate both texts
             reference_annotations = annotate_text(reference_text, enc_id, "reference", grounder=grounder)

@@ -43,6 +43,7 @@ dependencies = [
     "neo4j",
     "pyyaml",
     "flair>=0.15.1",
+    "wtpsplit-lite",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +56,10 @@ kg_build = [
     "xlrd",
     "indra @ git+https://github.com/gyorilab/indra.git",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
+]
+benckmark = [
+    "kagglehub",
+    "soundfile",
 ]
 
 [project.urls]
