@@ -155,8 +155,10 @@ class RagGrounder(BaseGrounder):
         ]
 
     def process(self, text: str) -> dict:
+        """ Performs the bulk of the NER and NEL work, with optional re-ranking """
+
         if not text or not text.strip():
-            return {"text": text, "Concepts": []}
+            return {"text": text, "Concepts": [], "Sentences": []}
 
         logger.info("Starting RAG grounder pipeline")
         total_start = time.time()
@@ -166,7 +168,11 @@ class RagGrounder(BaseGrounder):
         extraction_result = self.extractor.extract(text)
         step_times["extraction"] = time.time() - step1_start
 
+        # This will return potentially the same concept multiple times if it appears throughout the document in different ocassions.
+        #  Maybe with different supporting evidence, but there could be a the same sentence repeated leading to a duplicate entry
         concepts_raw = extraction_result.get("Concepts", [])
+        # Ordered sentences from the extractor (empty for extractors that don't split)
+        sentences = extraction_result.get("Sentences", [])
         logger.info(f"Extraction completed in {step_times['extraction']:.2f}s, found {len(concepts_raw)} concept(s)")
         for i, c in enumerate(concepts_raw, 1):
             logger.debug("  Concept %d: %s", i, c.get("Concept", ""))
@@ -174,13 +180,19 @@ class RagGrounder(BaseGrounder):
                 logger.debug("    - %s", ev)
 
         if not concepts_raw:
-            return {"text": text, "Concepts": []}
+            return {"text": text, "Concepts": [], "Sentences": sentences}
 
+        # As a result of above's observation, we could have identical entries here too.
+        # The sentence_index/start/end keys are optional metadata (e.g. from the
+        # Hunflair extractor); they default to None for extractors that omit them.
         concepts = [
             {
                 "Concept": c.get("Concept", ""),
                 "supporting_evidence": c.get("Supporting_Evidence", []),
                 "matched_terms": [],
+                "sentence_index": c.get("sentence_index"),
+                "start": c.get("start"),
+                "end": c.get("end"),
             }
             for c in concepts_raw
         ]
@@ -227,9 +239,11 @@ class RagGrounder(BaseGrounder):
             f"Total={total_time:.2f}s"
         )
 
-        return {"text": text, "Concepts": concepts}
+        return {"text": text, "Concepts": concepts, "Sentences": sentences}
 
     def ground(self, text: str) -> list[ScoredMatch]:
+        """ Coerces the result of `process` into GILDA-compatible results """
+        
         result = self.process(text)
         matches: list[ScoredMatch] = []
         for concept in result["Concepts"]:
@@ -239,11 +253,15 @@ class RagGrounder(BaseGrounder):
         return matches
 
     def annotate(self, text: str, min_similarity: float = 0.7) -> list[Annotation]:
+        """ Runs the NER and NEL pipeline end-to-end and returns a list of Annotation objects which contain
+        the extractions, groundings and a map back to the original span within the input text """
+
         result = self.process(text)
         annotations: list[Annotation] = []
         for concept in result["Concepts"]:
             if not concept["Concept"].strip():
                 continue
+
             matches = self._annotation_matches(concept, span_text=concept["Concept"])
             if not matches:
                 continue
@@ -259,4 +277,5 @@ class RagGrounder(BaseGrounder):
                         end=end,
                     )
                 )
+
         return annotations

@@ -115,23 +115,37 @@ class Hunflair2Extractor(Extractor):
         self.splitter = SaT("sat-3l-sm") # This is a more robust sentence splitter than Hunflai
 
     def extract(self, text: str) -> Dict[str, Any]:
-        """ Runs Hunflair NER pipeline"""
+        """ Runs Hunflair NER pipeline.
+
+        Returns the standard ``{"Concepts": [...]}`` payload. In addition to the
+        contract-required ``Concept``/``Supporting_Evidence`` keys, each concept
+        carries its ``sentence_index`` and the ``start``/``end`` character offsets
+        of the span *within its sentence*. The returned dict also includes an
+        ordered ``Sentences`` list. These extra keys are additive and ignored by
+        consumers that only rely on the ``Extractor`` contract.
+        """
         # List with the output of the NER
         ret = []
+        # Ordered list of the sentences produced by the splitter
+        sentences: list[str] = []
 
         # For now, we only do diseases
         if self.concept_type == "disease":
             sents = [Sentence(s) for s in self.splitter.split(text)]
             self.tagger.predict(sentences=sents)
-            
-            for sent in sents:
-                print(f"Sentence: {sent.text}")
+
+            for sentence_index, sent in enumerate(sents):
+                sentences.append(sent.text)
                 for label in sent.get_labels("ner"):
                     if label.value != "Disease":
                         continue
                     span = label.data_point
-                    print(f"Span: {span.text}")
-                    ret.append({"Concept": span.text, "Supporting_Evidence":[sent.text]})
-                    
-        
-        return {"Concepts": ret} # Later implement with some value
+                    ret.append({
+                        "Concept": span.text,
+                        "Supporting_Evidence": [sent.text],
+                        "sentence_index": sentence_index,
+                        "start": span.start_position,
+                        "end": span.end_position,
+                    })
+
+        return {"Concepts": ret, "Sentences": sentences}
