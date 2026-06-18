@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -382,19 +383,75 @@ async def update_settings(req: SettingsRequest):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time audio streaming and transcription"""
+    """Capture and processing are decoupled into two tasks: one only writes raw
+    audio to a per-session file (so the socket is always drained and never
+    overflows/disconnects), the other transcribes + grounds it at its own pace.
+    """
     await websocket.accept()
     logger.info("WebSocket connection established")
-
-    processor = AudioProcessor()
-
-    # Open save files at the start of a recording session if saving is enabled
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:6]
+    audio_path = Path(CODA_BASE.join("sessions", session_id)) / "audio.pcm"
     if save_enabled and not save_files:
-        paths = open_save_files(current_language)
-        logger.info(f"Opened save files for session: {paths}")
+        open_save_files(current_language)
+
+    # Register two coroutines in event loop as tasks:
+    # `capture` writes audio, `process` transcribes it.
+    capture = asyncio.create_task(write_audio_bytes(websocket, audio_path))
+    process = asyncio.create_task(process_audio_bytes(websocket, audio_path))
 
     try:
+        # Run the two tasks and gather whatever is surfaced from them. 
+        # In our case we expect `capture` to surface `WebSocketDisconnect`
+        # when the user ends recording session. 
+        await asyncio.gather(capture, process)
+    except WebSocketDisconnect:
+        # `WebSocketDisconnect`` should surface from `capture` (the only task 
+        # reading the socket).
+        logger.info("WebSocket disconnected")
+    finally:
+        # `process` never raises on disconnect, so cancel it (and pending inference)
+        # or it keeps looping after the session ends.
+        process.cancel()
+        # Similarly, tasks are created for pending_chunks in `process` that we
+        # also have to cancel. 
+        for task in pending_chunks.values():
+            task.cancel()
+        pending_chunks.clear()
+
+        # `capture.cancel()`` is a safeguard for a DIFFERENT reason: on a non-disconnect
+        # exit (e.g. `process` errored while still connected) `capture` may still be
+        # running and reading the socket, so cancel it too to avoid an orphan.
+        # Otherwise, it would naturally cancel when it surfaces the `WebSocketDisconnect`
+        # exception.
+        capture.cancel()
+
+
+async def write_audio_bytes(websocket: WebSocket, audio_path):
+    """Capture: append each received audio message to the file. Never blocks."""
+    with open(audio_path, "ab") as f:
         while True:
+            f.write(await websocket.receive_bytes())
+            f.flush()
+
+
+async def process_audio_bytes(websocket: WebSocket, audio_path):
+    """Process: tail the capture file, transcribe + ground each chunk at own pace."""
+    processor = AudioProcessor()
+    offset = 0
+    while True:
+        size = audio_path.stat().st_size if audio_path.exists() else 0
+        if size <= offset:
+            await asyncio.sleep(0.3)
+            continue
+        with open(audio_path, "rb") as f:
+            f.seek(offset)
+            data = f.read(size - offset)
+        offset = size
+        if not processor.add_audio(data):
+            continue
+        while (result := processor.get_chunk()) is not None:
+            chunk_id, timestamp, chunk = result
+
             # Backpressure: drop oldest chunk if too many pending
             if len(pending_chunks) >= MAX_PENDING_CHUNKS:
                 oldest_id = next(iter(pending_chunks))
@@ -406,116 +463,87 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": "Processing slower than audio - dropping old chunks"
                 })
 
-            # Receive audio data
-            audio_bytes = await websocket.receive_bytes()
+            # Transcribe audio to text
+            original_transcript = None
+            if (current_language != "en"
+                    and translation_mode == "whisper_translate"):
+                # Whisper translates directly to English
+                english_text = await transcriber.transcribe_audio(
+                    chunk, language=current_language, task="translate"
+                )
+            else:
+                # Transcribe in the configured language
+                transcript = await transcriber.transcribe_audio(
+                    chunk, language=current_language
+                )
+                english_text = transcript
 
-            # Add to buffer and check if ready for processing
-            if processor.add_audio(audio_bytes):
-                # Get chunk with ID and timestamp
-                result = processor.get_chunk()
-                if result is not None:
-                    chunk_id, timestamp, chunk = result
+                # If non-English with LLM mode, translate
+                # (skip if transcript is too short to be real speech)
+                if (current_language != "en"
+                        and translation_mode == "llm"
+                        and len(transcript.split()) > 1):
+                    original_transcript = transcript
+                    english_text = await translate_text(
+                        transcript, current_language
+                    )
 
-                    # Transcribe audio to text
-                    original_transcript = None
-                    if (current_language != "en"
-                            and translation_mode == "whisper_translate"):
-                        # Whisper translates directly to English
-                        english_text = await transcriber.transcribe_audio(
-                            chunk, language=current_language, task="translate"
-                        )
-                    else:
-                        # Transcribe in the configured language
-                        transcript = await transcriber.transcribe_audio(
-                            chunk, language=current_language
-                        )
-                        english_text = transcript
+            # Ground the (final, English) text without blocking the loop
+            annotations = []
+            if english_text:
+                annotations = await asyncio.to_thread(
+                    grounder.annotate, english_text
+                )
 
-                        # If non-English with LLM mode, translate
-                        # (skip if transcript is too short to be real speech)
-                        if (current_language != "en"
-                                and translation_mode == "llm"
-                                and len(transcript.split()) > 1):
-                            original_transcript = transcript
-                            english_text = await translate_text(
-                                transcript, current_language
-                            )
+            if english_text:
 
-                    # Ground the (final, English) text without blocking the loop
-                    annotations = []
-                    if english_text:
-                        annotations = await asyncio.to_thread(
-                            grounder.annotate, english_text
-                        )
+                # Save transcripts and annotations if enabled
+                if save_enabled:
+                    save_transcript(english_text, "en")
+                    if original_transcript and current_language != "en":
+                        save_transcript(original_transcript,
+                                        current_language)
+                    save_annotated_chunk(
+                        chunk_id, timestamp, english_text,
+                        annotations,
+                        original_text=original_transcript,
+                        original_language=(current_language
+                                           if current_language != "en"
+                                           else None),
+                    )
 
-                    if english_text:
+                # Build structured annotations for inline display
+                structured_annotations = [
+                    {
+                        "text": ann.text,
+                        "start": ann.start,
+                        "end": ann.end,
+                        "curie": ann.matches[0].term.get_curie(),
+                        "name": ann.matches[0].term.entry_name,
+                    }
+                    for ann in annotations
+                ] if annotations else []
 
-                        # Save transcripts and annotations if enabled
-                        if save_enabled:
-                            save_transcript(english_text, "en")
-                            if original_transcript and current_language != "en":
-                                save_transcript(original_transcript,
-                                                current_language)
-                            save_annotated_chunk(
-                                chunk_id, timestamp, english_text,
-                                annotations,
-                                original_text=original_transcript,
-                                original_language=(current_language
-                                                   if current_language != "en"
-                                                   else None),
-                            )
+                # Send transcript to client
+                msg = {
+                    "type": "transcript",
+                    "chunk_id": chunk_id,
+                    "timestamp": timestamp,
+                    "transcript": english_text,
+                    "annotations": structured_annotations,
+                }
+                if original_transcript:
+                    msg["original_transcript"] = original_transcript
+                    msg["original_language"] = current_language
+                await websocket.send_json(msg)
+                logger.info(f"Chunk {chunk_id}: {english_text}")
 
-                        # Build structured annotations for inline display
-                        structured_annotations = [
-                            {
-                                "text": ann.text,
-                                "start": ann.start,
-                                "end": ann.end,
-                                "curie": ann.matches[0].term.get_curie(),
-                                "name": ann.matches[0].term.entry_name,
-                            }
-                            for ann in annotations
-                        ] if annotations else []
-
-                        # Send transcript to client
-                        msg = {
-                            "type": "transcript",
-                            "chunk_id": chunk_id,
-                            "timestamp": timestamp,
-                            "transcript": english_text,
-                            "annotations": structured_annotations,
-                        }
-                        if original_transcript:
-                            msg["original_transcript"] = original_transcript
-                            msg["original_language"] = current_language
-                        await websocket.send_json(msg)
-                        logger.info(f"Chunk {chunk_id}: {english_text}")
-
-                        # Start inference in background (always on English text)
-                        inference_task = asyncio.create_task(
-                            process_inference(chunk_id, timestamp, english_text,
-                                            annotations, websocket)
-                        )
-                        pending_chunks[chunk_id] = inference_task
-
-    except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
-        # Cancel all pending inference tasks
-        for task in pending_chunks.values():
-            task.cancel()
-        pending_chunks.clear()
-        processor.clear_buffer()
-
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}", exc_info=True)
-        try:
-            await websocket.send_json({
-                "type": "error",
-                "error": str(e)
-            })
-        except:
-            pass
-        processor.clear_buffer()
+                # Start inference in background (always on English text)
+                inference_task = asyncio.create_task(
+                    process_inference(chunk_id, timestamp, english_text,
+                                    annotations, websocket)
+                )
+                pending_chunks[chunk_id] = inference_task
 
 
 @app.post("/reset")
