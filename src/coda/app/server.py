@@ -474,7 +474,11 @@ async def process_audio_bytes(websocket: WebSocket, audio_path):
                     "message": "Processing slower than audio - dropping old chunks"
                 })
 
-            await handle_chunk(websocket, chunk_id, timestamp, chunk)
+            # One bad chunk shouldn't kill the session
+            try:
+                await handle_chunk(websocket, chunk_id, timestamp, chunk)
+            except Exception as e:
+                logger.error(f"Error on chunk {chunk_id}: {e}", exc_info=True)
 
 
 async def handle_chunk(websocket: WebSocket, chunk_id, timestamp, chunk):
