@@ -18,7 +18,8 @@ DEFAULT_CHUNK_DURATION = 3
 
 
 class AudioProcessor:
-    def __init__(self, sample_rate=16000, chunk_duration=DEFAULT_CHUNK_DURATION):
+    def __init__(self, sample_rate=16000, chunk_duration=DEFAULT_CHUNK_DURATION,
+                 start_time=None):
         """Initialize audio processor.
 
         Parameters
@@ -27,11 +28,16 @@ class AudioProcessor:
             Audio sample rate (16000 Hz for Whisper)
         chunk_duration :
             Duration of audio chunks to process (seconds)
+        start_time :
+            Unix time of the first captured sample; chunk timestamps are derived
+            from this plus the chunk's position. Defaults to now.
         """
         self.sample_rate = sample_rate
         self.chunk_duration = chunk_duration
         self.chunk_size = int(sample_rate * chunk_duration)
         self.audio_buffer = np.array([], dtype=np.int16)
+        self.start_time = start_time if start_time is not None else time.time()
+        self.samples_emitted = 0
 
     def add_audio(self, audio_data: bytes) -> bool:
         """Add audio data to buffer
@@ -58,9 +64,11 @@ class AudioProcessor:
         """
         if len(self.audio_buffer) >= self.chunk_size:
             chunk_id = str(uuid.uuid4())
-            timestamp = time.time()
+            # Timestamp from audio position, not processing time
+            timestamp = self.start_time + self.samples_emitted / self.sample_rate
             chunk = self.audio_buffer[:self.chunk_size]
             self.audio_buffer = self.audio_buffer[self.chunk_size:]
+            self.samples_emitted += self.chunk_size
             return (chunk_id, timestamp, chunk)
         return None
 
