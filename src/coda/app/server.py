@@ -661,6 +661,8 @@ async def upload_note(req: UploadNoteRequest):
     # Run grounding in the dedicated executor for SQLite thread safety
     from coda.dialogue import Transcriber
     loop = asyncio.get_running_loop()
+    # FIXME: this has to be adapted since the grounder
+    # and transcriber have been separated
     annotations = await loop.run_in_executor(
         Transcriber._grounding_executor,
         transcriber.grounder.annotate,
