@@ -1,3 +1,5 @@
+"""Knowledge graph source for ICD10-CM."""
+
 import os
 from pathlib import Path
 from typing import Tuple, Generator, IO
@@ -30,10 +32,8 @@ NOTE_FIELDS: list[str] = [
     "sevenChrNote",
 ]
 
-NodeDict = dict[str, str | None]
-EdgeDict = dict[str, str]
 
-def load_file(file_spec: Tuple[str, str])->IO[bytes]:
+def load_file(file_spec: Tuple[str, str]) -> IO[bytes]:
     """utility code for downloading and loading zipfiles"""
     import pystow
 
@@ -76,7 +76,7 @@ def synthesize_extensions(icd10_cm_code:str, desc:str, scd:etree._Element)->Gene
         padded = icd10_cm_code + "." if not "." in icd10_cm_code else icd10_cm_code
         padded = f"{padded:X<7}"
         ext_code = padded + char
-        ## There are some codes the logic would sugest exist but medically do not ex S06.396 which does not have S06.396D because it would be fatal
+        # There are some codes the logic would sugest exist but medically do not ex S06.396 which does not have S06.396D because it would be fatal
         if ext_code.replace(".", "") in valid_codes:
             yield (
                 {
@@ -129,7 +129,7 @@ def extract_icd10cm_table()->Tuple[list[dict], list[dict]]:
                 {":START_ID": block_code, ":END_ID": chapter_code, ":TYPE": "is_a"}
             )
 
-            ## Extract nested codes with a stack ##
+            # Extract nested codes with a stack
             stack = [(diag, block_code, None) for diag in block.findall("diag")]
 
             while stack:
@@ -137,10 +137,10 @@ def extract_icd10cm_table()->Tuple[list[dict], list[dict]]:
                 icd10_cm_code = code.find("name").text
                 desc = code.find("desc").text
 
-                ## parse note fields (include, exlude, code also etc) added to node as lists ##
+                # parse note fields (include, exlude, code also etc) added to node as lists
                 tags_dict = extract_note_fields(code)
 
-                ## fail safe to prevent adding the same ID as both a section and code ##
+                # fail safe to prevent adding the same ID as both a section and code
                 if icd10_cm_code != block_code:
                     nodes.append(
                         {
@@ -162,15 +162,15 @@ def extract_icd10cm_table()->Tuple[list[dict], list[dict]]:
                         }
                     )
 
-                ## check for seven character definition from either this code or its ancestor ##
+                # check for seven character definition from either this code or its ancestor
                 scd = code.find("sevenChrDef") or inherited_scd
 
-                ## case 1: node has descendants -> add to stack ##
+                # case 1: node has descendants -> add to stack
                 children = code.findall("diag")
                 if children:
                     stack += [(child, icd10_cm_code, scd) for child in children]
 
-                ## case 2: lead node -> check for seventh character descendants ##
+                # case 2: lead node -> check for seventh character descendants
                 elif scd is not None:
                     for node_dict, edge in synthesize_extensions(
                         icd10_cm_code, desc or "", scd
@@ -178,7 +178,7 @@ def extract_icd10cm_table()->Tuple[list[dict], list[dict]]:
                         nodes.append(node_dict)
                         edges.append(edge)
 
-    ## check to make sure all codes and sections are present ##
+    # check to make sure all codes and sections are present
     _validate_nodes(nodes, valid_codes)
     return nodes, edges
 
@@ -206,14 +206,11 @@ def _validate_nodes(nodes, valid_codes):
 
 valid_codes = load_valid_codes()
 nodes, edges = extract_icd10cm_table()
-## parse into data frames and write out ##
+# parse into data frames and write out
 nodes_df = pd.DataFrame.from_records(nodes)
 edges_df = pd.DataFrame.from_records(edges)
 
-## now adding definitions ## 
-
-
-## get valid codes map code -> name 
+# get valid codes map code -> name
 valid_codes = {
     x['id:ID'] : x['description']
     for x in nodes
