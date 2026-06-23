@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 from coda.kg.sources import (
     icd10,
+    icd10cm,
     icd11,
     phmrc,
     who_va,
@@ -29,6 +30,7 @@ EMBED_SOURCES = ["icd11"]
 
 EXPORTERS: list[KGSourceExporter] = [
     icd10.ICD10Exporter(),
+    icd10cm.Icd10CmExporter(),
     icd11.ICD11Exporter(),
     phmrc.PhmrcExporter(),
     who_va.WhoVaExporter(),
