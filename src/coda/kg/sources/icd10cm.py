@@ -176,7 +176,9 @@ def extract_icd10cm_table(valid_codes):
 
                 # Check for seven character definition from either
                 # this code or its ancestor
-                scd = code.find("sevenChrDef") or inherited_scd
+                scd = code.find("sevenChrDef")
+                if scd is None:
+                    scd = inherited_scd
 
                 # Case 1: node has descendants -> add to stack
                 children = code.findall("diag")
