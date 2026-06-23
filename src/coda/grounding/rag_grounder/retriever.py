@@ -2,11 +2,12 @@
 Term retrieval using neo4j vector search.
 """
 import logging
-import os
 from typing import List, Tuple
 
 from neo4j import GraphDatabase
 from sentence_transformers import SentenceTransformer
+
+from coda.runtime_config import get_kg_url
 
 from .types import RetrievalTerm
 
@@ -25,8 +26,7 @@ class Retriever:
         top_k: int,
         min_similarity: float
     ):
-        neo4j_url = os.getenv("CODA_KG_URL", "bolt://localhost:7687")
-        self.driver = GraphDatabase.driver(neo4j_url, auth=None)
+        self.driver = GraphDatabase.driver(get_kg_url(), auth=None)
         self.ontology = ontology
         self.model_name = model_name
         self.top_k = top_k

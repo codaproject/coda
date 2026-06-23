@@ -26,6 +26,16 @@ def client(inference_server):
     return TestClient(inference_server.app)
 
 
+def test_inference_server_uses_runtime_config(monkeypatch, toy_agent):
+    monkeypatch.setenv("INFERENCE_HOST", "127.0.0.1")
+    monkeypatch.setenv("INFERENCE_PORT", "6123")
+
+    server = InferenceServer(toy_agent)
+
+    assert server.host == "127.0.0.1"
+    assert server.port == 6123
+
+
 class TestInferenceAgent:
     """Unit tests for InferenceAgent."""
 

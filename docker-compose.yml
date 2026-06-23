@@ -5,8 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile.kg
     ports:
-      - "7474:7474"  # Neo4j Browser
-      - "7687:7687"  # Neo4j Bolt
+      - "${NEO4J_HTTP_PORT:-7474}:7474"  # Neo4j Browser
+      - "${NEO4J_BOLT_PORT:-7687}:7687"  # Neo4j Bolt
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7474"]
       interval: 10s
@@ -19,12 +19,21 @@ services:
       context: .
       dockerfile: Dockerfile.inference
     ports:
-      - "5123:5123"
+      - "${INFERENCE_PORT:-5123}:${INFERENCE_PORT:-5123}"
     env_file:
       - path: .env
         required: false
+    environment:
+      INFERENCE_HOST: ${INFERENCE_HOST:-0.0.0.0}
+      INFERENCE_PORT: ${INFERENCE_PORT:-5123}
+      INFERENCE_LLM_PROVIDER: ${INFERENCE_LLM_PROVIDER:-openai}
+      INFERENCE_LLM_MODEL: ${INFERENCE_LLM_MODEL:-gpt-5.4-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5123/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${INFERENCE_PORT:-5123}/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -38,15 +47,27 @@ services:
       # COMPUTE_DEVICE=cuda, run with the NVIDIA container runtime, and add a
       # `deploy.resources.reservations.devices` GPU reservation here.
       args:
-        COMPUTE_DEVICE: cpu
+        COMPUTE_DEVICE: ${COMPUTE_DEVICE:-cpu}
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
     env_file:
       - path: .env
         required: false
     environment:
-      - CODA_INFERENCE_URL=http://inference:5123
-      - CODA_KG_URL=bolt://kg:7687
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      INFERENCE_URL: ${INFERENCE_URL:-http://inference:${INFERENCE_PORT:-5123}}
+      INFERENCE_LLM_PROVIDER: ${INFERENCE_LLM_PROVIDER:-openai}
+      INFERENCE_LLM_MODEL: ${INFERENCE_LLM_MODEL:-gpt-5.4-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      CODA_KG_URL: ${CODA_KG_URL:-bolt://kg:7687}
+      RAG_LLM_PROVIDER: ${RAG_LLM_PROVIDER:-openai}
+      RAG_LLM_MODEL: ${RAG_LLM_MODEL:-gpt-4o-mini}
+      RAG_ONTOLOGY: ${RAG_ONTOLOGY:-icd10}
+      RAG_USE_RERANKER: ${RAG_USE_RERANKER:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       inference:
         condition: service_healthy

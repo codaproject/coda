@@ -1,9 +1,15 @@
 import asyncio
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 from gilda import Annotation
+from coda.runtime_config import (
+    get_inference_host,
+    get_inference_llm_model,
+    get_inference_llm_provider,
+    get_inference_port,
+)
 
 logger = logging.getLogger('coda.inference')
 
@@ -174,10 +180,15 @@ class InferenceRequest(BaseModel):
 class InferenceServer:
     """FastAPI server for inference agent."""
 
-    def __init__(self, agent: InferenceAgent, host: str = "0.0.0.0", port: int = 5123):
+    def __init__(
+        self,
+        agent: InferenceAgent,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ):
         self.agent = agent
-        self.host = host
-        self.port = port
+        self.host = host or get_inference_host()
+        self.port = port if port is not None else get_inference_port()
         self.app = FastAPI(title="CODA Inference Agent")
 
         @self.app.post("/infer")
@@ -227,13 +238,18 @@ class InferenceServer:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="CODA inference agent server")
-    parser.add_argument("--provider", default=None,
+    parser = argparse.ArgumentParser(
+        description="CODA inference agent server",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--provider", default=get_inference_llm_provider(),
                         help="LLM provider (e.g. openai, ollama)")
-    parser.add_argument("--model", default=None,
+    parser.add_argument("--model", default=get_inference_llm_model(),
                         help="LLM model name (e.g. gpt-5.4-mini, gpt-oss:20b)")
-    parser.add_argument("--port", type=int, default=5123,
-                        help="Server port (default: 5123)")
+    parser.add_argument("--host", default=get_inference_host(),
+                        help="Server host")
+    parser.add_argument("--port", type=int, default=get_inference_port(),
+                        help="Server port")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -242,11 +258,6 @@ if __name__ == "__main__":
     )
 
     from coda.inference.champs_llm_agent import create_champs_agent
-    kwargs = {}
-    if args.provider:
-        kwargs["provider"] = args.provider
-    if args.model:
-        kwargs["model"] = args.model
-    agent = create_champs_agent(**kwargs)
-    server = InferenceServer(agent, host="0.0.0.0", port=args.port)
+    agent = create_champs_agent(provider=args.provider, model=args.model)
+    server = InferenceServer(agent, host=args.host, port=args.port)
     server.run()

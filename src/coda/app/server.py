@@ -14,6 +14,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
 import httpx
@@ -25,16 +26,22 @@ from coda import CODA_BASE
 from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue import AudioProcessor
 from coda.grounding.gilda_grounder import GildaGrounder
-from pathlib import Path
-
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
+from coda.runtime_config import (
+    get_inference_llm_model,
+    get_inference_llm_provider,
+    get_inference_url,
+    get_rag_llm_model,
+    get_rag_llm_provider,
+    get_rag_ontology,
+    get_rag_use_reranker,
+)
 
 app = FastAPI()
 
-
 # HTTP client for inference agent
-INFERENCE_URL = os.getenv("CODA_INFERENCE_URL", "http://localhost:5123")
+INFERENCE_URL = get_inference_url()
 inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
 
 # Queue management for backpressure
@@ -48,6 +55,7 @@ templates_dir = os.path.join(here, "templates")
 
 # All languages supported by Whisper, keyed by ISO code
 from whisper.tokenizer import LANGUAGES as _WHISPER_LANGUAGES
+
 LANGUAGE_NAMES = {code: name.title() for code, name in _WHISPER_LANGUAGES.items()}
 
 # Server-level settings
@@ -56,17 +64,16 @@ save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_whisper_model = "medium"
+current_llm_provider = get_inference_llm_provider()
+current_llm_model = get_inference_llm_model()
 current_grounder = "gilda"
 # RAG grounder settings, applied to the grounder via RagGrounder.update_config
 rag_config = {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "ontology": "icd10",
-    "use_reranker": True,
+    "provider": get_rag_llm_provider(),
+    "model": get_rag_llm_model(),
+    "ontology": get_rag_ontology(),
+    "use_reranker": get_rag_use_reranker(),
 }
-# Translation LLM settings (separate from the RAG grounder's LLM)
-current_llm_provider = "openai"
-current_llm_model = "gpt-5.4-mini"
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = "llm"
@@ -216,7 +223,7 @@ async def _ws_send_safe(websocket: WebSocket, data: dict):
 
 
 async def process_inference(chunk_id: str, timestamp: float, transcript: str,
-                           annotations: list, websocket: WebSocket):
+                            annotations: list, websocket: WebSocket):
     """Process inference in background and send results via HTTP."""
     try:
         # Send request to inference agent
@@ -392,6 +399,7 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info("WebSocket connection established")
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:6]
     audio_path = Path(CODA_BASE.join("sessions", session_id)) / "audio.pcm"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
     if save_enabled and not save_files:
         open_save_files(current_language)
 
@@ -563,7 +571,7 @@ async def handle_chunk(websocket: WebSocket, chunk_id, timestamp, chunk):
         # Start inference in background (always on English text)
         inference_task = asyncio.create_task(
             process_inference(chunk_id, timestamp, english_text,
-                            annotations, websocket)
+                              annotations, websocket)
         )
         pending_chunks[chunk_id] = inference_task
 

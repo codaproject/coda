@@ -9,13 +9,19 @@ infrastructure for LLM calls.
 import csv
 import logging
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from gilda import Annotation
 
 from coda.inference.agent import InferenceAgent, InferenceServer
 from coda.llm_api.client import LLMClient
 from coda.resources import get_resource_path
+from coda.runtime_config import (
+    get_inference_host,
+    get_inference_llm_model,
+    get_inference_llm_provider,
+    get_inference_port,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,16 +176,18 @@ class ChampsLLMInferenceAgent(InferenceAgent):
 
 
 def create_champs_agent(
-    provider: str = "ollama",
-    model: str = "gpt-oss:20b",
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
     **kwargs,
 ) -> ChampsLLMInferenceAgent:
     """Create a ChampsLLMInferenceAgent with a new LLM client.
 
-    Defaults to gpt-oss:20b running on a local Ollama instance.
+    Defaults to the configured env-backed provider/model.
     """
     from coda.llm_api import create_llm_client
 
+    provider = provider or get_inference_llm_provider()
+    model = model or get_inference_llm_model()
     client = create_llm_client(provider=provider, model=model, **kwargs)
     return ChampsLLMInferenceAgent(llm_client=client)
 
@@ -191,5 +199,9 @@ if __name__ == "__main__":
     )
 
     agent = create_champs_agent()
-    server = InferenceServer(agent, host="0.0.0.0", port=5123)
+    server = InferenceServer(
+        agent,
+        host=get_inference_host(),
+        port=get_inference_port(),
+    )
     server.run()

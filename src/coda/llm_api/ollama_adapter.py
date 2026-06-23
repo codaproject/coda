@@ -6,17 +6,17 @@ Uses Ollama's native structured output support via the `format` parameter.
 """
 
 import json
-import os
 import time
 import logging
 from typing import Dict, Any, Optional
 
 try:
-    from ollama import chat
+    from ollama import Client
 except ImportError:
-    chat = None
+    Client = None
 
 from .client import LLMClient
+from coda.runtime_config import get_ollama_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -43,24 +43,23 @@ class OllamaAdapter(LLMClient):
         Parameters
         ----------
         base_url : str, optional
-            Ollama API base URL. Defaults to http://localhost:11434/api.
+            Ollama API base URL. Defaults to http://localhost:11434.
         model : str, default="llama3.2"
             Ollama model to use.
         timeout : float, default=300.0
             Request timeout in seconds.
         """
-        if chat is None:
+        if Client is None:
             raise ImportError(
                 "Ollama package is not installed. "
                 "Install it with: pip install 'coda[ollama]' or pip install ollama"
             )
-        
-        # Note: base_url and timeout are not used with ollama package
-        # but kept for API compatibility
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+        self.base_url = base_url or get_ollama_base_url()
         self.model = model
         self.timeout = timeout
         self.provider = "ollama"
+        self.client = Client(host=self.base_url, timeout=self.timeout)
 
     def call(self, user_prompt: str, temperature: float = 0.0) -> str:
         """
@@ -89,7 +88,7 @@ class OllamaAdapter(LLMClient):
 
         for attempt in range(3):  # Default max_retries
             try:
-                response = chat(
+                response = self.client.chat(
                     model=self.model,
                     messages=messages,
                     options={
@@ -173,9 +172,9 @@ class OllamaAdapter(LLMClient):
 
         for attempt in range(max_retries):
             try:
-                # Use Ollama's chat function with schema-based validation
+                # Use Ollama's chat endpoint with schema-based validation
                 # Pass schema directly for strict validation (prevents formatting issues)
-                response = chat(
+                response = self.client.chat(
                     model=self.model,
                     messages=messages,
                     format=schema,  # Pass schema directly for strict validation

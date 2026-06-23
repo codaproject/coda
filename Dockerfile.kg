@@ -95,8 +95,8 @@ RUN --mount=type=bind,source=kg,target=/sw/kg \
       || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
 
 
-ENV DOCKERIZED="TRUE"
-ENV CODA_KG_URL="bolt://localhost:7687"
+# Neo4j's standard HTTP and Bolt ports.
+EXPOSE 7474 7687
 
 # Vector indexes are created at startup (requires a running Neo4j). The script
 # is run directly by path so it imports only the neo4j driver, not the coda
@@ -104,6 +104,6 @@ ENV CODA_KG_URL="bolt://localhost:7687"
 RUN python -m pip install neo4j
 COPY src/coda/kg/vector_index.py /sw/vector_index.py
 
-COPY docker_startup.sh  /sw/startup.sh
+COPY docker_startup.sh /sw/startup.sh
 
-ENTRYPOINT ["/bin/bash",  "/sw/startup.sh"]
+ENTRYPOINT ["/bin/bash", "/sw/startup.sh"]

@@ -1,21 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -eoxu pipefail
+set -euo pipefail
 
-echo "Starting database"
-neo4j start
+neo4j console &
+neo4j_pid=$!
 
-echo "Waiting for database"
-until [ \
-  "$(curl -s -w '%{http_code}' -o /dev/null "http://localhost:7474")" \
-  -eq 200 ]
-do
-  sleep 5
+stop_neo4j() {
+  kill -TERM "${neo4j_pid}" 2>/dev/null || true
+  wait "${neo4j_pid}" 2>/dev/null || true
+}
+trap stop_neo4j EXIT
+trap 'exit 0' INT TERM
+
+echo "Waiting for Neo4j..."
+until curl --fail --silent --output /dev/null "http://127.0.0.1:7474"; do
+  if ! kill -0 "${neo4j_pid}" 2>/dev/null; then
+    wait "${neo4j_pid}"
+    exit $?
+  fi
+  sleep 3
 done
 
-neo4j status
-
-echo "Creating vector indexes"
+echo "Creating vector indexes..."
 python /sw/vector_index.py
 
-tail -f /var/log/neo4j/neo4j.log
+echo "Neo4j is ready."
+wait "${neo4j_pid}"
