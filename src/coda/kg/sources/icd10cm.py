@@ -87,9 +87,10 @@ def synthesize_extensions(icd10_cm_code, desc, scd, valid_codes):
                 {
                     "id:ID": f'icd10cm:{ext_code}',
                     ":LABEL": "icd10cm",
-                    "kind": "code",
+                    "code": ext_code,
+                    "class_kind": "code",
                     "billable:boolean": valid_codes[bare_code],
-                    "description": f"{desc}, {ext.text}",
+                    "name": f"{desc}, {ext.text}",
                     **{f"{k}:string[]": None for k in NOTE_FIELDS},
                 },
                 {":START_ID": f'icd10cm:{icd10_cm_code}',
@@ -112,8 +113,9 @@ def extract_icd10cm_table(valid_codes):
             {
                 "id:ID": f'icd10cm:{chapter_code}',
                 ":LABEL": "icd10cm",
-                "kind": chapter.tag,
-                "description": chapter.find("desc").text,
+                "code": chapter_code,
+                "class_kind": chapter.tag,
+                "name": chapter.find("desc").text,
                 "billable:boolean": "false",
                 **extract_note_fields(chapter),
             }
@@ -126,8 +128,9 @@ def extract_icd10cm_table(valid_codes):
                 {
                     "id:ID": f'icd10cm:{block_code}',
                     ":LABEL": "icd10cm",
-                    "kind": tag,
-                    "description": block.find("desc").text,
+                    "code": block_code,
+                    "class_kind": tag,
+                    "name": block.find("desc").text,
                     "billable:boolean": "false",
                     **extract_note_fields(block),
                 }
@@ -158,11 +161,12 @@ def extract_icd10cm_table(valid_codes):
                         {
                             "id:ID": f'icd10cm:{icd10_cm_code}',
                             ":LABEL": "icd10cm",
-                            "kind": "code",
+                            "code": icd10_cm_code,
+                            "class_kind": "code",
                             "billable:boolean": valid_codes.get(
                                 icd10_cm_code.replace(".", ""), "false"
                             ),
-                            "description": desc,
+                            "name": desc,
                             **tags_dict,
                         }
                     )
@@ -203,7 +207,7 @@ def _validate_nodes(nodes, valid_codes):
     found_codes = set(
         row["id:ID"].removeprefix("icd10cm:").replace(".", "")
         for row in nodes
-        if row["kind"] == "code" or row["kind"] == "section"
+        if row["class_kind"] == "code" or row["class_kind"] == "section"
     )
     ref_codes = set(valid_codes.keys())
     missing = ref_codes - found_codes
