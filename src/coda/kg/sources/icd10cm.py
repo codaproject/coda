@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Tuple, Generator, IO
+from typing import IO
 import zipfile
 import certifi
 
@@ -12,9 +12,8 @@ import pandas as pd
 from openacme.icd10.map_definitions import _ensure_umls_files
 
 
-os.environ["SSL_CERT_FILE"] = certifi.where()
-
-ICD10CM_BASE_URL = "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/ICD10CM/2027/"
+ICD10CM_BASE_URL = \
+    "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/ICD10CM/2027/"
 ICD10CM_TABLE_URL = ICD10CM_BASE_URL + "icd10cm-table-and-index-2027.zip"
 ICD10CM_TABLE_FILE = "icd10cm-tabular_-2027.xml"
 ICD10CM_CODE_URL = ICD10CM_BASE_URL + "icd10cm-code-descriptions-2027.zip"
@@ -35,8 +34,9 @@ NOTE_FIELDS: list[str] = [
 
 
 def open_zipped_file(url, file_name) -> IO[bytes]:
-    """Return an open file hanler for a file inside a zip file."""
-    zip_path = pystow.module("icd10-cm").ensure(url=url)
+    """Return an open file handler for a file inside a zip file."""
+    os.environ["SSL_CERT_FILE"] = certifi.where()
+    zip_path = ICD10CM_BASE.ensure(url=url)
     with zipfile.ZipFile(zip_path, "r") as zf:
         matches = [p for p in zf.namelist() if Path(p).name == file_name]
         if not matches:
@@ -44,7 +44,7 @@ def open_zipped_file(url, file_name) -> IO[bytes]:
         return zf.open(matches[0])
 
 
-def load_valid_codes() -> dict[str,str]:
+def load_valid_codes() -> dict[str, str]:
     """Load a list of valid codes and if they are billable."""
     codes_to_billable = {}
     with open_zipped_file(ICD10CM_CODE_URL, ICD10CM_CODE_FILE) as f:
@@ -68,23 +68,26 @@ def extract_note_fields(node: etree._Element):
 
 
 def synthesize_extensions(icd10_cm_code, desc, scd, valid_codes):
-    """Yield (node_dict, edge_tuple) for each synthesized 7th-char extension."""
+    """Yield (node_dict, edge) for each synthesized 7th-char extension."""
     for ext in scd.findall("extension"):
         char = ext.get("char")
-        padded = icd10_cm_code + "." if not "." in icd10_cm_code else icd10_cm_code
+        if "." not in icd10_cm_code:
+            padded = icd10_cm_code + "."
+        else:
+            padded = icd10_cm_code
         padded = f"{padded:X<7}"
         ext_code = padded + char
-        # There are some codes the logic would sugest exist but medically
+        bare_code = ext_code.replace(".", "")
+        # There are some codes the logic would suggest exist but medically
         # do not ex S06.396 which does not have S06.396D because it would
         # be fatal
-
-        if ext_code.replace(".", "") in valid_codes:
+        if bare_code in valid_codes:
             yield (
                 {
                     "id:ID": f'icd10cm:{ext_code}',
                     ":LABEL": "icd10cm",
                     "kind": "code",
-                    "billable:boolean": valid_codes.get(ext_code.replace(".", "")),
+                    "billable:boolean": valid_codes[bare_code],
                     "description": f"{desc}, {ext.text}",
                     **{f"{k}:string[]": None for k in NOTE_FIELDS},
                 },
@@ -193,9 +196,9 @@ def extract_icd10cm_table(valid_codes):
 
 
 def _validate_nodes(nodes, valid_codes):
-    """helper function to validate that all codes were extracted and no extras"""
+    """Validate that all codes were extracted and no extras exist."""
     found_codes = set(
-        row["id:ID"].replace(".", "")
+        row["id:ID"].removeprefix("icd10cm:").replace(".", "")
         for row in nodes
         if row["kind"] == "code" or row["kind"] == "section"
     )
@@ -205,11 +208,13 @@ def _validate_nodes(nodes, valid_codes):
 
     if len(missing) > 0:
         raise ValueError(
-            f"Extracted nodes missing {len(missing)} codes \n Example missing codes {sorted(missing)[:10]}"
+            f"Extracted nodes missing {len(missing)} codes \n "
+            f"Example missing codes {sorted(missing)[:10]}"
         )
     if len(extra) > 0:
         raise ValueError(
-            f"Extracted nodes have {len(extra)} extra codes \n Example extra codes {sorted(extra)[:10]}"
+            f"Extracted nodes have {len(extra)} extra codes \n "
+            f"Example extra codes {sorted(extra)[:10]}"
         )
 
 
