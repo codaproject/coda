@@ -10,6 +10,7 @@ import pystow
 from lxml import etree
 import pandas as pd
 from openacme.icd10.map_definitions import _ensure_umls_files
+from coda.kg.sources import KGSourceExporter, write_tsv_gz
 
 
 ICD10CM_BASE_URL = \
@@ -219,26 +220,21 @@ def _validate_nodes(nodes, valid_codes):
 
 
 def get_icd10cm_nodes_edges():
-    """Get the ICD10-CM nodes and edges as dataframes."""
+    """Get the ICD10-CM nodes and edges as lists of dicts."""
     valid_codes = load_valid_codes()
     nodes, edges = extract_icd10cm_table(valid_codes)
     return nodes, edges
 
 
-def get_mapping_edges():
-    # Parse into data frames and write out
-    nodes_df = pd.DataFrame.from_records(nodes)
-    edges_df = pd.DataFrame.from_records(edges)
+def get_mapping_edges(valid_icd10cm_codes):
+    """Build maps_to edges from ICD10-CM codes to WHO ICD10 codes.
 
-    # get valid codes map code -> name
-    valid_codes = {x['id:ID'] : x['description'] for x in nodes}
-
-    mrconso_path, mrdef_path = _ensure_umls_files()
-    mrconso_path = Path(mrconso_path)
-    mrdef_path = Path(mrdef_path)
-
-
-    mrconso = pd.read_csv(mrconso_path, sep="|", header=None,
+    Pairs are taken from UMLS MRCONSO where an ICD10-CM and a WHO ICD10
+    code share a concept (CUI). ``valid_icd10cm_codes`` is the set of
+    unprefixed ICD10-CM codes to keep.
+    """
+    mrconso_path, _ = _ensure_umls_files()
+    mrconso = pd.read_csv(Path(mrconso_path), sep="|", header=None,
                           # CUI, SAB (source), CODE
                           usecols=[0, 11, 13],
                           names=["CUI", "SAB", "CODE"])
@@ -246,26 +242,34 @@ def get_mapping_edges():
     icd10 = mrconso[mrconso.SAB == "ICD10"][["CUI", "CODE"]]
     icd10cm = mrconso[mrconso.SAB == "ICD10CM"][["CUI", "CODE"]]
 
+    # Pair WHO and CM codes that share a UMLS concept (CUI)
     xwalk = icd10.merge(icd10cm, on="CUI", suffixes=("_icd10", "_icd10cm"))
-    # xwalk now has WHO code, CM code, and shared CUI for each pair
-    xwalk = xwalk[xwalk['CODE_icd10cm'].isin(valid_codes)]
-    grouped_xwalk = xwalk.drop_duplicates(subset=['CODE_icd10', 'CODE_icd10cm'])
-    grouped_xwalk[':TYPE'] = "maps_to"
-    grouped_xwalk = grouped_xwalk.rename(columns={'CODE_icd10' : ':END_ID' ,
-                                                  'CODE_icd10cm': ':START_ID'}).drop(columns=["CUI"])
-    grouped_xwalk[':START_ID'] = "icd10cm:" + grouped_xwalk[":START_ID"]
-    grouped_xwalk[':END_ID'] = "icd10:" + grouped_xwalk[":END_ID"]
-    # icd_nodes = pd.read_csv("kg/icd10_nodes.tsv", sep='\t').drop_duplicates(subset=['id:ID'])['id:ID'].to_list()
-    # grouped_xwalk = grouped_xwalk[grouped_xwalk[':END_ID'].isin(icd_nodes)]
+    xwalk = xwalk[xwalk["CODE_icd10cm"].isin(valid_icd10cm_codes)]
+    xwalk = xwalk.drop_duplicates(subset=["CODE_icd10", "CODE_icd10cm"])
 
-    edges_df[':START_ID'] = "icd10cm:" + edges_df[":START_ID"]
-    edges_df[':END_ID'] = "icd10cm:" + edges_df[":END_ID"]
-    nodes_df['id:ID'] = 'icd10cm:' + nodes_df['id:ID']
-    edges_df = pd.concat([edges_df, grouped_xwalk])
+    return [{":START_ID": f"icd10cm:{row.CODE_icd10cm}",
+             ":END_ID": f"icd10:{row.CODE_icd10}",
+             ":TYPE": "maps_to"}
+            for row in xwalk.itertuples(index=False)]
+
+
+class Icd10CmExporter(KGSourceExporter):
+    name = "icd10cm"
+
+    def export(self):
+        nodes, edges = get_icd10cm_nodes_edges()
+        # Add ICD10-CM -> WHO ICD10 mapping edges
+        valid_ids = {n["id:ID"].removeprefix("icd10cm:") for n in nodes}
+        edges.extend(get_mapping_edges(valid_ids))
+
+        nodes_df = pd.DataFrame.from_records(nodes)
+        write_tsv_gz(nodes_df.sort_values("id:ID"), self.nodes_file)
+
+        edges_df = pd.DataFrame.from_records(edges)
+        write_tsv_gz(edges_df.sort_values([":START_ID", ":END_ID"]),
+                     self.edges_file)
 
 
 if __name__ == "__main__":
-    nodes, edges = get_icd10cm_nodes_edges()
-
-    nodes_df.to_csv("kg/icd10_cm_nodes.tsv", sep="\t", index=False)
-    edges_df.to_csv("kg/icd10_cm_edges.tsv", sep="\t", index=False)
+    exporter = Icd10CmExporter()
+    exporter.export()
