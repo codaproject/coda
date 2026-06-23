@@ -71,6 +71,8 @@ RUN --mount=type=bind,source=kg,target=/sw/kg \
     --nodes /sw/kg/combined_nodes.tsv.gz \
     --relationships /sw/kg/icd10_edges.tsv.gz \
     --nodes /sw/kg/icd10_nodes.tsv.gz \
+    --relationships /sw/kg/icd10cm_edges.tsv.gz \
+    --nodes /sw/kg/icd10cm_nodes.tsv.gz \
     --relationships /sw/kg/acme_edges.tsv.gz \
     --nodes /sw/kg/acme_nodes.tsv.gz \
     --relationships /sw/kg/icd11_edges.tsv.gz \
