@@ -10,6 +10,7 @@ on:
 env:
   # Satisfies OpenAIAdapter init for /health smoke test only (no openai API calls).
   OPENAI_API_KEY_SMOKE_TEST: sk-ci-dummy-key
+  OPENAI_API_KEY: sk-ci-dummy-key
 
 jobs:
   # PR path: build and smoke test amd64 images only, without pushing

@@ -216,3 +216,5 @@ kg/reports/
 .DS_Store
 
 data/
+
+.vscode/
