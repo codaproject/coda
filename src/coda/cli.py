@@ -28,13 +28,26 @@ SAMPLE_RATE = 16000
 
 
 def build_grounder(name: str, provider: str = None, model: str = None):
-    """Construct a grounder from a flag value ("gilda" or "rag")."""
+    """Construct a grounder from a flag value ("gilda" or "rag").
+
+    The RAG grounder picks up the standardized RAG_* env config (same as the
+    web app); --provider/--model override the env-backed provider/model.
+    """
     if name == "rag":
         from coda.grounding.rag_grounder import RagGrounder
+        from coda.runtime_config import (
+            get_rag_llm_model,
+            get_rag_llm_provider,
+            get_rag_ontology,
+            get_rag_use_reranker,
+        )
         grounder = RagGrounder()
-        cfg = {k: v for k, v in (("provider", provider), ("model", model)) if v}
-        if cfg:
-            grounder.update_config(**cfg)
+        grounder.update_config(
+            provider=provider or get_rag_llm_provider(),
+            model=model or get_rag_llm_model(),
+            ontology=get_rag_ontology(),
+            use_reranker=get_rag_use_reranker(),
+        )
         return grounder
     return GildaGrounder()
 
