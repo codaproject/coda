@@ -23,8 +23,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from coda import CODA_BASE
-from coda.dialogue.whisper import WhisperTranscriber
-from coda.dialogue import AudioProcessor
+from coda.dialogue import (
+    AudioProcessor,
+    Transcriber,
+    TRANSCRIBER_BACKENDS,
+    create_transcriber,
+)
+from coda.dialogue.util import SPEECHMATICS_LANGUAGES
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
@@ -36,6 +41,7 @@ from coda.runtime_config import (
     get_rag_llm_provider,
     get_rag_ontology,
     get_rag_use_reranker,
+    get_transcriber_backend,
 )
 
 app = FastAPI()
@@ -63,6 +69,7 @@ current_language = "en"
 save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
+current_transcriber_backend = get_transcriber_backend()
 current_whisper_model = "medium"
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
@@ -77,12 +84,13 @@ rag_config = {
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = "llm"
-transcriber: WhisperTranscriber
+transcriber: Transcriber
 
 
 class SettingsRequest(BaseModel):
     language: Optional[str] = None
     save_enabled: Optional[bool] = None
+    transcriber_backend: Optional[str] = None
     whisper_model: Optional[str] = None
     grounder: Optional[str] = None
     rag_provider: Optional[str] = None
@@ -95,7 +103,7 @@ class SettingsRequest(BaseModel):
 
 
 def get_language_name(code: str) -> str:
-    return LANGUAGE_NAMES.get(code, code)
+    return LANGUAGE_NAMES.get(code) or SPEECHMATICS_LANGUAGES.get(code, code)
 
 
 def create_grounder(grounder_name: str):
@@ -107,7 +115,9 @@ def create_grounder(grounder_name: str):
 
 
 grounder = create_grounder(current_grounder)
-transcriber = WhisperTranscriber(model_size=current_whisper_model)
+transcriber = create_transcriber(
+    current_transcriber_backend, whisper_model=current_whisper_model
+)
 
 
 def open_save_files(language: str):
@@ -274,11 +284,13 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
 
 @app.get("/languages")
 async def get_languages():
-    """Get all supported languages."""
+    """Get supported languages for the active transcription backend."""
+    names = (SPEECHMATICS_LANGUAGES
+             if current_transcriber_backend == "speechmatics"
+             else LANGUAGE_NAMES)
     # Return sorted by name, with English first
     langs = [{"code": code, "name": name}
-             for code, name in sorted(LANGUAGE_NAMES.items(),
-                                      key=lambda x: x[1])]
+             for code, name in sorted(names.items(), key=lambda x: x[1])]
     # Move English to front
     langs = ([l for l in langs if l["code"] == "en"]
              + [l for l in langs if l["code"] != "en"])
@@ -293,6 +305,7 @@ async def get_settings():
         "language": current_language,
         "save_enabled": save_enabled,
         "file_paths": file_paths,
+        "transcriber_backend": current_transcriber_backend,
         "whisper_model": current_whisper_model,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
@@ -311,9 +324,9 @@ async def update_settings(req: SettingsRequest):
     global current_language, save_enabled, transcriber, grounder
     global current_whisper_model, current_llm_provider, current_llm_model
     global translation_mode
-    global current_grounder
+    global current_grounder, current_transcriber_backend
     grounder_changed = False
-    whisper_changed = False
+    transcriber_changed = False
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -350,19 +363,32 @@ async def update_settings(req: SettingsRequest):
         if isinstance(grounder, RagGrounder):
             await asyncio.to_thread(grounder.update_config, **rag_config)
         logger.info(f"RAG grounder config updated: {rag_config}")
+    if req.transcriber_backend is not None:
+        backend = req.transcriber_backend.strip().lower()
+        if backend not in TRANSCRIBER_BACKENDS:
+            backend = current_transcriber_backend
+        if backend != current_transcriber_backend:
+            current_transcriber_backend = backend
+            transcriber_changed = True
+            logger.info(f"Transcriber backend set to: {current_transcriber_backend}")
     if req.whisper_model is not None and req.whisper_model != current_whisper_model:
         current_whisper_model = req.whisper_model
-        whisper_changed = True
+        if current_transcriber_backend == "whisper":
+            transcriber_changed = True
         logger.info(f"Whisper model set to: {current_whisper_model}")
     # Transcriber and grounder are independent; rebuild each only if it changed.
     if grounder_changed:
         grounder = await asyncio.to_thread(create_grounder, current_grounder)
         logger.info("Grounder reloaded: %s", current_grounder)
-    if whisper_changed:
+    if transcriber_changed:
         transcriber = await asyncio.to_thread(
-            WhisperTranscriber, model_size=current_whisper_model
+            create_transcriber, current_transcriber_backend,
+            current_whisper_model
         )
-        logger.info("Transcriber reloaded with model=%s", current_whisper_model)
+        logger.info(
+            "Transcriber reloaded: backend=%s model=%s",
+            current_transcriber_backend, current_whisper_model
+        )
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider
         logger.info(f"LLM provider set to: {current_llm_provider}")
@@ -377,6 +403,7 @@ async def update_settings(req: SettingsRequest):
         "language": current_language,
         "save_enabled": save_enabled,
         "file_paths": file_paths,
+        "transcriber_backend": current_transcriber_backend,
         "whisper_model": current_whisper_model,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
@@ -495,8 +522,12 @@ async def handle_chunk(websocket: WebSocket, chunk_id, timestamp, chunk):
     """Transcribe, ground, save, and start inference for one chunk."""
     # Transcribe audio to text
     original_transcript = None
-    if (current_language != "en"
-            and translation_mode == "whisper_translate"):
+    # Direct speech-to-English translation is a Whisper capability; for
+    # Speechmatics, non-English always transcribes then translates via the LLM.
+    direct_translate = (current_language != "en"
+                        and translation_mode == "whisper_translate"
+                        and current_transcriber_backend == "whisper")
+    if direct_translate:
         # Whisper translates directly to English
         english_text = await transcriber.transcribe_audio(
             chunk, language=current_language, task="translate"
@@ -508,10 +539,9 @@ async def handle_chunk(websocket: WebSocket, chunk_id, timestamp, chunk):
         )
         english_text = transcript
 
-        # If non-English with LLM mode, translate
+        # If non-English and not already translated to English, translate via LLM
         # (skip if transcript is too short to be real speech)
         if (current_language != "en"
-                and translation_mode == "llm"
                 and len(transcript.split()) > 1):
             original_transcript = transcript
             english_text = await translate_text(

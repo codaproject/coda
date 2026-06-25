@@ -17,10 +17,16 @@ from pathlib import Path
 import numpy as np
 import whisper
 
-from coda.dialogue import AudioProcessor, DEFAULT_CHUNK_DURATION
-from coda.dialogue.whisper import WhisperTranscriber, DEFAULT_MODEL_SIZE
+from coda.dialogue import (
+    AudioProcessor,
+    DEFAULT_CHUNK_DURATION,
+    TRANSCRIBER_BACKENDS,
+    create_transcriber,
+)
+from coda.dialogue.whisper import DEFAULT_MODEL_SIZE
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.inference.agent import CodaToyInferenceAgent
+from coda.runtime_config import get_transcriber_backend
 
 logger = logging.getLogger("coda.cli")
 
@@ -236,6 +242,9 @@ def main():
                         help="LLM provider for the agent / RAG grounder (e.g. openai, ollama)")
     parser.add_argument("--model", default=None,
                         help="LLM model name (e.g. gpt-4o-mini, gpt-oss:20b)")
+    parser.add_argument("--transcriber", choices=list(TRANSCRIBER_BACKENDS),
+                        default=get_transcriber_backend(),
+                        help="Transcription backend (default: whisper)")
     parser.add_argument("--whisper-model", default=DEFAULT_MODEL_SIZE,
                         help=f"Whisper model size (default: {DEFAULT_MODEL_SIZE})")
     parser.add_argument("--language", default="en", help="Spoken language (default: en)")
@@ -273,7 +282,9 @@ def main():
             **common_meta,
         }
     else:
-        transcriber = WhisperTranscriber(model_size=args.whisper_model)
+        transcriber = create_transcriber(
+            args.transcriber, whisper_model=args.whisper_model
+        )
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)
         duration_s = len(audio_i16) / SAMPLE_RATE
@@ -296,6 +307,7 @@ def main():
             "input_type": "audio",
             "mode": mode,
             **common_meta,
+            "transcriber": args.transcriber,
             "whisper_model": args.whisper_model,
             "language": args.language,
             "task": args.task,
