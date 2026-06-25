@@ -17,6 +17,9 @@ DEFAULT_RAG_LLM_PROVIDER = "openai"
 DEFAULT_RAG_LLM_MODEL = "gpt-4o-mini"
 DEFAULT_RAG_ONTOLOGY = "icd10"
 DEFAULT_RAG_USE_RERANKER = True
+DEFAULT_TRANSCRIBER_BACKEND = "whisper"
+DEFAULT_SPEECHMATICS_URL = "wss://us.rt.speechmatics.com/v2/"
+DEFAULT_SPEECHMATICS_MODEL = "enhanced"
 
 
 def _get_str(name: str, default: str) -> str:
@@ -113,3 +116,15 @@ def get_rag_ontology() -> str:
 
 def get_rag_use_reranker() -> bool:
     return _get_bool("RAG_USE_RERANKER", DEFAULT_RAG_USE_RERANKER)
+
+
+def get_transcriber_backend() -> str:
+    return _get_str("TRANSCRIBER_BACKEND", DEFAULT_TRANSCRIBER_BACKEND)
+
+
+def get_speechmatics_url() -> str:
+    return _get_str("SPEECHMATICS_URL", DEFAULT_SPEECHMATICS_URL)
+
+
+def get_speechmatics_model() -> str:
+    return _get_str("SPEECHMATICS_MODEL", DEFAULT_SPEECHMATICS_MODEL)

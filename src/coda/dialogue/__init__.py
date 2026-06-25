@@ -1,4 +1,5 @@
-__all__ = ["AudioProcessor", "Transcriber"]
+__all__ = ["AudioProcessor", "Transcriber", "create_transcriber",
+           "TRANSCRIBER_BACKENDS"]
 
 import os
 import logging
@@ -15,6 +16,33 @@ logger = logging.getLogger(__name__)
 
 # Default chunk length (seconds) used by the live app's audio pipeline.
 DEFAULT_CHUNK_DURATION = 3
+
+# Selectable transcription backends, in preference order (whisper is the
+# default; speechmatics is the second choice). The active backend is set by
+# the TRANSCRIBER_BACKEND env var (see coda.runtime_config).
+TRANSCRIBER_BACKENDS = ("whisper", "speechmatics")
+
+
+def create_transcriber(backend: str = None, whisper_model: str = None):
+    """Build a Transcriber for the named backend.
+
+    Imports are deferred so a Speechmatics deployment needn't install
+    torch/whisper, and vice versa. Defaults to the TRANSCRIBER_BACKEND env var.
+    """
+    from coda.runtime_config import get_transcriber_backend
+    backend = (backend or get_transcriber_backend()).lower()
+    if backend == "whisper":
+        from .whisper import WhisperTranscriber, DEFAULT_MODEL_SIZE
+        return WhisperTranscriber(
+            model_size=whisper_model or DEFAULT_MODEL_SIZE
+        )
+    if backend == "speechmatics":
+        from .speechmatics import SpeechmaticsTranscriber
+        return SpeechmaticsTranscriber()
+    raise ValueError(
+        f"Unknown transcriber backend {backend!r}; "
+        f"choose from {TRANSCRIBER_BACKENDS}"
+    )
 
 
 class AudioProcessor:

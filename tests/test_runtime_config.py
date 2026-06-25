@@ -18,6 +18,9 @@ RUNTIME_ENV_VARS = (
     "RAG_LLM_MODEL",
     "RAG_ONTOLOGY",
     "RAG_USE_RERANKER",
+    "TRANSCRIBER_BACKEND",
+    "SPEECHMATICS_URL",
+    "SPEECHMATICS_MODEL",
 )
 
 
@@ -50,6 +53,12 @@ def test_runtime_config_defaults(monkeypatch):
             == runtime_config.DEFAULT_RAG_ONTOLOGY)
     assert (runtime_config.get_rag_use_reranker()
             == runtime_config.DEFAULT_RAG_USE_RERANKER)
+    assert (runtime_config.get_transcriber_backend()
+            == runtime_config.DEFAULT_TRANSCRIBER_BACKEND)
+    assert (runtime_config.get_speechmatics_url()
+            == runtime_config.DEFAULT_SPEECHMATICS_URL)
+    assert (runtime_config.get_speechmatics_model()
+            == runtime_config.DEFAULT_SPEECHMATICS_MODEL)
 
 
 def test_runtime_config_env_overrides(monkeypatch):
@@ -69,6 +78,9 @@ def test_runtime_config_env_overrides(monkeypatch):
     monkeypatch.setenv("RAG_LLM_MODEL", "llama3.2")
     monkeypatch.setenv("RAG_ONTOLOGY", "icd11")
     monkeypatch.setenv("RAG_USE_RERANKER", "false")
+    monkeypatch.setenv("TRANSCRIBER_BACKEND", "speechmatics")
+    monkeypatch.setenv("SPEECHMATICS_URL", "wss://eu.rt.speechmatics.com/v2/")
+    monkeypatch.setenv("SPEECHMATICS_MODEL", "standard")
 
     assert runtime_config.get_app_host() == "127.0.0.1"
     assert runtime_config.get_app_port() == 9000
@@ -84,6 +96,10 @@ def test_runtime_config_env_overrides(monkeypatch):
     assert runtime_config.get_rag_llm_model() == "llama3.2"
     assert runtime_config.get_rag_ontology() == "icd11"
     assert runtime_config.get_rag_use_reranker() is False
+    assert runtime_config.get_transcriber_backend() == "speechmatics"
+    assert (runtime_config.get_speechmatics_url()
+            == "wss://eu.rt.speechmatics.com/v2/")
+    assert runtime_config.get_speechmatics_model() == "standard"
 
 
 def test_runtime_config_blank_inference_url_falls_back(monkeypatch):
