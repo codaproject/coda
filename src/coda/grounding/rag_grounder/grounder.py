@@ -261,7 +261,17 @@ class RagGrounder(BaseGrounder):
             matches = self._annotation_matches(concept, span_text=concept["Concept"])
             if not matches:
                 continue
-            spans = find_evidence_spans(text, concept["supporting_evidence"], min_similarity=min_similarity)
+
+            # Depending on the extractor type, we are going to hightlight different text spans
+            extractor_type = self.config.extractor.type.lower().strip()
+
+            # If the extractor is hunflair, an NER for diseases, we will only highlight the text of the entities
+            if extractor_type == "hunflair":
+                spans = find_evidence_spans(text, [concept["Concept"]], min_similarity=min_similarity)
+            # If the extractor is an LLM, then, we are going to highlight the supported evidence instead/
+            else:
+                spans = find_evidence_spans(text, concept["supporting_evidence"], min_similarity=min_similarity)
+
             for start, end, _match_type, _matched_text, _similarity in spans:
                 if start < 0 or end > len(text) or end <= start:
                     continue
