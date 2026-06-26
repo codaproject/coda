@@ -71,13 +71,9 @@ save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_transcriber_backend = get_transcriber_backend()
 current_whisper_model = "medium"
-<<<<<<< HEAD
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
 current_grounder = "gilda"
-=======
-current_grounder = "rag"
->>>>>>> 7b191d8 (Refactor grounding logic to integrate detailed report generation and update extractor to include sentence metadata)
 # RAG grounder settings, applied to the grounder via RagGrounder.update_config
 rag_config = {
     "provider": get_rag_llm_provider(),
