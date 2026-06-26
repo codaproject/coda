@@ -34,17 +34,8 @@ class RagGrounder(BaseGrounder):
         self,
         config_path: str | Path | None = None,
         llm_client: LLMClient | None = None,
-        log_path: str | Path | None = "logger.log",
     ):
         super().__init__()
-        if log_path is not None:
-            handler = logging.FileHandler(log_path, mode="w")
-            handler.setLevel(logging.DEBUG)
-            handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%H:%M:%S"))
-            if logger.parent is not None:
-                logger.parent.addHandler(handler)
-                logger.parent.setLevel(logging.DEBUG)
-
         # Initialize config from yaml if provided, else use default yaml file
         if config_path is not None:
             self.config = RAGGrounderConfig.from_yaml(config_path)
