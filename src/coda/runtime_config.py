@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import DEFAULT
 
 DEFAULT_APP_HOST = "0.0.0.0"
 DEFAULT_APP_PORT = 8000
