@@ -38,6 +38,7 @@ from coda.runtime_config import (
     get_inference_llm_model,
     get_inference_llm_provider,
     get_inference_url,
+    get_rag_extractor_type,
     get_rag_llm_model,
     get_rag_llm_provider,
     get_rag_ontology,
@@ -81,6 +82,7 @@ rag_config = {
     "model": get_rag_llm_model(),
     "ontology": get_rag_ontology(),
     "use_reranker": get_rag_use_reranker(),
+    "extractor_type": get_rag_extractor_type(),
 }
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM

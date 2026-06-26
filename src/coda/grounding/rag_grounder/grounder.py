@@ -89,6 +89,7 @@ class RagGrounder(BaseGrounder):
         model: str | None = None,
         ontology: str | None = None,
         use_reranker: bool | None = None,
+        extractor_type: str | None = None,
     ) -> None:
         # Record which components are affected by actual config changes
         rebuild_set = set()
@@ -104,6 +105,10 @@ class RagGrounder(BaseGrounder):
         if use_reranker is not None and use_reranker != self.config.reranker.enabled:
             self.config.reranker.enabled = use_reranker
             rebuild_set.add("reranker")
+        if extractor_type is not None and \
+                extractor_type.lower().strip() != self.config.extractor.type.lower().strip():
+            self.config.extractor.type = extractor_type
+            rebuild_set.add("extractor")
 
         # Rebuild affected components
         if "llm" in rebuild_set:
