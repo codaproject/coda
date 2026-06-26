@@ -263,10 +263,8 @@ class RagGrounder(BaseGrounder):
                 continue
 
             # Depending on the extractor type, we are going to hightlight different text spans
-            extractor_type = self.config.extractor.type.lower().strip()
-
             # If the extractor is hunflair, an NER for diseases, we will only highlight the text of the entities
-            if extractor_type == "hunflair":
+            if isinstance(self.extractor, Hunflair2Extractor):
                 spans = find_evidence_spans(text, [concept["Concept"]], min_similarity=min_similarity)
             # If the extractor is an LLM, then, we are going to highlight the supported evidence instead/
             else:

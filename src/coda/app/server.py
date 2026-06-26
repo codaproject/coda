@@ -112,6 +112,7 @@ def get_language_name(code: str) -> str:
 def create_grounder(grounder_name: str):
     if grounder_name == "rag":
         grounder = RagGrounder()
+        grounder.update_config(**rag_config)
         return grounder
     return GildaGrounder()
 
