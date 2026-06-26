@@ -34,6 +34,7 @@ from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
 from coda.runtime_config import (
+    get_grounder_type,
     get_inference_llm_model,
     get_inference_llm_provider,
     get_inference_url,
@@ -73,7 +74,7 @@ current_transcriber_backend = get_transcriber_backend()
 current_whisper_model = "medium"
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
-current_grounder = "gilda"
+current_grounder = get_grounder_type()
 # RAG grounder settings, applied to the grounder via RagGrounder.update_config
 rag_config = {
     "provider": get_rag_llm_provider(),

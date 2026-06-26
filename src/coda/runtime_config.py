@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from unittest.mock import DEFAULT
 
 DEFAULT_APP_HOST = "0.0.0.0"
 DEFAULT_APP_PORT = 8000
@@ -10,6 +11,7 @@ DEFAULT_INFERENCE_HOST = "0.0.0.0"
 DEFAULT_INFERENCE_PORT = 5123
 DEFAULT_INFERENCE_LLM_PROVIDER = "openai"
 DEFAULT_INFERENCE_LLM_MODEL = "gpt-5.4-mini"
+DEFAULT_GROUNDER_TYPE = "gilda"
 DEFAULT_LOCAL_INFERENCE_HOST = "127.0.0.1"
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_KG_URL = "bolt://localhost:7687"
@@ -81,6 +83,12 @@ def get_inference_llm_model() -> str:
     return _get_str(
         "INFERENCE_LLM_MODEL",
         DEFAULT_INFERENCE_LLM_MODEL,
+    )
+
+def get_grounder_type() -> str:
+    return _get_str(
+        "GROUNDER_TYPE",
+        DEFAULT_GROUNDER_TYPE,
     )
 
 

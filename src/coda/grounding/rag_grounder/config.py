@@ -85,8 +85,7 @@ class RAGGrounderConfig:
         # Resolve prompt_config_path (relative to the config file's directory)
         # to an absolute path so it opens regardless of the current working dir.
         config.extractor.prompt_config_path = str((path.parent / config.extractor.prompt_config_path).resolve())
-        if config.reranker.enabled:
-            config.reranker.prompt_config_path = str((path.parent / config.reranker.prompt_config_path).resolve())
+        config.reranker.prompt_config_path = str((path.parent / config.reranker.prompt_config_path).resolve())
         return config
 
     @classmethod
