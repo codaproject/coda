@@ -42,6 +42,9 @@ ENV CODA_DEVICE=${COMPUTE_DEVICE}
 # Pre-download Whisper model (assumes medium here)
 RUN python -c "import whisper; whisper.load_model('medium')"
 
+# Pre-download the Hunflair2 NER and SaT sentence-splitter models used by the RAG grounder
+RUN python -c "from flair.nn import Classifier; from wtpsplit_lite import SaT; Classifier.load('hunflair2'); SaT('sat-3l-sm')"
+
 # Expose the web server port
 EXPOSE 8000
 
