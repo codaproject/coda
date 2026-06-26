@@ -1,7 +1,5 @@
 """Runtime configuration helpers for deployment wiring."""
 
-from __future__ import annotations
-
 import os
 
 DEFAULT_APP_HOST = "0.0.0.0"
