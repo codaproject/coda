@@ -9,7 +9,8 @@ _DEFAULT_CONFIG_PATH = Path(__file__).parent / "grounder_config" / "icd10_config
 
 @dataclass
 class ExtractorConfig:
-    prompt_config_path: str
+    type: str     # Specifies the extractor type: LLM or Encoder based
+    prompt_config_path: str # For the LLM based extractor, specify the path to the system prompt
 
 
 @dataclass
@@ -84,8 +85,7 @@ class RAGGrounderConfig:
         # Resolve prompt_config_path (relative to the config file's directory)
         # to an absolute path so it opens regardless of the current working dir.
         config.extractor.prompt_config_path = str((path.parent / config.extractor.prompt_config_path).resolve())
-        if config.reranker.enabled:
-            config.reranker.prompt_config_path = str((path.parent / config.reranker.prompt_config_path).resolve())
+        config.reranker.prompt_config_path = str((path.parent / config.reranker.prompt_config_path).resolve())
         return config
 
     @classmethod

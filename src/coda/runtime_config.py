@@ -1,7 +1,5 @@
 """Runtime configuration helpers for deployment wiring."""
 
-from __future__ import annotations
-
 import os
 
 DEFAULT_APP_HOST = "0.0.0.0"
@@ -10,6 +8,7 @@ DEFAULT_INFERENCE_HOST = "0.0.0.0"
 DEFAULT_INFERENCE_PORT = 5123
 DEFAULT_INFERENCE_LLM_PROVIDER = "openai"
 DEFAULT_INFERENCE_LLM_MODEL = "gpt-5.4-mini"
+DEFAULT_GROUNDER_TYPE = "gilda"
 DEFAULT_LOCAL_INFERENCE_HOST = "127.0.0.1"
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_KG_URL = "bolt://localhost:7687"
@@ -17,6 +16,7 @@ DEFAULT_RAG_LLM_PROVIDER = "openai"
 DEFAULT_RAG_LLM_MODEL = "gpt-4o-mini"
 DEFAULT_RAG_ONTOLOGY = "icd10"
 DEFAULT_RAG_USE_RERANKER = True
+DEFAULT_RAG_EXTRACTOR_TYPE = "hunflair"
 DEFAULT_TRANSCRIBER_BACKEND = "whisper"
 DEFAULT_SPEECHMATICS_URL = "wss://us.rt.speechmatics.com/v2/"
 DEFAULT_SPEECHMATICS_MODEL = "enhanced"
@@ -83,6 +83,12 @@ def get_inference_llm_model() -> str:
         DEFAULT_INFERENCE_LLM_MODEL,
     )
 
+def get_grounder_type() -> str:
+    return _get_str(
+        "GROUNDER_TYPE",
+        DEFAULT_GROUNDER_TYPE,
+    )
+
 
 def get_inference_url() -> str:
     inference_url = os.getenv("INFERENCE_URL", "").strip()
@@ -116,6 +122,10 @@ def get_rag_ontology() -> str:
 
 def get_rag_use_reranker() -> bool:
     return _get_bool("RAG_USE_RERANKER", DEFAULT_RAG_USE_RERANKER)
+
+
+def get_rag_extractor_type() -> str:
+    return _get_str("RAG_EXTRACTOR_TYPE", DEFAULT_RAG_EXTRACTOR_TYPE)
 
 
 def get_transcriber_backend() -> str:

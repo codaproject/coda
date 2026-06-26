@@ -15,7 +15,7 @@ from coda.grounding import BaseGrounder
 from coda.llm_api import LLMClient, create_llm_client
 
 from .config import RAGGrounderConfig
-from .extractor import Extractor
+from .extractor import Extractor, Hunflair2Extractor, LLMExtractor
 from .reranker import Reranker
 from .retriever import Retriever
 from .utils import find_evidence_spans
@@ -34,16 +34,8 @@ class RagGrounder(BaseGrounder):
         self,
         config_path: str | Path | None = None,
         llm_client: LLMClient | None = None,
-        log_path: str | Path | None = "logger.log",
     ):
         super().__init__()
-        if log_path is not None:
-            handler = logging.FileHandler(log_path, mode="w")
-            handler.setLevel(logging.DEBUG)
-            handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%H:%M:%S"))
-            logger.parent.addHandler(handler)
-            logger.parent.setLevel(logging.DEBUG)
-
         # Initialize config from yaml if provided, else use default yaml file
         if config_path is not None:
             self.config = RAGGrounderConfig.from_yaml(config_path)
@@ -63,11 +55,17 @@ class RagGrounder(BaseGrounder):
         self.reranker = self._build_reranker()
 
     def _build_extractor(self) -> Extractor:
-        return Extractor(
-            concept_type=self.config.concept_type,
-            prompt_config_path=self.config.extractor.prompt_config_path,
-            llm_client=self.llm_client,
-        )
+        match self.config.extractor.type.lower().strip():
+            case "llm":
+                return LLMExtractor(
+                    concept_type=self.config.concept_type,
+                    prompt_config_path=self.config.extractor.prompt_config_path,
+                    llm_client=self.llm_client,
+                )
+            case "hunflair":
+                return Hunflair2Extractor(concept_type=self.config.concept_type)
+            case _:
+                raise ValueError(f"Unrecognized extractor type: {self.config.extractor.type}")
 
     def _build_retriever(self) -> Retriever:
         return Retriever(
@@ -91,6 +89,7 @@ class RagGrounder(BaseGrounder):
         model: str | None = None,
         ontology: str | None = None,
         use_reranker: bool | None = None,
+        extractor_type: str | None = None,
     ) -> None:
         # Record which components are affected by actual config changes
         rebuild_set = set()
@@ -106,6 +105,10 @@ class RagGrounder(BaseGrounder):
         if use_reranker is not None and use_reranker != self.config.reranker.enabled:
             self.config.reranker.enabled = use_reranker
             rebuild_set.add("reranker")
+        if extractor_type is not None and \
+                extractor_type.lower().strip() != self.config.extractor.type.lower().strip():
+            self.config.extractor.type = extractor_type
+            rebuild_set.add("extractor")
 
         # Rebuild affected components
         if "llm" in rebuild_set:
@@ -148,8 +151,10 @@ class RagGrounder(BaseGrounder):
         ]
 
     def process(self, text: str) -> dict:
+        """ Performs the bulk of the NER and NEL work, with optional re-ranking """
+
         if not text or not text.strip():
-            return {"text": text, "Concepts": []}
+            return {"text": text, "Concepts": [], "Sentences": []}
 
         logger.info("Starting RAG grounder pipeline")
         total_start = time.time()
@@ -159,7 +164,11 @@ class RagGrounder(BaseGrounder):
         extraction_result = self.extractor.extract(text)
         step_times["extraction"] = time.time() - step1_start
 
+        # This will return potentially the same concept multiple times if it appears throughout the document in different ocassions.
+        #  Maybe with different supporting evidence, but there could be a the same sentence repeated leading to a duplicate entry
         concepts_raw = extraction_result.get("Concepts", [])
+        # Ordered sentences from the extractor (empty for extractors that don't split)
+        sentences = extraction_result.get("Sentences", [])
         logger.info(f"Extraction completed in {step_times['extraction']:.2f}s, found {len(concepts_raw)} concept(s)")
         for i, c in enumerate(concepts_raw, 1):
             logger.debug("  Concept %d: %s", i, c.get("Concept", ""))
@@ -167,13 +176,19 @@ class RagGrounder(BaseGrounder):
                 logger.debug("    - %s", ev)
 
         if not concepts_raw:
-            return {"text": text, "Concepts": []}
+            return {"text": text, "Concepts": [], "Sentences": sentences}
 
+        # As a result of above's observation, we could have identical entries here too.
+        # The sentence_index/start/end keys are optional metadata (e.g. from the
+        # Hunflair extractor); they default to None for extractors that omit them.
         concepts = [
             {
                 "Concept": c.get("Concept", ""),
                 "supporting_evidence": c.get("Supporting_Evidence", []),
                 "matched_terms": [],
+                "sentence_index": c.get("sentence_index"),
+                "start": c.get("start"),
+                "end": c.get("end"),
             }
             for c in concepts_raw
         ]
@@ -220,9 +235,11 @@ class RagGrounder(BaseGrounder):
             f"Total={total_time:.2f}s"
         )
 
-        return {"text": text, "Concepts": concepts}
+        return {"text": text, "Concepts": concepts, "Sentences": sentences}
 
     def ground(self, text: str) -> list[ScoredMatch]:
+        """ Coerces the result of `process` into GILDA-compatible results """
+        
         result = self.process(text)
         matches: list[ScoredMatch] = []
         for concept in result["Concepts"]:
@@ -232,15 +249,27 @@ class RagGrounder(BaseGrounder):
         return matches
 
     def annotate(self, text: str, min_similarity: float = 0.7) -> list[Annotation]:
+        """ Runs the NER and NEL pipeline end-to-end and returns a list of Annotation objects which contain
+        the extractions, groundings and a map back to the original span within the input text """
+
         result = self.process(text)
         annotations: list[Annotation] = []
         for concept in result["Concepts"]:
             if not concept["Concept"].strip():
                 continue
+
             matches = self._annotation_matches(concept, span_text=concept["Concept"])
             if not matches:
                 continue
-            spans = find_evidence_spans(text, concept["supporting_evidence"], min_similarity=min_similarity)
+
+            # Depending on the extractor type, we are going to highlight different text spans
+            # If the extractor is hunflair, an NER for diseases, we will only highlight the text of the entities
+            if isinstance(self.extractor, Hunflair2Extractor):
+                spans = find_evidence_spans(text, [concept["Concept"]], min_similarity=min_similarity)
+            # If the extractor is an LLM, then, we are going to highlight the supported evidence instead
+            else:
+                spans = find_evidence_spans(text, concept["supporting_evidence"], min_similarity=min_similarity)
+
             for start, end, _match_type, _matched_text, _similarity in spans:
                 if start < 0 or end > len(text) or end <= start:
                     continue
@@ -252,4 +281,5 @@ class RagGrounder(BaseGrounder):
                         end=end,
                     )
                 )
+
         return annotations

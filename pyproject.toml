@@ -7,7 +7,7 @@ name = "coda"
 dynamic = ["version"]
 description = "Cause of Death Determination Assistant"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "BSD-2-Clause"}
 authors = [
     {name = "Benjamin M. Gyori, Northeastern University", email = "b.gyori@northeastern.edu"}
@@ -15,7 +15,6 @@ authors = [
 keywords = ["coda"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -42,6 +41,8 @@ dependencies = [
     "scikit-learn",
     "neo4j",
     "pyyaml",
+    "flair>=0.15.1",
+    "wtpsplit-lite",
 ]
 
 [project.optional-dependencies]
@@ -54,6 +55,10 @@ kg_build = [
     "xlrd",
     "indra @ git+https://github.com/gyorilab/indra.git",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
+]
+benchmark = [
+    "kagglehub",
+    "soundfile",
 ]
 
 [project.urls]

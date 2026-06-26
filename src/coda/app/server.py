@@ -34,9 +34,11 @@ from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
 from coda.runtime_config import (
+    get_grounder_type,
     get_inference_llm_model,
     get_inference_llm_provider,
     get_inference_url,
+    get_rag_extractor_type,
     get_rag_llm_model,
     get_rag_llm_provider,
     get_rag_ontology,
@@ -73,13 +75,14 @@ current_transcriber_backend = get_transcriber_backend()
 current_whisper_model = "medium"
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
-current_grounder = "gilda"
+current_grounder = get_grounder_type()
 # RAG grounder settings, applied to the grounder via RagGrounder.update_config
 rag_config = {
     "provider": get_rag_llm_provider(),
     "model": get_rag_llm_model(),
     "ontology": get_rag_ontology(),
     "use_reranker": get_rag_use_reranker(),
+    "extractor_type": get_rag_extractor_type(),
 }
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM

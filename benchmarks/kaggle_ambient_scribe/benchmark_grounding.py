@@ -94,7 +94,7 @@ def load_whisper_transcripts_from_csv(csv_path: Path) -> Dict[int, str]:
 # Annotation caching
 # -------------------------------
 
-def get_annotation_cache_path(encounter_id: int, source: str, model_size: str = None) -> Path:
+def get_annotation_cache_path(encounter_id: int, source: str, model_size: Optional[str] = None) -> Path:
     """Get cache path for ICD-10 annotations."""
     if source == "reference":
         return RESULTS_BASE.join("annotations-reference", name=f"encounter_{encounter_id}_annotations.json")
@@ -102,7 +102,19 @@ def get_annotation_cache_path(encounter_id: int, source: str, model_size: str = 
         return RESULTS_BASE.join(f"annotations-whisper-{model_size}", name=f"encounter_{encounter_id}_annotations.json")
 
 
-def load_cached_annotations(encounter_id: int, source: str, model_size: str = None) -> Optional[List[Dict]]:
+def get_report_path(encounter_id: int, source: str, model_size: Optional[str] = None) -> Path:
+    """Get the output path for a detailed per-encounter grounding report.
+
+    One report JSON is written per encounter per source, e.g. with 42 encounters
+    there will be 42 reference reports and 42 whisper reports.
+    """
+    if source == "reference":
+        return RESULTS_BASE.join("reports-reference", name=f"encounter_{encounter_id}_report.json")
+    else:
+        return RESULTS_BASE.join(f"reports-whisper-{model_size}", name=f"encounter_{encounter_id}_report.json")
+
+
+def load_cached_annotations(encounter_id: int, source: str, model_size: str | None = None) -> Optional[List[Dict]]:
     """Load cached annotations if they exist."""
     path = get_annotation_cache_path(encounter_id, source, model_size)
     if path.exists():
@@ -111,7 +123,7 @@ def load_cached_annotations(encounter_id: int, source: str, model_size: str = No
     return None
 
 
-def save_annotations(encounter_id: int, source: str, annotations: List[Dict], model_size: str = None):
+def save_annotations(encounter_id: int, source: str, annotations: List[Dict], model_size: Optional[str] = None):
     """Save annotations to cache."""
     path = get_annotation_cache_path(encounter_id, source, model_size)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,7 +153,61 @@ def annotations_to_serializable(annotations) -> List[Dict]:
     return result
 
 
-def annotate_text(text: str, encounter_id: int, source: str, model_size: str = None, grounder=None) -> List[Dict]:
+def build_report(grounder, text: str) -> Dict:
+    """Build a detailed, serializable report for a single input text.
+
+    Relies on the Hunflair extractor, which provides the sentence segmentation
+    and per-span character offsets this report needs. The returned structure
+    contains:
+
+    * ``sentences`` -- the sentences split, in order, by the extractor.
+    * ``extractions`` -- one entry per extracted concept with its ``text``,
+      ``sentence_index``, and ``start``/``end`` character offsets *within the
+      sentence*, plus the complete ranked ICD-10 ``groundings`` from the grounder.
+
+    Raises
+    ------
+    TypeError
+        If the grounder's active extractor is not a Hunflair2Extractor, since the
+        sentence/offset metadata this report depends on is otherwise unavailable.
+    """
+    from coda.grounding.rag_grounder.extractor import Hunflair2Extractor
+
+    if not isinstance(grounder.extractor, Hunflair2Extractor):
+        raise TypeError(
+            "build_report is only supported with the Hunflair2Extractor, got "
+            f"{type(grounder.extractor).__name__}"
+        )
+
+    result = grounder.process(text)
+
+    extractions = []
+    for concept in result["Concepts"]:
+        groundings = []
+        for term, score in concept["matched_terms"]:
+            db, _, raw_id = term.id.partition(":")
+            groundings.append({
+                "code": raw_id,
+                "name": term.name,
+                "score": score,
+                "db": db,
+            })
+        extractions.append({
+            "text": concept["Concept"],
+            "sentence_index": concept.get("sentence_index"),
+            "start": concept.get("start"),
+            "end": concept.get("end"),
+            "groundings": groundings,
+        })
+
+    return {
+        "text": text,
+        "sentences": result.get("Sentences", []),
+        "extractions": extractions,
+    }
+
+
+def annotate_text(text: str, encounter_id: int, source: str, model_size: Optional[str] = None, grounder=None) -> List[Dict]:
     """Annotate text with ICD-10 codes using RAGGrounder, with caching.
 
     Parameters
@@ -157,18 +223,30 @@ def annotate_text(text: str, encounter_id: int, source: str, model_size: str = N
     grounder : RAGGrounder, optional
         Pre-initialized grounder instance. If None, creates a new one.
     """
-    # Check cache first
+    # Reuse cached annotations only when the detailed report also already exists,
+    # so re-runs always produce the report files.
     cached = load_cached_annotations(encounter_id, source, model_size)
-    if cached is not None:
-        logger.info(f"Encounter {encounter_id}: Using cached {source} annotations")
+    report_path = get_report_path(encounter_id, source, model_size)
+    if cached is not None and report_path.exists():
+        logger.info(f"Encounter {encounter_id}: Using cached {source} annotations and report")
         return cached
 
     logger.info(f"Encounter {encounter_id}: Annotating {source} text with ICD-10 codes")
 
     # Use provided grounder or create new one
     if grounder is None:
-        from coda.grounding.icd10_rag_grounder import RAGGrounder
-        grounder = RAGGrounder()
+        from coda.grounding.rag_grounder import RagGrounder
+        grounder = RagGrounder()
+
+    # Build and write the detailed report (sentences, spans, full groundings)
+    report = build_report(grounder, text)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(report_path, "w") as f:
+        json.dump(report, f, indent=2)
+
+    # Reuse cached annotations if present, otherwise compute and cache them
+    if cached is not None:
+        return cached
 
     annotations = grounder.annotate(text)
 
@@ -295,7 +373,7 @@ def compute_all_metrics(reference_codes: Set[str], predicted_codes: Set[str]) ->
     }
 
 
-def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: str = None) -> Dict:
+def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: Optional[str] = None) -> Dict:
     """Run the ICD-10 annotation benchmark.
 
     Parameters
@@ -358,13 +436,17 @@ def run_benchmark(model_size: str = WHISPER_MODEL_SIZE, asr_csv: str = None) -> 
             # Get whisper transcript from ASR CSV
             whisper_text = whisper_transcripts[enc_id]
 
-            # Lazy-initialize grounder only if needed (not all cached)
+            # Lazy-initialize grounder only if needed (annotations or report missing)
             ref_cached = load_cached_annotations(enc_id, "reference")
             wh_cached = load_cached_annotations(enc_id, "whisper", model_size)
-            if grounder is None and (ref_cached is None or wh_cached is None):
+            ref_report = get_report_path(enc_id, "reference").exists()
+            wh_report = get_report_path(enc_id, "whisper", model_size).exists()
+            if grounder is None and (
+                ref_cached is None or wh_cached is None or not ref_report or not wh_report
+            ):
                 logger.info("Initializing RAGGrounder...")
-                from coda.grounding.icd10_rag_grounder import RAGGrounder
-                grounder = RAGGrounder()
+                from coda.grounding.rag_grounder import RagGrounder
+                grounder = RagGrounder()
 
             # Annotate both texts
             reference_annotations = annotate_text(reference_text, enc_id, "reference", grounder=grounder)

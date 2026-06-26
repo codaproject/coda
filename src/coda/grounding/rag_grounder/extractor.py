@@ -1,6 +1,7 @@
 """
 LLM-based concept extraction from text.
 """
+from abc import ABC, abstractmethod
 import json
 import logging
 from pathlib import Path
@@ -12,8 +13,14 @@ from .config import PromptConfig
 
 logger = logging.getLogger(__name__)
 
+class Extractor(ABC):
+    """ Base class for different type of extractors """
 
-class Extractor:
+    @abstractmethod
+    def extract(self, text: str) -> Dict[str, Any]:
+        ...
+
+class LLMExtractor(Extractor):
     """Extract concepts and supporting evidence from text using LLM."""
 
     def __init__(
@@ -91,3 +98,56 @@ class Extractor:
         except Exception as e:
             logger.error(f"Failed to extract concepts: {e}", exc_info=True)
             return {"Concepts": []}
+
+
+class Hunflair2Extractor(Extractor):
+    """ Extracts concepts and diseases from text using the Hunflair2 disease NER """
+
+    def __init__(
+            self,
+            concept_type: str
+    ):
+        from flair.nn import Classifier
+        from wtpsplit_lite import SaT
+
+        self.concept_type = concept_type
+        self.tagger = Classifier.load("hunflair2")
+        self.splitter = SaT("sat-3l-sm") # This is a more robust sentence splitter than Hunflair
+
+    def extract(self, text: str) -> Dict[str, Any]:
+        """ Runs Hunflair NER pipeline.
+
+        Returns the standard ``{"Concepts": [...]}`` payload. In addition to the
+        contract-required ``Concept``/``Supporting_Evidence`` keys, each concept
+        carries its ``sentence_index`` and the ``start``/``end`` character offsets
+        of the span *within its sentence*. The returned dict also includes an
+        ordered ``Sentences`` list. These extra keys are additive and ignored by
+        consumers that only rely on the ``Extractor`` contract.
+        """
+        # List with the output of the NER
+        ret = []
+        # Ordered list of the sentences produced by the splitter
+        sentences: list[str] = []
+
+        from flair.data import Sentence
+
+        # For now, we only do diseases
+        if self.concept_type == "disease":
+            sents = [Sentence(s) for s in self.splitter.split(text)]
+            self.tagger.predict(sentences=sents)
+
+            for sentence_index, sent in enumerate(sents):
+                sentences.append(sent.text)
+                for label in sent.get_labels("ner"):
+                    if label.value != "Disease":
+                        continue
+                    span = label.data_point
+                    ret.append({
+                        "Concept": span.text,
+                        "Supporting_Evidence": [sent.text],
+                        "sentence_index": sentence_index,
+                        "start": span.start_position,
+                        "end": span.end_position,
+                    })
+
+        return {"Concepts": ret, "Sentences": sentences}
