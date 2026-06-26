@@ -1,9 +1,13 @@
 """
 Batch benchmark Whisper ASR against plain-text transcripts from the
-Kaggle Ambient Scribe dataset, with 16 kHz resampling and chunked decoding.
+Kaggle Multilingual Ambient Scribe dataset, with 16 kHz resampling and
+chunked decoding.
 
-  Audio:       DATA_BASE/audio/recording_uk_encounter_{id}.mp3
-  Transcript:  DATA_BASE/transcripts/Encounter {id}_UK.txt
+Supports English (UK), Dutch, French, German, and Spanish. Each language has
+its own dataset sub-folder and filename convention (see LANGUAGES).
+
+  Audio:       DATA_BASE/<folder>/audio/recording_<tag>_encounter_{id}.mp3
+  Transcript:  DATA_BASE/<folder>/transcripts/Encounter {id}_<tag>.txt
 
 Transcript preprocessing (reference):
   - Drop first line if it equals 'Transcripted Line' (case-insensitive; trims spaces).
@@ -20,7 +24,7 @@ Metrics:
 
 Usage:
   python benchmark_asr.py \
-      --out_csv ./asr_benchmark_results.csv \
+      --language all \
       --model_id openai/whisper-tiny \
       --task transcribe \
       --chunk_length_s 29.5 \
@@ -45,33 +49,57 @@ from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
 # Data paths - kagglehub handles downloading and caching the dataset
 DATA_BASE = Path(kagglehub.dataset_download("imeritinc/multilingual-ambient-scribe-dataset")) / \
-    "iMerit_Multilingual_Ambient_Scribe_Dataset/UK English"
-AUDIO_DIR = DATA_BASE / "audio"
-TRANSCRIPTS_DIR = DATA_BASE / "transcripts"
+    "iMerit_Multilingual_Ambient_Scribe_Dataset"
+
+# Per-language dataset layout: dataset sub-folder, the tag used in audio
+# filenames, the tag used in transcript filenames, and the Whisper language name.
+LANGUAGES = {
+    "en": {"folder": "UK English", "audio_tag": "uk", "ref_tag": "UK", "whisper": "english"},
+    "nl": {"folder": "Dutch", "audio_tag": "dutch", "ref_tag": "Dutch", "whisper": "dutch"},
+    "fr": {"folder": "French", "audio_tag": "french", "ref_tag": "French", "whisper": "french"},
+    "de": {"folder": "German", "audio_tag": "german", "ref_tag": "German", "whisper": "german"},
+    "es": {"folder": "Spanish", "audio_tag": "spanish", "ref_tag": "Spanish", "whisper": "spanish"},
+}
+
+# 'all' benchmarks the non-English languages (English already benchmarked)
+ALL_LANGUAGES = ["nl", "fr", "de", "es"]
 
 # Pystow cache for benchmark results
 RESULTS_BASE = pystow.module("coda", "benchmarks", "kaggle_ambient_scribe")
 
 
-def get_encounter_ids() -> List[int]:
+def get_audio_dir(language: str) -> Path:
+    """Get the audio directory for a language."""
+    return DATA_BASE / LANGUAGES[language]["folder"] / "audio"
+
+
+def get_transcripts_dir(language: str) -> Path:
+    """Get the transcripts directory for a language."""
+    return DATA_BASE / LANGUAGES[language]["folder"] / "transcripts"
+
+
+def get_encounter_ids(language: str) -> List[int]:
     """Get list of encounter IDs from audio files."""
-    pattern = re.compile(r"recording_uk_encounter_(\d+)\.mp3")
+    tag = LANGUAGES[language]["audio_tag"]
+    pattern = re.compile(rf"recording_{tag}_encounter_(\d+)\.mp3")
     ids = []
-    for f in AUDIO_DIR.iterdir():
+    for f in get_audio_dir(language).iterdir():
         match = pattern.match(f.name)
         if match:
             ids.append(int(match.group(1)))
     return sorted(ids)
 
 
-def get_audio_path(encounter_id: int) -> Path:
+def get_audio_path(language: str, encounter_id: int) -> Path:
     """Get path to audio file for an encounter."""
-    return AUDIO_DIR / f"recording_uk_encounter_{encounter_id}.mp3"
+    tag = LANGUAGES[language]["audio_tag"]
+    return get_audio_dir(language) / f"recording_{tag}_encounter_{encounter_id}.mp3"
 
 
-def get_reference_transcript_path(encounter_id: int) -> Path:
+def get_reference_transcript_path(language: str, encounter_id: int) -> Path:
     """Get path to reference transcript for an encounter."""
-    return TRANSCRIPTS_DIR / f"Encounter {encounter_id}_UK.txt"
+    tag = LANGUAGES[language]["ref_tag"]
+    return get_transcripts_dir(language) / f"Encounter {encounter_id}_{tag}.txt"
 
 # -------------------------------
 # Constants
@@ -251,6 +279,7 @@ def _decode_whisper_once(
     audio_chunk: np.ndarray,
     sr: int,
     task: str = "transcribe",
+    language: Optional[str] = None,
     temperature: float = 0.0,
 ) -> str:
     """
@@ -258,6 +287,8 @@ def _decode_whisper_once(
     """
     inputs = processor(audio_chunk, sampling_rate=sr, return_tensors="pt")
     gen_kwargs = {"task": task, "temperature": temperature}
+    if language:
+        gen_kwargs["language"] = language
     with torch.no_grad():
         pred_ids = model.generate(inputs.input_features.to(device), **gen_kwargs)
     return processor.batch_decode(pred_ids, skip_special_tokens=True)[0].strip()
@@ -289,6 +320,7 @@ def transcribe_chunked(
     audio_rs: np.ndarray,      # float32 mono @ 16k
     sr: int = 16000,
     task: str = "transcribe",
+    language: Optional[str] = None,
     chunk_length_s: float = 29.5,   # safe under ~30s
     overlap_s: float = 1.0,         # small overlap to avoid cutting words
     temperature: float = 0.0,       # greedy first
@@ -314,12 +346,12 @@ def transcribe_chunked(
         chunk = audio_rs[start:end]
 
         # Greedy decode
-        txt = _decode_whisper_once(processor, model, device, chunk, sr, task=task, temperature=temperature)
+        txt = _decode_whisper_once(processor, model, device, chunk, sr, task=task, language=language, temperature=temperature)
 
         # Fallbacks if blank/low-info
         if not txt or len(txt.strip()) == 0:
             for t in temperature_fallbacks:
-                txt = _decode_whisper_once(processor, model, device, chunk, sr, task=task, temperature=t)
+                txt = _decode_whisper_once(processor, model, device, chunk, sr, task=task, language=language, temperature=t)
                 if txt and len(txt.strip()) > 0:
                     break
 
@@ -339,13 +371,17 @@ def transcribe_chunked(
 # -------------------------------
 
 def evaluate(
+    language: str,
+    processor,
+    model,
+    device,
     out_csv: str = None,
     model_id: str = "openai/whisper-tiny",
     task: str = "transcribe",
     chunk_length_s: float = 29.5,
     overlap_s: float = 1.0,
 ) -> None:
-    processor, model, device = load_model(model_id)
+    whisper_lang = LANGUAGES[language]["whisper"]
 
     rows: List[Dict[str, object]] = []
     agg_S = agg_D = agg_I = agg_N = 0
@@ -353,12 +389,13 @@ def evaluate(
     total_dur = 0.0
     total_asr_time = 0.0
 
-    encounter_ids = get_encounter_ids()
+    encounter_ids = get_encounter_ids(language)
+    print(f"\n=== {language} ({whisper_lang}) ===")
     print(f"Found {len(encounter_ids)} encounters")
 
     for enc_id in encounter_ids:
-        audio_path = get_audio_path(enc_id)
-        txt_path = get_reference_transcript_path(enc_id)
+        audio_path = get_audio_path(language, enc_id)
+        txt_path = get_reference_transcript_path(language, enc_id)
 
         if not txt_path.exists():
             print(f"[WARN] Transcript not found for encounter {enc_id} -> expected {txt_path.name}; skipping.")
@@ -383,7 +420,7 @@ def evaluate(
         t0 = time.time()
         hyp_raw = transcribe_chunked(
             processor, model, device,
-            audio_rs, sr=sr, task=task,
+            audio_rs, sr=sr, task=task, language=whisper_lang,
             chunk_length_s=chunk_length_s, overlap_s=overlap_s,
         )
         asr_time = time.time() - t0
@@ -453,7 +490,7 @@ def evaluate(
             out_path.parent.mkdir(parents=True, exist_ok=True)
     else:
         model_suffix = model_id.split("/")[-1] if "/" in model_id else model_id
-        out_path = RESULTS_BASE.join("results", name=f"asr_benchmark_results.{model_suffix}.csv")
+        out_path = RESULTS_BASE.join("results", name=f"asr_benchmark_results.{language}.{model_suffix}.csv")
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
@@ -480,23 +517,37 @@ def evaluate(
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Benchmark Whisper ASR vs. Kaggle Ambient Scribe transcripts "
+        description="Benchmark Whisper ASR vs. Kaggle Multilingual Ambient Scribe transcripts "
                     "with 16k resampling and chunked decoding."
     )
-    ap.add_argument("--out_csv", default=None, help="Path to write metrics CSV (default: pystow cache).")
+    ap.add_argument("--language", default="all", choices=list(LANGUAGES) + ["all"],
+                    help="Language to benchmark; 'all' runs nl, fr, de, es (default: all).")
+    ap.add_argument("--out_csv", default=None, help="Path to write metrics CSV (single language only; default: pystow cache).")
     ap.add_argument("--model_id", default="openai/whisper-tiny", help="HF model ID (default: openai/whisper-tiny).")
     ap.add_argument("--task", default="transcribe", choices=["transcribe","translate"], help="Whisper task.")
     ap.add_argument("--chunk_length_s", type=float, default=29.5, help="Chunk length (seconds) per decode window.")
     ap.add_argument("--overlap_s", type=float, default=1.0, help="Overlap (seconds) between consecutive chunks.")
     args = ap.parse_args()
 
-    evaluate(
-        out_csv=args.out_csv,
-        model_id=args.model_id,
-        task=args.task,
-        chunk_length_s=args.chunk_length_s,
-        overlap_s=args.overlap_s,
-    )
+    languages = ALL_LANGUAGES if args.language == "all" else [args.language]
+    if len(languages) > 1 and args.out_csv:
+        print("[WARN] --out_csv is ignored for multiple languages; per-language CSVs are written automatically.")
+
+    # Load the model once and reuse it across languages
+    processor, model, device = load_model(args.model_id)
+
+    for language in languages:
+        evaluate(
+            language=language,
+            processor=processor,
+            model=model,
+            device=device,
+            out_csv=args.out_csv if len(languages) == 1 else None,
+            model_id=args.model_id,
+            task=args.task,
+            chunk_length_s=args.chunk_length_s,
+            overlap_s=args.overlap_s,
+        )
 
 if __name__ == "__main__":
     main()
