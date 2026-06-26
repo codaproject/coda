@@ -57,7 +57,7 @@ kg_build = [
     "indra @ git+https://github.com/gyorilab/indra.git",
     "openacme[embeddings] @ git+https://github.com/gyorilab/openacme.git",
 ]
-benckmark = [
+benchmark = [
     "kagglehub",
     "soundfile",
 ]
