@@ -5,11 +5,15 @@ real Whisper model or any network/grounder.
 """
 import numpy as np
 
-from coda.dialogue import TRANSCRIBER_BACKENDS, Transcriber
+from coda.dialogue import (
+    ChunkedTranscriber,
+    TRANSCRIBER_BACKENDS,
+    TranscriptEvent,
+)
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 
 
-class _FakeTranscriber(Transcriber):
+class _FakeTranscriber(ChunkedTranscriber):
     async def transcribe_file(self, file_path, language="en", task="transcribe",
                               fp16=False, verbose=False):
         return {"text": "patient had a fever", "segments": []}
@@ -28,6 +32,24 @@ async def test_transcribe_audio_silent_returns_empty_string():
     audio = np.zeros(16000, dtype=np.int16)  # silent -> early return
     text = await transcriber.transcribe_audio(audio)
     assert text == ""
+
+
+async def test_chunked_stream_yields_committed_event():
+    transcriber = _FakeTranscriber()
+    # One 3-second chunk of non-silent audio (16 kHz * 3s = 48000 int16 samples)
+    pcm = np.full(48000, 1000, dtype=np.int16).tobytes()
+
+    async def audio():
+        yield pcm
+
+    events = [ev async for ev in transcriber.stream(audio())]
+    assert len(events) == 1
+    ev = events[0]
+    assert isinstance(ev, TranscriptEvent)
+    assert ev.committed is True
+    assert ev.text == "patient had a fever"
+    assert isinstance(ev.id, str) and ev.id
+    assert isinstance(ev.timestamp, float)
 
 
 def test_faster_whisper_backend_registered():

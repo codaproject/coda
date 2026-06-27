@@ -7,13 +7,13 @@ import websockets
 
 from coda.runtime_config import get_speechmatics_model, get_speechmatics_url
 
-from . import Transcriber
+from . import ChunkedTranscriber
 from .util import normalize_language
 
 logger = logging.getLogger(__name__)
 
 
-class SpeechmaticsTranscriber(Transcriber):
+class SpeechmaticsTranscriber(ChunkedTranscriber):
     """Transcriber using Speechmatics' realtime WebSocket API.
 
     Each chunk is sent over a short-lived connection: StartRecognition,

@@ -5,7 +5,7 @@ import os
 import torch
 from faster_whisper import WhisperModel
 
-from . import Transcriber
+from . import ChunkedTranscriber
 
 # For available model sizes see
 # https://github.com/SYSTRAN/faster-whisper#usage
@@ -18,7 +18,7 @@ DEFAULT_NO_SPEECH_THRESHOLD = 0.6
 logger = logging.getLogger(__name__)
 
 
-class FasterWhisperTranscriber(Transcriber):
+class FasterWhisperTranscriber(ChunkedTranscriber):
     """Transcriber using the CTranslate2-based faster-whisper runtime.
 
     Same Whisper weights as WhisperTranscriber but with a faster, lower-memory
