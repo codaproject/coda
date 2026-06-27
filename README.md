@@ -145,6 +145,10 @@ The Compose path is env-driven. The main runtime variables are:
 - `OLLAMA_BASE_URL` when using Ollama
 - `RAG_LLM_PROVIDER`, `RAG_LLM_MODEL`, `RAG_ONTOLOGY`,
   `RAG_USE_RERANKER`
+- `TRANSCRIBER_BACKEND` selects the speech-to-text backend (default
+  `faster-whisper`; alternatives `whisper` and `speechmatics`). Transcription
+  uses the `small` model by default, and the app image pre-downloads the
+  faster-whisper `small` model.
 - `CODA_KG_URL` when Neo4j is outside the standard deployment topology
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`
 

@@ -39,8 +39,8 @@ ENV GILDA_SQLITE_DB=/app/grounding_terms.db
 # and the app falls back to CPU if CUDA is requested but unavailable.
 ENV CODA_DEVICE=${COMPUTE_DEVICE}
 
-# Pre-download Whisper model (assumes medium here)
-RUN python -c "import whisper; whisper.load_model('medium')"
+# Pre-download the faster-whisper model (matches the default backend/size)
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu')"
 
 # Pre-download the Hunflair2 NER and SaT sentence-splitter models used by the RAG grounder
 RUN python -c "from flair.nn import Classifier; from wtpsplit_lite import SaT; Classifier.load('hunflair2'); SaT('sat-3l-sm')"
