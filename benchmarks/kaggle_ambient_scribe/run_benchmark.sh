@@ -8,7 +8,7 @@ MODEL=${1:-tiny}
 LANGUAGE=${2:-all}
 
 echo "=== ASR Benchmark (whisper-${MODEL}, language: ${LANGUAGE}) ==="
-python benchmark_asr.py --model_id "openai/whisper-${MODEL}" --language "${LANGUAGE}" --task transcribe
+python benchmark_asr.py --backends whisper --sizes "${MODEL}" --language "${LANGUAGE}" --task transcribe
 
 echo ""
 echo "=== Grounding Benchmark (whisper-${MODEL}) ==="
