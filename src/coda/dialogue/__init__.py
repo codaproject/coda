@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_DURATION = 3
 
 # Selectable transcription backends, in preference order (whisper is the
-# default; speechmatics is the second choice). The active backend is set by
-# the TRANSCRIBER_BACKEND env var (see coda.runtime_config).
-TRANSCRIBER_BACKENDS = ("whisper", "speechmatics")
+# default; faster-whisper and speechmatics are alternatives). The active
+# backend is set by the TRANSCRIBER_BACKEND env var (see coda.runtime_config).
+TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics")
 
 
 def create_transcriber(backend: str = None, whisper_model: str = None):
@@ -34,6 +34,11 @@ def create_transcriber(backend: str = None, whisper_model: str = None):
     if backend == "whisper":
         from .whisper import WhisperTranscriber, DEFAULT_MODEL_SIZE
         return WhisperTranscriber(
+            model_size=whisper_model or DEFAULT_MODEL_SIZE
+        )
+    if backend == "faster-whisper":
+        from .faster_whisper import FasterWhisperTranscriber, DEFAULT_MODEL_SIZE
+        return FasterWhisperTranscriber(
             model_size=whisper_model or DEFAULT_MODEL_SIZE
         )
     if backend == "speechmatics":

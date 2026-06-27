@@ -32,6 +32,10 @@ DATA_BASE = Path(kagglehub.dataset_download("imeritinc/multilingual-ambient-scri
 AUDIO_DIR = DATA_BASE / "audio"
 TRANSCRIPTS_DIR = DATA_BASE / "transcripts"
 
+# UK English encounters 11 and 12 have their reference transcripts swapped in
+# the dataset (mirrors REFERENCE_ID_OVERRIDES in benchmark_asr.py).
+REFERENCE_ID_OVERRIDES = {11: 12, 12: 11}
+
 # Pystow cache for benchmark results
 RESULTS_BASE = pystow.module("coda", "benchmarks", "kaggle_ambient_scribe")
 
@@ -60,7 +64,8 @@ def get_encounter_ids() -> List[int]:
 
 def get_reference_transcript_path(encounter_id: int) -> Path:
     """Get path to reference transcript for an encounter."""
-    return TRANSCRIPTS_DIR / f"Encounter {encounter_id}_UK.txt"
+    ref_id = REFERENCE_ID_OVERRIDES.get(encounter_id, encounter_id)
+    return TRANSCRIPTS_DIR / f"Encounter {ref_id}_UK.txt"
 
 
 def load_reference_transcript(encounter_id: int) -> str:
@@ -71,7 +76,7 @@ def load_reference_transcript(encounter_id: int) -> str:
 
 def get_default_asr_csv(model_size: str) -> Path:
     """Get the default ASR results CSV path from pystow cache."""
-    return RESULTS_BASE.join("results", name=f"asr_benchmark_results.whisper-{model_size}.csv")
+    return RESULTS_BASE.join("results", name=f"asr_benchmark_results.whisper.en.{model_size}.csv")
 
 
 def load_whisper_transcripts_from_csv(csv_path: Path) -> Dict[int, str]:

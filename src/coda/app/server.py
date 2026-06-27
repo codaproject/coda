@@ -72,7 +72,7 @@ save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_transcriber_backend = get_transcriber_backend()
-current_whisper_model = "medium"
+current_whisper_model = "small"
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
 current_grounder = get_grounder_type()

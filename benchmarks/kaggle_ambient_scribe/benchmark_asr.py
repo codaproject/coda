@@ -22,13 +22,16 @@ Metrics:
   - Duration (sec), ASR latency (sec), Real-Time Factor (RTF = latency/duration)
   - Per-file rows + one aggregate row
 
+Loops over backends (whisper, faster-whisper), model sizes, and languages.
+Results already on disk are skipped unless --force is given, so re-running only
+fills in the missing (backend, size, language) combinations.
+
 Usage:
   python benchmark_asr.py \
+      --backends whisper,faster-whisper \
+      --sizes tiny,base,small,medium,large-v2 \
       --language all \
-      --model_id openai/whisper-tiny \
-      --task transcribe \
-      --chunk_length_s 29.5 \
-      --overlap_s 1.0
+      --task transcribe
 """
 
 import os
@@ -63,6 +66,10 @@ LANGUAGES = {
 
 # 'all' benchmarks the non-English languages (English already benchmarked)
 ALL_LANGUAGES = ["nl", "fr", "de", "es"]
+
+# Encounters 11 and 12 in UK English have their reference transcripts swapped
+# in the dataset; map an audio encounter id to its correct transcript id.
+REFERENCE_ID_OVERRIDES = {"en": {11: 12, 12: 11}}
 
 # Pystow cache for benchmark results
 RESULTS_BASE = pystow.module("coda", "benchmarks", "kaggle_ambient_scribe")
@@ -99,7 +106,8 @@ def get_audio_path(language: str, encounter_id: int) -> Path:
 def get_reference_transcript_path(language: str, encounter_id: int) -> Path:
     """Get path to reference transcript for an encounter."""
     tag = LANGUAGES[language]["ref_tag"]
-    return get_transcripts_dir(language) / f"Encounter {encounter_id}_{tag}.txt"
+    ref_id = REFERENCE_ID_OVERRIDES.get(language, {}).get(encounter_id, encounter_id)
+    return get_transcripts_dir(language) / f"Encounter {ref_id}_{tag}.txt"
 
 # -------------------------------
 # Constants
@@ -370,19 +378,56 @@ def transcribe_chunked(
 # Main evaluation (direct numeric match)
 # -------------------------------
 
+def result_path(backend: str, language: str, size: str) -> Path:
+    """Canonical pystow path for a (backend, language, size) result CSV."""
+    return RESULTS_BASE.join(
+        "results",
+        name=f"asr_benchmark_results.{backend}.{language}.{size}.csv",
+    )
+
+
+def find_cached_result(backend: str, language: str, size: str):
+    """Return the existing result file for this combo, or None."""
+    cand = result_path(backend, language, size)
+    return cand if cand.exists() else None
+
+
+def make_whisper_transcribe_fn(size, task, chunk_length_s, overlap_s):
+    """Build a transcribe(audio, sr, language) closure for HF Whisper."""
+    processor, model, device = load_model(f"openai/whisper-{size}")
+
+    def transcribe(audio_rs, sr, language):
+        return transcribe_chunked(
+            processor, model, device, audio_rs, sr=sr, task=task,
+            language=LANGUAGES[language]["whisper"],
+            chunk_length_s=chunk_length_s, overlap_s=overlap_s,
+        )
+    return transcribe
+
+
+def make_faster_whisper_transcribe_fn(size, task, compute_type, beam_size,
+                                      vad_filter):
+    """Build a transcribe(audio, sr, language) closure for faster-whisper."""
+    from faster_whisper import WhisperModel
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = WhisperModel(size, device=device, compute_type=compute_type)
+
+    def transcribe(audio_rs, sr, language):
+        # faster-whisper expects ISO codes (e.g. "en"), the LANGUAGES key.
+        segments, _info = model.transcribe(
+            audio_rs, language=language, task=task,
+            beam_size=beam_size, vad_filter=vad_filter,
+        )
+        return " ".join(seg.text for seg in segments)
+    return transcribe
+
+
 def evaluate(
     language: str,
-    processor,
-    model,
-    device,
-    out_csv: str = None,
-    model_id: str = "openai/whisper-tiny",
-    task: str = "transcribe",
-    chunk_length_s: float = 29.5,
-    overlap_s: float = 1.0,
+    transcribe_fn,
+    backend: str,
+    size: str,
 ) -> None:
-    whisper_lang = LANGUAGES[language]["whisper"]
-
     rows: List[Dict[str, object]] = []
     agg_S = agg_D = agg_I = agg_N = 0
     agg_cedits = agg_cref = 0
@@ -390,7 +435,7 @@ def evaluate(
     total_asr_time = 0.0
 
     encounter_ids = get_encounter_ids(language)
-    print(f"\n=== {language} ({whisper_lang}) ===")
+    print(f"\n=== {backend} {size} | {language} ===")
     print(f"Found {len(encounter_ids)} encounters")
 
     for enc_id in encounter_ids:
@@ -416,13 +461,9 @@ def evaluate(
         audio_rs = resample_audio_linear(audio_in, sr_in, TARGET_SR)
         sr = TARGET_SR
 
-        # ASR with chunking
+        # ASR (chunking handled inside the backend closure)
         t0 = time.time()
-        hyp_raw = transcribe_chunked(
-            processor, model, device,
-            audio_rs, sr=sr, task=task, language=whisper_lang,
-            chunk_length_s=chunk_length_s, overlap_s=overlap_s,
-        )
+        hyp_raw = transcribe_fn(audio_rs, sr, language)
         asr_time = time.time() - t0
         total_asr_time += asr_time
         rtf = asr_time / dur_s if dur_s > 0 else math.nan
@@ -483,15 +524,7 @@ def evaluate(
         "hyp_text": "",
     })
 
-    # Write CSV using pystow cache or provided path
-    if out_csv:
-        out_path = Path(out_csv)
-        if out_path.parent.name:
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-    else:
-        model_suffix = model_id.split("/")[-1] if "/" in model_id else model_id
-        out_path = RESULTS_BASE.join("results", name=f"asr_benchmark_results.{language}.{model_suffix}.csv")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path = result_path(backend, language, size)
 
     fieldnames = [
         "encounter_id","audio_file","transcript_file","duration_s","latency_s","rtf",
@@ -517,37 +550,64 @@ def evaluate(
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Benchmark Whisper ASR vs. Kaggle Multilingual Ambient Scribe transcripts "
-                    "with 16k resampling and chunked decoding."
+        description="Benchmark Whisper and faster-whisper ASR against the "
+                    "Kaggle Multilingual Ambient Scribe transcripts."
     )
-    ap.add_argument("--language", default="all", choices=list(LANGUAGES) + ["all"],
-                    help="Language to benchmark; 'all' runs nl, fr, de, es (default: all).")
-    ap.add_argument("--out_csv", default=None, help="Path to write metrics CSV (single language only; default: pystow cache).")
-    ap.add_argument("--model_id", default="openai/whisper-tiny", help="HF model ID (default: openai/whisper-tiny).")
+    ap.add_argument("--backends", default="whisper,faster-whisper",
+                    help="Comma-separated backends: whisper, faster-whisper.")
+    ap.add_argument("--sizes", default="tiny,base,small,medium,large-v2",
+                    help="Comma-separated model sizes.")
+    ap.add_argument("--language", default="all",
+                    help="Comma-separated languages, or 'all' for en,nl,fr,de,es.")
     ap.add_argument("--task", default="transcribe", choices=["transcribe","translate"], help="Whisper task.")
     ap.add_argument("--chunk_length_s", type=float, default=29.5, help="Chunk length (seconds) per decode window.")
     ap.add_argument("--overlap_s", type=float, default=1.0, help="Overlap (seconds) between consecutive chunks.")
+    ap.add_argument("--compute_type", default="int8",
+                    help="faster-whisper compute type (default: int8).")
+    ap.add_argument("--beam_size", type=int, default=1,
+                    help="faster-whisper beam size; 1 matches greedy.")
+    ap.add_argument("--vad_filter", action="store_true",
+                    help="Enable faster-whisper Silero VAD filter.")
+    ap.add_argument("--force", action="store_true",
+                    help="Re-run and overwrite cached results.")
     args = ap.parse_args()
 
-    languages = ALL_LANGUAGES if args.language == "all" else [args.language]
-    if len(languages) > 1 and args.out_csv:
-        print("[WARN] --out_csv is ignored for multiple languages; per-language CSVs are written automatically.")
+    backends = [b.strip() for b in args.backends.split(",") if b.strip()]
+    sizes = [s.strip() for s in args.sizes.split(",") if s.strip()]
+    if args.language.strip() == "all":
+        languages = ["en"] + ALL_LANGUAGES
+    else:
+        languages = [s.strip() for s in args.language.split(",") if s.strip()]
 
-    # Load the model once and reuse it across languages
-    processor, model, device = load_model(args.model_id)
+    for backend in backends:
+        if backend not in ("whisper", "faster-whisper"):
+            raise ValueError(f"Unknown backend {backend!r}")
+        for size in sizes:
+            # Skip combinations whose result CSV already exists.
+            todo = []
+            for language in languages:
+                cached = find_cached_result(backend, language, size)
+                if cached and not args.force:
+                    print(f"[CACHE] {backend} {size} {language}: "
+                          f"{cached.name} exists; skipping")
+                else:
+                    todo.append(language)
+            if not todo:
+                continue
 
-    for language in languages:
-        evaluate(
-            language=language,
-            processor=processor,
-            model=model,
-            device=device,
-            out_csv=args.out_csv if len(languages) == 1 else None,
-            model_id=args.model_id,
-            task=args.task,
-            chunk_length_s=args.chunk_length_s,
-            overlap_s=args.overlap_s,
-        )
+            # Load the model once and reuse across the languages still to do.
+            print(f"\n### Loading {backend} {size} "
+                  f"(languages: {', '.join(todo)}) ###")
+            if backend == "whisper":
+                transcribe_fn = make_whisper_transcribe_fn(
+                    size, args.task, args.chunk_length_s, args.overlap_s)
+            else:
+                transcribe_fn = make_faster_whisper_transcribe_fn(
+                    size, args.task, args.compute_type, args.beam_size,
+                    args.vad_filter)
+
+            for language in todo:
+                evaluate(language, transcribe_fn, backend, size)
 
 if __name__ == "__main__":
     main()
