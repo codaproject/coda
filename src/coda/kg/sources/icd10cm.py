@@ -1,6 +1,7 @@
 """Knowledge graph source for ICD10-CM."""
 
 import os
+import re
 from pathlib import Path
 from typing import IO
 import zipfile
@@ -32,6 +33,31 @@ NOTE_FIELDS: list[str] = [
     "codeFirst",
     "sevenChrNote",
 ]
+
+# Chapter/section titles embed their code range, e.g. "... (A00-B99)"
+CODE_RANGE_SUFFIX = re.compile(r"\s*\(([A-Z][0-9][A-Z0-9.\-]*)\)\s*$")
+
+
+def strip_code_range(name):
+    """Remove a trailing ICD code range like ' (A00-B99)' from a title."""
+    if name is None:
+        return name
+    return CODE_RANGE_SUFFIX.sub("", name)
+
+
+def split_title_range(title):
+    """Split a title into (clean_name, code_range).
+
+    NCHS embeds the code range in chapter titles, e.g. "Certain
+    infectious and parasitic diseases (A00-B99)". Returns (title, None)
+    when no trailing range is present.
+    """
+    if title is None:
+        return None, None
+    match = CODE_RANGE_SUFFIX.search(title)
+    if match is None:
+        return title, None
+    return title[:match.start()], match.group(1)
 
 
 def open_zipped_file(url, file_name) -> IO[bytes]:
@@ -108,14 +134,17 @@ def extract_icd10cm_table(valid_codes):
     edges: list[dict] = []
 
     for chapter in tree.findall("chapter"):
-        chapter_code = chapter.find("name").text
+        chapter_name, chapter_code = split_title_range(
+            chapter.find("desc").text)
+        if chapter_code is None:
+            chapter_code = chapter.find("name").text
         nodes.append(
             {
                 "id:ID": f'icd10cm:{chapter_code}',
                 ":LABEL": "icd10cm",
                 "code": chapter_code,
                 "class_kind": chapter.tag,
-                "name": chapter.find("desc").text,
+                "name": chapter_name,
                 "billable:boolean": "false",
                 **extract_note_fields(chapter),
             }
@@ -130,7 +159,7 @@ def extract_icd10cm_table(valid_codes):
                     ":LABEL": "icd10cm",
                     "code": block_code,
                     "class_kind": tag,
-                    "name": block.find("desc").text,
+                    "name": strip_code_range(block.find("desc").text),
                     "billable:boolean": "false",
                     **extract_note_fields(block),
                 }
