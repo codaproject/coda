@@ -146,9 +146,11 @@ The Compose path is env-driven. The main runtime variables are:
 - `RAG_LLM_PROVIDER`, `RAG_LLM_MODEL`, `RAG_ONTOLOGY`,
   `RAG_USE_RERANKER`
 - `TRANSCRIBER_BACKEND` selects the speech-to-text backend (default
-  `faster-whisper`; alternatives `whisper` and `speechmatics`). Transcription
-  uses the `small` model by default, and the app image pre-downloads the
-  faster-whisper `small` model.
+  `faster-whisper`; alternatives `whisper`, `speechmatics`, and
+  `whisper-livekit`). Transcription uses the `small` model by default, and the
+  app image pre-downloads the faster-whisper `small` model. `whisper-livekit` is
+  a low-latency streaming backend that runs in-process and reuses that same
+  faster-whisper model.
 - `CODA_KG_URL` when Neo4j is outside the standard deployment topology
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`
 

@@ -772,6 +772,10 @@
                             transcript.innerHTML = '';
                         }
 
+                        // Committed text supersedes any interim preview.
+                        const prevLine = document.getElementById('preview-line');
+                        if (prevLine) prevLine.remove();
+
                         // Build chunk HTML with inline annotations
                         const text = data.transcript;
                         transcriptText += text + ' ';
@@ -803,6 +807,23 @@
                         }
 
                         transcript.insertAdjacentHTML('beforeend', chunkSpan);
+                        transcript.scrollTop = transcript.scrollHeight;
+
+                    } else if (data.type === 'preview') {
+                        // Interim, not-yet-committed text (streaming backends).
+                        // Shown muted at the end until it firms into a chunk.
+                        let prevLine = document.getElementById('preview-line');
+                        if (!prevLine) {
+                            if (chunkCount === 0) {
+                                transcript.innerHTML = '';
+                            }
+                            prevLine = document.createElement('span');
+                            prevLine.id = 'preview-line';
+                            prevLine.style.color = '#888';
+                            prevLine.style.fontStyle = 'italic';
+                            transcript.appendChild(prevLine);
+                        }
+                        prevLine.textContent = data.text + ' ';
                         transcript.scrollTop = transcript.scrollHeight;
 
                     } else if (data.type === 'inference') {

@@ -1,5 +1,6 @@
 __all__ = ["AudioProcessor", "Transcriber", "ChunkedTranscriber",
-           "TranscriptEvent", "create_transcriber", "TRANSCRIBER_BACKENDS"]
+           "StreamingTranscriber", "TranscriptEvent", "create_transcriber",
+           "TRANSCRIBER_BACKENDS"]
 
 import os
 import logging
@@ -18,10 +19,12 @@ logger = logging.getLogger(__name__)
 # Default chunk length (seconds) used by the live app's audio pipeline.
 DEFAULT_CHUNK_DURATION = 3
 
-# Selectable transcription backends, in preference order (whisper is the
-# default; faster-whisper and speechmatics are alternatives). The active
-# backend is set by the TRANSCRIBER_BACKEND env var (see coda.runtime_config).
-TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics")
+# Selectable transcription backends. faster-whisper is the default; whisper and
+# speechmatics are chunked alternatives; whisper-livekit is a streaming backend
+# served by a separate WhisperLiveKit sidecar. The active backend is set by the
+# TRANSCRIBER_BACKEND env var (see coda.runtime_config).
+TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
+                        "whisper-livekit")
 
 
 def create_transcriber(backend: str = None, whisper_model: str = None):
@@ -45,6 +48,11 @@ def create_transcriber(backend: str = None, whisper_model: str = None):
     if backend == "speechmatics":
         from .speechmatics import SpeechmaticsTranscriber
         return SpeechmaticsTranscriber()
+    if backend == "whisper-livekit":
+        from .whisper_livekit import WhisperLiveKitTranscriber, DEFAULT_MODEL_SIZE
+        return WhisperLiveKitTranscriber(
+            model_size=whisper_model or DEFAULT_MODEL_SIZE
+        )
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
@@ -245,5 +253,14 @@ class ChunkedTranscriber(Transcriber):
             Transcription text
         """
         return result.get("text", "").strip()
+
+
+class StreamingTranscriber(Transcriber):
+    """Base for backends that maintain a continuous streaming session.
+
+    Unlike ChunkedTranscriber, these decode an open-ended audio stream with
+    their own buffering/commit policy and emit interim previews plus committed
+    lines. Subclasses implement `stream`.
+    """
 
 
