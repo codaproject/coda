@@ -1,4 +1,5 @@
-__all__ = ["AudioProcessor", "Transcriber", "create_transcriber",
+__all__ = ["AudioProcessor", "Transcriber", "ChunkedTranscriber",
+           "StreamingTranscriber", "TranscriptEvent", "create_transcriber",
            "TRANSCRIBER_BACKENDS"]
 
 import os
@@ -6,7 +7,8 @@ import logging
 import tempfile
 import time
 import uuid
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import AsyncIterator, Optional, Tuple
 
 import gilda
 import numpy as np
@@ -17,10 +19,11 @@ logger = logging.getLogger(__name__)
 # Default chunk length (seconds) used by the live app's audio pipeline.
 DEFAULT_CHUNK_DURATION = 3
 
-# Selectable transcription backends, in preference order (whisper is the
-# default; faster-whisper and speechmatics are alternatives). The active
-# backend is set by the TRANSCRIBER_BACKEND env var (see coda.runtime_config).
-TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics")
+# Selectable transcription backends, set via the TRANSCRIBER_BACKEND env var
+# (see coda.runtime_config). whisper/faster-whisper/speechmatics are chunked;
+# whisper-livekit is in-process streaming.
+TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
+                        "whisper-livekit")
 
 
 def create_transcriber(backend: str = None, whisper_model: str = None):
@@ -44,6 +47,11 @@ def create_transcriber(backend: str = None, whisper_model: str = None):
     if backend == "speechmatics":
         from .speechmatics import SpeechmaticsTranscriber
         return SpeechmaticsTranscriber()
+    if backend == "whisper-livekit":
+        from .whisper_livekit import WhisperLiveKitTranscriber, DEFAULT_MODEL_SIZE
+        return WhisperLiveKitTranscriber(
+            model_size=whisper_model or DEFAULT_MODEL_SIZE
+        )
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
@@ -110,7 +118,57 @@ class AudioProcessor:
         self.audio_buffer = np.array([], dtype=np.int16)
 
 
+@dataclass
+class TranscriptEvent:
+    """One unit of transcription output.
+
+    Chunked backends emit one `committed=True` event per audio chunk. Streaming
+    backends additionally emit `committed=False` interim previews.
+    """
+    id: str
+    timestamp: float
+    text: str
+    committed: bool = True
+    speaker: Optional[int] = None
+
+
 class Transcriber:
+    """Abstract transcription backend.
+
+    Turns a stream of raw int16 PCM byte blobs into an async iterator of
+    TranscriptEvents.
+    """
+    async def stream(self, audio: AsyncIterator[bytes], *,
+                     language: str = "en",
+                     task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
+        raise NotImplementedError
+
+
+class ChunkedTranscriber(Transcriber):
+    """Transcriber that decodes fixed-length chunks independently.
+
+    Buffers incoming audio into DEFAULT_CHUNK_DURATION-second chunks via
+    AudioProcessor and transcribes each one, emitting a single committed event
+    per chunk.
+    """
+    async def stream(self, audio: AsyncIterator[bytes], *,
+                     language: str = "en",
+                     task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
+        processor = AudioProcessor()
+        async for data in audio:
+            if not processor.add_audio(data):
+                continue
+            while True:
+                result = processor.get_chunk()
+                if result is None:
+                    break
+                chunk_id, timestamp, chunk = result
+                text = await self.transcribe_audio(
+                    chunk, language=language, task=task
+                )
+                yield TranscriptEvent(id=chunk_id, timestamp=timestamp,
+                                      text=text, committed=True)
+
     async def transcribe_audio(self, audio_data: np.ndarray,
                                sample_rate: int = 16000,
                                language: str = "en",
@@ -194,5 +252,18 @@ class Transcriber:
             Transcription text
         """
         return result.get("text", "").strip()
+
+
+class StreamingTranscriber(Transcriber):
+    """Base for backends that maintain a continuous streaming session.
+
+    Unlike ChunkedTranscriber, these decode an open-ended audio stream with
+    their own buffering/commit policy and emit interim previews plus committed
+    lines. Subclasses implement `stream`.
+    """
+    async def stream(self, audio: AsyncIterator[bytes], *,
+                     language: str = "en",
+                     task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
+        raise NotImplementedError
 
 

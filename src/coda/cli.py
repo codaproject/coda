@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -20,15 +21,19 @@ import whisper
 from coda.dialogue import (
     AudioProcessor,
     DEFAULT_CHUNK_DURATION,
+    StreamingTranscriber,
     TRANSCRIBER_BACKENDS,
     create_transcriber,
 )
 from coda.dialogue.whisper import DEFAULT_MODEL_SIZE
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.inference.agent import CodaToyInferenceAgent
-from coda.runtime_config import get_transcriber_backend
 
 logger = logging.getLogger("coda.cli")
+
+# The CLI does batch file transcription, where faster-whisper is faster and
+# more accurate than the app's streaming default (whisper-livekit).
+DEFAULT_CLI_TRANSCRIBER = "faster-whisper"
 
 SAMPLE_RATE = 16000
 
@@ -133,6 +138,31 @@ async def run_chunked(transcriber, grounder, agent, audio_i16, language, task,
             transcriber, grounder, agent, "chunk-tail", tail, language, task, time.time()
         ))
 
+    return agent.all_text.strip(), per_chunk
+
+
+async def run_streaming(transcriber, grounder, agent, audio_i16, language, task):
+    """Drive a streaming backend over a whole recording, grounding and inferring
+    per committed segment. Streaming backends decode the audio with their own
+    buffering/commit policy, so the file is fed as a byte stream rather than
+    fixed chunks."""
+    pcm = audio_i16.tobytes()
+    blob = SAMPLE_RATE * 2  # 1 second of s16le
+
+    async def audio_iter():
+        for off in range(0, len(pcm), blob):
+            yield pcm[off:off + blob]
+
+    per_chunk = []
+    async for event in transcriber.stream(audio_iter(), language=language, task=task):
+        if not event.committed:
+            continue
+        annotations, grounding_s = _ground(grounder, event.text)
+        inference, inference_s = await _infer(
+            agent, event.id, event.text, annotations, event.timestamp
+        )
+        per_chunk.append((event.id, event.text, annotations, inference,
+                          {"grounding_s": grounding_s, "inference_s": inference_s}))
     return agent.all_text.strip(), per_chunk
 
 
@@ -243,8 +273,11 @@ def main():
     parser.add_argument("--model", default=None,
                         help="LLM model name (e.g. gpt-4o-mini, gpt-oss:20b)")
     parser.add_argument("--transcriber", choices=list(TRANSCRIBER_BACKENDS),
-                        default=get_transcriber_backend(),
-                        help="Transcription backend (default: whisper)")
+                        default=os.environ.get("TRANSCRIBER_BACKEND",
+                                               DEFAULT_CLI_TRANSCRIBER),
+                        help="Transcription backend (default: faster-whisper; "
+                             "streaming backends like whisper-livekit are slower "
+                             "for batch files).")
     parser.add_argument("--whisper-model", default=DEFAULT_MODEL_SIZE,
                         help=f"Whisper model size (default: {DEFAULT_MODEL_SIZE})")
     parser.add_argument("--language", default="en", help="Spoken language (default: en)")
@@ -288,11 +321,21 @@ def main():
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)
         duration_s = len(audio_i16) / SAMPLE_RATE
-        mode = "whole" if args.chunking is None else f"chunked@{args.chunking}s"
+        streaming = isinstance(transcriber, StreamingTranscriber)
+        if streaming:
+            mode = "streaming"
+        else:
+            mode = "whole" if args.chunking is None else f"chunked@{args.chunking}s"
         print(f"Loaded {duration_s:.1f}s of audio. Mode={mode}, "
               f"agent={args.agent}, grounder={args.grounder}")
 
-        if args.chunking is None:
+        if streaming:
+            # Streaming backends ignore --chunking (they do their own chunking).
+            full_text, per_chunk = asyncio.run(
+                run_streaming(transcriber, grounder, agent, audio_i16,
+                              args.language, args.task)
+            )
+        elif args.chunking is None:
             full_text, per_chunk = asyncio.run(
                 run_whole_file(transcriber, grounder, agent, audio_i16,
                                args.language, args.task)

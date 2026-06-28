@@ -56,6 +56,7 @@ services:
     environment:
       APP_HOST: ${APP_HOST:-0.0.0.0}
       APP_PORT: ${APP_PORT:-8000}
+      TRANSCRIBER_BACKEND: ${TRANSCRIBER_BACKEND:-whisper-livekit}
       INFERENCE_URL: ${INFERENCE_URL:-http://inference:${INFERENCE_PORT:-5123}}
       INFERENCE_LLM_PROVIDER: ${INFERENCE_LLM_PROVIDER:-openai}
       INFERENCE_LLM_MODEL: ${INFERENCE_LLM_MODEL:-gpt-5.4-mini}

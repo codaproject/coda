@@ -5,7 +5,7 @@ import os
 import torch
 import whisper
 
-from . import Transcriber
+from . import ChunkedTranscriber
 
 # For more info on models see
 # https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages
@@ -18,7 +18,7 @@ DEFAULT_NO_SPEECH_THRESHOLD = 0.6
 logger = logging.getLogger(__name__)
 
 
-class WhisperTranscriber(Transcriber):
+class WhisperTranscriber(ChunkedTranscriber):
     """Transcriber implementation using OpenAI's Whisper model."""
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE,
                  no_speech_threshold: float = None):
