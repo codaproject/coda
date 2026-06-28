@@ -19,10 +19,9 @@ logger = logging.getLogger(__name__)
 # Default chunk length (seconds) used by the live app's audio pipeline.
 DEFAULT_CHUNK_DURATION = 3
 
-# Selectable transcription backends. faster-whisper is the default; whisper and
-# speechmatics are chunked alternatives; whisper-livekit is a streaming backend
-# served by a separate WhisperLiveKit sidecar. The active backend is set by the
-# TRANSCRIBER_BACKEND env var (see coda.runtime_config).
+# Selectable transcription backends, set via the TRANSCRIBER_BACKEND env var
+# (see coda.runtime_config). whisper/faster-whisper/speechmatics are chunked;
+# whisper-livekit is in-process streaming.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
                         "whisper-livekit")
 

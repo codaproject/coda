@@ -426,8 +426,6 @@ async def websocket_endpoint(websocket: WebSocket):
     if save_enabled and not save_files:
         open_save_files(current_language)
 
-    # Decouple capture from processing: `capture_audio` only drains the socket
-    # into the queue; `consume_transcripts` transcribes + grounds at its own pace.
     audio_queue: asyncio.Queue = asyncio.Queue()
     capture = asyncio.create_task(capture_audio(websocket, audio_queue))
     consume = asyncio.create_task(consume_transcripts(websocket, audio_queue))

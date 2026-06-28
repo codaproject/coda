@@ -31,9 +31,8 @@ from coda.inference.agent import CodaToyInferenceAgent
 
 logger = logging.getLogger("coda.cli")
 
-# Batch-optimal default for the CLI. The app/server default
-# (DEFAULT_TRANSCRIBER_BACKEND) is whisper-livekit for low-latency streaming,
-# but for batch file transcription faster-whisper is faster and more accurate.
+# The CLI does batch file transcription, where faster-whisper is faster and
+# more accurate than the app's streaming default (whisper-livekit).
 DEFAULT_CLI_TRANSCRIBER = "faster-whisper"
 
 SAMPLE_RATE = 16000
@@ -276,9 +275,9 @@ def main():
     parser.add_argument("--transcriber", choices=list(TRANSCRIBER_BACKENDS),
                         default=os.environ.get("TRANSCRIBER_BACKEND",
                                                DEFAULT_CLI_TRANSCRIBER),
-                        help="Transcription backend (default: faster-whisper, "
-                             "batch-optimal for files; streaming backends like "
-                             "whisper-livekit run near real-time and are slower here).")
+                        help="Transcription backend (default: faster-whisper; "
+                             "streaming backends like whisper-livekit are slower "
+                             "for batch files).")
     parser.add_argument("--whisper-model", default=DEFAULT_MODEL_SIZE,
                         help=f"Whisper model size (default: {DEFAULT_MODEL_SIZE})")
     parser.add_argument("--language", default="en", help="Spoken language (default: en)")
