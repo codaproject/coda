@@ -261,5 +261,9 @@ class StreamingTranscriber(Transcriber):
     their own buffering/commit policy and emit interim previews plus committed
     lines. Subclasses implement `stream`.
     """
+    async def stream(self, audio: AsyncIterator[bytes], *,
+                     language: str = "en",
+                     task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
+        raise NotImplementedError
 
 
