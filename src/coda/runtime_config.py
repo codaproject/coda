@@ -104,6 +104,18 @@ def get_ollama_base_url() -> str:
     return _get_str("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
 
 
+def get_openai_base_url() -> str | None:
+    """OpenAI-compatible endpoint override, or None to use the default."""
+    value = (os.getenv("OPENAI_BASE_URL") or "").strip()
+    return value or None
+
+
+def get_openai_api_key() -> str | None:
+    """OpenAI API key, or None if unset."""
+    value = (os.getenv("OPENAI_API_KEY") or "").strip()
+    return value or None
+
+
 def get_kg_url() -> str:
     return _get_str("CODA_KG_URL", DEFAULT_KG_URL)
 

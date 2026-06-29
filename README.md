@@ -186,6 +186,22 @@ INFERENCE_LLM_PROVIDER=ollama
 INFERENCE_LLM_MODEL=llama3.2
 ```
 
+Custom local LLM backend on a Mac: the `openai` provider can point at any
+OpenAI-compatible server via `OPENAI_BASE_URL`. For example, run an Apple
+Silicon MLX model locally with `mlx-openai-server`, which enforces the JSON
+schema CODA needs (LM Studio works too):
+
+```bash
+pip install mlx-openai-server
+mlx-openai-server launch --model-path mlx-community/Qwen2.5-7B-Instruct-4bit --model-type lm --port 8080
+```
+
+```bash
+INFERENCE_LLM_PROVIDER=openai
+INFERENCE_LLM_MODEL=mlx-community/Qwen2.5-7B-Instruct-4bit
+OPENAI_BASE_URL=http://localhost:8080/v1
+```
+
 The RAG grounder has its own provider and model settings. They default to
 OpenAI with `gpt-4o-mini` and are used only when RAG is selected in the app:
 
