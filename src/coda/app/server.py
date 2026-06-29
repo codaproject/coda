@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 from coda import CODA_BASE
 from coda.dialogue import (
     Transcriber,
+    StreamingTranscriber,
     TRANSCRIBER_BACKENDS,
     create_transcriber,
 )
@@ -49,8 +51,17 @@ INFERENCE_URL = get_inference_url()
 inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
 
 # Queue management for backpressure
-MAX_PENDING_CHUNKS = 10
+MAX_PENDING_CHUNKS = 20
 pending_chunks: Dict[str, asyncio.Task] = {}
+
+# Streaming backends commit many tiny fragments; running an inference on each
+# one floods the inference service. For streaming, accumulate committed text and
+# infer once this many new words arrive, or after INFERENCE_MAX_WAIT_S if fewer
+# words are still pending (so a short final utterance isn't left hanging). With
+# no new text we don't infer at all. Chunked backends emit whole chunks and
+# infer per chunk (threshold 0).
+INFERENCE_MIN_WORDS = 15
+INFERENCE_MAX_WAIT_S = 10.0
 
 logger = logging.getLogger(__name__)
 
@@ -460,7 +471,8 @@ async def capture_audio(websocket: WebSocket, queue: asyncio.Queue):
 
 async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
     """Process: consume transcript events from the active transcriber and, for
-    each committed event, translate, ground, save, display, and run inference.
+    each committed event, translate, ground, save, and display it. Inference
+    runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
     """
     async def audio_iter():
         while True:
@@ -477,22 +489,70 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
                         and current_transcriber_backend == "whisper")
     task = "translate" if direct_translate else "transcribe"
 
-    async for event in transcriber.stream(audio_iter(),
-                                          language=current_language, task=task):
-        if not event.committed:
-            await _ws_send_safe(websocket,
-                                {"type": "preview", "text": event.text})
-            continue
-        # One bad event shouldn't kill the session.
-        try:
-            await _handle_committed(websocket, event, direct_translate)
-        except Exception as e:
-            logger.error(f"Error on event {event.id}: {e}", exc_info=True)
+    # Committed text accumulates here until enough has arrived to infer on; see
+    # INFERENCE_MIN_WORDS. Chunked backends use threshold 0 (infer per chunk).
+    threshold = (INFERENCE_MIN_WORDS
+                 if isinstance(transcriber, StreamingTranscriber) else 0)
+    pending = {"text": [], "anns": [], "words": 0,
+               "chunk_id": None, "timestamp": None}
+    last_infer = time.monotonic()
+
+    async def flush():
+        nonlocal last_infer
+        if not pending["text"]:
+            return
+        text = " ".join(pending["text"])
+        anns, chunk_id, timestamp = (pending["anns"], pending["chunk_id"],
+                                     pending["timestamp"])
+        pending.update(text=[], anns=[], words=0)
+        last_infer = time.monotonic()
+        await _start_inference(websocket, chunk_id, timestamp, text, anns)
+
+    async def idle_flush():
+        # Flush pending text that never reached the word threshold once it has
+        # waited long enough, so a short trailing utterance still gets inferred.
+        while True:
+            await asyncio.sleep(1.0)
+            if pending["text"] and \
+                    time.monotonic() - last_infer >= INFERENCE_MAX_WAIT_S:
+                await flush()
+
+    timer = asyncio.create_task(idle_flush())
+    try:
+        async for event in transcriber.stream(
+                audio_iter(), language=current_language, task=task):
+            if not event.committed:
+                await _ws_send_safe(websocket,
+                                    {"type": "preview", "text": event.text})
+                continue
+            # One bad event shouldn't kill the session.
+            try:
+                committed = await _handle_committed(websocket, event,
+                                                    direct_translate)
+            except Exception as e:
+                logger.error(f"Error on event {event.id}: {e}", exc_info=True)
+                continue
+            if committed is None:
+                continue
+            chunk_id, timestamp, text, anns = committed
+            pending["text"].append(text)
+            pending["anns"].extend(anns)
+            pending["words"] += len(text.split())
+            pending["chunk_id"] = chunk_id
+            pending["timestamp"] = timestamp
+            if pending["words"] >= threshold:
+                await flush()
+        await flush()
+    finally:
+        timer.cancel()
 
 
 async def _handle_committed(websocket: WebSocket, event, direct_translate: bool):
-    """Translate, ground, save, display, and start inference for one committed
-    transcript event."""
+    """Translate, ground, save, and display one committed transcript event.
+
+    Returns (chunk_id, timestamp, english_text, annotations) for the caller to
+    accumulate toward inference, or None if there was no usable text.
+    """
     chunk_id = event.id
     timestamp = event.timestamp
     original_transcript = None
@@ -511,7 +571,7 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
         annotations = await asyncio.to_thread(grounder.annotate, english_text)
 
     if not english_text:
-        return
+        return None
 
     # Save transcripts and annotations if enabled
     if save_enabled:
@@ -551,7 +611,15 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
     await websocket.send_json(msg)
     logger.info(f"Chunk {chunk_id}: {english_text}")
 
-    # Backpressure: drop oldest pending inference if too many in flight
+    return chunk_id, timestamp, english_text, annotations
+
+
+async def _start_inference(websocket: WebSocket, chunk_id: str, timestamp: float,
+                           text: str, annotations: list):
+    """Launch a background inference on accumulated committed text.
+
+    Gating upstream keeps the rate sane; backpressure here is a last resort that
+    drops the oldest pending inference if the service still falls behind."""
     if len(pending_chunks) >= MAX_PENDING_CHUNKS:
         oldest_id = next(iter(pending_chunks))
         pending_chunks[oldest_id].cancel()
@@ -562,10 +630,8 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
             "message": "Processing slower than audio - dropping old chunks"
         })
 
-    # Start inference in background (always on English text)
     inference_task = asyncio.create_task(
-        process_inference(chunk_id, timestamp, english_text,
-                          annotations, websocket)
+        process_inference(chunk_id, timestamp, text, annotations, websocket)
     )
     pending_chunks[chunk_id] = inference_task
 

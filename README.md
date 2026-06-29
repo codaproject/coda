@@ -161,6 +161,14 @@ compatibility alias, but new configurations should use `INFERENCE_URL`.
 `CODA_DEVICE` and the `COMPUTE_DEVICE` image build argument are documented in
 `.env.example` for GPU deployments.
 
+On Apple Silicon, the `whisper-livekit` backend can run on the GPU via Apple's
+MLX. Install `mlx-whisper` and set `CODA_WLK_BACKEND=mlx-whisper` to use it:
+
+```bash
+pip install mlx-whisper
+CODA_WLK_BACKEND=mlx-whisper ./startup.sh
+```
+
 Minimal `.env` examples:
 
 OpenAI-backed inference:
