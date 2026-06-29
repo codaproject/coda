@@ -11,19 +11,23 @@ from .client import LLMClient
 
 # Optional adapter imports
 try:
-    from .openai_adapter import OpenAIAdapter
+    from .openai_adapter import OpenAIResponsesAdapter, OpenAIChatAdapter
 except ImportError:
-    OpenAIAdapter = None
+    OpenAIResponsesAdapter = None
+    OpenAIChatAdapter = None
 
 try:
     from .ollama_adapter import OllamaAdapter
 except ImportError:
     OllamaAdapter = None
 
-# Registry of available adapters (only include installed ones)
+# Registry of available adapters (only include installed ones). "openai" uses
+# Chat Completions (portable, works with OpenAI-compatible servers such as
+# mlx_lm.server and vLLM); "openai-responses" uses the OpenAI Responses API.
 _ADAPTERS: Dict[str, type[LLMClient]] = {}
-if OpenAIAdapter is not None:
-    _ADAPTERS["openai"] = OpenAIAdapter
+if OpenAIChatAdapter is not None:
+    _ADAPTERS["openai"] = OpenAIChatAdapter
+    _ADAPTERS["openai-responses"] = OpenAIResponsesAdapter
 if OllamaAdapter is not None:
     _ADAPTERS["ollama"] = OllamaAdapter
 
