@@ -1,5 +1,4 @@
-"""
-OpenAI API adapter implementations.
+"""OpenAI API adapter implementations.
 
 Two adapters share one interface and differ only in which API they use for
 structured output: OpenAIChatAdapter (Chat Completions, the default and the
@@ -41,7 +40,8 @@ class OpenAIAdapter(LLMClient):
         timeout: tuple = (60.0, 300.0),
         base_url: Optional[str] = None,
     ):
-        """
+        """Initialize OpenAI adapter.
+
         Parameters
         ----------
         model : str, default="gpt-5.4-mini"
@@ -70,12 +70,31 @@ class OpenAIAdapter(LLMClient):
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env "
                              "var or pass api_key.")
 
-        self.client = OpenAI(api_key=api_key, timeout=timeout, base_url=base_url)
+        self.client = OpenAI(api_key=api_key, timeout=timeout,
+                             base_url=base_url)
         self.model = model
         self.base_url = base_url
 
     def call(self, user_prompt: str, temperature: float = 0.0) -> str:
-        """Make an unstructured call and return the response text."""
+        """Make an OpenAI API call without schema constraints.
+
+        Parameters
+        ----------
+        user_prompt : str
+            User prompt for the LLM.
+        temperature : float, default=0.0
+            Temperature for the LLM.
+
+        Returns
+        -------
+        str
+            Raw text response from the LLM.
+
+        Raises
+        ------
+        RuntimeError
+            If all retry attempts fail or if the response is empty.
+        """
         last_error = None
 
         for attempt in range(3):  # Default max_retries
@@ -142,9 +161,30 @@ class OpenAIAdapter(LLMClient):
         retry_delay: float = 1.0,
         temperature: float = 0.0,
     ) -> Dict[str, Any]:
-        """Make a structured-output call, returning parsed JSON.
+        """Make an OpenAI API call with structured JSON schema output.
 
-        Returns {"api_failed": True} if all retries fail.
+        Parameters
+        ----------
+        system_prompt : str
+            System prompt for the LLM.
+        user_prompt : str
+            User prompt for the LLM.
+        schema : Dict[str, Any]
+            JSON schema for structured output.
+        schema_name : str
+            Name identifier for the schema (used in API calls).
+        max_retries : int, default=3
+            Maximum number of retry attempts on failure.
+        retry_delay : float, default=1.0
+            Base delay in seconds for exponential backoff retries.
+        temperature: float, default=0.0
+            Temperature for the LLM.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Parsed JSON response matching the schema.
+            Includes "api_failed": True if all retries failed.
         """
         response_json = None
 
