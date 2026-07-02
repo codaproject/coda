@@ -216,6 +216,7 @@ kg/reports/
 .DS_Store
 
 data/
+temporal_ordering/grounding/snomed_data/
 
 .vscode/
 .claude/
