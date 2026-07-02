@@ -1,5 +1,4 @@
 from collections import defaultdict
-import json
 import re
 from typing import Optional, cast
 
@@ -11,9 +10,8 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 import networkx as nx
 
-from dataclasses import asdict
 
-from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, VATimeline
+from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, TimelineComponent, TimelineLayer, VATimeline
 
 
 
@@ -87,7 +85,7 @@ Verbal autopsy text:
 {verbal_autopsy}
 """
 
-ENTITY_SYSTEM_PROMPT = """\
+EVENT_SYSTEM_PROMPT = """\
 You are an expert clinical analyst specialising in verbal autopsies.
 Your output must be valid JSON and nothing else — no markdown fences, no preamble, no commentary.
 """
@@ -158,7 +156,7 @@ def build_temporal_statements_ordering_chain(llm: BaseChatModel):
 def build_envent_extractor_chain(llm):
     """Chain that maps a JSON list of statements to typed clinically relevant events."""
     prompt = ChatPromptTemplate.from_messages([
-        ("system", ENTITY_SYSTEM_PROMPT),
+        ("system", EVENT_SYSTEM_PROMPT),
         ("human", ENTITY_HUMAN_PROMPT),
     ])
     return prompt | llm | RunnableLambda(_strip_thinking) | JsonOutputParser()
@@ -176,7 +174,7 @@ def build_temporal_order(
     graph = ordering_chain.invoke({"verbal_autopsy": va_narrative})
 
     # Get the events for each statement
-    statements_json = [{"index": n["index"], "statement": n["statement"]} for n in graph["nodes"]],
+    statements_json = [{"index": n["index"], "statement": n["statement"]} for n in graph["nodes"]]
     events_data = events_chain.invoke({"statements_json": statements_json})
     
     # Build a timeline of the events
@@ -201,37 +199,25 @@ def build_temporal_order(
 
 
 def _make_event_timelines(timeline) -> EventTimeline:
-    components = {}
+    # ``timeline`` is already ordered by (component, layer) — see build_event_timeline —
+    # so grouping layers by component preserves chronological order within each.
+    components: dict[int, list[TimelineLayer]] = defaultdict(list)
     for data_layer in timeline:
-        c = data_layer["component"]
-        if c not in components:
-            components[c] = {}
-        component = components[c]
-
-        l = data_layer["layer"]
-        if l not in component:
-            component[l] = []
-        layer = component[l]
-
-        layer.append(
-            [Event(
-                source_statement=event['source_statement'],  
-                type_= ClinicalEvent(event['type']),
-                text= event['text']
+        events = [
+            Event(
+                source_statement=event["source_statement"],
+                type_=ClinicalEvent(event["type"]),
+                text=event["text"],
             )
-            for event in data_layer['events']]
-        )
+            for event in data_layer["events"]
+        ]
+        components[data_layer["component"]].append(TimelineLayer(events))
 
-    # Make sure we don't have unordered lists in the event timeline
-    r_components = []
-    for k in sorted(components.keys()):
-        c = components[k]
-        r_layers = []
-        for v in sorted(c.keys()):
-            r_layers.append(c[v])
-        r_components.append(r_layers)
-
-    return EventTimeline(components=r_components)
+    return EventTimeline(
+        components=[
+            TimelineComponent(layers=components[c]) for c in sorted(components)
+        ]
+    )
 
 
 def build_data_model(data) -> VATimeline:
@@ -325,7 +311,7 @@ def build_event_timeline(graph: dict, entity_data: dict) -> list[dict]:
 
     return timeline
 
-def _build_llm(model:str, base_url:str, api_key:Optional[str] = None, bearer_token:Optional[str] = None) -> ChatOpenAI:
+def build_llm(model:str, base_url:str, api_key:Optional[str] = None, bearer_token:Optional[str] = None) -> ChatOpenAI:
     """ Instantiates a ChatModel to send messages to the inference service """
     # In case that we're dealing with AWS Bedrock, we need to handle it a little differently
     if "bedrock" in base_url.lower():

@@ -45,10 +45,23 @@ class Event:
     text: str   # Event text
 
 @dataclass
+class TimelineLayer:
+    """Events at the same chronological depth within a component.
+
+    The narrative gives no ordering between them, so they are treated as concurrent."""
+    events: list[Event]
+
+@dataclass
+class TimelineComponent:
+    """An independent narrative thread (a connected component of the statement DAG).
+
+    Its layers are ordered chronologically."""
+    layers: list[TimelineLayer]
+
+@dataclass
 class EventTimeline:
-    """ The timeline has different components, that correspond to the connected components in the temporal order graph.
-      Each inner list represents events happening in parallel"""
-    components:list[list[Event]]
+    """One timeline per connected component of the temporal-order graph."""
+    components: list[TimelineComponent]
 
 @dataclass
 class VATimeline:

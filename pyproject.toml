@@ -71,11 +71,12 @@ temporal_ordering = [
 Homepage = "https://github.com/codaproject/coda"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "src", "temporal_ordering" = "temporal_ordering"}
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["coda*", "temporal_ordering*"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
