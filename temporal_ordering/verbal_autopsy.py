@@ -1,6 +1,6 @@
 from collections import defaultdict
-import os
-import re, json
+import json
+import re
 from typing import Optional, cast
 
 from langchain.chat_models import BaseChatModel
@@ -8,10 +8,12 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
-from openai.resources import Chat
 from pydantic import SecretStr
 import networkx as nx
+
+from dataclasses import asdict
+
+from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, VATimeline
 
 
 
@@ -166,7 +168,7 @@ def build_temporal_order(
         va_narrative:str,
         ordering_chain:Runnable,
         events_chain:Runnable,
-        include_va_in_output:bool = False) -> dict:
+        include_va_in_output:bool = False) -> VATimeline:
     
     """ Runs the chains to build a temporal ordering of the statements in a verbal autopsy and then extracts clinically relevant events """
     
@@ -190,7 +192,72 @@ def build_temporal_order(
     if include_va_in_output:
             ret["verbal_autopsy"] = va_narrative
 
+    # Make this dictionary into our data model
+    structured_output = build_data_model(ret)
+
+    return structured_output
+
+
+
+
+def _make_event_timelines(timeline) -> EventTimeline:
+    components = {}
+    for data_layer in timeline:
+        c = data_layer["component"]
+        if c not in components:
+            components[c] = {}
+        component = components[c]
+
+        l = data_layer["layer"]
+        if l not in component:
+            component[l] = []
+        layer = component[l]
+
+        layer.append(
+            [Event(
+                source_statement=event['source_statement'],  
+                type_= ClinicalEvent(event['type']),
+                text= event['text']
+            )
+            for event in data_layer['events']]
+        )
+
+    # Make sure we don't have unordered lists in the event timeline
+    r_components = []
+    for k in sorted(components.keys()):
+        c = components[k]
+        r_layers = []
+        for v in sorted(c.keys()):
+            r_layers.append(c[v])
+        r_components.append(r_layers)
+
+    return EventTimeline(components=r_components)
+
+
+def build_data_model(data) -> VATimeline:
+    graph = data['graph']
+    
+    ret = VATimeline(
+        va_narrative = data.get("verbal_autopsy"),
+        
+        statement_graph = StatementGraph(
+            nodes = [
+                StatementGraphNode(
+                    index = n['index'],
+                    statement=n['statement'],
+                    time_break_category=TimeBreakCategory(n['time_break_category']) if n['time_break_category'] else None,
+                    time_break_marker=n['time_break_marker']
+                )
+                for n in graph['nodes']
+            ],
+            edges = [StatementGraphEdge(source=e['from'], dest=e['to']) for e in graph['edges']],
+        ),
+
+        event_timeline= _make_event_timelines(data['event_timeline'])
+    )
+
     return ret
+
 
 
 def build_event_timeline(graph: dict, entity_data: dict) -> list[dict]:
