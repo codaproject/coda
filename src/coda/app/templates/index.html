@@ -1110,6 +1110,9 @@
                 // Render inference result if available
                 if (data.inference && !data.inference.error) {
                     renderInferenceResult(data.inference);
+                    const noteSpan = `<span class="text-muted fst-italic">[Clinical note: ${escapeHtml(file.name)}]</span>`;
+                    transcript.insertAdjacentHTML('beforeend', noteSpan);
+                    transcript.scrollTop = transcript.scrollHeight;
                 }
 
                 showStatus(`Clinical note "${file.name}" processed`, 'success');

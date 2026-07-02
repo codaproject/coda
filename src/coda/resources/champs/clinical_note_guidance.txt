@@ -1,0 +1,3 @@
+## CLINICAL NOTE
+If a <clinical_note> block is present in the **INPUT**, treat it as authoritative supplementary clinical evidence recorded at the time of care. It takes precedence over the verbal autopsy narrative when the two conflict.
+Use it in Step 2 to ground your reasoning with specific clinical findings, diagnoses, or lab results mentioned in the note.

@@ -21,15 +21,23 @@ class InferenceAgent:
         """Initialize the agent with empty dialogue history."""
         self.dialogue_history = []  # List of (chunk_id, timestamp, text, annotations) tuples
         self.all_text = ""  # Accumulated text from all chunks
+        self.clinical_note: Optional[str] = None  # Clinical note memory persists across calls
 
     def reset(self):
         """Reset dialogue history for a new interview."""
         self.dialogue_history = []
         self.all_text = ""
+        self.clinical_note = None
         logger.info("Agent state reset for new interview")
 
+    def set_clinical_note(self, clinical_note: str) -> None:
+        """Store an uploaded clinical note for use in all future inference calls."""
+        self.clinical_note = clinical_note
+        logger.info("Clinical note set: (%d chars)", len(clinical_note))
+
     async def process_chunk(self, chunk_id: str, text: str,
-                           annotations: List[Annotation], timestamp: float = None) -> dict:
+                           annotations: List[Annotation], timestamp: float = None,
+                           clinical_note = None) -> dict:
         """Process dialogue chunk and return inference results.
 
         This method handles dialogue history tracking and delegates
@@ -45,6 +53,8 @@ class InferenceAgent:
             Grounded medical terms from text
         timestamp : float, optional
             Unix timestamp (seconds since epoch) when chunk was created
+        clinical_note: str, optional
+
 
         Returns
         -------
@@ -60,9 +70,14 @@ class InferenceAgent:
             import time
             timestamp = time.time()
 
-        # Add to dialogue history
-        self.dialogue_history.append((chunk_id, timestamp, text, annotations))
-        self.all_text += " " + text
+        # Set clinical note
+        if clinical_note:
+            self.set_clinical_note(clinical_note)
+
+        # Add to dialogue history, avoid clinical note being appended as transcript
+        if text:
+            self.dialogue_history.append((chunk_id, timestamp, text, annotations))
+            self.all_text += " " + text
 
         # Call subclass inference implementation
         result = await self.infer(chunk_id, text, annotations)
@@ -175,6 +190,7 @@ class InferenceRequest(BaseModel):
     text: str
     annotations: list
     timestamp: float = None  # Optional timestamp
+    clinical_note: Optional[str] = None
 
 
 class InferenceServer:
@@ -199,7 +215,8 @@ class InferenceServer:
                     request.chunk_id,
                     request.text,
                     request.annotations,
-                    request.timestamp
+                    request.timestamp,
+                    request.clinical_note,
                 )
                 causes = result.get('causes', {})
                 if causes:
