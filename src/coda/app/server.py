@@ -116,6 +116,7 @@ class SettingsRequest(BaseModel):
 class UploadNoteRequest(BaseModel):
     text: str
     filename: Optional[str] = None
+    clinical_note: Optional[str] = None
 
 
 def get_language_name(code: str) -> str:
@@ -659,13 +660,9 @@ async def upload_note(req: UploadNoteRequest):
     timestamp = time.time()
 
     # Run grounding in the dedicated executor for SQLite thread safety
-    from coda.dialogue import Transcriber
-    loop = asyncio.get_running_loop()
-    # FIXME: this has to be adapted since the grounder
-    # and transcriber have been separated
-    annotations = await loop.run_in_executor(
-        Transcriber._grounding_executor,
-        transcriber.grounder.annotate,
+    # Adapted since the grounder and transcriber have been separated
+    annotations = await asyncio.to_thread(
+        grounder.annotate,
         req.text.strip(),
     )
 
@@ -693,8 +690,9 @@ async def upload_note(req: UploadNoteRequest):
         response = await inference_client.post("/infer", json={
             "chunk_id": chunk_id,
             "timestamp": timestamp,
-            "text": req.text.strip(),
+            "text": "",  # Note is not a transcript chunk
             "annotations": [a.to_json() for a in annotations] if annotations else [],
+            "clinical_note": req.text.strip(),
         })
         response.raise_for_status()
         inference_result = response.json()

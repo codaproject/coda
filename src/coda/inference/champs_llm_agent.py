@@ -57,6 +57,7 @@ CHAMPS_GROUP_TO_ICD10 = load_group_to_icd10()
 SYSTEM_PROMPT = read_champs_resource("system_prompt.txt")
 SCHEMA_GUIDANCE = read_champs_resource("schema_guidance.txt")
 DIAGNOSIS_STANDARD = read_champs_resource("diagnosis_standard.txt")
+CLINICAL_NOTE_GUIDANCE = read_champs_resource("clinical_note_guidance.txt")
 
 # JSON schema for structured output
 COD_OUTPUT_SCHEMA = {
@@ -103,11 +104,13 @@ class ChampsLLMInferenceAgent(InferenceAgent):
         self.cause_to_icd10 = CHAMPS_GROUP_TO_ICD10
         self.schema_guidance = SCHEMA_GUIDANCE
         self.use_diagnosis_standard = use_diagnosis_standard
+        self.clinical_note_guidance = CLINICAL_NOTE_GUIDANCE
 
         allowed_str = ", ".join(self.allowed_causes)
         self.rendered_system_prompt = \
             SYSTEM_PROMPT.format(allowed_causes=allowed_str) + "\n\n" \
-            + self.schema_guidance
+            + self.schema_guidance + "\n\n" \
+            + self.clinical_note_guidance
 
     async def infer(self, chunk_id: str, text: str,
                     annotations: List[Annotation]):
@@ -122,6 +125,8 @@ class ChampsLLMInferenceAgent(InferenceAgent):
             f"- narrative:\n"
             f"  {self.all_text.strip()}"
         )
+        if self.clinical_note:
+            user_prompt += f"\n\n<clinical_note>\n{self.clinical_note.strip()}\n</clinical_note>"
 
         try:
             logger.info(f'Inferring causes up to chunk {chunk_id}...')
