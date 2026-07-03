@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Optional
 
+from gilda import Term
+
 class ClinicalEvent(StrEnum):
     SYMPTOM = "symptom"                       
     DISEASE = "disease"                                     
@@ -39,10 +41,17 @@ class StatementGraph:
     edges: list[StatementGraphEdge]
 
 @dataclass
+class GroundingTerm:
+    db: str
+    id: str
+    name: str
+
+@dataclass
 class Event:
     source_statement: int # Index of the source statement in the graph
     type_: ClinicalEvent  # Event type
     text: str   # Event text
+    grounding: Optional[GroundingTerm] # Grounding term, when available
 
 @dataclass
 class TimelineLayer:

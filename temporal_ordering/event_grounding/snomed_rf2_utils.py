@@ -151,7 +151,7 @@ def _parse_rf2_terms(snomed_root: Path) -> list[Term]:
 
     return terms
 
-def make_rf2_grounder(snomed_root: Path) -> Grounder:
+def make_gilda_grounder(snomed_root: Path) -> Grounder:
     """Build a GILDA Grounder from a SNOMED CT RF2 release directory."""
     terms = _parse_rf2_terms(snomed_root)
     return make_grounder(terms)

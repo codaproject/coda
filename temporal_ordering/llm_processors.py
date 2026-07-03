@@ -1,6 +1,7 @@
 from collections import defaultdict
+from pathlib import Path
 import re
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 from langchain.chat_models import BaseChatModel
 from langchain_core.output_parsers import JsonOutputParser
@@ -14,6 +15,12 @@ import networkx as nx
 from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, TimelineComponent, TimelineLayer, VATimeline
 
 
+from .event_grounding.grounders import GildaGrounder, SapBERTGrounder, SequentialGrounder
+
+# TODO refactor this to make the grounders' construction configurable
+gilda_grounder = GildaGrounder(Path(__file__).parent / "event_grounding" / "snomed_data")
+sapbert_grounder = SapBERTGrounder()
+grounder = SequentialGrounder([gilda_grounder, sapbert_grounder])
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Prompts
@@ -191,7 +198,7 @@ def build_temporal_order(
             ret["verbal_autopsy"] = va_narrative
 
     # Make this dictionary into our data model
-    structured_output = build_data_model(ret)
+    structured_output = build_data_model(ret, grounder)
 
     return structured_output
 
@@ -208,6 +215,7 @@ def _make_event_timelines(timeline) -> EventTimeline:
                 source_statement=event["source_statement"],
                 type_=ClinicalEvent(event["type"]),
                 text=event["text"],
+                grounding=None
             )
             for event in data_layer["events"]
         ]
@@ -220,9 +228,14 @@ def _make_event_timelines(timeline) -> EventTimeline:
     )
 
 
-def build_data_model(data) -> VATimeline:
+def build_data_model(data, grounder:Optional[Any] = None) -> VATimeline:
     graph = data['graph']
     
+    event_timeline = _make_event_timelines(data['event_timeline'])
+    # Ground events if grounder is provided
+    if grounder:
+        event_timeline = grounder(event_timeline)
+
     ret = VATimeline(
         va_narrative = data.get("verbal_autopsy"),
         
@@ -239,8 +252,9 @@ def build_data_model(data) -> VATimeline:
             edges = [StatementGraphEdge(source=e['from'], dest=e['to']) for e in graph['edges']],
         ),
 
-        event_timeline= _make_event_timelines(data['event_timeline'])
+        event_timeline= event_timeline
     )
+
 
     return ret
 
