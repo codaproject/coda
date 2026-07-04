@@ -2,9 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import replace
 from typing import Optional, Sequence
 
-from temporal_ordering.event_grounding.sapbert_utils import load_semantic_grounder
-
-
+from .sapbert_utils import load_semantic_grounder
 from .snomed_rf2_utils import make_gilda_grounder
 from ..modeling import EventTimeline, GroundingTerm, TimelineComponent, TimelineLayer, Event
 

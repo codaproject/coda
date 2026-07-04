@@ -29,8 +29,8 @@ import pytest
 
 from gilda import Grounder, Term
 
-from temporal_ordering.event_grounding import build_chromadb
-from temporal_ordering.event_grounding.sapbert_utils import (
+from coda.grounding.temporal_ordering.event_grounding import build_chromadb
+from coda.grounding.temporal_ordering.event_grounding.sapbert_utils import (
     COLLECTION_NAME,
     Candidate,
     IndexQueryUtil,

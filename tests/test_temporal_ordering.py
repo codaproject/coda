@@ -13,13 +13,13 @@ import os
 import pytest
 from langchain_core.runnables import RunnableLambda
 
-from temporal_ordering.llm_processors import (
+from coda.grounding.temporal_ordering.llm_processors import (
     build_envent_extractor_chain,
     build_llm,
     build_temporal_order,
     build_temporal_statements_ordering_chain,
 )
-from temporal_ordering.modeling import (
+from coda.grounding.temporal_ordering.modeling import (
     ClinicalEvent,
     TimeBreakCategory,
     VATimeline,

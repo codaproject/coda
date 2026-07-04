@@ -46,6 +46,8 @@ from tqdm import tqdm
 
 from coda import CODA_BASE
 
+from .config import TemporalOrderingGroundingConfig
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 MODEL_NAME = "cambridgeltl/SapBERT-from-PubMedBERT-fulltext"
-SNOMED_DATA = Path(__file__).parent / "snomed_data"
+# Sourced from the temporal-ordering config (SNOMED_DATA_PATH env var or the
+# yaml field); None when grounding is disabled — see ..config.
+SNOMED_DATA = TemporalOrderingGroundingConfig.default().snomed_data_path
 CHROMA_PATH = CODA_BASE.module("temporal_ordering", "event_grounding").join("chroma_sapbert")
 COLLECTION_NAME = "snomed_hp_sapbert"
 
@@ -139,7 +143,7 @@ class TermRecord:
     status: str        # "name" | "synonym"
 
 
-def collect_terms(snomed_root: Path = SNOMED_DATA, hp_grounder=None) -> list[TermRecord]:
+def collect_terms(snomed_root: Path | None = SNOMED_DATA, hp_grounder=None) -> list[TermRecord]:
     """Collect the SNOMED + HP surface forms we ground with, deduplicated.
 
     `hp_grounder` supplies the HP terms via its `.entries`; when None, GILDA's
@@ -149,6 +153,12 @@ def collect_terms(snomed_root: Path = SNOMED_DATA, hp_grounder=None) -> list[Ter
     from gilda import Grounder
 
     from .snomed_rf2_utils import _parse_rf2_terms
+
+    if snomed_root is None:
+        raise ValueError(
+            "No SNOMED data path configured. Set SNOMED_DATA_PATH or the "
+            "grounder.snomed_data_path yaml field, or pass snomed_root explicitly."
+        )
 
     logger.info(f"  Parsing SNOMED RF2 release from {snomed_root} ...")
     snomed_terms = _parse_rf2_terms(snomed_root)

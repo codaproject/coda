@@ -1,5 +1,4 @@
 from collections import defaultdict
-from pathlib import Path
 import re
 from typing import Any, Optional, cast
 
@@ -15,12 +14,19 @@ import networkx as nx
 from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, TimelineComponent, TimelineLayer, VATimeline
 
 
+from .event_grounding.config import TemporalOrderingGroundingConfig
 from .event_grounding.grounders import GildaGrounder, SapBERTGrounder, SequentialGrounder
 
-# TODO refactor this to make the grounders' construction configurable
-gilda_grounder = GildaGrounder(Path(__file__).parent / "event_grounding" / "snomed_data")
-sapbert_grounder = SapBERTGrounder()
-grounder = SequentialGrounder([gilda_grounder, sapbert_grounder])
+# Event grounding is optional: it is only wired up when a SNOMED data path is
+# configured (via the SNOMED_DATA_PATH env var or the temporal-ordering yaml
+# config). When unset, `grounder` stays None and events are left ungrounded.
+_snomed_data_path = TemporalOrderingGroundingConfig.default().snomed_data_path
+if _snomed_data_path is not None:
+    gilda_grounder = GildaGrounder(_snomed_data_path)
+    sapbert_grounder = SapBERTGrounder()
+    grounder: Optional[SequentialGrounder] = SequentialGrounder([gilda_grounder, sapbert_grounder])
+else:
+    grounder = None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Prompts

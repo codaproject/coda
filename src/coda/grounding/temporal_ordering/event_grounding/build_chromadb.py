@@ -38,7 +38,7 @@ from .sapbert_utils import (
 
 
 def build_database(
-    snomed_root: Path = SNOMED_DATA,
+    snomed_root: Path | None = SNOMED_DATA,
     chroma_path: Path = CHROMA_PATH,
     batch_size: int = DEFAULT_BATCH_SIZE,
     rebuild: bool = False,
@@ -127,7 +127,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--snomed-root", default=str(SNOMED_DATA))
+    parser.add_argument(
+        "--snomed-root",
+        default=str(SNOMED_DATA) if SNOMED_DATA else None,
+        required=SNOMED_DATA is None,
+        help="SNOMED RF2 release directory (defaults to the configured snomed_data_path)",
+    )
     parser.add_argument("--chroma-path", default=str(CHROMA_PATH))
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--rebuild", action="store_true", help="Overwrite an existing collection")

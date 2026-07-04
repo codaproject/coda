@@ -1,0 +1,10 @@
+# Configuration for the temporal-ordering event grounder.
+#
+# The SNOMED data path may be supplied either here (`grounder.snomed_data_path`)
+# or via the SNOMED_DATA_PATH environment variable, which takes precedence.
+# Relative paths in this file are resolved against this file's directory.
+#
+# Event grounding is an OPTIONAL module: leave this empty (and SNOMED_DATA_PATH
+# unset) to disable grounding entirely.
+grounder:
+  snomed_data_path:

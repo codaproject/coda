@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from temporal_ordering.grounding.snomed_rf2_parser import (
+from coda.grounding.temporal_ordering.event_grounding.snomed_rf2_utils import (
     ACCEPTABLE_ID,
     FSN_TYPE_ID,
     PREFERRED_ID,
@@ -27,7 +27,7 @@ from temporal_ordering.grounding.snomed_rf2_parser import (
     _load_descriptions,
     _load_language_refset,
     _parse_rf2_terms,
-    make_rf2_grounder,
+    make_gilda_grounder,
 )
 
 # --- RF2 metadata constants used only to make the fixture rows realistic ---
@@ -273,7 +273,7 @@ def test_parse_rf2_terms_term_attributes(snomed_root: Path):
 # make_rf2_grounder (full end-to-end through GILDA)
 # --------------------------------------------------------------------------- #
 def test_make_rf2_grounder_grounds_queries(snomed_root: Path):
-    grounder = make_rf2_grounder(snomed_root)
+    grounder = make_gilda_grounder(snomed_root)
 
     matches = grounder.ground("asthma")
     assert matches, "expected 'asthma' to ground to a SNOMED concept"
