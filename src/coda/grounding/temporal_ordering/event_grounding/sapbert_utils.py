@@ -39,7 +39,6 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 import torch
 from tqdm import tqdm
@@ -240,10 +239,10 @@ class IndexQueryUtil:
 
     def ground(
         self,
-        queries: List[str],
+        queries: list[str],
         top_k: int = 5,
         batch_size: int = DEFAULT_BATCH_SIZE,
-    ) -> List[List[Candidate]]:
+    ) -> list[list[Candidate]]:
         """Return, for each query, the top_k nearest concept candidates (best first)."""
         
         if not queries:

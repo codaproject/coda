@@ -1,6 +1,20 @@
+import sys
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Optional
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:  # Python 3.10 fallback
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """Minimal ``enum.StrEnum`` backport for Python 3.10.
+
+        Mixing ``str`` with ``Enum`` gives value-based construction; delegating
+        ``__str__`` to ``str`` makes ``str(member)`` return the member's value,
+        matching the 3.11+ ``StrEnum`` behaviour the rest of the code relies on.
+        """
+
+        __str__ = str.__str__
 
 from gilda import Term
 
@@ -27,8 +41,8 @@ class TimeBreakCategory(StrEnum):
 class StatementGraphNode:
     index: int                          # : integer starting at 1
     statement: str                      # verbatim text of the statement
-    time_break_marker:Optional[str]    #: the explicit temporal expression string, or null
-    time_break_category:Optional[TimeBreakCategory]   #: one of the categories listed above, or null
+    time_break_marker: str | None    #: the explicit temporal expression string, or null
+    time_break_category: TimeBreakCategory | None   #: one of the categories listed above, or null
 
 @dataclass
 class StatementGraphEdge:
@@ -51,7 +65,7 @@ class Event:
     source_statement: int # Index of the source statement in the graph
     type_: ClinicalEvent  # Event type
     text: str   # Event text
-    grounding: Optional[GroundingTerm] # Grounding term, when available
+    grounding: GroundingTerm | None # Grounding term, when available
 
 @dataclass
 class TimelineLayer:
@@ -76,4 +90,4 @@ class EventTimeline:
 class VATimeline:
     statement_graph: StatementGraph
     event_timeline: EventTimeline
-    va_narrative: Optional[str]
+    va_narrative: str | None

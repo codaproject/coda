@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import replace
-from typing import Optional, Sequence
 
 from .sapbert_utils import load_semantic_grounder
 from .snomed_rf2_utils import make_gilda_grounder
@@ -15,7 +15,7 @@ class Grounder(ABC):
     """ Base class for the event grounder """
 
     @abstractmethod
-    def ground_event(self, event:Event, context:Optional[str]) -> Event:
+    def ground_event(self, event:Event, context: str | None) -> Event:
         ...
 
     def __call__(self, timeline: EventTimeline) -> EventTimeline:
@@ -40,7 +40,7 @@ class SequentialGrounder(Grounder):
     def __init__(self, grounders:Sequence[Grounder]):
         self._grounders = grounders
 
-    def ground_event(self, event: Event, context: Optional[str]) -> Event:
+    def ground_event(self, event: Event, context: str | None) -> Event:
         for grounder in self._grounders:
             # Try a grounder
             event = grounder.ground_event(event, context)
@@ -57,7 +57,7 @@ class GildaGrounder(Grounder):
         logger.info("Creating GILDA grounder")
         self.gilda = make_gilda_grounder(data_path)
 
-    def ground_event(self, event:Event, context:Optional[str]) -> Event:
+    def ground_event(self, event:Event, context: str | None) -> Event:
         match = self.gilda.ground_best(event.text, context)
         # If the grounder provides a result, add it, otherwise, return the original event        
         if match:
@@ -76,7 +76,7 @@ class SapBERTGrounder(Grounder):
     def __init__(self) -> None:
         self._query_util = load_semantic_grounder()
 
-    def ground_event(self, event: Event, context:Optional[str]) -> Event:
+    def ground_event(self, event: Event, context: str | None) -> Event:
         if context:
             query = f"{event.text} - {context}"
         else:

@@ -1,6 +1,6 @@
 from collections import defaultdict
 import re
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from langchain.chat_models import BaseChatModel
 from langchain_core.output_parsers import JsonOutputParser
@@ -15,7 +15,7 @@ from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, State
 
 
 from .event_grounding.config import TemporalOrderingGroundingConfig
-from .event_grounding.grounders import GildaGrounder, SapBERTGrounder, SequentialGrounder
+from .event_grounding.grounders import GildaGrounder, Grounder, SapBERTGrounder, SequentialGrounder
 
 # Event grounding is optional: it is only wired up when a SNOMED data path is
 # configured (via the SNOMED_DATA_PATH env var or the temporal-ordering yaml
@@ -24,7 +24,7 @@ _snomed_data_path = TemporalOrderingGroundingConfig.default().snomed_data_path
 if _snomed_data_path is not None:
     gilda_grounder = GildaGrounder(_snomed_data_path)
     sapbert_grounder = SapBERTGrounder()
-    grounder: Optional[SequentialGrounder] = SequentialGrounder([gilda_grounder, sapbert_grounder])
+    grounder: SequentialGrounder | None = SequentialGrounder([gilda_grounder, sapbert_grounder])
 else:
     grounder = None
 
@@ -234,7 +234,7 @@ def _make_event_timelines(timeline) -> EventTimeline:
     )
 
 
-def build_data_model(data, grounder:Optional[Any] = None) -> VATimeline:
+def build_data_model(data, grounder: Grounder | None = None) -> VATimeline:
     graph = data['graph']
     
     event_timeline = _make_event_timelines(data['event_timeline'])
@@ -331,7 +331,7 @@ def build_event_timeline(graph: dict, entity_data: dict) -> list[dict]:
 
     return timeline
 
-def build_llm(model:str, base_url:str, api_key:Optional[str] = None, bearer_token:Optional[str] = None) -> ChatOpenAI:
+def build_llm(model:str, base_url:str, api_key: str | None = None, bearer_token: str | None = None) -> ChatOpenAI:
     """ Instantiates a ChatModel to send messages to the inference service """
     # In case that we're dealing with AWS Bedrock, we need to handle it a little differently
     if "bedrock" in base_url.lower():
