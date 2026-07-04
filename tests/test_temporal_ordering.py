@@ -1,6 +1,6 @@
 """Tests for the verbal-autopsy temporal-ordering pipeline.
 
-Fake LangChain runnables stand in for the LLM chains, so ``build_temporal_order``
+Fake chains stand in for the LLM chains, so ``build_temporal_order``
 is exercised end-to-end (statement DAG -> entity extraction -> layered timeline
 -> structured ``VATimeline``) without a model, network, or Bedrock token - safe
 to run on CI.
@@ -8,16 +8,14 @@ to run on CI.
 An optional live integration test hits the real inference service; it is
 skipped unless ``BEDROCK_BEARER_TOKEN`` is set in the environment.
 """
+import json
 import os
 
 import pytest
-from langchain_core.runnables import RunnableLambda
 
 from coda.grounding.temporal_ordering.llm_processors import (
-    build_envent_extractor_chain,
     build_llm,
     build_temporal_order,
-    build_temporal_statements_ordering_chain,
 )
 from coda.grounding.temporal_ordering.modeling import (
     ClinicalEvent,
@@ -78,36 +76,74 @@ ENTITIES = {
 }
 
 
-@pytest.fixture
-def ordering_chain():
-    """Fake ordering chain that returns the canned statement DAG."""
-    return RunnableLambda(lambda _: GRAPH)
+class _FakeMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content):
+        self.message = _FakeMessage(content)
+
+
+class _FakeResponse:
+    def __init__(self, content):
+        self.choices = [_FakeChoice(content)]
+
+
+class _FakeCompletions:
+    """Returns the canned JSON payloads in call order.
+
+    ``build_temporal_order`` always calls the ordering prompt first and the
+    entity-extraction prompt second, so the sequence is deterministic.
+    """
+
+    def __init__(self, payloads):
+        self._payloads = [json.dumps(p) for p in payloads]
+        self._call = 0
+
+    def create(self, **_kwargs):
+        content = self._payloads[self._call]
+        self._call += 1
+        return _FakeResponse(content)
+
+
+class _FakeChat:
+    def __init__(self, payloads):
+        self.completions = _FakeCompletions(payloads)
+
+
+class FakeClient:
+    """Stand-in for the OpenAI client that replays canned responses."""
+
+    def __init__(self, payloads):
+        self.chat = _FakeChat(payloads)
 
 
 @pytest.fixture
-def events_chain():
-    """Fake events chain that returns the canned entity extraction."""
-    return RunnableLambda(lambda _: ENTITIES)
+def client():
+    """Fake OpenAI client returning the canned DAG then the canned entities."""
+    return FakeClient([GRAPH, ENTITIES])
 
 
-def test_build_temporal_order_returns_va_timeline(ordering_chain, events_chain):
-    result = build_temporal_order(NARRATIVE, ordering_chain, events_chain)
+def test_build_temporal_order_returns_va_timeline(client):
+    result = build_temporal_order(NARRATIVE, client, model="fake-model")
 
     assert isinstance(result, VATimeline)
     # va_narrative is only echoed back when explicitly requested.
     assert result.va_narrative is None
 
 
-def test_build_temporal_order_includes_narrative_when_requested(ordering_chain, events_chain):
+def test_build_temporal_order_includes_narrative_when_requested(client):
     result = build_temporal_order(
-        NARRATIVE, ordering_chain, events_chain, include_va_in_output=True
+        NARRATIVE, client, model="fake-model", include_va_in_output=True
     )
 
     assert result.va_narrative == NARRATIVE
 
 
-def test_statement_graph_preserves_nodes_and_time_breaks(ordering_chain, events_chain):
-    result = build_temporal_order(NARRATIVE, ordering_chain, events_chain)
+def test_statement_graph_preserves_nodes_and_time_breaks(client):
+    result = build_temporal_order(NARRATIVE, client, model="fake-model")
     graph = result.statement_graph
 
     assert [n.index for n in graph.nodes] == [1, 2, 3, 4]
@@ -119,8 +155,8 @@ def test_statement_graph_preserves_nodes_and_time_breaks(ordering_chain, events_
     assert [(e.source, e.dest) for e in graph.edges] == [(1, 2), (2, 3), (3, 4)]
 
 
-def test_event_timeline_orders_events_chronologically(ordering_chain, events_chain):
-    result = build_temporal_order(NARRATIVE, ordering_chain, events_chain)
+def test_event_timeline_orders_events_chronologically(client):
+    result = build_temporal_order(NARRATIVE, client, model="fake-model")
     components = result.event_timeline.components
 
     # The DAG is a single chain, so there is one connected component.
@@ -145,14 +181,12 @@ def test_build_temporal_order_live():
     base_url = "https://bedrock-mantle.us-east-1.api.aws/v1"
     model = "qwen.qwen3-next-80b-a3b-instruct"
 
-    llm = build_llm(
-        model=model, base_url=base_url, bearer_token=os.environ["BEDROCK_BEARER_TOKEN"]
+    client = build_llm(
+        base_url=base_url, bearer_token=os.environ["BEDROCK_BEARER_TOKEN"]
     )
-    stmt_chain = build_temporal_statements_ordering_chain(llm)
-    entity_chain = build_envent_extractor_chain(llm)
 
     result = build_temporal_order(
-        NARRATIVE, stmt_chain, entity_chain, include_va_in_output=True
+        NARRATIVE, client, model=model, include_va_in_output=True
     )
 
     assert isinstance(result, VATimeline)

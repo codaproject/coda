@@ -1,13 +1,9 @@
 from collections import defaultdict
+import json
 import re
 from typing import Any, cast
 
-from langchain.chat_models import BaseChatModel
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import Runnable, RunnableLambda
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
+from openai import OpenAI
 import networkx as nx
 
 
@@ -151,45 +147,55 @@ Statements:
 # Chain builders
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _strip_thinking(msg) -> str:
+def _strip_thinking(content: str) -> str:
     """Remove <think>…</think> reasoning blocks emitted by thinking-mode models."""
-    content = msg.content if hasattr(msg, "content") else str(msg)
     return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
 
-def build_temporal_statements_ordering_chain(llm: BaseChatModel):
-    """Chain that turns an `verbal autopsy` string into a partial-order graph JSON."""
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", STATEMENT_SYSTEM_PROMPT),
-        ("human", STATEMENT_HUMAN_PROMPT),
-    ])
-    return prompt | llm | RunnableLambda(_strip_thinking) | JsonOutputParser()
+def _parse_json(content: str) -> Any:
+    """Parse a JSON payload from a model response, tolerating markdown fences."""
+    text = _strip_thinking(content)
+    # Some models wrap JSON in ```json … ``` fences despite instructions not to.
+    fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, flags=re.DOTALL)
+    if fenced:
+        text = fenced.group(1)
+    return json.loads(text)
 
 
-def build_envent_extractor_chain(llm):
-    """Chain that maps a JSON list of statements to typed clinically relevant events."""
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", EVENT_SYSTEM_PROMPT),
-        ("human", ENTITY_HUMAN_PROMPT),
-    ])
-    return prompt | llm | RunnableLambda(_strip_thinking) | JsonOutputParser()
+def _complete_json(client: OpenAI, model: str, system_prompt: str, human_prompt: str) -> Any:
+    """Call the chat completions API and parse the JSON response."""
+    response = client.chat.completions.create(
+        model=model,
+        temperature=0.0,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt},
+        ],
+    )
+    return _parse_json(response.choices[0].message.content or "")
 
 
 def build_temporal_order(
         va_narrative:str,
-        ordering_chain:Runnable,
-        events_chain:Runnable,
+        client:OpenAI,
+        model:str,
         include_va_in_output:bool = False) -> VATimeline:
-    
-    """ Runs the chains to build a temporal ordering of the statements in a verbal autopsy and then extracts clinically relevant events """
-    
+
+    """ Runs the LLM to build a temporal ordering of the statements in a verbal autopsy and then extracts clinically relevant events """
+
     # Get the statements order
-    graph = ordering_chain.invoke({"verbal_autopsy": va_narrative})
+    graph = _complete_json(
+        client, model, STATEMENT_SYSTEM_PROMPT,
+        STATEMENT_HUMAN_PROMPT.format(verbal_autopsy=va_narrative),
+    )
 
     # Get the events for each statement
     statements_json = [{"index": n["index"], "statement": n["statement"]} for n in graph["nodes"]]
-    events_data = events_chain.invoke({"statements_json": statements_json})
-    
+    events_data = _complete_json(
+        client, model, EVENT_SYSTEM_PROMPT,
+        ENTITY_HUMAN_PROMPT.format(statements_json=statements_json),
+    )
+
     # Build a timeline of the events
     timeline = build_event_timeline(graph, events_data)
     
@@ -331,24 +337,18 @@ def build_event_timeline(graph: dict, entity_data: dict) -> list[dict]:
 
     return timeline
 
-def build_llm(model:str, base_url:str, api_key: str | None = None, bearer_token: str | None = None) -> ChatOpenAI:
-    """ Instantiates a ChatModel to send messages to the inference service """
+def build_llm(base_url:str, api_key: str | None = None, bearer_token: str | None = None) -> OpenAI:
+    """ Instantiates an OpenAI client to send messages to the inference service """
     # In case that we're dealing with AWS Bedrock, we need to handle it a little differently
     if "bedrock" in base_url.lower():
         if not bearer_token:
             raise ValueError("Bearer token needed for bedrock api access")
         # Bedrock Mantle accepts either Authorization or x-api-key, not both.
-        # ChatOpenAI sends api_key as Authorization: Bearer, which is sufficient.
-        return ChatOpenAI(
-            base_url=base_url,
-            api_key=SecretStr(bearer_token),
-            model=model,
-            temperature=0.0,
-        )
+        # The OpenAI client sends api_key as Authorization: Bearer, which is sufficient.
+        key = bearer_token
     else:
-        return ChatOpenAI(
-            base_url=base_url,
-            api_key= SecretStr(api_key) if api_key else None,
-            model=model,
-            temperature=0.0,
-        )
+        key = api_key
+
+    # The OpenAI client requires a non-empty api_key; use a placeholder when the
+    # inference service does not need one.
+    return OpenAI(base_url=base_url, api_key=key or "not-needed")

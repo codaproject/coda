@@ -63,8 +63,6 @@ benchmark = [
     "soundfile",
 ]
 temporal_ordering = [
-    "langchain>=1.3.2",
-    "langchain-openai>=1.2.2",
     "chromadb"
 ]
 
