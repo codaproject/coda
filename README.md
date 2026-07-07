@@ -69,6 +69,7 @@ contributed by each source:
 | **MONDO** | `mondo`: Diseases | `skos:exactMatch` (MONDO to icd10/icd11/mesh/omim/orpha) | Mondo Disease Ontology providing cross-references that bridge MONDO disease terms to ICD-10, ICD-11, MeSH, OMIM, and Orphanet identifiers used across the KG.                                     |
 | **WDI** | `wdi`: Development/health indicators | `has_indicator` (country to indicator) | World Bank World Development Indicators and World Health Indicators linked to country nodes, with time-series data stored as year-value mappings on edges.                                       |
 | **WHO Mortality** | `who_mortality`: Country nodes with population data | `has_mortality` (country to ICD-10 cause) | WHO Mortality Database providing national death counts by ICD-10 cause from 2021 onwards, broken down by year, sex, and age group. Country nodes carry population and birth data.                |
+| **SNOMED CT** _(optional, licensed)_ | `snomedct`: Clinical concepts (`category`: disorder/procedure/finding) | `is_a` (hierarchical) | SNOMED CT RF2 International Release, restricted to active disorder/procedure/finding concepts. Included only when a licensed release is supplied via `SNOMED_DATA_PATH`; its node/edge files are never version controlled. |
 
 Running CODA using Docker
 -------------------------

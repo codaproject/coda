@@ -63,9 +63,21 @@ RUN sed -i 's/#server.default_listen_address/server.default_listen_address/' /et
 
 # Ingest graph content into neo4j. The TSVs are bind-mounted only for the
 # duration of this RUN, so they are never written into an image layer.
+#
+# SNOMED CT is licensed and optional: its node/edge files are only present when
+# a license holder supplies them, so they are appended to the import command
+# only when both files exist. Otherwise the import proceeds exactly as before.
 RUN --mount=type=bind,source=kg,target=/sw/kg \
+    bash -c 'set -e; \
+    SNOMED_ARGS=""; \
+    if [ -f /sw/kg/snomedct_nodes.tsv.gz ] && [ -f /sw/kg/snomedct_edges.tsv.gz ]; then \
+      echo "SNOMED CT files found; including them in the import"; \
+      SNOMED_ARGS="--relationships /sw/kg/snomedct_edges.tsv.gz --nodes /sw/kg/snomedct_nodes.tsv.gz"; \
+    else \
+      echo "No SNOMED CT files found; importing without SNOMED CT"; \
+    fi; \
     neo4j-admin database import full \
-    --delimiter='TAB' \
+    --delimiter=TAB \
     --skip-duplicate-nodes=true \
     --skip-bad-relationships=true \
     --nodes /sw/kg/combined_nodes.tsv.gz \
@@ -91,8 +103,9 @@ RUN --mount=type=bind,source=kg,target=/sw/kg \
     --nodes /sw/kg/wdi_nodes.tsv.gz \
     --relationships /sw/kg/who_mortality_edges.tsv.gz \
     --nodes /sw/kg/who_mortality_nodes.tsv.gz \
+    $SNOMED_ARGS \
     --bad-tolerance 1000000000000000 \
-      || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)
+      || (echo "=== IMPORT FAILED, SHOWING /sw/import.report ===" && cat /sw/import.report && exit 1)'
 
 
 # Neo4j's standard HTTP and Bolt ports.

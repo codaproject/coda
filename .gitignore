@@ -212,6 +212,11 @@ __marimo__/
 # CODA KG build reports (regenerated each build, not version controlled)
 kg/reports/
 
+# SNOMED CT KG output: licensed data, generated only when a release is
+# available and shipped separately by license holders, never version controlled.
+kg/snomedct_nodes.tsv.gz
+kg/snomedct_edges.tsv.gz
+
 # macOS
 .DS_Store
 

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-_DEFAULT_CONFIG_PATH = Path(__file__).parent / "grounder_config" / "temporal_ordering_config.yaml"
+_DEFAULT_CONFIG_PATH = Path(__file__).parent / "temporal_ordering_config.yaml"
 _SNOMED_DATA_ENV_VAR = "SNOMED_DATA_PATH"
 
 

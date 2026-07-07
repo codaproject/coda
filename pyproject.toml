@@ -62,9 +62,6 @@ benchmark = [
     "kagglehub",
     "soundfile",
 ]
-temporal_ordering = [
-    "chromadb"
-]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"

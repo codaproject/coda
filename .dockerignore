@@ -1,0 +1,32 @@
+# Keep the Docker build context small. The KG image only needs the kg/ TSVs
+# (bind-mounted during import), src/coda/kg/vector_index.py, and
+# docker_startup.sh — everything below is irrelevant to the build.
+
+# Virtualenvs and VCS
+.venv/
+venv/
+.git/
+.gitignore
+
+# Raw source data (licensed SNOMED RF2 release, downloaded ontologies, etc.);
+# the built kg/ TSVs are what the image imports, not this.
+data/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / tooling / OS
+.idea/
+.vscode/
+.claude/
+.DS_Store
+
+# Tests and docs are not needed to build the image
+tests/
