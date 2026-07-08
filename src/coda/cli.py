@@ -28,6 +28,7 @@ from coda.dialogue import (
 from coda.dialogue.whisper import DEFAULT_MODEL_SIZE
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.inference.agent import CodaToyInferenceAgent
+from coda.inference.streaming import INFERENCE_MIN_WORDS, StreamingInferenceBuffer
 
 logger = logging.getLogger("coda.cli")
 
@@ -141,11 +142,16 @@ async def run_chunked(transcriber, grounder, agent, audio_i16, language, task,
     return agent.all_text.strip(), per_chunk
 
 
-async def run_streaming(transcriber, grounder, agent, audio_i16, language, task):
-    """Drive a streaming backend over a whole recording, grounding and inferring
-    per committed segment. Streaming backends decode the audio with their own
-    buffering/commit policy, so the file is fed as a byte stream rather than
-    fixed chunks."""
+async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
+                        min_words=INFERENCE_MIN_WORDS):
+    """Drive a streaming backend over a whole recording. Streaming backends
+    decode with their own buffering/commit policy, so the file is fed as a byte
+    stream rather than fixed chunks.
+
+    Committed segments are small and frequent; inferring on each one floods the
+    agent and lets it fall behind the audio. Mirroring the live app, committed
+    text is grounded per segment but inference is held off until min_words new
+    words accumulate, with a final flush for the trailing text."""
     pcm = audio_i16.tobytes()
     blob = SAMPLE_RATE * 2  # 1 second of s16le
 
@@ -154,15 +160,31 @@ async def run_streaming(transcriber, grounder, agent, audio_i16, language, task)
             yield pcm[off:off + blob]
 
     per_chunk = []
+    buf = StreamingInferenceBuffer(min_words=min_words)
+    # Grounding is timed per segment but reported per inference batch.
+    grounding_s_acc = 0.0
+
+    async def flush():
+        nonlocal grounding_s_acc
+        batch = buf.take()
+        if batch is None:
+            return
+        text, anns, chunk_id, timestamp = batch
+        inference, inference_s = await _infer(agent, chunk_id, text, anns, timestamp)
+        per_chunk.append((chunk_id, text, anns, inference,
+                          {"grounding_s": round(grounding_s_acc, 3),
+                           "inference_s": inference_s}))
+        grounding_s_acc = 0.0
+
     async for event in transcriber.stream(audio_iter(), language=language, task=task):
-        if not event.committed:
+        if not event.committed or not event.text.strip():
             continue
         annotations, grounding_s = _ground(grounder, event.text)
-        inference, inference_s = await _infer(
-            agent, event.id, event.text, annotations, event.timestamp
-        )
-        per_chunk.append((event.id, event.text, annotations, inference,
-                          {"grounding_s": grounding_s, "inference_s": inference_s}))
+        grounding_s_acc += grounding_s
+        buf.add(event.text, annotations, event.id, event.timestamp)
+        if buf.ready:
+            await flush()
+    await flush()
     return agent.all_text.strip(), per_chunk
 
 
@@ -264,6 +286,12 @@ def main():
                         help="Simulate the live app's chunked pipeline. Bare --chunking uses the "
                              f"production chunk length ({DEFAULT_CHUNK_DURATION}s); pass a number to "
                              "override. Omit entirely for one-pass whole-file transcription (default).")
+    parser.add_argument("--infer-every-words", type=int, default=INFERENCE_MIN_WORDS,
+                        metavar="N",
+                        help="Streaming backends only: hold off inference until N new words "
+                             "of committed transcript accumulate "
+                             f"(default: {INFERENCE_MIN_WORDS}). Higher means fewer, larger "
+                             "inference calls.")
     parser.add_argument("--agent", choices=["champs", "toy"], default="champs",
                         help="Inference agent (default: champs LLM agent)")
     parser.add_argument("--grounder", choices=["gilda", "rag"], default="gilda",
@@ -333,7 +361,7 @@ def main():
             # Streaming backends ignore --chunking (they do their own chunking).
             full_text, per_chunk = asyncio.run(
                 run_streaming(transcriber, grounder, agent, audio_i16,
-                              args.language, args.task)
+                              args.language, args.task, args.infer_every_words)
             )
         elif args.chunking is None:
             full_text, per_chunk = asyncio.run(
