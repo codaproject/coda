@@ -2,9 +2,10 @@
 
 These helpers walk an RF2 ``Snapshot`` tree and return plain Python data
 structures (sets, dicts, tuples). They intentionally have no dependency on
-gilda, pandas, or Neo4j so they can back both the GILDA-based event grounder
-(:mod:`coda.grounding.temporal_ordering.event_grounding.snomed_rf2_utils`) and
-the knowledge-graph exporter (:mod:`coda.kg.sources.snomedct`).
+gilda, pandas, or Neo4j. They feed the knowledge-graph exporter
+(:mod:`coda.kg.sources.snomedct`), which imports SNOMED CT into the CODA KG;
+the GILDA-based event grounder then sources its terms from the KG at runtime
+(:mod:`coda.grounding.temporal_ordering.event_grounding.snomed_kg_utils`).
 
 A SNOMED CT RF2 release is distributed under license, so the data itself is
 never version controlled; callers point these functions at a locally provided

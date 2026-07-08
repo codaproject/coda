@@ -10,15 +10,15 @@ import networkx as nx
 from .modeling import ClinicalEvent, Event, EventTimeline, StatementGraph, StatementGraphEdge, StatementGraphNode, TimeBreakCategory, TimelineComponent, TimelineLayer, VATimeline
 
 
-from .event_grounding.config import TemporalOrderingGroundingConfig
 from .event_grounding.grounders import GildaGrounder, Grounder, SapBERTGrounder, SequentialGrounder
+from .event_grounding.snomed_kg_utils import snomedct_terms_available
 
-# Event grounding is optional: it is only wired up when a SNOMED data path is
-# configured (via the SNOMED_DATA_PATH env var or the temporal-ordering yaml
-# config). When unset, `grounder` stays None and events are left ungrounded.
-_snomed_data_path = TemporalOrderingGroundingConfig.default().snomed_data_path
-if _snomed_data_path is not None:
-    gilda_grounder = GildaGrounder(_snomed_data_path)
+# Event grounding is optional: both the GILDA and SapBERT grounders source their
+# SNOMED CT terms from the CODA KG, so grounding is wired up only when the KG was
+# built with SNOMED CT (a licensed resource). When the KG has no `snomedct`
+# nodes, `grounder` stays None and events are left ungrounded.
+if snomedct_terms_available():
+    gilda_grounder = GildaGrounder()
     sapbert_grounder = SapBERTGrounder()
     grounder: SequentialGrounder | None = SequentialGrounder([gilda_grounder, sapbert_grounder])
 else:

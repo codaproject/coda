@@ -1,9 +1,13 @@
-"""Tests for the SNOMED CT RF2 -> GILDA parser.
+"""Tests for the SNOMED CT RF2 parser (:mod:`coda.snomed.rf2`).
 
 A tiny synthetic RF2 release tree is built under ``tmp_path`` for each test, so
-the whole module is exercised end-to-end (concept/description/language-refset
-loading -> Term construction -> Grounder) without the multi-gigabyte real
-release (which is git-ignored). Safe to run on CI.
+the parser is exercised end-to-end (concept/description/language-refset loading
+-> surface-form iteration) without the multi-gigabyte real release (which is
+git-ignored). Safe to run on CI.
+
+The GILDA grounder no longer parses RF2 directly — it sources SNOMED CT terms
+from the CODA KG (see ``test_snomed_kg_grounder.py``). The RF2 parsing here is
+the shared source of truth feeding the KG exporter.
 
 The synthetic fixture packs one example of every branch the parser cares about:
 active vs. inactive concepts and descriptions, FSN vs. synonym vs. other
@@ -15,19 +19,17 @@ from pathlib import Path
 
 import pytest
 
-from coda.grounding.temporal_ordering.event_grounding.snomed_rf2_utils import (
+from coda.snomed.rf2 import (
     ACCEPTABLE_ID,
     FSN_TYPE_ID,
     PREFERRED_ID,
-    SOURCE,
     SYNONYM_TYPE_ID,
     US_ENGLISH_REFSET_ID,
-    _find_snapshot_file,
-    _load_active_concepts,
-    _load_descriptions,
-    _load_language_refset,
-    _parse_rf2_terms,
-    make_gilda_grounder,
+    find_snapshot_file,
+    iter_surface_forms,
+    load_active_concepts,
+    load_descriptions,
+    load_language_refset,
 )
 
 # --- RF2 metadata constants used only to make the fixture rows realistic ---
@@ -153,7 +155,7 @@ def test_find_snapshot_file_picks_latest(tmp_path: Path):
     (tmp_path / "sct2_Concept_Snapshot_INT_20250101.txt").write_text("", encoding="utf-8")
     (tmp_path / "sct2_Concept_Snapshot_INT_20260601.txt").write_text("", encoding="utf-8")
 
-    found = _find_snapshot_file(tmp_path, "sct2_Concept_Snapshot_*.txt")
+    found = find_snapshot_file(tmp_path, "sct2_Concept_Snapshot_*.txt")
 
     # Sorted lexicographically, the newer date wins.
     assert found.name == "sct2_Concept_Snapshot_INT_20260601.txt"
@@ -161,7 +163,7 @@ def test_find_snapshot_file_picks_latest(tmp_path: Path):
 
 def test_find_snapshot_file_missing_raises(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="No file matching"):
-        _find_snapshot_file(tmp_path, "sct2_Concept_Snapshot_*.txt")
+        find_snapshot_file(tmp_path, "sct2_Concept_Snapshot_*.txt")
 
 
 # --------------------------------------------------------------------------- #
@@ -169,7 +171,7 @@ def test_find_snapshot_file_missing_raises(tmp_path: Path):
 # --------------------------------------------------------------------------- #
 def test_load_active_concepts_excludes_inactive(snomed_root: Path):
     terminology = snomed_root / "Snapshot" / "Terminology"
-    active = _load_active_concepts(terminology)
+    active = load_active_concepts(terminology)
 
     assert active == {ASTHMA, NEPHROSTOMY, FEVER, CAFFEINE}
     assert HISTORICAL not in active
@@ -180,8 +182,8 @@ def test_load_active_concepts_excludes_inactive(snomed_root: Path):
 # --------------------------------------------------------------------------- #
 def test_load_descriptions_filters_and_tags_category(snomed_root: Path):
     terminology = snomed_root / "Snapshot" / "Terminology"
-    active = _load_active_concepts(terminology)
-    descriptions = _load_descriptions(terminology, active)
+    active = load_active_concepts(terminology)
+    descriptions = load_descriptions(terminology, active)
 
     # Inactive description, the definition-type description, and the description
     # on the inactive concept are all dropped.
@@ -190,7 +192,7 @@ def test_load_descriptions_filters_and_tags_category(snomed_root: Path):
     assert "200000040" not in descriptions  # on inactive concept
 
     # Synonyms are kept even for the irrelevant category here; category filtering
-    # happens later in _parse_rf2_terms.
+    # happens later in iter_surface_forms.
     assert "200000030" in descriptions  # caffeine FSN survives description loading
 
     # FSN semantic tags are parsed out into the category field.
@@ -205,7 +207,7 @@ def test_load_descriptions_filters_and_tags_category(snomed_root: Path):
 # _load_language_refset
 # --------------------------------------------------------------------------- #
 def test_load_language_refset_only_us_english(snomed_root: Path):
-    acceptability = _load_language_refset(snomed_root / "Snapshot")
+    acceptability = load_language_refset(snomed_root / "Snapshot")
 
     assert acceptability["200000002"] == PREFERRED_ID
     assert acceptability["200000003"] == ACCEPTABLE_ID
@@ -215,12 +217,10 @@ def test_load_language_refset_only_us_english(snomed_root: Path):
 
 
 # --------------------------------------------------------------------------- #
-# _parse_rf2_terms
+# iter_surface_forms (FSN + synonym surface forms, with filtering)
 # --------------------------------------------------------------------------- #
-def test_parse_rf2_terms_emits_expected_terms(snomed_root: Path):
-    terms = _parse_rf2_terms(snomed_root)
-
-    got = {(t.text, t.status) for t in terms}
+def test_iter_surface_forms_emits_expected(snomed_root: Path):
+    got = {(sf.text, sf.status) for sf in iter_surface_forms(snomed_root)}
     assert got == {
         ("Asthma (disorder)", "name"),
         ("Asthma", "synonym"),
@@ -231,8 +231,8 @@ def test_parse_rf2_terms_emits_expected_terms(snomed_root: Path):
     }
 
 
-def test_parse_rf2_terms_excludes_irrelevant_and_inactive(snomed_root: Path):
-    texts = {t.text for t in _parse_rf2_terms(snomed_root)}
+def test_iter_surface_forms_excludes_irrelevant_and_inactive(snomed_root: Path):
+    texts = {sf.text for sf in iter_surface_forms(snomed_root)}
 
     # Irrelevant "substance" category is dropped despite being active and in refset.
     assert "Caffeine (substance)" not in texts
@@ -245,45 +245,22 @@ def test_parse_rf2_terms_excludes_irrelevant_and_inactive(snomed_root: Path):
     assert "Wheezy bronchitis" not in texts
 
 
-def test_parse_rf2_terms_term_attributes(snomed_root: Path):
-    by_text = {t.text: t for t in _parse_rf2_terms(snomed_root)}
+def test_iter_surface_forms_attributes(snomed_root: Path):
+    by_text = {sf.text: sf for sf in iter_surface_forms(snomed_root)}
 
     fsn = by_text["Asthma (disorder)"]
-    assert fsn.db == "SNOMEDCT_disorder"
-    assert fsn.id == ASTHMA
+    assert fsn.status == "name"
+    assert fsn.category == "disorder"
+    assert fsn.concept_id == ASTHMA
     assert fsn.entry_name == "Asthma (disorder)"
-    assert fsn.source == SOURCE
-    # The FSN text (semantic tag included) is normalized verbatim.
-    assert fsn.norm_text == "asthma (disorder)"
 
-    # A synonym inherits its concept id, db, and FSN-derived entry_name.
+    # A synonym inherits its concept id, category, and FSN-derived entry_name.
     syn = by_text["Bronchial asthma"]
     assert syn.status == "synonym"
-    assert syn.id == ASTHMA
-    assert syn.db == "SNOMEDCT_disorder"
+    assert syn.concept_id == ASTHMA
+    assert syn.category == "disorder"
     assert syn.entry_name == "Asthma (disorder)"
-    assert syn.norm_text == "bronchial asthma"
 
-    # Different category -> different db namespace.
-    assert by_text["Nephrostomy (procedure)"].db == "SNOMEDCT_procedure"
-    assert by_text["Fever (finding)"].db == "SNOMEDCT_finding"
-
-
-# --------------------------------------------------------------------------- #
-# make_rf2_grounder (full end-to-end through GILDA)
-# --------------------------------------------------------------------------- #
-def test_make_rf2_grounder_grounds_queries(snomed_root: Path):
-    grounder = make_gilda_grounder(snomed_root)
-
-    matches = grounder.ground("asthma")
-    assert matches, "expected 'asthma' to ground to a SNOMED concept"
-    assert matches[0].term.id == ASTHMA
-    assert matches[0].term.db == "SNOMEDCT_disorder"
-
-    # A registered synonym grounds back to its concept id.
-    syn_matches = grounder.ground("bronchial asthma")
-    assert syn_matches
-    assert syn_matches[0].term.id == ASTHMA
-
-    # A term that was filtered out does not ground.
-    assert not grounder.ground("caffeine")
+    # Different concepts carry their own semantic-tag category.
+    assert by_text["Nephrostomy (procedure)"].category == "procedure"
+    assert by_text["Fever (finding)"].category == "finding"

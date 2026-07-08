@@ -3,10 +3,9 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from .sapbert_utils import load_semantic_grounder
-from .snomed_rf2_utils import make_gilda_grounder
+from .snomed_kg_utils import make_gilda_grounder
 from ..modeling import EventTimeline, GroundingTerm, TimelineComponent, TimelineLayer, Event
 
-from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
@@ -53,9 +52,9 @@ class SequentialGrounder(Grounder):
 
 class GildaGrounder(Grounder):
 
-    def __init__(self, data_path: Path) -> None:
-        logger.info("Creating GILDA grounder")
-        self.gilda = make_gilda_grounder(data_path)
+    def __init__(self) -> None:
+        logger.info("Creating GILDA grounder from the CODA KG")
+        self.gilda = make_gilda_grounder()
 
     def ground_event(self, event:Event, context: str | None) -> Event:
         match = self.gilda.ground_best(event.text, context)

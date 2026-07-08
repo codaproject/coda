@@ -1,11 +1,16 @@
-"""Configuration for the temporal-ordering event grounder.
+"""Configuration for the SNOMED CT RF2 data directory.
 
 Mirrors the yaml-backed config pattern used by the RAG grounder
-(:mod:`coda.grounding.rag_grounder.config`). The SNOMED data directory used by
-the event grounder can be provided either via the ``SNOMED_DATA_PATH``
-environment variable (which takes precedence) or the
-``grounder.snomed_data_path`` field in the yaml config. When neither is set,
-event grounding is disabled — it is an optional module.
+(:mod:`coda.grounding.rag_grounder.config`). The SNOMED CT RF2 release directory
+can be provided either via the ``SNOMED_DATA_PATH`` environment variable (which
+takes precedence) or the ``grounder.snomed_data_path`` field in the yaml config.
+
+This path is a *build-time* concern: it is consumed by the KG exporter
+(:mod:`coda.kg.sources.snomedct`) to import SNOMED CT into the CODA KG. The
+event grounder itself no longer reads it — at runtime it sources SNOMED CT terms
+from the KG (see
+:mod:`coda.grounding.temporal_ordering.event_grounding.snomed_kg_utils`), and
+grounding is enabled based on whether the KG contains ``snomedct`` nodes.
 """
 
 from dataclasses import dataclass
