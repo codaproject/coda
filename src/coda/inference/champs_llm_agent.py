@@ -81,8 +81,18 @@ COD_OUTPUT_SCHEMA = {
             "minItems": 1,
             "maxItems": 3,
         },
+        "questions": {
+            "type": "array",
+            "description": (
+                "Exactly 3 follow-up questions that would best differentiate "
+                "the top causes and increase confidence in the underlying cause."
+            ),
+            "items": {"type": "string"},
+            "minItems": 3,
+            "maxItems": 3,
+        },
     },
-    "required": ["reasoning", "top_causes"],
+    "required": ["reasoning", "top_causes", "questions"],
     "additionalProperties": False,
 }
 
@@ -141,6 +151,7 @@ class ChampsLLMInferenceAgent(InferenceAgent):
             return {
                 "causes": {},
                 "reasoning": "LLM API call raised an exception.",
+                "questions": [],
             }
 
         if response.get("api_failed"):
@@ -148,6 +159,7 @@ class ChampsLLMInferenceAgent(InferenceAgent):
             return {
                 "causes": {},
                 "reasoning": "LLM API call failed after retries.",
+                "questions": [],
             }
 
         return self._parse_response(response)
@@ -204,8 +216,10 @@ class ChampsLLMInferenceAgent(InferenceAgent):
             }
 
         reasoning = response.get("reasoning", "")
+        questions = response.get("questions", [])
 
-        return {"causes": causes, "reasoning": reasoning}
+        return {"causes": causes, "reasoning": reasoning,
+                "questions": questions}
 
 
 def create_champs_agent(

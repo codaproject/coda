@@ -6,4 +6,5 @@ Step 1: Review the provided information in the **INPUT** section. If a **DIAGNOS
 Step 2: Reason through the chain of events leading to the death using all available evidence from **INPUT**. Focus strictly on infant/child drivers and treat maternal conditions as out of scope.
 Step 3: Pick the top 3 most likely causes of death from the allowed causes only, ranked by probability (highest first).
 Step 4: Write a brief reasoning string (1-2 sentences) summarizing the key evidence that led to your top cause.
-Step 5: Output valid JSON matching the requested schema.
+Step 5: Propose exactly 3 follow-up questions that would best differentiate the top causes and increase confidence in the underlying cause. Each question should target evidence that is currently missing or ambiguous and would change or strengthen the ranking.
+Step 6: Output valid JSON matching the requested schema.
