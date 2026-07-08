@@ -28,6 +28,11 @@ from coda.dialogue import (
     create_transcriber,
 )
 from coda.dialogue.util import SPEECHMATICS_LANGUAGES
+from coda.inference.streaming import (
+    INFERENCE_MAX_WAIT_S,
+    INFERENCE_MIN_WORDS,
+    StreamingInferenceBuffer,
+)
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
@@ -53,15 +58,6 @@ inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
 # Queue management for backpressure
 MAX_PENDING_CHUNKS = 20
 pending_chunks: Dict[str, asyncio.Task] = {}
-
-# Streaming backends commit many tiny fragments; running an inference on each
-# one floods the inference service. For streaming, accumulate committed text and
-# infer once this many new words arrive, or after INFERENCE_MAX_WAIT_S if fewer
-# words are still pending (so a short final utterance isn't left hanging). With
-# no new text we don't infer at all. Chunked backends emit whole chunks and
-# infer per chunk (threshold 0).
-INFERENCE_MIN_WORDS = 15
-INFERENCE_MAX_WAIT_S = 10.0
 
 logger = logging.getLogger(__name__)
 
@@ -489,22 +485,20 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
                         and current_transcriber_backend == "whisper")
     task = "translate" if direct_translate else "transcribe"
 
-    # Committed text accumulates here until enough has arrived to infer on; see
-    # INFERENCE_MIN_WORDS. Chunked backends use threshold 0 (infer per chunk).
-    threshold = (INFERENCE_MIN_WORDS
-                 if isinstance(transcriber, StreamingTranscriber) else 0)
-    pending = {"text": [], "anns": [], "words": 0,
-               "chunk_id": None, "timestamp": None}
+    # Committed text accumulates until enough has arrived to infer on. Streaming
+    # backends use INFERENCE_MIN_WORDS; chunked backends emit whole chunks and
+    # infer per chunk (min_words=0).
+    buf = StreamingInferenceBuffer(
+        min_words=INFERENCE_MIN_WORDS
+        if isinstance(transcriber, StreamingTranscriber) else 0)
     last_infer = time.monotonic()
 
     async def flush():
         nonlocal last_infer
-        if not pending["text"]:
+        batch = buf.take()
+        if batch is None:
             return
-        text = " ".join(pending["text"])
-        anns, chunk_id, timestamp = (pending["anns"], pending["chunk_id"],
-                                     pending["timestamp"])
-        pending.update(text=[], anns=[], words=0)
+        text, anns, chunk_id, timestamp = batch
         last_infer = time.monotonic()
         await _start_inference(websocket, chunk_id, timestamp, text, anns)
 
@@ -513,7 +507,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
         # waited long enough, so a short trailing utterance still gets inferred.
         while True:
             await asyncio.sleep(1.0)
-            if pending["text"] and \
+            if buf.has_pending and \
                     time.monotonic() - last_infer >= INFERENCE_MAX_WAIT_S:
                 await flush()
 
@@ -535,12 +529,8 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
             if committed is None:
                 continue
             chunk_id, timestamp, text, anns = committed
-            pending["text"].append(text)
-            pending["anns"].extend(anns)
-            pending["words"] += len(text.split())
-            pending["chunk_id"] = chunk_id
-            pending["timestamp"] = timestamp
-            if pending["words"] >= threshold:
+            buf.add(text, anns, chunk_id, timestamp)
+            if buf.ready:
                 await flush()
         await flush()
     finally:
