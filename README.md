@@ -71,6 +71,69 @@ contributed by each source:
 | **WHO Mortality** | `who_mortality`: Country nodes with population data | `has_mortality` (country to ICD-10 cause) | WHO Mortality Database providing national death counts by ICD-10 cause from 2021 onwards, broken down by year, sex, and age group. Country nodes carry population and birth data.                |
 | **SNOMED CT** _(optional, licensed)_ | `snomedct`: Clinical concepts (`category`: disorder/procedure/finding) | `is_a` (hierarchical) | SNOMED CT RF2 International Release, restricted to active disorder/procedure/finding concepts. Included only when a licensed release is supplied via `SNOMED_DATA_PATH`; its node/edge files are never version controlled. |
 
+### Adding SNOMED CT (optional, licensed)
+
+SNOMED CT is distributed under license, so CODA never ships its data. If you
+hold a valid license you can supply your own RF2 release and CODA will fold it
+into the knowledge graph automatically at build time.
+
+1. **Confirm your license and download the RF2 release.** Access depends on
+   your country:
+   - In the United States, SNOMED CT is free to licensees through the
+     [National Library of Medicine UMLS Terminology Services](https://uts.nlm.nih.gov/uts/).
+     Sign in and download the **SNOMED CT International Edition** RF2 release.
+   - In other member countries, obtain the release through your
+     [national release center](https://www.snomed.org/get-snomed) or
+     SNOMED International's
+     [Member Licensing and Distribution Service (MLDS)](https://mlds.ihtsdotools.org/).
+
+   CODA reads the **International Edition** RF2 release. The downloaded archive
+   unzips to a release directory whose name looks like
+   `SnomedCT_InternationalRF2_PRODUCTION_<date>Z/` and contains `Full/`,
+   `Snapshot/`, and `Delta/` subfolders.
+
+2. **Point CODA at the release directory.** CODA only reads the `Snapshot`
+   tree, so `SNOMED_DATA_PATH` must be the release directory that *contains*
+   `Snapshot/Terminology/`. Set it either through the environment variable
+   (which takes precedence) or the
+   `grounder.snomed_data_path` field of
+   `src/coda/grounding/temporal_ordering/event_grounding/temporal_ordering_config.yaml`:
+
+   ```bash
+   export SNOMED_DATA_PATH=/path/to/SnomedCT_InternationalRF2_PRODUCTION_<date>Z
+   ```
+
+3. **Export the SNOMED CT node/edge files.** Unlike the other sources, the
+   SNOMED CT TSVs are not version controlled, so you generate them locally from
+   your release. This reads the RF2 release and writes
+   `kg/snomedct_nodes.tsv.gz` and `kg/snomedct_edges.tsv.gz`, computing the
+   SapBERT embeddings in the process (a one-time cost; results are cached across
+   builds):
+
+   ```bash
+   export SNOMED_DATA_PATH=/path/to/SnomedCT_InternationalRF2_PRODUCTION_<date>Z
+   python -m coda.kg.sources.snomedct
+   ```
+
+   Running the full build with `python -m coda.kg.build` produces the same
+   `snomedct_*.tsv.gz` files (alongside every other source) whenever
+   `SNOMED_DATA_PATH` is set.
+
+4. **Build the knowledge graph image.** Once the files exist under `kg/`, the
+   KG image detects and imports them automatically — no extra flags needed:
+
+   ```bash
+   git lfs install
+   git lfs pull
+   docker build --tag coda.kg:latest -f Dockerfile.kg .
+   ```
+
+If `SNOMED_DATA_PATH` is unset (or empty), CODA skips the SNOMED CT source and
+builds the rest of the knowledge graph normally; likewise, if the
+`kg/snomedct_*.tsv.gz` files are absent the image imports without them. Those
+files are ignored by version control, so your licensed data never leaves your
+machine.
+
 Running CODA using Docker
 -------------------------
 
