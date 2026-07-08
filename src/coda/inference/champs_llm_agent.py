@@ -7,6 +7,7 @@ infrastructure for LLM calls.
 """
 
 import csv
+import difflib
 import logging
 import os
 from typing import Dict, Any, List, Optional
@@ -104,6 +105,9 @@ class ChampsLLMInferenceAgent(InferenceAgent):
         self.schema_guidance = SCHEMA_GUIDANCE
         self.use_diagnosis_standard = use_diagnosis_standard
 
+        # Case-insensitive lookup for recovering labels that differ only in case.
+        self._causes_by_lower = {c.lower(): c for c in self.allowed_causes}
+
         allowed_str = ", ".join(self.allowed_causes)
         self.rendered_system_prompt = \
             SYSTEM_PROMPT.format(allowed_causes=allowed_str) + "\n\n" \
@@ -148,6 +152,31 @@ class ChampsLLMInferenceAgent(InferenceAgent):
 
         return self._parse_response(response)
 
+    # Similarity floor for fuzzy-matching a near-miss label to an allowed cause.
+    # Tight enough that only trivial drift (plurals, case, "Neonatal" vs
+    # "Perinatal") maps; genuinely off-list labels fall through and are skipped.
+    FUZZY_MATCH_CUTOFF = 0.85
+
+    def _match_cause(self, cause_name: str) -> Optional[str]:
+        """Map an LLM-returned label to an allowed cause name, or None.
+
+        Small models drift from the exact allowed wording (e.g. "Anemia" for
+        "Anemias", "Neonatal" for "Perinatal asphyxia/hypoxia") even though the
+        prompt asks for exact labels. Recover those near-misses instead of
+        silently dropping the cause: exact, then case-insensitive, then fuzzy.
+        """
+        name = (cause_name or "").strip()
+        if not name:
+            return None
+        if name in self.cause_to_icd10:
+            return name
+        ci = self._causes_by_lower.get(name.lower())
+        if ci is not None:
+            return ci
+        close = difflib.get_close_matches(
+            name, self.allowed_causes, n=1, cutoff=self.FUZZY_MATCH_CUTOFF)
+        return close[0] if close else None
+
     def _parse_response(self, response: Dict[str, Any]) -> dict:
         """Convert LLM structured response to CODA cause format."""
         causes = {}
@@ -156,16 +185,20 @@ class ChampsLLMInferenceAgent(InferenceAgent):
         for entry in top_causes:
             cause_name = entry.get("cause_name", "")
             probability = float(entry.get("probability", 0.0))
-            icd10 = self.cause_to_icd10.get(cause_name)
+            matched = self._match_cause(cause_name)
 
-            if icd10 is None:
+            if matched is None:
                 logger.warning("Unknown cause name '%s' - skipping",
                                cause_name)
                 continue
+            if matched != cause_name:
+                logger.info("Mapped cause name '%s' -> '%s'",
+                            cause_name, matched)
 
+            icd10 = self.cause_to_icd10[matched]
             curie = f"icd10:{icd10}"
             causes[curie] = {
-                "name": cause_name,
+                "name": matched,
                 "identifiers": {"icd10": icd10},
                 "score": probability,
             }
