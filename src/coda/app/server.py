@@ -687,12 +687,11 @@ async def upload_note(req: UploadNoteRequest):
     # Send to inference agent
     inference_result = None
     try:
-        response = await inference_client.post("/infer", json={
+        response = await inference_client.post("/clinical_note", json={
             "chunk_id": chunk_id,
             "timestamp": timestamp,
-            "text": "",  # Note is not a transcript chunk
-            "annotations": [a.to_json() for a in annotations] if annotations else [],
             "clinical_note": req.text.strip(),
+            "annotations": [a.to_json() for a in annotations] if annotations else [],
         })
         response.raise_for_status()
         inference_result = response.json()
