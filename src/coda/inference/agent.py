@@ -1,4 +1,4 @@
-import asyncio
+import time
 import logging
 from typing import List, Optional
 from fastapi import FastAPI
@@ -21,12 +21,41 @@ class InferenceAgent:
         """Initialize the agent with empty dialogue history."""
         self.dialogue_history = []  # List of (chunk_id, timestamp, text, annotations) tuples
         self.all_text = ""  # Accumulated text from all chunks
+        self.clinical_note: Optional[str] = None  # Clinical note memory persists across calls
 
     def reset(self):
         """Reset dialogue history for a new interview."""
         self.dialogue_history = []
         self.all_text = ""
+        self.clinical_note = None
         logger.info("Agent state reset for new interview")
+
+    async def set_clinical_note(self, chunk_id, clinical_note: str,
+                                annotations, timestamp=None) -> dict:
+        """Store an uploaded clinical note for use in all future inference calls."""
+        self.clinical_note = clinical_note
+        logger.info("Clinical note set: (%d chars)", len(clinical_note))
+
+        # Call subclass inference implementation
+        result = await self.infer(chunk_id, clinical_note, annotations)
+
+        # Ensure required fields and add metadata
+        result["chunk_id"] = chunk_id
+        result["timestamp"] = timestamp
+        result["chunks_processed"] = len(self.dialogue_history)
+
+        # Log top cause for monitoring
+        causes = result.get('causes', {})
+        if causes:
+            top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
+            top_cause_name = causes[top_curie]['name']
+            top_score = causes[top_curie]['score']
+            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, top cause={top_cause_name} ({top_curie}, score={top_score:.2f})")
+        else:
+            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, no causes")
+
+        return result
+
 
     async def process_chunk(self, chunk_id: str, text: str,
                            annotations: List[Annotation], timestamp: float = None) -> dict:
@@ -57,12 +86,12 @@ class InferenceAgent:
         """
         # Use current time if no timestamp provided
         if timestamp is None:
-            import time
             timestamp = time.time()
 
-        # Add to dialogue history
-        self.dialogue_history.append((chunk_id, timestamp, text, annotations))
-        self.all_text += " " + text
+        # Add to dialogue history, avoid clinical note being appended as transcript
+        if text:
+            self.dialogue_history.append((chunk_id, timestamp, text, annotations))
+            self.all_text += " " + text
 
         # Call subclass inference implementation
         result = await self.infer(chunk_id, text, annotations)
@@ -85,7 +114,7 @@ class InferenceAgent:
         return result
 
     async def infer(self, chunk_id: str, text: str,
-                   annotations: List[Annotation]) -> dict:
+                    annotations: List[Annotation]) -> dict:
         """Perform COD inference based on current chunk and accumulated history.
 
         Subclasses must implement this method. The dialogue history is available
@@ -177,6 +206,14 @@ class InferenceRequest(BaseModel):
     timestamp: float = None  # Optional timestamp
 
 
+class ClinicalNoteRequest(BaseModel):
+    """Request model for clinical note upload endpoint."""
+    chunk_id: str
+    clinical_note: str
+    annotations: list
+    timestamp: float = None  # Optional timestamp
+
+
 class InferenceServer:
     """FastAPI server for inference agent."""
 
@@ -199,7 +236,7 @@ class InferenceServer:
                     request.chunk_id,
                     request.text,
                     request.annotations,
-                    request.timestamp
+                    request.timestamp,
                 )
                 causes = result.get('causes', {})
                 if causes:
@@ -211,6 +248,22 @@ class InferenceServer:
                 return result
             except Exception as e:
                 logger.error(f"Error processing chunk {request.chunk_id}: {e}", exc_info=True)
+                raise
+
+        @self.app.post("/clinical_note")
+        async def set_clinical_note(request: ClinicalNoteRequest):
+            """Store an uploaded clinical note for use in all future inference calls."""
+            try:
+                result = await self.agent.set_clinical_note(
+                    request.chunk_id,
+                    request.clinical_note,
+                    request.annotations,
+                    request.timestamp,
+                )
+                logger.info(f"Clinical note set for chunk {request.chunk_id}")
+                return result
+            except Exception as e:
+                logger.error(f"Error setting clinical note for chunk {request.chunk_id}: {e}", exc_info=True)
                 raise
 
         @self.app.get("/health")

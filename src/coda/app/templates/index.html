@@ -236,6 +236,41 @@
             border-radius: 1rem;
         }
 
+        /* Upload zone */
+        .upload-zone {
+            border: 2px dashed var(--box-border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent);
+            background-color: var(--accent-subtle);
+        }
+        .upload-toggle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+        .upload-toggle:hover {
+            color: var(--text-primary);
+        }
+        .upload-toggle i.chevron {
+            transition: transform 0.2s;
+        }
+        .upload-toggle[aria-expanded="true"] i.chevron {
+            transform: rotate(90deg);
+        }
+        .uploaded-file-badge {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
         /* Utility */
         .btn-subtle {
             font-size: 0.85rem;
@@ -395,6 +430,23 @@
                                     <div class="audio-meter-fill" id="audioMeterFill"></div>
                                 </div>
                             </div>
+                            <!-- Clinical note upload -->
+                            <div class="mt-3">
+                                <div class="upload-toggle d-inline-flex align-items-center gap-1"
+                                     data-bs-toggle="collapse" data-bs-target="#uploadPanel"
+                                     aria-expanded="false" aria-controls="uploadPanel">
+                                    <i class="bi bi-file-earmark-text"></i> Upload Clinical Note
+                                    <i class="bi bi-chevron-right chevron" style="font-size: 0.65rem;"></i>
+                                </div>
+                                <span id="uploadedFileBadge" class="uploaded-file-badge ms-2" style="display: none;"></span>
+                                <div class="collapse mt-2" id="uploadPanel">
+                                    <div id="uploadZone" class="upload-zone">
+                                        <i class="bi bi-cloud-arrow-up" style="font-size: 1.5rem;"></i>
+                                        <div class="mt-1">Drop a .txt file here or click to browse</div>
+                                        <input type="file" id="fileInput" accept=".txt" style="display: none;">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div id="statusMessage" class="alert alert-info status-message" style="display: none;"></div>
@@ -528,6 +580,43 @@
 
             causesChart.update();
         }
+
+        function renderInferenceResult(data) {
+            const sortedCauses = Object.entries(data.causes || {})
+                .sort((a, b) => b[1].score - a[1].score);
+            const topScore = sortedCauses.length > 0 ? sortedCauses[0][1].score : 0;
+            const cardClass = topScore > 0.6 ? 'inference-card-high' :
+                              topScore > 0.4 ? 'inference-card-mid' : 'inference-card-low';
+
+            let causesHtml = `<div class="inference-card ${cardClass}">`;
+
+            sortedCauses.forEach(([curie, causeObj]) => {
+                const scorePercent = (causeObj.score * 100).toFixed(0);
+                const confidenceClass = causeObj.score > 0.6 ? 'success' :
+                                       causeObj.score > 0.4 ? 'warning' : 'secondary';
+                const icd10Code = causeObj.identifiers.icd10;
+
+                causesHtml += `
+                    <div class="mb-1">
+                        <strong>${causeObj.name}</strong>
+                        <span class="text-muted small">(ICD-10: ${icd10Code})</span>
+                        <span class="cause-score badge bg-${confidenceClass} ms-1">
+                            ${scorePercent}%
+                        </span>
+                    </div>
+                `;
+            });
+
+            if (data.reasoning) {
+                causesHtml += `<div class="inference-reasoning">${escapeHtml(data.reasoning)}</div>`;
+            }
+
+            causesHtml += '</div>';
+            inference.insertAdjacentHTML('afterbegin', causesHtml);
+
+            updateCausesChart(data.causes || {});
+        }
+
         const copyBtn = document.getElementById('copyBtn');
         const statusMessage = document.getElementById('statusMessage');
         const languageSelect = document.getElementById('languageSelect');
@@ -827,42 +916,7 @@
                         transcript.scrollTop = transcript.scrollHeight;
 
                     } else if (data.type === 'inference') {
-                        // Determine border color from top cause score
-                        const sortedCauses = Object.entries(data.causes || {})
-                            .sort((a, b) => b[1].score - a[1].score);
-                        const topScore = sortedCauses.length > 0 ? sortedCauses[0][1].score : 0;
-                        const cardClass = topScore > 0.6 ? 'inference-card-high' :
-                                          topScore > 0.4 ? 'inference-card-mid' : 'inference-card-low';
-
-                        let causesHtml = `<div class="inference-card ${cardClass}">`;
-
-                        sortedCauses.forEach(([curie, causeObj]) => {
-                            const scorePercent = (causeObj.score * 100).toFixed(0);
-                            const confidenceClass = causeObj.score > 0.6 ? 'success' :
-                                                   causeObj.score > 0.4 ? 'warning' : 'secondary';
-
-                            const icd10Code = causeObj.identifiers.icd10;
-
-                            causesHtml += `
-                                <div class="mb-1">
-                                    <strong>${causeObj.name}</strong>
-                                    <span class="text-muted small">(ICD-10: ${icd10Code})</span>
-                                    <span class="cause-score badge bg-${confidenceClass} ms-1">
-                                        ${scorePercent}%
-                                    </span>
-                                </div>
-                            `;
-                        });
-
-                        if (data.reasoning) {
-                            causesHtml += `<div class="inference-reasoning">${escapeHtml(data.reasoning)}</div>`;
-                        }
-
-                        causesHtml += '</div>';
-                        inference.insertAdjacentHTML('afterbegin', causesHtml);
-
-                        // Update probability chart
-                        updateCausesChart(data.causes || {});
+                        renderInferenceResult(data);
 
                     } else if (data.type === 'warning') {
                         showStatus(data.message, 'warning');
@@ -997,6 +1051,8 @@
             causesChart.data.labels = [];
             causesChart.data.datasets = [];
             causesChart.update();
+            uploadedFileBadge.style.display = 'none';
+            uploadedFileBadge.innerHTML = '';
             try {
                 await fetch('/reset', {method: 'POST'});
                 showStatus('Session reset - ready for new interview', 'success');
@@ -1022,6 +1078,70 @@
                 showStatus('No text to copy', 'warning');
             }
         });
+
+        // Clinical note upload
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadedFileBadge = document.getElementById('uploadedFileBadge');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                uploadClinicalNote(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadClinicalNote(fileInput.files[0]);
+                fileInput.value = '';
+            }
+        });
+
+        async function uploadClinicalNote(file) {
+            if (!file.name.endsWith('.txt')) {
+                showStatus('Please upload a .txt file', 'warning');
+                return;
+            }
+            showStatus(`Uploading "${file.name}"...`, 'info');
+            try {
+                const text = await file.text();
+                const resp = await fetch('/upload-note', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: text, filename: file.name}),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    showStatus(err.error || 'Upload failed', 'danger');
+                    return;
+                }
+                const data = await resp.json();
+
+                // Show uploaded filename badge
+                uploadedFileBadge.innerHTML = `<i class="bi bi-check-circle"></i> ${escapeHtml(file.name)}`;
+                uploadedFileBadge.style.display = 'inline';
+
+                // Render inference result if available
+                if (data.inference && !data.inference.error) {
+                    renderInferenceResult(data.inference);
+                    const noteSpan = `<span class="text-muted fst-italic">[Clinical note: ${escapeHtml(file.name)}]</span>`;
+                    transcript.insertAdjacentHTML('beforeend', noteSpan);
+                    transcript.scrollTop = transcript.scrollHeight;
+                }
+
+                showStatus(`Clinical note "${file.name}" processed`, 'success');
+            } catch (e) {
+                console.error('Upload failed:', e);
+                showStatus('Failed to upload clinical note', 'danger');
+            }
+        }
 
         // Load settings on page load
         loadSettings();
