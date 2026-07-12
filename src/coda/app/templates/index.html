@@ -2678,28 +2678,29 @@
       </div>
 
       <div class="settings-row">
-        <label for="whisperModelSelect" data-i18n="settings.transcriptionModel"
+        <label for="transcriberBackendSelect">Transcription backend</label>
+        <select id="transcriberBackendSelect"></select>
+        <div id="backendWarning" class="whisper-warning" style="display: none">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="backendWarningText"></span>
+        </div>
+      </div>
+
+      <div class="settings-row" id="transcriberModelRow">
+        <label for="transcriberModelSelect" data-i18n="settings.transcriptionModel"
           >Transcription model</label
         >
         <div class="row-inline">
-          <select id="whisperModelSelect" style="flex: 1">
-            <option value="tiny">Whisper tiny (39M)</option>
-            <option value="base">Whisper base (74M)</option>
-            <option value="small">Whisper small (244M)</option>
-            <option value="medium">Whisper medium (769M)</option>
-            <option value="large">Whisper large (1.5G)</option>
-            <option value="large-v2">Whisper large-v2 (1.5G)</option>
-            <option value="large-v3">Whisper large-v3 (1.5G)</option>
-          </select>
+          <select id="transcriberModelSelect" style="flex: 1"></select>
           <button
-            id="whisperApplyBtn"
+            id="modelApplyBtn"
             class="btn btn-ghost"
             style="display: none; height: 36px"
           >
             Load
           </button>
         </div>
-        <div id="whisperWarning" class="whisper-warning" style="display: none">
+        <div id="modelWarning" class="whisper-warning" style="display: none">
           <i class="bi bi-exclamation-triangle-fill"></i>
           Large models require ~6GB+ VRAM and may be slow on CPU.
         </div>
@@ -2748,7 +2749,7 @@
       <div class="settings-row" id="translationRow" style="display: none">
         <label for="translationModeSelect">Translation</label>
         <select id="translationModeSelect">
-          <option value="whisper_translate">
+          <option value="whisper_translate" id="whisperTranslateOption">
             Whisper (direct speech-to-English)
           </option>
           <option value="llm">LLM (transcribe then translate)</option>
@@ -3941,9 +3942,21 @@
       const saveToggle = document.getElementById("saveToggle");
       const filePathDisplay = document.getElementById("filePathDisplay");
       const filePathText = document.getElementById("filePathText");
-      const whisperModelSelect = document.getElementById("whisperModelSelect");
-      const whisperWarning = document.getElementById("whisperWarning");
-      const whisperApplyBtn = document.getElementById("whisperApplyBtn");
+      const transcriberBackendSelect = document.getElementById(
+        "transcriberBackendSelect",
+      );
+      const backendWarning = document.getElementById("backendWarning");
+      const backendWarningText = document.getElementById("backendWarningText");
+      const transcriberModelRow =
+        document.getElementById("transcriberModelRow");
+      const transcriberModelSelect = document.getElementById(
+        "transcriberModelSelect",
+      );
+      const modelWarning = document.getElementById("modelWarning");
+      const modelApplyBtn = document.getElementById("modelApplyBtn");
+      const whisperTranslateOption = document.getElementById(
+        "whisperTranslateOption",
+      );
       const translationRow = document.getElementById("translationRow");
       const translationModeSelect = document.getElementById(
         "translationModeSelect",
@@ -3972,24 +3985,97 @@
           languageSelect.options[
             languageSelect.selectedIndex
           ]?.textContent.split(" (")[0] || "English";
-        const model = whisperModelSelect.value || "small";
-        langChipText.textContent = `${lang} · Whisper ${model}`;
+        const backendLabel =
+          transcriberBackendSelect.options[
+            transcriberBackendSelect.selectedIndex
+          ]?.textContent || transcriberBackendSelect.value;
+        const model = transcriberModelSelect.value;
+        const showModel = transcriberModelRow.style.display !== "none" && model;
+        langChipText.textContent = showModel
+          ? `${lang} · ${backendLabel} ${model}`
+          : `${lang} · ${backendLabel}`;
       }
 
       function updateTranslationVisibility() {
         const isNonEnglish = languageSelect.value !== "en";
         translationRow.style.display = isNonEnglish ? "flex" : "none";
+        // Direct speech-to-English is a Whisper-only capability.
+        whisperTranslateOption.style.display =
+          transcriberBackendSelect.value === "whisper" ? "" : "none";
         llmSettingsRow.style.display =
           isNonEnglish && translationModeSelect.value === "llm"
             ? "flex"
             : "none";
       }
 
-      function updateWhisperWarning() {
-        const val = whisperModelSelect.value;
-        whisperWarning.style.display = val.startsWith("large")
-          ? "flex"
-          : "none";
+      function updateModelWarning() {
+        const val = transcriberModelSelect.value || "";
+        modelWarning.style.display = val.startsWith("large") ? "flex" : "none";
+      }
+
+      // Labels for known transcription models; unknown ids show their raw value.
+      const transcriberModelLabels = {
+        tiny: "Whisper tiny (39M)",
+        base: "Whisper base (74M)",
+        small: "Whisper small (244M)",
+        medium: "Whisper medium (769M)",
+        large: "Whisper large (1.5G)",
+        "large-v2": "Whisper large-v2 (1.5G)",
+        "large-v3": "Whisper large-v3 (1.5G)",
+      };
+
+      function populateModelOptions(models, selected) {
+        transcriberModelSelect.innerHTML = "";
+        models.forEach((m) => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = transcriberModelLabels[m] || m;
+          transcriberModelSelect.appendChild(opt);
+        });
+        // Keep showing a model that isn't in the list (e.g. set via the API)
+        if (selected && !models.includes(selected)) {
+          const opt = document.createElement("option");
+          opt.value = selected;
+          opt.textContent = transcriberModelLabels[selected] || selected;
+          transcriberModelSelect.appendChild(opt);
+        }
+        if (selected) transcriberModelSelect.value = selected;
+        // Backends without selectable models (e.g. cloud) hide the model row.
+        transcriberModelRow.style.display = models.length ? "flex" : "none";
+        loadedModel = transcriberModelSelect.value;
+        modelApplyBtn.style.display = "none";
+        updateModelWarning();
+      }
+
+      // Load a backend's model list on demand. Returns false, and shows a
+      // warning, if the backend can't be loaded (e.g. deps not installed).
+      async function loadBackendModels(backend, selected) {
+        backendWarning.style.display = "none";
+        try {
+          const resp = await fetch(
+            `/transcriber_backends/${encodeURIComponent(backend)}`,
+          );
+          const info = await resp.json();
+          if (!info.available) {
+            backendWarningText.textContent = `Backend "${backend}" is unavailable: ${
+              info.error || "not installed"
+            }`;
+            backendWarning.style.display = "flex";
+            populateModelOptions([], null);
+            return false;
+          }
+          populateModelOptions(
+            info.models,
+            selected != null ? selected : info.default_model,
+          );
+          return true;
+        } catch (e) {
+          console.error("Failed to load backend models:", e);
+          backendWarningText.textContent = `Could not query backend "${backend}"`;
+          backendWarning.style.display = "flex";
+          populateModelOptions([], null);
+          return false;
+        }
       }
 
       // Models offered per RAG LLM provider
@@ -4023,24 +4109,45 @@
         });
       }
 
+      // Repopulate the language list (it depends on the active backend) and
+      // select `preferred` if still supported, otherwise fall back to English.
+      // Returns the resulting language code.
+      async function reloadLanguages(preferred) {
+        const langResp = await fetch("/languages");
+        const languages = await langResp.json();
+        languageSelect.innerHTML = "";
+        languages.forEach((lang) => {
+          const opt = document.createElement("option");
+          opt.value = lang.code;
+          opt.textContent = `${lang.name} (${lang.code})`;
+          languageSelect.appendChild(opt);
+        });
+        const codes = languages.map((l) => l.code);
+        languageSelect.value = codes.includes(preferred) ? preferred : "en";
+        return languageSelect.value;
+      }
+
       async function loadSettings() {
         try {
-          const langResp = await fetch("/languages");
-          const languages = await langResp.json();
-          languageSelect.innerHTML = "";
-          languages.forEach((lang) => {
+          const backendsResp = await fetch("/transcriber_backends");
+          const backendData = await backendsResp.json();
+          transcriberBackendSelect.innerHTML = "";
+          (backendData.backends || []).forEach((b) => {
             const opt = document.createElement("option");
-            opt.value = lang.code;
-            opt.textContent = `${lang.name} (${lang.code})`;
-            languageSelect.appendChild(opt);
+            opt.value = b;
+            opt.textContent = b;
+            transcriberBackendSelect.appendChild(opt);
           });
 
           const resp = await fetch("/settings");
           const data = await resp.json();
-          languageSelect.value = data.language;
+          await reloadLanguages(data.language);
           saveToggle.checked = data.save_enabled;
-          whisperModelSelect.value = data.whisper_model;
-          loadedWhisperModel = data.whisper_model;
+          transcriberBackendSelect.value = data.transcriber_backend;
+          await loadBackendModels(
+            data.transcriber_backend,
+            data.transcriber_model,
+          );
           llmProviderSelect.value = data.llm_provider;
           llmModelInput.value = data.llm_model;
           translationModeSelect.value = data.translation_mode;
@@ -4052,7 +4159,6 @@
           updateRagVisibility();
           updateFilePathDisplay(data.file_paths);
           updateTranslationVisibility();
-          updateWhisperWarning();
           updateLangChip();
         } catch (e) {
           console.error("Failed to load settings:", e);
@@ -4067,17 +4173,23 @@
             body: JSON.stringify(changes),
           });
           const data = await resp.json();
+          if (!resp.ok) {
+            showStatus(data.detail || "Failed to update settings", "danger");
+            return false;
+          }
           updateFilePathDisplay(data.file_paths);
-          if (changes.whisper_model) {
+          if (changes.transcriber_model) {
             showStatus(
-              `Whisper model changed to ${changes.whisper_model} — loading…`,
+              `Loading model "${changes.transcriber_model}"…`,
               "info",
             );
           }
           updateLangChip();
+          return true;
         } catch (e) {
           console.error("Failed to update settings:", e);
           showStatus("Failed to update settings", "danger");
+          return false;
         }
       }
 
@@ -4105,30 +4217,55 @@
         updateSettings({ save_enabled: saveToggle.checked });
       });
 
-      let loadedWhisperModel = null;
+      let loadedModel = null;
 
-      whisperModelSelect.addEventListener("change", () => {
-        updateWhisperWarning();
-        if (whisperModelSelect.value !== loadedWhisperModel) {
-          whisperApplyBtn.style.display = "inline-flex";
-        } else {
-          whisperApplyBtn.style.display = "none";
+      transcriberBackendSelect.addEventListener("change", async () => {
+        const backend = transcriberBackendSelect.value;
+        // Warns and leaves the selection if the backend can't be loaded.
+        if (!(await loadBackendModels(backend))) return;
+        const applied = await updateSettings({
+          transcriber_backend: backend,
+          transcriber_model: transcriberModelSelect.value || null,
+        });
+        if (!applied) {
+          await loadSettings();
+          return;
         }
+        if (
+          backend !== "whisper" &&
+          translationModeSelect.value === "whisper_translate"
+        ) {
+          translationModeSelect.value = "llm";
+          await updateSettings({ translation_mode: "llm" });
+        }
+        // Available languages depend on the backend; keep the current one if
+        // still supported, otherwise it falls back to English.
+        await reloadLanguages(languageSelect.value);
+        await updateSettings({ language: languageSelect.value });
+        updateTranslationVisibility();
+        updateLangChip();
       });
 
-      whisperApplyBtn.addEventListener("click", async () => {
-        whisperApplyBtn.disabled = true;
-        whisperApplyBtn.textContent = "Loading…";
-        showStatus(
-          `Loading Whisper model "${whisperModelSelect.value}"…`,
-          "info",
-        );
-        await updateSettings({ whisper_model: whisperModelSelect.value });
-        loadedWhisperModel = whisperModelSelect.value;
-        whisperApplyBtn.style.display = "none";
-        whisperApplyBtn.disabled = false;
-        whisperApplyBtn.textContent = "Load";
-        showStatus(`Whisper model "${loadedWhisperModel}" loaded`, "success");
+      transcriberModelSelect.addEventListener("change", () => {
+        updateModelWarning();
+        modelApplyBtn.style.display =
+          transcriberModelSelect.value !== loadedModel ? "inline-flex" : "none";
+      });
+
+      modelApplyBtn.addEventListener("click", async () => {
+        modelApplyBtn.disabled = true;
+        modelApplyBtn.textContent = "Loading…";
+        showStatus(`Loading model "${transcriberModelSelect.value}"…`, "info");
+        const ok = await updateSettings({
+          transcriber_model: transcriberModelSelect.value,
+        });
+        if (ok) {
+          loadedModel = transcriberModelSelect.value;
+          showStatus(`Model "${loadedModel}" loaded`, "success");
+        }
+        modelApplyBtn.style.display = ok ? "none" : "inline-flex";
+        modelApplyBtn.disabled = false;
+        modelApplyBtn.textContent = "Load";
       });
 
       llmProviderSelect.addEventListener("change", () => {
@@ -4271,7 +4408,8 @@
       async function startRecording() {
         try {
           languageSelect.disabled = true;
-          whisperModelSelect.disabled = true;
+          transcriberBackendSelect.disabled = true;
+          transcriberModelSelect.disabled = true;
           grounderSelect.disabled = true;
           ragProviderSelect.disabled = true;
           ragModelSelect.disabled = true;
@@ -4532,7 +4670,8 @@
         updatingPill.style.display = "none";
 
         languageSelect.disabled = false;
-        whisperModelSelect.disabled = false;
+        transcriberBackendSelect.disabled = false;
+        transcriberModelSelect.disabled = false;
         grounderSelect.disabled = false;
         ragProviderSelect.disabled = false;
         ragModelSelect.disabled = false;

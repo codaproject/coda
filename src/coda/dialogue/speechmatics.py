@@ -19,6 +19,14 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
     Each chunk is sent over a short-lived connection: StartRecognition,
     stream the raw PCM, EndOfStream, then collect the finalized transcript.
     """
+    # Speechmatics selects an "operating point" rather than a Whisper size.
+    MODELS = ("enhanced", "standard")
+    DEFAULT_MODEL = get_speechmatics_model()
+
+    @classmethod
+    def create(cls, model=None):
+        return cls(model=model or cls.DEFAULT_MODEL)
+
     def __init__(self, api_key: str = None, url: str = None,
                  model: str = None):
         self.api_key = api_key or self._resolve_api_key()

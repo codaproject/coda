@@ -1,6 +1,6 @@
 __all__ = ["AudioProcessor", "Transcriber", "ChunkedTranscriber",
            "StreamingTranscriber", "TranscriptEvent", "create_transcriber",
-           "TRANSCRIBER_BACKENDS"]
+           "get_transcriber_models", "TRANSCRIBER_BACKENDS"]
 
 import os
 import logging
@@ -14,6 +14,8 @@ import gilda
 import numpy as np
 from scipy.io import wavfile
 
+from coda.runtime_config import get_transcriber_backend
+
 logger = logging.getLogger(__name__)
 
 # Default chunk length (seconds) used by the live app's audio pipeline.
@@ -26,36 +28,48 @@ TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
                         "whisper-livekit")
 
 
-def create_transcriber(backend: str = None, whisper_model: str = None):
-    """Build a Transcriber for the named backend.
+def _load_backend_class(backend: str):
+    """Import and return the Transcriber subclass for `backend`.
 
-    Imports are deferred so a Speechmatics deployment needn't install
-    torch/whisper, and vice versa. Defaults to the TRANSCRIBER_BACKEND env var.
+    Only the requested backend is imported, so a deployment needn't install
+    every backend's dependencies. Raises ImportError if its deps are missing.
     """
-    from coda.runtime_config import get_transcriber_backend
-    backend = (backend or get_transcriber_backend()).lower()
     if backend == "whisper":
-        from .whisper import WhisperTranscriber, DEFAULT_MODEL_SIZE
-        return WhisperTranscriber(
-            model_size=whisper_model or DEFAULT_MODEL_SIZE
-        )
+        from .whisper import WhisperTranscriber
+        return WhisperTranscriber
     if backend == "faster-whisper":
-        from .faster_whisper import FasterWhisperTranscriber, DEFAULT_MODEL_SIZE
-        return FasterWhisperTranscriber(
-            model_size=whisper_model or DEFAULT_MODEL_SIZE
-        )
+        from .faster_whisper import FasterWhisperTranscriber
+        return FasterWhisperTranscriber
     if backend == "speechmatics":
         from .speechmatics import SpeechmaticsTranscriber
-        return SpeechmaticsTranscriber()
+        return SpeechmaticsTranscriber
     if backend == "whisper-livekit":
-        from .whisper_livekit import WhisperLiveKitTranscriber, DEFAULT_MODEL_SIZE
-        return WhisperLiveKitTranscriber(
-            model_size=whisper_model or DEFAULT_MODEL_SIZE
-        )
+        from .whisper_livekit import WhisperLiveKitTranscriber
+        return WhisperLiveKitTranscriber
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
     )
+
+
+def create_transcriber(backend: str = None, model: str = None):
+    """Build a Transcriber for the named backend, optionally with a model.
+
+    Defaults to the TRANSCRIBER_BACKEND env var.
+    """
+    backend = (backend or get_transcriber_backend()).lower()
+    return _load_backend_class(backend).create(model=model)
+
+
+def get_transcriber_models(backend: str) -> dict:
+    """Return the selectable models for one backend, loaded on demand.
+
+    Each backend class declares its own `MODELS` and `DEFAULT_MODEL`. Importing
+    the backend can fail if its optional dependencies aren't installed; callers
+    should surface that to the user (e.g. as a UI warning).
+    """
+    cls = _load_backend_class(backend.lower())
+    return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
 
 
 class AudioProcessor:
@@ -138,6 +152,15 @@ class Transcriber:
     Turns a stream of raw int16 PCM byte blobs into an async iterator of
     TranscriptEvents.
     """
+    # Selectable models for this backend, surfaced in the settings UI.
+    MODELS = ()
+    DEFAULT_MODEL = None
+
+    @classmethod
+    def create(cls, model=None):
+        """Instantiate this backend with an optional model selection."""
+        raise NotImplementedError
+
     async def stream(self, audio: AsyncIterator[bytes], *,
                      language: str = "en",
                      task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
