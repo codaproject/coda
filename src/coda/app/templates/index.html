@@ -2669,6 +2669,13 @@
       </div>
 
       <div class="settings-row">
+        <label for="micSelect">Microphone</label>
+        <select id="micSelect">
+          <option value="">Default</option>
+        </select>
+      </div>
+
+      <div class="settings-row">
         <label for="languageSelect" data-i18n="settings.transcriptionLang"
           >Transcription language</label
         >
@@ -3938,6 +3945,7 @@
       // Settings wiring
       const copyBtn = document.getElementById("copyBtn");
       const statusMessage = document.getElementById("statusMessage");
+      const micSelect = document.getElementById("micSelect");
       const languageSelect = document.getElementById("languageSelect");
       const saveToggle = document.getElementById("saveToggle");
       const filePathDisplay = document.getElementById("filePathDisplay");
@@ -4127,6 +4135,30 @@
         return languageSelect.value;
       }
 
+      // Populate the microphone device list
+      async function populateMicList() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter((d) => d.kind === "audioinput");
+        const previousValue = micSelect.value;
+        micSelect.innerHTML = '<option value="">Default</option>';
+        audioInputs.forEach((device, idx) => {
+          const opt = document.createElement("option");
+          opt.value = device.deviceId;
+          opt.textContent = device.label || `Microphone ${idx + 1}`;
+          micSelect.appendChild(opt);
+        });
+        // Restore previous selection if the device is still present
+        if (
+          previousValue &&
+          [...micSelect.options].some((o) => o.value === previousValue)
+        ) {
+          micSelect.value = previousValue;
+        }
+      }
+
+      // Refresh the list when devices are plugged in or unplugged
+      navigator.mediaDevices.addEventListener("devicechange", populateMicList);
+
       async function loadSettings() {
         try {
           const backendsResp = await fetch("/transcriber_backends");
@@ -4160,6 +4192,8 @@
           updateFilePathDisplay(data.file_paths);
           updateTranslationVisibility();
           updateLangChip();
+          // Populate mic list (labels may be blank until permission is granted)
+          await populateMicList();
         } catch (e) {
           console.error("Failed to load settings:", e);
         }
@@ -4407,6 +4441,7 @@
 
       async function startRecording() {
         try {
+          micSelect.disabled = true;
           languageSelect.disabled = true;
           transcriberBackendSelect.disabled = true;
           transcriberModelSelect.disabled = true;
@@ -4541,13 +4576,17 @@
             console.log("WebSocket disconnected");
           };
 
+          const audioConstraints = {
+            channelCount: 1,
+            sampleRate: 16000,
+            sampleSize: 16,
+            volume: 1.0,
+          };
+          if (micSelect.value) {
+            audioConstraints.deviceId = { exact: micSelect.value };
+          }
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              channelCount: 1,
-              sampleRate: 16000,
-              sampleSize: 16,
-              volume: 1.0,
-            },
+            audio: audioConstraints,
           });
 
           audioContext = new AudioContext({ sampleRate: 16000 });
@@ -4669,6 +4708,7 @@
         stopTimer();
         updatingPill.style.display = "none";
 
+        micSelect.disabled = false;
         languageSelect.disabled = false;
         transcriberBackendSelect.disabled = false;
         transcriberModelSelect.disabled = false;
@@ -4677,6 +4717,9 @@
         ragModelSelect.disabled = false;
         ragOntologySelect.disabled = false;
         ragRerankerToggle.disabled = false;
+
+        // Refresh mic list (labels become available after first permission grant)
+        populateMicList();
 
         // Transition to result state if we captured anything worth reviewing
         // (transcript OR inference). Only revert to idle on a truly empty session.
