@@ -519,6 +519,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
     each committed event, translate, ground, save, and display it. Inference
     runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
     """
+
     async def audio_iter():
         while True:
             data = await queue.get()
@@ -696,7 +697,7 @@ async def get_index():
     return HTMLResponse(content=html_content)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
