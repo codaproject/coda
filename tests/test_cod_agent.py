@@ -1,5 +1,5 @@
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 
 from coda.inference.agent import CodaToyInferenceAgent, InferenceServer
 
@@ -21,9 +21,14 @@ def inference_server(toy_agent):
 
 
 @pytest.fixture
-def client(inference_server):
-    """Fixture for FastAPI TestClient."""
-    return TestClient(inference_server.app)
+async def client(inference_server):
+    """Fixture for an ASGI-backed HTTP client."""
+    transport = httpx.ASGITransport(app=inference_server.app)
+    async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+    ) as test_client:
+        yield test_client
 
 
 def test_inference_server_uses_runtime_config(monkeypatch, toy_agent):
@@ -235,13 +240,15 @@ class TestInferenceAgent:
 class TestInferenceServer:
     """Integration tests for InferenceServer HTTP endpoints."""
 
-    def test_health_endpoint(self, client):
+    @pytest.mark.asyncio
+    async def test_health_endpoint(self, client):
         """Test the /health endpoint."""
-        response = client.get("/health")
+        response = await client.get("/health")
         assert response.status_code == 200
         assert response.json() == {"status": "healthy"}
 
-    def test_infer_endpoint_fever(self, client):
+    @pytest.mark.asyncio
+    async def test_infer_endpoint_fever(self, client):
         """Test the /infer endpoint with fever symptoms."""
         request_data = {
             "chunk_id": "http-test-001",
@@ -249,7 +256,7 @@ class TestInferenceServer:
             "annotations": []
         }
 
-        response = client.post("/infer", json=request_data)
+        response = await client.post("/infer", json=request_data)
         assert response.status_code == 200
 
         result = response.json()
@@ -258,7 +265,8 @@ class TestInferenceServer:
         assert "icd10:U07.1" in result["causes"]
         assert result["causes"]["icd10:U07.1"]["score"] > 0.5
 
-    def test_infer_endpoint_cardiac(self, client):
+    @pytest.mark.asyncio
+    async def test_infer_endpoint_cardiac(self, client):
         """Test the /infer endpoint with cardiac symptoms."""
         request_data = {
             "chunk_id": "http-test-002",
@@ -266,7 +274,7 @@ class TestInferenceServer:
             "annotations": []
         }
 
-        response = client.post("/infer", json=request_data)
+        response = await client.post("/infer", json=request_data)
         assert response.status_code == 200
 
         result = response.json()
@@ -275,7 +283,8 @@ class TestInferenceServer:
         assert "icd10:I46.9" in result["causes"]
         assert result["causes"]["icd10:I46.9"]["score"] > 0.5
 
-    def test_infer_endpoint_with_annotations(self, client):
+    @pytest.mark.asyncio
+    async def test_infer_endpoint_with_annotations(self, client):
         """Test the /infer endpoint with medical annotations."""
         request_data = {
             "chunk_id": "http-test-003",
@@ -286,7 +295,7 @@ class TestInferenceServer:
             ]
         }
 
-        response = client.post("/infer", json=request_data)
+        response = await client.post("/infer", json=request_data)
         assert response.status_code == 200
 
         result = response.json()
@@ -294,7 +303,8 @@ class TestInferenceServer:
         assert "causes" in result
         assert len(result["causes"]) == 3  # Should have all 3 causes
 
-    def test_infer_endpoint_missing_fields(self, client):
+    @pytest.mark.asyncio
+    async def test_infer_endpoint_missing_fields(self, client):
         """Test the /infer endpoint with missing required fields."""
         request_data = {
             "chunk_id": "http-test-004",
@@ -302,13 +312,14 @@ class TestInferenceServer:
             "annotations": []
         }
 
-        response = client.post("/infer", json=request_data)
+        response = await client.post("/infer", json=request_data)
         assert response.status_code == 422  # Validation error
 
-    def test_reset_endpoint(self, client):
+    @pytest.mark.asyncio
+    async def test_reset_endpoint(self, client):
         """Test the /reset endpoint clears agent state."""
         # Send first chunk
-        response1 = client.post("/infer", json={
+        response1 = await client.post("/infer", json={
             "chunk_id": "reset-test-001",
             "text": "Patient had fever.",
             "annotations": []
@@ -318,7 +329,7 @@ class TestInferenceServer:
         assert result1["chunks_processed"] == 1
 
         # Send second chunk
-        response2 = client.post("/infer", json={
+        response2 = await client.post("/infer", json={
             "chunk_id": "reset-test-002",
             "text": "Fever continued.",
             "annotations": []
@@ -328,12 +339,12 @@ class TestInferenceServer:
         assert result2["chunks_processed"] == 2
 
         # Reset the agent
-        reset_response = client.post("/reset")
+        reset_response = await client.post("/reset")
         assert reset_response.status_code == 200
         assert reset_response.json()["status"] == "reset"
 
         # Send new chunk after reset
-        response3 = client.post("/infer", json={
+        response3 = await client.post("/infer", json={
             "chunk_id": "reset-test-003",
             "text": "New patient with chest pain.",
             "annotations": []
@@ -342,7 +353,8 @@ class TestInferenceServer:
         result3 = response3.json()
         assert result3["chunks_processed"] == 1  # Should be back to 1 after reset
 
-    def test_infer_endpoint_with_timestamp(self, client):
+    @pytest.mark.asyncio
+    async def test_infer_endpoint_with_timestamp(self, client):
         """Test the /infer endpoint with explicit timestamp."""
         import time
 
@@ -354,7 +366,7 @@ class TestInferenceServer:
             "timestamp": timestamp
         }
 
-        response = client.post("/infer", json=request_data)
+        response = await client.post("/infer", json=request_data)
         assert response.status_code == 200
 
         result = response.json()

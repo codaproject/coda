@@ -34,7 +34,7 @@ class OllamaAdapter(LLMClient):
     def __init__(
         self,
         base_url: Optional[str] = None,
-        model: str = "llama3.2",
+        model: str = "qwen3:8b",
         timeout: float = 300.0,
     ):
         """
@@ -44,7 +44,7 @@ class OllamaAdapter(LLMClient):
         ----------
         base_url : str, optional
             Ollama API base URL. Defaults to http://localhost:11434.
-        model : str, default="llama3.2"
+        model : str, default="qwen3:8b"
             Ollama model to use.
         timeout : float, default=300.0
             Request timeout in seconds.

@@ -31,9 +31,14 @@ class RagGrounder(BaseGrounder):
     """
 
     def __init__(
-        self,
-        config_path: str | Path | None = None,
-        llm_client: LLMClient | None = None,
+            self,
+            config_path: str | Path | None = None,
+            llm_client: LLMClient | None = None,
+            provider: str | None = None,
+            model: str | None = None,
+            ontology: str | None = None,
+            use_reranker: bool | None = None,
+            extractor_type: str | None = None,
     ):
         super().__init__()
         # Initialize config from yaml if provided, else use default yaml file
@@ -41,6 +46,15 @@ class RagGrounder(BaseGrounder):
             self.config = RAGGrounderConfig.from_yaml(config_path)
         else:
             self.config = RAGGrounderConfig.default()
+
+        self._apply_config(
+            provider=provider,
+            model=model,
+            ontology=ontology,
+            use_reranker=use_reranker,
+            extractor_type=extractor_type,
+            force=True,
+        )
 
         # Initialize LLM client
         if llm_client is None:
@@ -83,32 +97,65 @@ class RagGrounder(BaseGrounder):
             prompt_config_path=self.config.reranker.prompt_config_path,
         )
 
-    def update_config(
-        self,
-        provider: str | None = None,
-        model: str | None = None,
-        ontology: str | None = None,
-        use_reranker: bool | None = None,
-        extractor_type: str | None = None,
-    ) -> None:
-        # Record which components are affected by actual config changes
+    def _apply_config(
+            self,
+            provider: str | None = None,
+            model: str | None = None,
+            ontology: str | None = None,
+            use_reranker: bool | None = None,
+            extractor_type: str | None = None,
+            force: bool = False,
+    ) -> set[str]:
+        """Apply config overrides and return components affected by changes.
+
+        During construction, `force=True` applies provided values
+        unconditionally before components are built. Runtime updates use the
+        default `force=False` so expensive components are only rebuilt when
+        an existing value actually changes.
+        """
         rebuild_set = set()
-        if provider is not None and provider != self.config.llm.provider:
+
+        def should_apply(new_value, current_value) -> bool:
+            return new_value is not None and (
+                    force or new_value != current_value
+            )
+
+        if should_apply(provider, self.config.llm.provider):
             self.config.llm.provider = provider
             rebuild_set.add("llm")
-        if model is not None and model != self.config.llm.model:
+        if should_apply(model, self.config.llm.model):
             self.config.llm.model = model
             rebuild_set.add("llm")
-        if ontology is not None and ontology != self.config.retriever.ontology:
+        if should_apply(ontology, self.config.retriever.ontology):
             self.config.retriever.ontology = ontology
             rebuild_set.add("retriever")
-        if use_reranker is not None and use_reranker != self.config.reranker.enabled:
+        if should_apply(use_reranker, self.config.reranker.enabled):
             self.config.reranker.enabled = use_reranker
             rebuild_set.add("reranker")
-        if extractor_type is not None and \
-                extractor_type.lower().strip() != self.config.extractor.type.lower().strip():
+        if extractor_type is not None and (
+                force or
+                extractor_type.lower().strip() != self.config.extractor.type.lower().strip()):
             self.config.extractor.type = extractor_type
             rebuild_set.add("extractor")
+
+        return rebuild_set
+
+    def update_config(
+            self,
+            provider: str | None = None,
+            model: str | None = None,
+            ontology: str | None = None,
+            use_reranker: bool | None = None,
+            extractor_type: str | None = None,
+    ) -> None:
+        # Record which components are affected by actual config changes
+        rebuild_set = self._apply_config(
+            provider=provider,
+            model=model,
+            ontology=ontology,
+            use_reranker=use_reranker,
+            extractor_type=extractor_type,
+        )
 
         # Rebuild affected components
         if "llm" in rebuild_set:
@@ -239,7 +286,7 @@ class RagGrounder(BaseGrounder):
 
     def ground(self, text: str) -> list[ScoredMatch]:
         """ Coerces the result of `process` into GILDA-compatible results """
-        
+
         result = self.process(text)
         matches: list[ScoredMatch] = []
         for concept in result["Concepts"]:
