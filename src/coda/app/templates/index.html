@@ -6,6 +6,8 @@
     <title>CODA — Cause of Death Determination Assistant</title>
 
     <script>
+      const CODA_ONBOARDING_NOTICE_VERSION = __CODA_ONBOARDING_NOTICE_VERSION__;
+
       // Set theme + locale + consent before first paint to avoid FOUC.
       (function () {
         try {
@@ -20,7 +22,14 @@
             locale === "ar" ? "rtl" : "ltr",
           );
 
-          if (localStorage.getItem("codaConsent") === "accepted") {
+          var consentAccepted = localStorage.getItem("codaConsent") === "accepted";
+          var consentVersion = localStorage.getItem("codaConsentVersion");
+          var versionAccepted =
+            !CODA_ONBOARDING_NOTICE_VERSION ||
+            CODA_ONBOARDING_NOTICE_VERSION === "default" ||
+            consentVersion === CODA_ONBOARDING_NOTICE_VERSION;
+
+          if (consentAccepted && versionAccepted) {
             document.documentElement.classList.add("consented");
           }
         } catch (_) {}
@@ -1021,7 +1030,10 @@
         z-index: 100;
         display: flex;
         flex-direction: column;
+        gap: 32px;
         padding: 40px 48px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
       }
       html.consented .onboard-overlay {
         display: none;
@@ -1058,10 +1070,10 @@
       }
 
       .onboard-body {
-        flex: 1;
+        flex: 1 0 auto;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
       }
       .onboard-card {
@@ -1070,6 +1082,7 @@
         display: flex;
         flex-direction: column;
         gap: 32px;
+        margin: auto 0;
       }
       .onboard-eyebrow {
         font-size: 11px;
@@ -1217,6 +1230,7 @@
       @media (max-width: 768px) {
         .onboard-overlay {
           padding: 24px 20px;
+          gap: 24px;
         }
         .onboard-headline {
           font-size: 26px;
@@ -2260,6 +2274,7 @@
               with you — and, where applicable, with post-mortem confirmation.
             </p>
           </div>
+          <!-- CODA_ONBOARDING_NOTICE -->
           <label class="onboard-consent" id="onboardConsent">
             <input
               type="checkbox"
@@ -4874,6 +4889,10 @@
           if (!checkbox.checked) return;
           try {
             localStorage.setItem("codaConsent", "accepted");
+            localStorage.setItem(
+              "codaConsentVersion",
+              CODA_ONBOARDING_NOTICE_VERSION,
+            );
           } catch (_) {}
           document.documentElement.classList.add("consented");
         });

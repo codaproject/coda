@@ -21,6 +21,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from coda import CODA_BASE
+from coda.app.onboarding_notice import (
+    load_onboarding_notice_html,
+    render_onboarding_notice,
+)
 from coda.dialogue import (
     Transcriber,
     StreamingTranscriber,
@@ -42,6 +46,9 @@ from coda.runtime_config import (
     get_inference_llm_model,
     get_inference_llm_provider,
     get_inference_url,
+    get_onboarding_notice_enabled,
+    get_onboarding_notice_file,
+    get_onboarding_notice_version,
     get_rag_extractor_type,
     get_rag_llm_model,
     get_rag_llm_provider,
@@ -694,6 +701,15 @@ async def get_index():
     """Serve the index page."""
     with open(os.path.join(templates_dir, "index.html"), "r") as fh:
         html_content = fh.read()
+    notice_html = load_onboarding_notice_html(
+        get_onboarding_notice_enabled(),
+        get_onboarding_notice_file(),
+    )
+    html_content = render_onboarding_notice(
+        html_content,
+        notice_html=notice_html,
+        notice_version=get_onboarding_notice_version(),
+    )
     return HTMLResponse(content=html_content)
 
 

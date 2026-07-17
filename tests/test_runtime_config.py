@@ -18,6 +18,9 @@ RUNTIME_ENV_VARS = (
     "RAG_LLM_MODEL",
     "RAG_ONTOLOGY",
     "RAG_USE_RERANKER",
+    "CODA_ONBOARDING_NOTICE_ENABLED",
+    "CODA_ONBOARDING_NOTICE_FILE",
+    "CODA_ONBOARDING_NOTICE_VERSION",
     "TRANSCRIBER_BACKEND",
     "SPEECHMATICS_URL",
     "SPEECHMATICS_MODEL",
@@ -53,6 +56,12 @@ def test_runtime_config_defaults(monkeypatch):
             == runtime_config.DEFAULT_RAG_ONTOLOGY)
     assert (runtime_config.get_rag_use_reranker()
             == runtime_config.DEFAULT_RAG_USE_RERANKER)
+    assert (runtime_config.get_onboarding_notice_enabled()
+            == runtime_config.DEFAULT_ONBOARDING_NOTICE_ENABLED)
+    assert (runtime_config.get_onboarding_notice_file()
+            == runtime_config.DEFAULT_ONBOARDING_NOTICE_FILE)
+    assert (runtime_config.get_onboarding_notice_version()
+            == runtime_config.DEFAULT_ONBOARDING_NOTICE_VERSION)
     assert (runtime_config.get_transcriber_backend()
             == runtime_config.DEFAULT_TRANSCRIBER_BACKEND)
     assert (runtime_config.get_speechmatics_url()
@@ -78,6 +87,12 @@ def test_runtime_config_env_overrides(monkeypatch):
     monkeypatch.setenv("RAG_LLM_MODEL", "llama3.2")
     monkeypatch.setenv("RAG_ONTOLOGY", "icd11")
     monkeypatch.setenv("RAG_USE_RERANKER", "false")
+    monkeypatch.setenv("CODA_ONBOARDING_NOTICE_ENABLED", "true")
+    monkeypatch.setenv(
+        "CODA_ONBOARDING_NOTICE_FILE",
+        "/home/ubuntu/pages/demo_terms.html",
+    )
+    monkeypatch.setenv("CODA_ONBOARDING_NOTICE_VERSION", "demo-2026-07")
     monkeypatch.setenv("TRANSCRIBER_BACKEND", "speechmatics")
     monkeypatch.setenv("SPEECHMATICS_URL", "wss://eu.rt.speechmatics.com/v2/")
     monkeypatch.setenv("SPEECHMATICS_MODEL", "standard")
@@ -96,6 +111,11 @@ def test_runtime_config_env_overrides(monkeypatch):
     assert runtime_config.get_rag_llm_model() == "llama3.2"
     assert runtime_config.get_rag_ontology() == "icd11"
     assert runtime_config.get_rag_use_reranker() is False
+    assert runtime_config.get_onboarding_notice_enabled() is True
+    assert (runtime_config.get_onboarding_notice_file()
+            == "/home/ubuntu/pages/demo_terms.html")
+    assert (runtime_config.get_onboarding_notice_version()
+            == "demo-2026-07")
     assert runtime_config.get_transcriber_backend() == "speechmatics"
     assert (runtime_config.get_speechmatics_url()
             == "wss://eu.rt.speechmatics.com/v2/")
