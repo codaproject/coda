@@ -8,6 +8,7 @@ opt-in for its newer-API features).
 """
 
 import json
+import os
 import time
 import logging
 from typing import Dict, Any, Optional
@@ -17,7 +18,7 @@ try:
 except ImportError:
     OpenAI = None
 
-from coda.runtime_config import get_openai_api_key, get_openai_base_url
+from coda.config import settings
 from .client import LLMClient
 
 logger = logging.getLogger(__name__)
@@ -61,11 +62,15 @@ class OpenAIAdapter(LLMClient):
                 "Install it with: pip install 'coda[openai]' or pip install openai"
             )
 
-        base_url = base_url or get_openai_base_url()
+        # OPENAI_BASE_URL / OPENAI_API_KEY keep their conventional (non-CODA)
+        # names; fall back to config secrets (config/.secrets.yaml) if unset.
+        base_url = (base_url or os.getenv("OPENAI_BASE_URL")
+                    or settings.llm.openai.get("base_url") or None)
         # Local OpenAI-compatible servers ignore the key but the client still
         # requires a non-empty one.
-        api_key = api_key or get_openai_api_key() or \
-                  ("local" if base_url else None)
+        api_key = (api_key or os.getenv("OPENAI_API_KEY")
+                   or settings.llm.openai.get("api_key")
+                   or ("local" if base_url else None))
         if not api_key:
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env "
                              "var or pass api_key.")

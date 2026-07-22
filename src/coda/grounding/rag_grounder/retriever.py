@@ -7,7 +7,7 @@ from typing import List, Tuple
 from neo4j import GraphDatabase
 from sentence_transformers import SentenceTransformer
 
-from coda.runtime_config import get_kg_url
+from coda.config import settings
 
 from .types import RetrievalTerm
 
@@ -26,7 +26,7 @@ class Retriever:
         top_k: int,
         min_similarity: float
     ):
-        self.driver = GraphDatabase.driver(get_kg_url(), auth=None)
+        self.driver = GraphDatabase.driver(settings.kg.url, auth=None)
         self.ontology = ontology
         self.model_name = model_name
         self.top_k = top_k

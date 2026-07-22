@@ -4,12 +4,7 @@ from typing import List, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 from gilda import Annotation
-from coda.runtime_config import (
-    get_inference_host,
-    get_inference_llm_model,
-    get_inference_llm_provider,
-    get_inference_port,
-)
+from coda.config import settings
 
 logger = logging.getLogger('coda.inference')
 
@@ -187,8 +182,8 @@ class InferenceServer:
         port: Optional[int] = None,
     ):
         self.agent = agent
-        self.host = host or get_inference_host()
-        self.port = port if port is not None else get_inference_port()
+        self.host = host or settings.inference.host
+        self.port = port if port is not None else settings.inference.port
         self.app = FastAPI(title="CODA Inference Agent")
 
         @self.app.post("/infer")
@@ -242,13 +237,13 @@ if __name__ == "__main__":
         description="CODA inference agent server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--provider", default=get_inference_llm_provider(),
+    parser.add_argument("--provider", default=settings.inference.llm.provider,
                         help="LLM provider (e.g. openai, ollama)")
-    parser.add_argument("--model", default=get_inference_llm_model(),
+    parser.add_argument("--model", default=settings.inference.llm.model,
                         help="LLM model name (e.g. gpt-5.4-mini, gpt-oss:20b)")
-    parser.add_argument("--host", default=get_inference_host(),
+    parser.add_argument("--host", default=settings.inference.host,
                         help="Server host")
-    parser.add_argument("--port", type=int, default=get_inference_port(),
+    parser.add_argument("--port", type=int, default=settings.inference.port,
                         help="Server port")
     args = parser.parse_args()
 

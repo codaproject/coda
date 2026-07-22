@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy package files
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
+COPY config/ ./config/
 
 # Install the package. openai-whisper pulls in torch; the inference agent never
 # uses it, so install the CPU-only wheel to avoid the multi-GB CUDA build.
@@ -23,7 +24,7 @@ RUN python -m gilda.resources && \
     python -m coda.grounding.build_grounding_db /app/grounding_terms.db && \
     rm -f /root/.data/gilda/*/grounding_terms.tsv.gz
 
-ENV GILDA_SQLITE_DB=/app/grounding_terms.db
+ENV CODA_GROUNDER__GILDA__SQLITE_DB=/app/grounding_terms.db
 
 # Expose the inference server port
 EXPOSE 5123

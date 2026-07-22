@@ -32,7 +32,8 @@ class GildaGrounder(BaseGrounder):
             if namespaces is None else namespaces
 
         if not db_path:
-            db_path = os.environ.get("GILDA_SQLITE_DB")
+            from coda.config import settings
+            db_path = settings.grounder.gilda.get("sqlite_db") or None
         if not db_path:
             from gilda.resources import resource_dir
             default_db = os.path.join(resource_dir, "grounding_terms.db")

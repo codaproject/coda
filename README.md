@@ -133,40 +133,61 @@ Both Compose paths publish these endpoints by default:
 - Neo4j browser at `http://localhost:7474`
 - Neo4j Bolt at `bolt://localhost:7687`
 
-If you change `APP_PORT`, `INFERENCE_PORT`, `NEO4J_HTTP_PORT`, or
+If you change `CODA_APP__PORT`, `CODA_INFERENCE__PORT`, `NEO4J_HTTP_PORT`, or
 `NEO4J_BOLT_PORT`, replace the corresponding port in these URLs.
+
+All configuration lives in `config/settings.yaml` (one namespace per module).
+Any value can be overridden with a `CODA_`-prefixed environment variable, using
+`__` (double underscore) to descend into nested keys — e.g. `CODA_APP__PORT`
+overrides `app.port`, and `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY` overrides
+`grounder.rag.retriever.ontology`. For ICD-11 grounding, edit the
+`grounder.rag` section of `config/settings.yaml` (the comments there show which
+values to change) or set the corresponding `CODA_`-prefixed vars.
+`OPENAI_API_KEY` and `SPEECHMATICS_API_KEY` keep their conventional
+(non-`CODA`-prefixed) names.
 
 The Compose path is env-driven. The main runtime variables are:
 
-- `APP_HOST`, `APP_PORT`
-- `INFERENCE_HOST`, `INFERENCE_PORT`
-- `INFERENCE_LLM_PROVIDER`, `INFERENCE_LLM_MODEL`
+- `CODA_APP__HOST`, `CODA_APP__PORT`
+- `CODA_INFERENCE__HOST`, `CODA_INFERENCE__PORT`
+- `CODA_INFERENCE__LLM__PROVIDER`, `CODA_INFERENCE__LLM__MODEL`
 - `OPENAI_API_KEY`
-- `OLLAMA_BASE_URL` when using Ollama
-- `RAG_LLM_PROVIDER`, `RAG_LLM_MODEL`, `RAG_ONTOLOGY`,
-  `RAG_USE_RERANKER`
-- `TRANSCRIBER_BACKEND` selects the **app/server** speech-to-text backend
-  (default `whisper-livekit`, a low-latency in-process streaming backend;
-  alternatives `faster-whisper`, `whisper`, `speechmatics`). Transcription uses
-  the `small` model by default, and the app image pre-downloads the
-  faster-whisper `small` model , which `whisper-livekit` reuses. The `coda` CLI
-  is batch-oriented and defaults to `faster-whisper` instead (faster and more
-  accurate for whole files); override with `--transcriber`.
-- `CODA_KG_URL` when Neo4j is outside the standard deployment topology
+- `CODA_LLM__OLLAMA__BASE_URL` when using Ollama
+- `CODA_GROUNDER__RAG__LLM__PROVIDER`, `CODA_GROUNDER__RAG__LLM__MODEL`,
+  `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY`,
+  `CODA_GROUNDER__RAG__RERANKER__ENABLED`
+- `CODA_DIALOGUE__TRANSCRIBER_BACKEND` selects the **app/server** speech-to-text
+  backend (default `whisper-livekit`, a low-latency in-process streaming
+  backend; alternatives `faster-whisper`, `whisper`, `speechmatics`).
+  Transcription uses the `small` model by default, and the app image
+  pre-downloads the faster-whisper `small` model, which `whisper-livekit`
+  reuses. The `coda` CLI is batch-oriented and defaults to `faster-whisper`
+  instead (faster and more accurate for whole files); override with
+  `--transcriber`.
+- `CODA_KG__URL` when Neo4j is outside the standard deployment topology
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`
 
-`INFERENCE_URL` is wired automatically for Compose and normally does not need to
-be set there. The previous `CODA_INFERENCE_URL` name remains supported as a
-compatibility alias, but new configurations should use `INFERENCE_URL`.
-`CODA_DEVICE` and the `COMPUTE_DEVICE` image build argument are documented in
-`.env.example` for GPU deployments.
+`CODA_INFERENCE__URL` is wired automatically for Compose and normally does not
+need to be set there. `CODA_DIALOGUE__DEVICE` and the `COMPUTE_DEVICE` image
+build argument are documented in `.env.example` for GPU deployments.
+
+> **Migration note:** configuration was unified into `config/settings.yaml` +
+> Dynaconf. The old flat environment variables were renamed to the `CODA_`
+> nested scheme: `APP_PORT` → `CODA_APP__PORT`, `INFERENCE_LLM_MODEL` →
+> `CODA_INFERENCE__LLM__MODEL`, `RAG_ONTOLOGY` →
+> `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY`, `RAG_USE_RERANKER` →
+> `CODA_GROUNDER__RAG__RERANKER__ENABLED`, `CODA_KG_URL` → `CODA_KG__URL`,
+> `TRANSCRIBER_BACKEND` → `CODA_DIALOGUE__TRANSCRIBER_BACKEND`,
+> `CODA_DEVICE` → `CODA_DIALOGUE__DEVICE`, and so on. `OPENAI_API_KEY` and
+> `SPEECHMATICS_API_KEY` are unchanged. The old names are no longer read;
+> update existing `.env` files accordingly.
 
 On Apple Silicon, the `whisper-livekit` backend can run on the GPU via Apple's
-MLX. Install `mlx-whisper` and set `CODA_WLK_BACKEND=mlx-whisper` to use it:
+MLX. Install `mlx-whisper` and set the backend to use it:
 
 ```bash
 pip install mlx-whisper
-CODA_WLK_BACKEND=mlx-whisper ./startup.sh
+CODA_DIALOGUE__WHISPER_LIVEKIT__BACKEND=mlx-whisper ./startup.sh
 ```
 
 Minimal `.env` examples:
@@ -175,15 +196,15 @@ OpenAI-backed inference:
 
 ```bash
 OPENAI_API_KEY=your-openai-api-key-here
-INFERENCE_LLM_PROVIDER=openai
-INFERENCE_LLM_MODEL=gpt-5.4-mini
+CODA_INFERENCE__LLM__PROVIDER=openai
+CODA_INFERENCE__LLM__MODEL=gpt-5.4-mini
 ```
 
 Ollama-backed inference:
 
 ```bash
-INFERENCE_LLM_PROVIDER=ollama
-INFERENCE_LLM_MODEL=llama3.2
+CODA_INFERENCE__LLM__PROVIDER=ollama
+CODA_INFERENCE__LLM__MODEL=llama3.2
 ```
 
 Custom local LLM backend on a Mac: the `openai` provider can point at any
@@ -197,8 +218,8 @@ mlx-openai-server launch --model-path mlx-community/Qwen2.5-7B-Instruct-4bit --m
 ```
 
 ```bash
-INFERENCE_LLM_PROVIDER=openai
-INFERENCE_LLM_MODEL=mlx-community/Qwen2.5-7B-Instruct-4bit
+CODA_INFERENCE__LLM__PROVIDER=openai
+CODA_INFERENCE__LLM__MODEL=mlx-community/Qwen2.5-7B-Instruct-4bit
 OPENAI_BASE_URL=http://localhost:8080/v1
 ```
 
@@ -206,10 +227,10 @@ The RAG grounder has its own provider and model settings. They default to
 OpenAI with `gpt-4o-mini` and are used only when RAG is selected in the app:
 
 ```bash
-RAG_LLM_PROVIDER=openai
-RAG_LLM_MODEL=gpt-4o-mini
-RAG_ONTOLOGY=icd10
-RAG_USE_RERANKER=true
+CODA_GROUNDER__RAG__LLM__PROVIDER=openai
+CODA_GROUNDER__RAG__LLM__MODEL=gpt-4o-mini
+CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY=icd10
+CODA_GROUNDER__RAG__RERANKER__ENABLED=true
 ```
 
 For local source startup, Ollama defaults to `http://localhost:11434`.
@@ -255,7 +276,7 @@ ss -ltnp | grep ':11434'
 ```
 
 Only expose that port on a trusted host/network. You can override the endpoint
-for either deployment path with `OLLAMA_BASE_URL`.
+for either deployment path with `CODA_LLM__OLLAMA__BASE_URL`.
 
 Before starting CODA, confirm the configured model is available:
 
@@ -307,8 +328,8 @@ The Python modules read environment variables, but do not load `.env`
 themselves. The commands above export the file before starting the service.
 The inference service uses:
 
-- `INFERENCE_HOST` / `INFERENCE_PORT`
-- `INFERENCE_LLM_PROVIDER` / `INFERENCE_LLM_MODEL`
+- `CODA_INFERENCE__HOST` / `CODA_INFERENCE__PORT`
+- `CODA_INFERENCE__LLM__PROVIDER` / `CODA_INFERENCE__LLM__MODEL`
 
 You can still override them explicitly:
 
@@ -325,9 +346,10 @@ set +a
 python -m coda.app
 ```
 
-This uses `APP_HOST`, `APP_PORT`, and `INFERENCE_URL` from the exported
-environment. The optional RAG grounder also reads the `RAG_*` settings and
-`CODA_KG_URL`. With the default ports, open `http://localhost:8000`.
+This uses `CODA_APP__HOST`, `CODA_APP__PORT`, and `CODA_INFERENCE__URL` from the
+exported environment. The optional RAG grounder also reads the
+`CODA_GROUNDER__RAG__*` settings and `CODA_KG__URL`. With the default ports,
+open `http://localhost:8000`.
 
 Remote deployment notes
 -----------------------
@@ -339,7 +361,7 @@ For remote deployments:
 
 - run the app behind a reverse proxy that terminates TLS
 - expose the app over HTTPS
-- keep `INFERENCE_URL` pointed at the internal inference service
+- keep `CODA_INFERENCE__URL` pointed at the internal inference service
 - restrict the inference and Neo4j ports with host firewall rules or private
   networking
 

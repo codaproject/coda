@@ -1,0 +1,90 @@
+# CODA global configuration.
+#
+# This is the single source of truth for all runtime configuration, loaded by
+# `coda.config` via Dynaconf. It is organized into one namespace per module
+# (app, inference, llm, kg, grounder, dialogue).
+#
+# Overriding values:
+#   - Edit a value here to change the default.
+#   - Override at runtime with an environment variable, using the CODA_ prefix
+#     and `__` (double underscore) to descend into nested keys, e.g.:
+#         CODA_APP__PORT=9000
+#         CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY=icd11
+#         CODA_INFERENCE__LLM__MODEL=gpt-5.4
+#
+# Secrets (API keys) live in `.secrets.yaml` (gitignored), not here. The OpenAI
+# and Speechmatics keys keep their conventional env-var names (OPENAI_API_KEY,
+# SPEECHMATICS_API_KEY) rather than the CODA_ prefix.
+
+app:
+  host: 0.0.0.0
+  port: 8000
+
+inference:
+  host: 0.0.0.0
+  port: 5123
+  # Empty -> derived from host/port at runtime. Set to point the app at a
+  # remote inference service (Compose sets this to http://inference:5123).
+  url: ""
+  llm:
+    provider: openai        # alternatives: openai | ollama
+    model: gpt-5.4-mini
+
+llm:                        # shared LLM provider endpoints; api keys -> .secrets.yaml
+  openai:
+    # Empty -> default OpenAI endpoint. Set for an OpenAI-compatible server
+    # (mlx_lm.server, vLLM, LM Studio, Ollama's compat layer). Read from the
+    # conventional OPENAI_BASE_URL env var when unset here.
+    base_url: ""
+  ollama:
+    base_url: http://localhost:11434
+
+kg:
+  url: bolt://localhost:7687
+
+grounder:
+  type: gilda               # active grounder. alternatives: gilda | rag
+
+  gilda:                    # Gilda grounder module
+    # Path to a prebuilt Gilda SQLite term db for fast startup. Empty -> look
+    # for one in gilda's resource dir, else fall back to in-memory TSV terms.
+    sqlite_db: ""
+
+  rag:                      # RAG grounder module (was icd10_config.yaml / icd11_config.yaml)
+    # This section is configured for ICD-10 grounding. To switch it to ICD-11,
+    # set `retriever.ontology: icd11` and `extractor.type: LLM` below (that is
+    # the combination the former icd11_config.yaml used).
+    concept_type: disease
+    llm:
+      provider: openai      # alternatives: openai | ollama
+      model: gpt-4o-mini
+    extractor:
+      type: hunflair        # alternatives: LLM | hunflair (use LLM for ICD-11)
+      # Prompt key into config/prompts/. alternatives: extractor_default | extractor_medcoder
+      prompt: extractor_default
+    retriever:
+      ontology: icd10       # alternatives: icd10 | icd11
+      # TODO: embedding_model should eventually be read from neo4j metadata
+      # stored at kg build time so that the term embeddings and query
+      # embeddings use the same configuration for the embeddings.
+      embedding_model: all-MiniLM-L6-v2
+      top_k: 10
+      min_similarity: 0.0
+    reranker:
+      enabled: true         # alternatives: true | false
+      # Prompt key into config/prompts/. alternatives: reranker_default
+      prompt: reranker_default
+
+dialogue:
+  # App/server speech-to-text backend.
+  # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics
+  transcriber_backend: whisper-livekit
+  device: cpu               # local whisper device. alternatives: cpu | cuda
+  faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
+  whisper_livekit:
+    language: en
+    backend: faster-whisper
+    policy: localagreement
+  speechmatics:
+    url: wss://us.rt.speechmatics.com/v2/
+    model: enhanced         # operating point. alternatives: enhanced | standard

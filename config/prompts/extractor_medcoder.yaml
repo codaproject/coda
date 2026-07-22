@@ -34,4 +34,4 @@ user_prompt: |
   Output:
 
 concept_key: Disease
-supporting_evidence_field: Supporting Evidence
+supporting_evidence_key: Supporting Evidence

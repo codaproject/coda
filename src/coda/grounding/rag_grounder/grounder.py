@@ -3,7 +3,6 @@ RAG-based grounder.
 """
 import logging
 import time
-from pathlib import Path
 
 from gilda import Annotation, ScoredMatch
 from gilda.process import normalize
@@ -11,10 +10,10 @@ from gilda.scorer import generate_match
 from gilda.term import Term
 from tqdm import tqdm
 
+from coda.config import PROMPTS, settings
 from coda.grounding import BaseGrounder
 from coda.llm_api import LLMClient, create_llm_client
 
-from .config import RAGGrounderConfig
 from .extractor import Extractor, Hunflair2Extractor, LLMExtractor
 from .reranker import Reranker
 from .retriever import Retriever
@@ -32,20 +31,29 @@ class RagGrounder(BaseGrounder):
 
     def __init__(
         self,
-        config_path: str | Path | None = None,
         llm_client: LLMClient | None = None,
     ):
         super().__init__()
-        # Initialize config from yaml if provided, else use default yaml file
-        if config_path is not None:
-            self.config = RAGGrounderConfig.from_yaml(config_path)
-        else:
-            self.config = RAGGrounderConfig.default()
+        # Snapshot the RAG config from the global settings into mutable instance
+        # attributes (so update_config can change them at runtime without
+        # mutating the shared global settings singleton).
+        rag = settings.grounder.rag
+        self.concept_type = rag.concept_type
+        self.provider = rag.llm.provider
+        self.model = rag.llm.model
+        self.extractor_type = rag.extractor.type
+        self.extractor_prompt = rag.extractor.prompt
+        self.ontology = rag.retriever.ontology
+        self.embedding_model = rag.retriever.embedding_model
+        self.top_k = rag.retriever.top_k
+        self.min_similarity = rag.retriever.min_similarity
+        self.reranker_enabled = rag.reranker.enabled
+        self.reranker_prompt = rag.reranker.prompt
 
         # Initialize LLM client
         if llm_client is None:
             self.llm_client = create_llm_client(
-                provider=self.config.llm.provider, model=self.config.llm.model)
+                provider=self.provider, model=self.model)
         else:
             self.llm_client = llm_client
 
@@ -54,33 +62,38 @@ class RagGrounder(BaseGrounder):
         self.retriever = self._build_retriever()
         self.reranker = self._build_reranker()
 
+    @staticmethod
+    def _prompt(key: str) -> dict:
+        """Look up a prompt config by key (a config/prompts/ filename stem)."""
+        return PROMPTS[key]
+
     def _build_extractor(self) -> Extractor:
-        match self.config.extractor.type.lower().strip():
+        match self.extractor_type.lower().strip():
             case "llm":
                 return LLMExtractor(
-                    concept_type=self.config.concept_type,
-                    prompt_config_path=self.config.extractor.prompt_config_path,
+                    concept_type=self.concept_type,
+                    prompt_config=self._prompt(self.extractor_prompt),
                     llm_client=self.llm_client,
                 )
             case "hunflair":
-                return Hunflair2Extractor(concept_type=self.config.concept_type)
+                return Hunflair2Extractor(concept_type=self.concept_type)
             case _:
-                raise ValueError(f"Unrecognized extractor type: {self.config.extractor.type}")
+                raise ValueError(f"Unrecognized extractor type: {self.extractor_type}")
 
     def _build_retriever(self) -> Retriever:
         return Retriever(
-            ontology=self.config.retriever.ontology,
-            model_name=self.config.retriever.embedding_model,
-            top_k=self.config.retriever.top_k,
-            min_similarity=self.config.retriever.min_similarity,
+            ontology=self.ontology,
+            model_name=self.embedding_model,
+            top_k=self.top_k,
+            min_similarity=self.min_similarity,
         )
 
     def _build_reranker(self) -> Reranker | None:
-        if not self.config.reranker.enabled:
+        if not self.reranker_enabled:
             return None
         return Reranker(
             llm_client=self.llm_client,
-            prompt_config_path=self.config.reranker.prompt_config_path,
+            prompt_config=self._prompt(self.reranker_prompt),
         )
 
     def update_config(
@@ -93,21 +106,21 @@ class RagGrounder(BaseGrounder):
     ) -> None:
         # Record which components are affected by actual config changes
         rebuild_set = set()
-        if provider is not None and provider != self.config.llm.provider:
-            self.config.llm.provider = provider
+        if provider is not None and provider != self.provider:
+            self.provider = provider
             rebuild_set.add("llm")
-        if model is not None and model != self.config.llm.model:
-            self.config.llm.model = model
+        if model is not None and model != self.model:
+            self.model = model
             rebuild_set.add("llm")
-        if ontology is not None and ontology != self.config.retriever.ontology:
-            self.config.retriever.ontology = ontology
+        if ontology is not None and ontology != self.ontology:
+            self.ontology = ontology
             rebuild_set.add("retriever")
-        if use_reranker is not None and use_reranker != self.config.reranker.enabled:
-            self.config.reranker.enabled = use_reranker
+        if use_reranker is not None and use_reranker != self.reranker_enabled:
+            self.reranker_enabled = use_reranker
             rebuild_set.add("reranker")
         if extractor_type is not None and \
-                extractor_type.lower().strip() != self.config.extractor.type.lower().strip():
-            self.config.extractor.type = extractor_type
+                extractor_type.lower().strip() != self.extractor_type.lower().strip():
+            self.extractor_type = extractor_type
             rebuild_set.add("extractor")
 
         # Rebuild affected components
@@ -117,7 +130,7 @@ class RagGrounder(BaseGrounder):
             rebuild_set.add("reranker")
             # Rebuild llm client
             self.llm_client = create_llm_client(
-                provider=self.config.llm.provider, model=self.config.llm.model)
+                provider=self.provider, model=self.model)
         if "extractor" in rebuild_set:
             self.extractor = self._build_extractor()
         if "retriever" in rebuild_set:

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 import torch
 import whisper
@@ -43,15 +42,16 @@ class WhisperTranscriber(ChunkedTranscriber):
 
     @staticmethod
     def _resolve_device() -> str:
-        """Determine the torch device, honoring the CODA_DEVICE env var.
+        """Determine the torch device from ``dialogue.device`` config.
 
         Defaults to CPU. If "cuda" is requested but no CUDA device is
         available (e.g. a GPU image launched without --gpus), fall back to CPU.
         """
-        requested = os.environ.get("CODA_DEVICE", "cpu").lower()
+        from coda.config import settings
+        requested = (settings.dialogue.device or "cpu").lower()
         if requested == "cuda" and not torch.cuda.is_available():
             logger.warning(
-                "CODA_DEVICE=cuda requested but no CUDA device is available; "
+                "dialogue.device=cuda requested but no CUDA device is available; "
                 "falling back to CPU"
             )
             return "cpu"

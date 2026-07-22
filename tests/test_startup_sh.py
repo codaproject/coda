@@ -7,22 +7,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STARTUP_SH = ROOT / "startup.sh"
 RUNTIME_ENV_VARS = (
-    "APP_HOST",
-    "APP_PORT",
-    "INFERENCE_HOST",
-    "INFERENCE_PORT",
-    "INFERENCE_URL",
-    "CODA_INFERENCE_URL",
-    "INFERENCE_LLM_PROVIDER",
-    "INFERENCE_LLM_MODEL",
+    "CODA_APP__HOST",
+    "CODA_APP__PORT",
+    "CODA_INFERENCE__HOST",
+    "CODA_INFERENCE__PORT",
+    "CODA_INFERENCE__URL",
+    "CODA_INFERENCE__LLM__PROVIDER",
+    "CODA_INFERENCE__LLM__MODEL",
     "OPENAI_API_KEY",
-    "OLLAMA_BASE_URL",
-    "CODA_KG_URL",
-    "RAG_LLM_PROVIDER",
-    "RAG_LLM_MODEL",
-    "RAG_ONTOLOGY",
-    "RAG_USE_RERANKER",
-    "CODA_DEVICE",
+    "CODA_LLM__OLLAMA__BASE_URL",
+    "CODA_KG__URL",
+    "CODA_GROUNDER__RAG__LLM__PROVIDER",
+    "CODA_GROUNDER__RAG__LLM__MODEL",
+    "CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY",
+    "CODA_GROUNDER__RAG__RERANKER__ENABLED",
+    "CODA_DIALOGUE__DEVICE",
 )
 
 
@@ -46,12 +45,12 @@ def _run_startup_script(tmp_path: Path, env_contents: str, extra_env: dict[str, 
         """#!/usr/bin/env bash
 set -euo pipefail
 printf 'python|%s|APP_PORT=%s|INFERENCE_PORT=%s|INFERENCE_URL=%s|PROVIDER=%s|MODEL=%s\\n' \
-  "$*" "${APP_PORT:-}" "${INFERENCE_PORT:-}" "${INFERENCE_URL:-}" \
-  "${INFERENCE_LLM_PROVIDER:-}" "${INFERENCE_LLM_MODEL:-}" >> "${TEST_LOG}"
-printf 'runtime|OLLAMA_BASE_URL=%s|CODA_KG_URL=%s|RAG_PROVIDER=%s|RAG_MODEL=%s|RAG_ONTOLOGY=%s|RAG_RERANKER=%s|CODA_DEVICE=%s\\n' \
-  "${OLLAMA_BASE_URL:-}" "${CODA_KG_URL:-}" "${RAG_LLM_PROVIDER:-}" \
-  "${RAG_LLM_MODEL:-}" "${RAG_ONTOLOGY:-}" "${RAG_USE_RERANKER:-}" \
-  "${CODA_DEVICE:-}" >> "${TEST_LOG}"
+  "$*" "${CODA_APP__PORT:-}" "${CODA_INFERENCE__PORT:-}" "${CODA_INFERENCE__URL:-}" \
+  "${CODA_INFERENCE__LLM__PROVIDER:-}" "${CODA_INFERENCE__LLM__MODEL:-}" >> "${TEST_LOG}"
+printf 'runtime|OLLAMA_BASE_URL=%s|KG_URL=%s|RAG_PROVIDER=%s|RAG_MODEL=%s|RAG_ONTOLOGY=%s|RAG_RERANKER=%s|DEVICE=%s\\n' \
+  "${CODA_LLM__OLLAMA__BASE_URL:-}" "${CODA_KG__URL:-}" "${CODA_GROUNDER__RAG__LLM__PROVIDER:-}" \
+  "${CODA_GROUNDER__RAG__LLM__MODEL:-}" "${CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY:-}" \
+  "${CODA_GROUNDER__RAG__RERANKER__ENABLED:-}" "${CODA_DIALOGUE__DEVICE:-}" >> "${TEST_LOG}"
 exit 0
 """,
     )
@@ -97,12 +96,12 @@ def test_startup_script_uses_env_contract_and_derived_health_urls(tmp_path):
         tmp_path,
         "\n".join(
             [
-                "APP_HOST=127.0.0.2",
-                "APP_PORT=8100",
-                "INFERENCE_HOST=127.0.0.3",
-                "INFERENCE_PORT=6123",
-                "INFERENCE_LLM_PROVIDER=ollama",
-                "INFERENCE_LLM_MODEL=llamaX.X",
+                "CODA_APP__HOST=127.0.0.2",
+                "CODA_APP__PORT=8100",
+                "CODA_INFERENCE__HOST=127.0.0.3",
+                "CODA_INFERENCE__PORT=6123",
+                "CODA_INFERENCE__LLM__PROVIDER=ollama",
+                "CODA_INFERENCE__LLM__MODEL=llamaX.X",
                 "",
             ]
         ),
@@ -135,15 +134,15 @@ def test_startup_script_allows_shell_env_to_override_dotenv(tmp_path):
         tmp_path,
         "\n".join(
             [
-                "APP_PORT=8000",
-                "INFERENCE_PORT=5123",
+                "CODA_APP__PORT=8000",
+                "CODA_INFERENCE__PORT=5123",
                 "",
             ]
         ),
         extra_env={
-            "APP_PORT": "9100",
-            "INFERENCE_PORT": "7123",
-            "INFERENCE_URL": "http://127.0.0.1:7123",
+            "CODA_APP__PORT": "9100",
+            "CODA_INFERENCE__PORT": "7123",
+            "CODA_INFERENCE__URL": "http://127.0.0.1:7123",
         },
     )
 
@@ -168,13 +167,13 @@ def test_startup_script_passes_app_runtime_env_from_dotenv(tmp_path):
         tmp_path,
         "\n".join(
             [
-                "OLLAMA_BASE_URL=http://ollama.internal:11434",
-                "CODA_KG_URL=bolt://neo4j.internal:7687",
-                "RAG_LLM_PROVIDER=ollama",
-                "RAG_LLM_MODEL=llama3.2",
-                "RAG_ONTOLOGY=icd11",
-                "RAG_USE_RERANKER=false",
-                "CODA_DEVICE=cuda",
+                "CODA_LLM__OLLAMA__BASE_URL=http://ollama.internal:11434",
+                "CODA_KG__URL=bolt://neo4j.internal:7687",
+                "CODA_GROUNDER__RAG__LLM__PROVIDER=ollama",
+                "CODA_GROUNDER__RAG__LLM__MODEL=llama3.2",
+                "CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY=icd11",
+                "CODA_GROUNDER__RAG__RERANKER__ENABLED=false",
+                "CODA_DIALOGUE__DEVICE=cuda",
                 "",
             ]
         ),
@@ -185,27 +184,9 @@ def test_startup_script_passes_app_runtime_env_from_dotenv(tmp_path):
     assert all(
         line == (
             "runtime|OLLAMA_BASE_URL=http://ollama.internal:11434|"
-            "CODA_KG_URL=bolt://neo4j.internal:7687|RAG_PROVIDER=ollama|"
+            "KG_URL=bolt://neo4j.internal:7687|RAG_PROVIDER=ollama|"
             "RAG_MODEL=llama3.2|RAG_ONTOLOGY=icd11|RAG_RERANKER=false|"
-            "CODA_DEVICE=cuda"
+            "DEVICE=cuda"
         )
         for line in runtime_lines
-    )
-
-
-def test_startup_script_supports_legacy_inference_url(tmp_path):
-    _, lines = _run_startup_script(
-        tmp_path,
-        "\n".join(
-            [
-                "CODA_INFERENCE_URL=http://legacy-inference.internal:5123",
-                "",
-            ]
-        ),
-    )
-
-    python_lines = [line for line in lines if line.startswith("python|")]
-    assert all(
-        "INFERENCE_URL=http://legacy-inference.internal:5123" in line
-        for line in python_lines
     )
