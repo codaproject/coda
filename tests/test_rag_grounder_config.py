@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 from types import ModuleType, SimpleNamespace
 
 neo4j = ModuleType("neo4j")
@@ -10,6 +11,29 @@ sentence_transformers.SentenceTransformer = object
 sys.modules.setdefault("sentence_transformers", sentence_transformers)
 
 from coda.grounding.rag_grounder import grounder as grounder_module
+
+_ORIGINAL_DEFAULT_CONFIG = grounder_module.RAGGrounderConfig.default()
+
+
+def _config_with_overrides(**kwargs):
+    config = deepcopy(_ORIGINAL_DEFAULT_CONFIG)
+    config.llm.provider = kwargs.pop("provider", config.llm.provider)
+    config.llm.model = kwargs.pop("model", config.llm.model)
+    config.retriever.ontology = kwargs.pop(
+        "ontology",
+        config.retriever.ontology,
+    )
+    config.reranker.enabled = kwargs.pop(
+        "use_reranker",
+        config.reranker.enabled,
+    )
+    config.extractor.type = kwargs.pop(
+        "extractor_type",
+        config.extractor.type,
+    )
+    if kwargs:
+        raise TypeError(f"Unexpected config override(s): {sorted(kwargs)}")
+    return config
 
 
 def _make_grounder(monkeypatch, **kwargs):
@@ -58,19 +82,17 @@ def _make_grounder(monkeypatch, **kwargs):
         "_build_reranker",
         fake_build_reranker,
     )
-
-    grounder = grounder_module.RagGrounder(
-        provider=kwargs.pop("provider", "ollama"),
-        model=kwargs.pop("model", "test-model:0"),
-        ontology=kwargs.pop("ontology", "icd10"),
-        use_reranker=kwargs.pop("use_reranker", True),
-        extractor_type=kwargs.pop("extractor_type", "llm"),
-        **kwargs,
+    monkeypatch.setattr(
+        grounder_module.RAGGrounderConfig,
+        "default",
+        classmethod(lambda cls: _config_with_overrides(**kwargs)),
     )
+
+    grounder = grounder_module.RagGrounder()
     return grounder, calls
 
 
-def test_rag_grounder_applies_provider_before_creating_llm_client(monkeypatch):
+def test_rag_grounder_creates_llm_client_from_config(monkeypatch):
     captured = {}
 
     def fake_create_llm_client(*, provider, model):
@@ -99,23 +121,32 @@ def test_rag_grounder_applies_provider_before_creating_llm_client(monkeypatch):
         lambda self: None,  # Return None because use_reranker=False
     )
 
-    grounder = grounder_module.RagGrounder(
-        provider="ollama",
-        model="new-test-model",
-        ontology="icd11",
-        use_reranker=False,
-        extractor_type="llm",
-    )
-
-    assert captured == {
+    new_config = {
         "provider": "ollama",
         "model": "new-test-model",
+        "ontology": "icd11",
+        "use_reranker": False,
+        "extractor_type": "llm",
     }
-    assert grounder.config.llm.provider == "ollama"
-    assert grounder.config.llm.model == "new-test-model"
-    assert grounder.config.retriever.ontology == "icd11"
-    assert grounder.config.reranker.enabled is False
-    assert grounder.config.extractor.type == "llm"
+    monkeypatch.setattr(
+        grounder_module.RAGGrounderConfig,
+        "default",
+        classmethod(
+            lambda cls: _config_with_overrides(**new_config)
+        ),
+    )
+
+    grounder = grounder_module.RagGrounder()
+
+    assert captured == {
+        "provider": new_config["provider"],
+        "model": new_config["model"],
+    }
+    assert grounder.config.llm.provider == new_config["provider"]
+    assert grounder.config.llm.model == new_config["model"]
+    assert grounder.config.retriever.ontology == new_config["ontology"]
+    assert grounder.config.reranker.enabled is new_config["use_reranker"]
+    assert grounder.config.extractor.type == new_config["extractor_type"]
 
 
 def test_update_config_noop_does_not_rebuild_components(monkeypatch):
@@ -166,9 +197,11 @@ def test_update_config_provider_rebuilds_llm_dependents_only(monkeypatch):
         "retriever": 1,
         "reranker": 2,
     }
-    assert initial_llm.provider != grounder.config.llm.provider
-    assert initial_llm.model == grounder.config.llm.model
+    assert grounder.config.llm.provider != initial_llm.provider
+    assert grounder.config.llm.model == initial_llm.model
+    assert grounder.llm_client is not initial_llm
     assert grounder.llm_client.provider == new_provider
+    assert grounder.llm_client.model == initial_model
     assert grounder.retriever is initial_retriever
 
 
@@ -192,8 +225,8 @@ def test_update_config_model_rebuilds_llm_dependents_only(monkeypatch):
         "reranker": 2,
     }
     assert grounder.llm_client is not initial_llm
-    assert initial_llm.provider == grounder.config.llm.provider
-    assert initial_llm.model != grounder.config.llm.model
+    assert grounder.config.llm.provider == initial_llm.provider
+    assert grounder.config.llm.model != initial_llm.model
     assert grounder.llm_client.model == new_model
     assert grounder.retriever is initial_retriever
 
