@@ -20,9 +20,14 @@ SIMILARITY_FUNCTION = "cosine"
 
 # Node labels that carry embeddings, mapped to the properties holding them.
 # Keep in sync with the embedding columns written during KG export.
+#
+# `snomedct` is optional (licensed data); when its nodes were not imported the
+# label has no embeddings and _embedding_dim returns None, so the index is
+# skipped and the rest behave as usual.
 EMBEDDED_LABELS = {
     "icd10": ["embedding"],
     "icd11": ["embedding"],
+    "snomedct": ["embedding"],
 }
 
 

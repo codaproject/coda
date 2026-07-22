@@ -45,6 +45,9 @@ RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', de
 # Pre-download the Hunflair2 NER and SaT sentence-splitter models used by the RAG grounder
 RUN python -c "from flair.nn import Classifier; from wtpsplit_lite import SaT; Classifier.load('hunflair2'); SaT('sat-3l-sm')"
 
+# Pre-download the SapBERT model used for biomedical term embedding / event grounding
+RUN python -c "from transformers import AutoModel, AutoTokenizer; from coda.embeddings.sapbert import MODEL_NAME; AutoTokenizer.from_pretrained(MODEL_NAME); AutoModel.from_pretrained(MODEL_NAME)"
+
 # Expose the web server port
 EXPOSE 8000
 

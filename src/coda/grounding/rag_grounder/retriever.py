@@ -13,6 +13,12 @@ from .types import RetrievalTerm
 
 logger = logging.getLogger(__name__)
 
+# Ontologies whose Neo4j vector index is NOT in this retriever's embedding
+# space and therefore cannot be queried here. SNOMED CT nodes are embedded with
+# SapBERT (see coda.kg.sources.snomedct_embeddings), while this retriever encodes
+# queries with a sentence-transformers model; the two spaces are incompatible.
+_UNSUPPORTED_ONTOLOGIES = {"snomedct"}
+
 
 class Retriever:
     """
@@ -26,6 +32,12 @@ class Retriever:
         top_k: int,
         min_similarity: float
     ):
+        if ontology in _UNSUPPORTED_ONTOLOGIES:
+            raise ValueError(
+                f"Ontology '{ontology}' is not served by this retriever: its "
+                "vector index is in SapBERT space, not the sentence-transformers "
+                "space used to encode queries here."
+            )
         self.driver = GraphDatabase.driver(get_kg_url(), auth=None)
         self.ontology = ontology
         self.model_name = model_name

@@ -72,6 +72,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["coda*"]
 
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
