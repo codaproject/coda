@@ -34,7 +34,10 @@ dependencies = [
     "openai-whisper>=20231117",
     "faster-whisper>=1.0.0",
     "whisperlivekit>=0.2,<0.3",
-    "numpy>=1.24.0",
+    # <2.5 so a modern numba (transitive dep of openai-whisper/librosa) can be
+    # selected; numba caps numpy<2.5, and older numba pins llvmlite 0.36 which
+    # fails to build on Python 3.11+.
+    "numpy>=1.24.0,<2.5",
     "scipy>=1.11.0",
     "httpx>=0.25.0",
     "openai>=1.0.0",
