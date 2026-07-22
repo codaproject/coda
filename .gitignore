@@ -224,3 +224,6 @@ data/
 
 # Temporary spec/job queue folders (never commit)
 /job-queue
+
+# UV lock file
+uv.lock
