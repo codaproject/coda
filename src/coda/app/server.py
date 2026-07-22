@@ -37,23 +37,12 @@ from coda.inference.streaming import (
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
-from coda.runtime_config import (
-    get_grounder_type,
-    get_inference_llm_model,
-    get_inference_llm_provider,
-    get_inference_url,
-    get_rag_extractor_type,
-    get_rag_llm_model,
-    get_rag_llm_provider,
-    get_rag_ontology,
-    get_rag_use_reranker,
-    get_transcriber_backend,
-)
+from coda.config import settings, inference_url
 
 app = FastAPI()
 
 # HTTP client for inference agent
-INFERENCE_URL = get_inference_url()
+INFERENCE_URL = inference_url()
 inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
 
 # Queue management for backpressure
@@ -75,7 +64,7 @@ current_language = "en"
 save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
-current_transcriber_backend = get_transcriber_backend()
+current_transcriber_backend = settings.dialogue.transcriber_backend
 
 
 def _default_model_for(backend: str):
@@ -88,16 +77,16 @@ def _default_model_for(backend: str):
 
 
 current_transcriber_model = _default_model_for(current_transcriber_backend)
-current_llm_provider = get_inference_llm_provider()
-current_llm_model = get_inference_llm_model()
-current_grounder = get_grounder_type()
+current_llm_provider = settings.inference.llm.provider
+current_llm_model = settings.inference.llm.model
+current_grounder = settings.grounder.type
 # RAG grounder settings, applied to the grounder via RagGrounder.update_config
 rag_config = {
-    "provider": get_rag_llm_provider(),
-    "model": get_rag_llm_model(),
-    "ontology": get_rag_ontology(),
-    "use_reranker": get_rag_use_reranker(),
-    "extractor_type": get_rag_extractor_type(),
+    "provider": settings.grounder.rag.llm.provider,
+    "model": settings.grounder.rag.llm.model,
+    "ontology": settings.grounder.rag.retriever.ontology,
+    "use_reranker": settings.grounder.rag.reranker.enabled,
+    "extractor_type": settings.grounder.rag.extractor.type,
 }
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM

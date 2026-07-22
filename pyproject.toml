@@ -48,6 +48,7 @@ dependencies = [
     "pyyaml",
     "flair>=0.15.1",
     "wtpsplit-lite",
+    "dynaconf>=3.3.3",
 ]
 
 [project.optional-dependencies]

@@ -3,11 +3,10 @@ LLM-based re-ranking of retrieved terms.
 """
 import json
 import logging
-from typing import List
+from typing import Any, List, Mapping
 
 from coda.llm_api import LLMClient
 
-from .config import PromptConfig
 from .types import RetrievalTerm
 
 logger = logging.getLogger(__name__)
@@ -17,11 +16,11 @@ class Reranker:
     """Re-rank retrieved terms using LLM reasoning."""
 
     def __init__(
-        self, llm_client: LLMClient, 
-        prompt_config_path: str
+        self, llm_client: LLMClient,
+        prompt_config: Mapping[str, Any]
     ):
         self.llm_client = llm_client
-        self.config = PromptConfig.from_yaml(prompt_config_path)
+        self.config = prompt_config
 
     def rerank(
         self,
@@ -42,7 +41,7 @@ class Reranker:
             if evidences
             else "  (No specific evidence provided)"
         )
-        user_prompt = self.config.user_prompt.format(
+        user_prompt = self.config["user_prompt"].format(
             concept=concept,
             evidence_text=evidence_text,
             retrieved_terms=retrieved_terms_formatted,
@@ -50,14 +49,14 @@ class Reranker:
 
         logger.debug(
             "--- Reranker Input ---\n[System Prompt]\n%s\n\n[User Prompt]\n%s",
-            self.config.system_prompt, user_prompt,
+            self.config["system_prompt"], user_prompt,
         )
 
         try:
             response_json = self.llm_client.call_with_schema(
-                system_prompt=self.config.system_prompt,
+                system_prompt=self.config["system_prompt"],
                 user_prompt=user_prompt,
-                schema=self.config.schema,
+                schema=self.config["schema"],
                 schema_name="reranking",
                 max_retries=3,
                 retry_delay=1.0,

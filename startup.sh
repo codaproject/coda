@@ -53,24 +53,24 @@ health_host_for() {
 if [ -f ".env" ]; then
     # Load defaults from .env without overriding variables already set in the
     # caller's shell. This preserves explicit one-off overrides like
-    # `APP_PORT=8100 INFERENCE_PORT=6123 ./startup.sh`.
+    # `CODA_APP__PORT=8100 CODA_INFERENCE__PORT=6123 ./startup.sh`.
     load_env_file ".env"
 fi
 
 export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}$SCRIPT_DIR/src"
-export APP_HOST="${APP_HOST:-0.0.0.0}"
-export APP_PORT="${APP_PORT:-8000}"
-export INFERENCE_HOST="${INFERENCE_HOST:-0.0.0.0}"
-export INFERENCE_PORT="${INFERENCE_PORT:-5123}"
-export INFERENCE_URL="${INFERENCE_URL:-${CODA_INFERENCE_URL:-http://127.0.0.1:${INFERENCE_PORT}}}"
+export CODA_APP__HOST="${CODA_APP__HOST:-0.0.0.0}"
+export CODA_APP__PORT="${CODA_APP__PORT:-8000}"
+export CODA_INFERENCE__HOST="${CODA_INFERENCE__HOST:-0.0.0.0}"
+export CODA_INFERENCE__PORT="${CODA_INFERENCE__PORT:-5123}"
+export CODA_INFERENCE__URL="${CODA_INFERENCE__URL:-http://127.0.0.1:${CODA_INFERENCE__PORT}}"
 
-APP_HEALTH_HOST="$(health_host_for "$APP_HOST")"
-INFERENCE_HEALTH_HOST="$(health_host_for "$INFERENCE_HOST")"
+APP_HEALTH_HOST="$(health_host_for "$CODA_APP__HOST")"
+INFERENCE_HEALTH_HOST="$(health_host_for "$CODA_INFERENCE__HOST")"
 
 python -m coda.inference.agent &
 
 echo "Waiting for inference agent..."
-until curl -sf "http://${INFERENCE_HEALTH_HOST}:${INFERENCE_PORT}/health" > /dev/null 2>&1; do
+until curl -sf "http://${INFERENCE_HEALTH_HOST}:${CODA_INFERENCE__PORT}/health" > /dev/null 2>&1; do
     sleep 1
 done
 echo "Inference agent ready."
@@ -78,9 +78,9 @@ echo "Inference agent ready."
 python -m coda.app &
 
 echo "Waiting for web application..."
-until curl -sf "http://${APP_HEALTH_HOST}:${APP_PORT}/health" > /dev/null 2>&1; do
+until curl -sf "http://${APP_HEALTH_HOST}:${CODA_APP__PORT}/health" > /dev/null 2>&1; do
     sleep 1
 done
-echo "CODA is running at http://localhost:${APP_PORT}"
+echo "CODA is running at http://localhost:${CODA_APP__PORT}"
 
 wait

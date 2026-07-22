@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import logging
-import os
 import time
 import uuid
 from typing import AsyncIterator
@@ -64,11 +63,13 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
 
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
         from whisperlivekit import TranscriptionEngine
+        from coda.config import settings
+        wlk = settings.dialogue.whisper_livekit
         self._engine = TranscriptionEngine(
             model_size=model_size,
-            lan=os.environ.get("CODA_WLK_LANGUAGE", "en"),
-            backend=os.environ.get("CODA_WLK_BACKEND", "faster-whisper"),
-            backend_policy=os.environ.get("CODA_WLK_POLICY", "localagreement"),
+            lan=wlk.language,
+            backend=wlk.backend,
+            backend_policy=wlk.policy,
             pcm_input=True,
         )
 

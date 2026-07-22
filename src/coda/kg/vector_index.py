@@ -41,7 +41,7 @@ def _embedding_dim(session, label, prop):
 
 def ensure_vector_indexes(neo4j_url=None):
     """Ensure a vector index exists for every label/property in EMBEDDED_LABELS."""
-    neo4j_url = neo4j_url or os.getenv("CODA_KG_URL", "bolt://localhost:7687")
+    neo4j_url = neo4j_url or os.getenv("CODA_KG__URL", "bolt://localhost:7687")
     driver = GraphDatabase.driver(neo4j_url, auth=None)
     try:
         with driver.session() as session:

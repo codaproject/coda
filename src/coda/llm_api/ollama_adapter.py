@@ -16,7 +16,7 @@ except ImportError:
     Client = None
 
 from .client import LLMClient
-from coda.runtime_config import get_ollama_base_url
+from coda.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class OllamaAdapter(LLMClient):
                 "Install it with: pip install 'coda[ollama]' or pip install ollama"
             )
 
-        self.base_url = base_url or get_ollama_base_url()
+        self.base_url = base_url or settings.llm.ollama.base_url
         self.model = model
         self.timeout = timeout
         self.provider = "ollama"

@@ -137,6 +137,10 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+
+# Dynaconf secrets (CODA config)
+config/.secrets.yaml
+.secrets.yaml
 .venv
 env/
 venv/

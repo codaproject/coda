@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 import torch
 from faster_whisper import WhisperModel
@@ -54,26 +53,28 @@ class FasterWhisperTranscriber(ChunkedTranscriber):
 
     @staticmethod
     def _resolve_device() -> str:
-        """Determine the device, honoring the CODA_DEVICE env var.
+        """Determine the device from ``dialogue.device`` config.
 
         Defaults to CPU. If "cuda" is requested but no CUDA device is
         available, fall back to CPU.
         """
-        requested = os.environ.get("CODA_DEVICE", "cpu").lower()
+        from coda.config import settings
+        requested = (settings.dialogue.device or "cpu").lower()
         if requested == "cuda" and not torch.cuda.is_available():
             logger.warning(
-                "CODA_DEVICE=cuda requested but no CUDA device is available; "
+                "dialogue.device=cuda requested but no CUDA device is available; "
                 "falling back to CPU"
             )
             return "cpu"
         return requested
 
     def _resolve_compute_type(self) -> str:
-        """Pick a compute type, honoring CODA_FASTER_WHISPER_COMPUTE_TYPE.
+        """Pick a compute type, honoring ``dialogue.faster_whisper_compute_type``.
 
         Defaults to int8 on CPU and float16 on CUDA.
         """
-        override = os.environ.get("CODA_FASTER_WHISPER_COMPUTE_TYPE", "").strip()
+        from coda.config import settings
+        override = (settings.dialogue.faster_whisper_compute_type or "").strip()
         if override:
             return override
         return "float16" if self.device == "cuda" else "int8"

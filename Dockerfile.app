@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy package files
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
+COPY config/ ./config/
 
 # Install the package. For the CPU device, pre-install the CPU-only torch wheel
 # first so the package install reuses it instead of pulling the multi-GB CUDA
@@ -33,11 +34,11 @@ RUN python -m gilda.resources && \
     python -m coda.grounding.build_grounding_db /app/grounding_terms.db && \
     rm -f /root/.data/gilda/*/grounding_terms.tsv.gz
 
-ENV GILDA_SQLITE_DB=/app/grounding_terms.db
+ENV CODA_GROUNDER__GILDA__SQLITE_DB=/app/grounding_terms.db
 
 # Device used by the app at runtime; matches the torch build above. Overridable,
 # and the app falls back to CPU if CUDA is requested but unavailable.
-ENV CODA_DEVICE=${COMPUTE_DEVICE}
+ENV CODA_DIALOGUE__DEVICE=${COMPUTE_DEVICE}
 
 # Pre-download the faster-whisper model (matches the default backend/size)
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu')"

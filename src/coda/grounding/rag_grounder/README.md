@@ -7,8 +7,7 @@ A grounding module that extracts concepts from clinical text and maps them to on
 ```python
 from coda.grounding.rag_grounder import RagGrounder
 
-grounder = RagGrounder()                          # uses default config
-grounder = RagGrounder(config_path="my_config.yaml")  # custom config
+grounder = RagGrounder()   # reads config from the global settings (grounder.rag)
 
 # Returns the top ScoredMatch per extracted concept
 matches = grounder.ground(text)
@@ -23,28 +22,35 @@ result = grounder.process(text)
 
 ## Configuration
 
-Configuration is a YAML file with four sections. See `grounder_config/icd10_config.yaml` for a full example.
+The grounder reads the `grounder.rag` namespace of the global config
+(`config/settings.yaml`, loaded via `coda.config`). See that file for the full
+set of options and their documented alternatives.
 
 ```yaml
-concept_type: disease
-
-llm:
-  model: gpt-4o-mini
-
-extractor:
-  prompt_config_path: "../prompt_configs/extractor_default.yaml"
-
-retriever:
-  ontology: icd10          # ontology loaded into neo4j
-  embedding_model: all-MiniLM-L6-v2
-  top_k: 10
-  min_similarity: 0.0
-
-reranker:
-  prompt_config_path: "prompt_configs/reranker_default.yaml"
+grounder:
+  rag:
+    concept_type: disease
+    llm:
+      provider: openai
+      model: gpt-4o-mini
+    extractor:
+      type: hunflair               # LLM | hunflair
+      prompt: extractor_default    # key into config/prompts/
+    retriever:
+      ontology: icd10              # ontology loaded into neo4j
+      embedding_model: all-MiniLM-L6-v2
+      top_k: 10
+      min_similarity: 0.0
+    reranker:
+      enabled: true
+      prompt: reranker_default     # key into config/prompts/
 ```
 
-Paths in `prompt_config_path` are resolved relative to the config file's location.
+Prompt configs are referenced by key (a filename stem under `config/prompts/`),
+not by path. Override any value by editing `config/settings.yaml` or with a
+`CODA_`-prefixed env var (e.g. `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY=icd11`).
+For ICD-11 grounding, set `retriever.ontology: icd11` and `extractor.type: LLM`
+(the settings file's comments point this out).
 
 ## Module structure
 
@@ -54,11 +60,11 @@ Paths in `prompt_config_path` are resolved relative to the config file's locatio
 | `extractor.py` | LLM-based concept and evidence extraction |
 | `retriever.py` | Neo4j vector search retrieval |
 | `reranker.py` | LLM-based re-ranking of retrieved terms |
-| `config.py` | Dataclasses for config and `PromptConfig` |
 | `types.py` | `RetrievalTerm` dataclass |
 | `utils.py` | Evidence span finding |
-| `grounder_config/` | Built-in grounder configs (`icd10_config.yaml`, `icd11_config.yaml`) |
-| `prompt_configs/` | YAML prompt configs for extractor and reranker |
+
+Configuration and prompts live in the repo-root `config/` directory
+(`config/settings.yaml` and `config/prompts/`), loaded by `coda.config`.
 
 ## Requirements
 

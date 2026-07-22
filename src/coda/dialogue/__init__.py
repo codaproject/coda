@@ -14,15 +14,15 @@ import gilda
 import numpy as np
 from scipy.io import wavfile
 
-from coda.runtime_config import get_transcriber_backend
+from coda.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Default chunk length (seconds) used by the live app's audio pipeline.
 DEFAULT_CHUNK_DURATION = 3
 
-# Selectable transcription backends, set via the TRANSCRIBER_BACKEND env var
-# (see coda.runtime_config). whisper/faster-whisper/speechmatics are chunked;
+# Selectable transcription backends, chosen via dialogue.transcriber_backend
+# (see coda.config). whisper/faster-whisper/speechmatics are chunked;
 # whisper-livekit is in-process streaming.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
                         "whisper-livekit")
@@ -55,9 +55,9 @@ def _load_backend_class(backend: str):
 def create_transcriber(backend: str = None, model: str = None):
     """Build a Transcriber for the named backend, optionally with a model.
 
-    Defaults to the TRANSCRIBER_BACKEND env var.
+    Defaults to the dialogue.transcriber_backend config value.
     """
-    backend = (backend or get_transcriber_backend()).lower()
+    backend = (backend or settings.dialogue.transcriber_backend).lower()
     return _load_backend_class(backend).create(model=model)
 
 

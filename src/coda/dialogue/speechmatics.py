@@ -5,7 +5,7 @@ import os
 import numpy as np
 import websockets
 
-from coda.runtime_config import get_speechmatics_model, get_speechmatics_url
+from coda.config import settings
 
 from . import ChunkedTranscriber
 from .util import normalize_language
@@ -21,7 +21,7 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
     """
     # Speechmatics selects an "operating point" rather than a Whisper size.
     MODELS = ("enhanced", "standard")
-    DEFAULT_MODEL = get_speechmatics_model()
+    DEFAULT_MODEL = settings.dialogue.speechmatics.model
 
     @classmethod
     def create(cls, model=None):
@@ -34,12 +34,15 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
             raise ValueError(
                 "No Speechmatics API key; set SPEECHMATICS_API_KEY or pass api_key"
             )
-        self.url = url or get_speechmatics_url()
-        self.model = model or get_speechmatics_model()
+        self.url = url or settings.dialogue.speechmatics.url
+        self.model = model or settings.dialogue.speechmatics.model
 
     @staticmethod
     def _resolve_api_key() -> str:
-        """Read the key from SPEECHMATICS_API_KEY or a speechmatics_api_key file."""
+        """Resolve the key from SPEECHMATICS_API_KEY, a key file, or config secrets.
+
+        SPEECHMATICS_API_KEY keeps its conventional (non-CODA-prefixed) name.
+        """
         key = os.environ.get("SPEECHMATICS_API_KEY")
         if key:
             return key.strip()
@@ -47,7 +50,7 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
         if os.path.exists(path):
             with open(path) as fh:
                 return fh.read().strip()
-        return ""
+        return (settings.dialogue.speechmatics.get("api_key") or "").strip()
 
     async def transcribe_audio(self, audio_data: np.ndarray,
                                sample_rate: int = 16000,
