@@ -224,4 +224,9 @@ data/
 temporal_ordering/event_grounding/snomed_data/
 
 .vscode/
+
+# Claude Code local files
 .claude/
+
+# Temporary spec/job queue folders (never commit)
+/job-queue

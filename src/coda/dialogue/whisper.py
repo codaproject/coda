@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 class WhisperTranscriber(ChunkedTranscriber):
     """Transcriber implementation using OpenAI's Whisper model."""
+    MODELS = ("tiny", "base", "small", "medium",
+              "large", "large-v2", "large-v3")
+    DEFAULT_MODEL = DEFAULT_MODEL_SIZE
+
+    @classmethod
+    def create(cls, model=None):
+        return cls(model_size=model or cls.DEFAULT_MODEL)
+
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE,
                  no_speech_threshold: float = None):
         self.no_speech_threshold = (

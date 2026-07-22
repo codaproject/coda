@@ -344,7 +344,7 @@ def main():
         }
     else:
         transcriber = create_transcriber(
-            args.transcriber, whisper_model=args.whisper_model
+            args.transcriber, model=args.whisper_model
         )
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)

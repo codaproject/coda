@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -26,6 +26,7 @@ from coda.dialogue import (
     StreamingTranscriber,
     TRANSCRIBER_BACKENDS,
     create_transcriber,
+    get_transcriber_models,
 )
 from coda.dialogue.util import SPEECHMATICS_LANGUAGES
 from coda.inference.streaming import (
@@ -75,7 +76,18 @@ save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
 current_transcriber_backend = get_transcriber_backend()
-current_whisper_model = "small"
+
+
+def _default_model_for(backend: str):
+    """The backend's default model, or None if the backend can't be loaded."""
+    try:
+        return get_transcriber_models(backend)["default_model"]
+    except Exception as e:
+        logger.warning("Transcriber backend %r unavailable: %s", backend, e)
+        return None
+
+
+current_transcriber_model = _default_model_for(current_transcriber_backend)
 current_llm_provider = get_inference_llm_provider()
 current_llm_model = get_inference_llm_model()
 current_grounder = get_grounder_type()
@@ -97,7 +109,7 @@ class SettingsRequest(BaseModel):
     language: Optional[str] = None
     save_enabled: Optional[bool] = None
     transcriber_backend: Optional[str] = None
-    whisper_model: Optional[str] = None
+    transcriber_model: Optional[str] = None
     grounder: Optional[str] = None
     rag_provider: Optional[str] = None
     rag_model: Optional[str] = None
@@ -122,7 +134,7 @@ def create_grounder(grounder_name: str):
 
 grounder = create_grounder(current_grounder)
 transcriber = create_transcriber(
-    current_transcriber_backend, whisper_model=current_whisper_model
+    current_transcriber_backend, model=current_transcriber_model
 )
 
 
@@ -312,7 +324,7 @@ async def get_settings():
         "save_enabled": save_enabled,
         "file_paths": file_paths,
         "transcriber_backend": current_transcriber_backend,
-        "whisper_model": current_whisper_model,
+        "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
         "rag_model": rag_config["model"],
@@ -324,15 +336,41 @@ async def get_settings():
     }
 
 
+@app.get("/transcriber_backends")
+async def get_transcriber_backends():
+    """List selectable transcription backends for the settings UI."""
+    return {"backends": list(TRANSCRIBER_BACKENDS)}
+
+
+@app.get("/transcriber_backends/{backend}")
+async def get_transcriber_backend_models(backend: str):
+    """Return one backend's selectable models, loaded on demand.
+
+    The backend is imported only here; if its dependencies aren't installed the
+    response reports it as unavailable so the UI can warn instead of failing.
+    """
+    if backend not in TRANSCRIBER_BACKENDS:
+        raise HTTPException(status_code=404,
+                            detail=f"Unknown backend {backend!r}")
+    try:
+        info = await asyncio.to_thread(get_transcriber_models, backend)
+    except Exception as e:
+        logger.warning("Transcriber backend %r unavailable: %s", backend, e)
+        return {"backend": backend, "available": False, "error": str(e)}
+    return {"backend": backend, "available": True, **info}
+
+
 @app.post("/settings")
 async def update_settings(req: SettingsRequest):
     """Update server settings."""
     global current_language, save_enabled, transcriber, grounder
-    global current_whisper_model, current_llm_provider, current_llm_model
+    global current_transcriber_model, current_llm_provider, current_llm_model
     global translation_mode
     global current_grounder, current_transcriber_backend
     grounder_changed = False
     transcriber_changed = False
+    prev_backend = current_transcriber_backend
+    prev_model = current_transcriber_model
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -376,24 +414,35 @@ async def update_settings(req: SettingsRequest):
         if backend != current_transcriber_backend:
             current_transcriber_backend = backend
             transcriber_changed = True
+            if req.transcriber_model is None:
+                current_transcriber_model = await asyncio.to_thread(
+                    _default_model_for, backend)
             logger.info(f"Transcriber backend set to: {current_transcriber_backend}")
-    if req.whisper_model is not None and req.whisper_model != current_whisper_model:
-        current_whisper_model = req.whisper_model
-        if current_transcriber_backend == "whisper":
-            transcriber_changed = True
-        logger.info(f"Whisper model set to: {current_whisper_model}")
+    if (req.transcriber_model is not None
+            and req.transcriber_model != current_transcriber_model):
+        current_transcriber_model = req.transcriber_model
+        transcriber_changed = True
+        logger.info(f"Transcriber model set to: {current_transcriber_model}")
     # Transcriber and grounder are independent; rebuild each only if it changed.
     if grounder_changed:
         grounder = await asyncio.to_thread(create_grounder, current_grounder)
         logger.info("Grounder reloaded: %s", current_grounder)
     if transcriber_changed:
-        transcriber = await asyncio.to_thread(
-            create_transcriber, current_transcriber_backend,
-            current_whisper_model
-        )
+        try:
+            transcriber = await asyncio.to_thread(
+                create_transcriber, current_transcriber_backend,
+                current_transcriber_model
+            )
+        except Exception as e:
+            current_transcriber_backend = prev_backend
+            current_transcriber_model = prev_model
+            logger.error("Failed to load transcriber: %s", e)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not load transcriber: {e}") from e
         logger.info(
             "Transcriber reloaded: backend=%s model=%s",
-            current_transcriber_backend, current_whisper_model
+            current_transcriber_backend, current_transcriber_model
         )
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider
@@ -410,7 +459,7 @@ async def update_settings(req: SettingsRequest):
         "save_enabled": save_enabled,
         "file_paths": file_paths,
         "transcriber_backend": current_transcriber_backend,
-        "whisper_model": current_whisper_model,
+        "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
         "rag_model": rag_config["model"],
@@ -470,6 +519,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
     each committed event, translate, ground, save, and display it. Inference
     runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
     """
+
     async def audio_iter():
         while True:
             data = await queue.get()
@@ -647,7 +697,7 @@ async def get_index():
     return HTMLResponse(content=html_content)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
