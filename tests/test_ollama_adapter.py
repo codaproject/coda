@@ -30,7 +30,9 @@ def test_ollama_adapter_uses_configured_base_url(monkeypatch):
     assert captured["chat"]["model"] == "llama3.2"
 
 
-def test_ollama_adapter_uses_base_url_from_env(monkeypatch):
+def test_ollama_adapter_uses_base_url_from_config(monkeypatch):
+    from coda.config import settings
+
     captured = {}
 
     class DummyClient:
@@ -39,10 +41,13 @@ def test_ollama_adapter_uses_base_url_from_env(monkeypatch):
 
     monkeypatch.setattr(ollama_adapter, "Client", DummyClient)
     monkeypatch.setenv(
-        "OLLAMA_BASE_URL",
+        "CODA_LLM__OLLAMA__BASE_URL",
         "http://host.docker.internal:11434",
     )
-
-    ollama_adapter.OllamaAdapter(model="llama3.2")
-
-    assert captured["host"] == "http://host.docker.internal:11434"
+    settings.reload()
+    try:
+        ollama_adapter.OllamaAdapter(model="llama3.2")
+        assert captured["host"] == "http://host.docker.internal:11434"
+    finally:
+        monkeypatch.undo()
+        settings.reload()

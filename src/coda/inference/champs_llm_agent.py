@@ -17,12 +17,7 @@ from gilda import Annotation
 from coda.inference.agent import InferenceAgent, InferenceServer
 from coda.llm_api.client import LLMClient
 from coda.resources import get_resource_path
-from coda.runtime_config import (
-    get_inference_host,
-    get_inference_llm_model,
-    get_inference_llm_provider,
-    get_inference_port,
-)
+from coda.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -229,12 +224,12 @@ def create_champs_agent(
 ) -> ChampsLLMInferenceAgent:
     """Create a ChampsLLMInferenceAgent with a new LLM client.
 
-    Defaults to the configured env-backed provider/model.
+    Defaults to the configured inference provider/model.
     """
     from coda.llm_api import create_llm_client
 
-    provider = provider or get_inference_llm_provider()
-    model = model or get_inference_llm_model()
+    provider = provider or settings.inference.llm.provider
+    model = model or settings.inference.llm.model
     client = create_llm_client(provider=provider, model=model, **kwargs)
     return ChampsLLMInferenceAgent(llm_client=client)
 
@@ -248,7 +243,7 @@ if __name__ == "__main__":
     agent = create_champs_agent()
     server = InferenceServer(
         agent,
-        host=get_inference_host(),
-        port=get_inference_port(),
+        host=settings.inference.host,
+        port=settings.inference.port,
     )
     server.run()

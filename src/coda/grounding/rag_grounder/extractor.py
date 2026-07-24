@@ -4,12 +4,9 @@ LLM-based concept extraction from text.
 from abc import ABC, abstractmethod
 import json
 import logging
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Mapping
 
 from coda.llm_api import LLMClient
-
-from .config import PromptConfig
 
 logger = logging.getLogger(__name__)
 
@@ -26,20 +23,20 @@ class LLMExtractor(Extractor):
     def __init__(
         self,
         concept_type: str,
-        prompt_config_path: str,
+        prompt_config: Mapping[str, Any],
         llm_client: LLMClient,
     ):
         self.llm_client = llm_client
         self.concept_type = concept_type
-        self.config = PromptConfig.from_yaml(prompt_config_path)
+        self.config = prompt_config
 
     def extract(self, text: str) -> Dict[str, Any]:
         if not text or not text.strip():
             return {"Concepts": []}
 
         concept_type_cap = self.concept_type.capitalize()
-        system_prompt = self.config.system_prompt.format(concept_type=concept_type_cap)
-        user_prompt = self.config.user_prompt.format(
+        system_prompt = self.config["system_prompt"].format(concept_type=concept_type_cap)
+        user_prompt = self.config["user_prompt"].format(
             concept_type=concept_type_cap,
             text=text,
         )
@@ -50,11 +47,11 @@ class LLMExtractor(Extractor):
         )
 
         try:
-            if self.config.use_schema:
+            if self.config["use_schema"]:
                 response_json = self.llm_client.call_with_schema(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    schema=self.config.schema,
+                    schema=self.config["schema"],
                     schema_name=f"{self.concept_type}_extraction",
                     max_retries=3,
                     retry_delay=1.0,
@@ -83,8 +80,8 @@ class LLMExtractor(Extractor):
                 logger.warning("Unexpected response: concepts is not a list")
                 return {"Concepts": []}
 
-            concept_field = self.config.concept_key
-            evidence_field = self.config.supporting_evidence_key
+            concept_field = self.config.get("concept_key")
+            evidence_field = self.config.get("supporting_evidence_key")
             concepts = []
             for c in concepts_raw:
                 if not isinstance(c, dict):
