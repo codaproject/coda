@@ -48,7 +48,7 @@ def create_llm_client(
         Explicit provider name ("openai", "ollama", etc.).
         If not provided, defaults to "openai".
     model : str, optional
-        Model name (e.g., "gpt-5.4-mini", "llama3.2").
+        Model name (e.g., "gpt-5.4-mini", "qwen3:8b").
     **kwargs
         Additional arguments passed to the adapter constructor
         (e.g., api_key, base_url, timeout).
@@ -71,7 +71,7 @@ def create_llm_client(
 
     # Explicit provider
     client = create_llm_client(provider="openai", model="gpt-5.4-mini", api_key="sk-...")
-    client = create_llm_client(provider="ollama", model="llama3.2")
+    client = create_llm_client(provider="ollama", model="qwen3:8b")
 
     # With additional parameters
     client = create_llm_client(

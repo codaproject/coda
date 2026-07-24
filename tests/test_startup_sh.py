@@ -171,7 +171,7 @@ def test_startup_script_passes_app_runtime_env_from_dotenv(tmp_path):
                 "OLLAMA_BASE_URL=http://ollama.internal:11434",
                 "CODA_KG_URL=bolt://neo4j.internal:7687",
                 "RAG_LLM_PROVIDER=ollama",
-                "RAG_LLM_MODEL=llama3.2",
+                "RAG_LLM_MODEL=test-model:0",
                 "RAG_ONTOLOGY=icd11",
                 "RAG_USE_RERANKER=false",
                 "CODA_DEVICE=cuda",
@@ -186,7 +186,7 @@ def test_startup_script_passes_app_runtime_env_from_dotenv(tmp_path):
         line == (
             "runtime|OLLAMA_BASE_URL=http://ollama.internal:11434|"
             "CODA_KG_URL=bolt://neo4j.internal:7687|RAG_PROVIDER=ollama|"
-            "RAG_MODEL=llama3.2|RAG_ONTOLOGY=icd11|RAG_RERANKER=false|"
+            "RAG_MODEL=test-model:0|RAG_ONTOLOGY=icd11|RAG_RERANKER=false|"
             "CODA_DEVICE=cuda"
         )
         for line in runtime_lines

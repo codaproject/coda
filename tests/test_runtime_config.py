@@ -2,7 +2,6 @@ import pytest
 
 from coda import runtime_config
 
-
 RUNTIME_ENV_VARS = (
     "APP_HOST",
     "APP_PORT",
@@ -18,6 +17,7 @@ RUNTIME_ENV_VARS = (
     "RAG_LLM_MODEL",
     "RAG_ONTOLOGY",
     "RAG_USE_RERANKER",
+    "RAG_EXTRACTOR_TYPE",
     "TRANSCRIBER_BACKEND",
     "SPEECHMATICS_URL",
     "SPEECHMATICS_MODEL",
@@ -53,6 +53,8 @@ def test_runtime_config_defaults(monkeypatch):
             == runtime_config.DEFAULT_RAG_ONTOLOGY)
     assert (runtime_config.get_rag_use_reranker()
             == runtime_config.DEFAULT_RAG_USE_RERANKER)
+    assert (runtime_config.get_rag_extractor_type()
+            == runtime_config.DEFAULT_RAG_EXTRACTOR_TYPE)
     assert (runtime_config.get_transcriber_backend()
             == runtime_config.DEFAULT_TRANSCRIBER_BACKEND)
     assert (runtime_config.get_speechmatics_url()
@@ -68,16 +70,17 @@ def test_runtime_config_env_overrides(monkeypatch):
     monkeypatch.setenv("INFERENCE_PORT", "6123")
     monkeypatch.setenv("INFERENCE_URL", "http://inference.internal:6123")
     monkeypatch.setenv("INFERENCE_LLM_PROVIDER", "ollama")
-    monkeypatch.setenv("INFERENCE_LLM_MODEL", "llama3.2")
+    monkeypatch.setenv("INFERENCE_LLM_MODEL", "test-model:0")
     monkeypatch.setenv(
         "OLLAMA_BASE_URL",
         "http://ollama.internal:11434",
     )
     monkeypatch.setenv("CODA_KG_URL", "bolt://kg.internal:7687")
     monkeypatch.setenv("RAG_LLM_PROVIDER", "ollama")
-    monkeypatch.setenv("RAG_LLM_MODEL", "llama3.2")
+    monkeypatch.setenv("RAG_LLM_MODEL", "test-model:0")
     monkeypatch.setenv("RAG_ONTOLOGY", "icd11")
     monkeypatch.setenv("RAG_USE_RERANKER", "false")
+    monkeypatch.setenv("RAG_EXTRACTOR_TYPE", "llm")
     monkeypatch.setenv("TRANSCRIBER_BACKEND", "speechmatics")
     monkeypatch.setenv("SPEECHMATICS_URL", "wss://eu.rt.speechmatics.com/v2/")
     monkeypatch.setenv("SPEECHMATICS_MODEL", "standard")
@@ -88,14 +91,15 @@ def test_runtime_config_env_overrides(monkeypatch):
     assert runtime_config.get_inference_port() == 6123
     assert runtime_config.get_inference_url() == "http://inference.internal:6123"
     assert runtime_config.get_inference_llm_provider() == "ollama"
-    assert runtime_config.get_inference_llm_model() == "llama3.2"
+    assert runtime_config.get_inference_llm_model() == "test-model:0"
     assert (runtime_config.get_ollama_base_url()
             == "http://ollama.internal:11434")
     assert runtime_config.get_kg_url() == "bolt://kg.internal:7687"
     assert runtime_config.get_rag_llm_provider() == "ollama"
-    assert runtime_config.get_rag_llm_model() == "llama3.2"
+    assert runtime_config.get_rag_llm_model() == "test-model:0"
     assert runtime_config.get_rag_ontology() == "icd11"
     assert runtime_config.get_rag_use_reranker() is False
+    assert runtime_config.get_rag_extractor_type() == "llm"
     assert runtime_config.get_transcriber_backend() == "speechmatics"
     assert (runtime_config.get_speechmatics_url()
             == "wss://eu.rt.speechmatics.com/v2/")

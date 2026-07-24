@@ -20,14 +20,14 @@ def test_ollama_adapter_uses_configured_base_url(monkeypatch):
 
     adapter = ollama_adapter.OllamaAdapter(
         base_url="http://ollama.internal:11434",
-        model="llama3.2",
+        model="test-model:0",
         timeout=42.0,
     )
 
     assert adapter.call("test prompt") == "response"
     assert captured["host"] == "http://ollama.internal:11434"
     assert captured["timeout"] == 42.0
-    assert captured["chat"]["model"] == "llama3.2"
+    assert captured["chat"]["model"] == "test-model:0"
 
 
 def test_ollama_adapter_uses_base_url_from_env(monkeypatch):
@@ -43,6 +43,6 @@ def test_ollama_adapter_uses_base_url_from_env(monkeypatch):
         "http://host.docker.internal:11434",
     )
 
-    ollama_adapter.OllamaAdapter(model="llama3.2")
+    ollama_adapter.OllamaAdapter(model="test-model:0")
 
     assert captured["host"] == "http://host.docker.internal:11434"

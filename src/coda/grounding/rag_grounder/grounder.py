@@ -31,9 +31,9 @@ class RagGrounder(BaseGrounder):
     """
 
     def __init__(
-        self,
-        config_path: str | Path | None = None,
-        llm_client: LLMClient | None = None,
+            self,
+            config_path: str | Path | None = None,
+            llm_client: LLMClient | None = None,
     ):
         super().__init__()
         # Initialize config from yaml if provided, else use default yaml file
@@ -84,12 +84,12 @@ class RagGrounder(BaseGrounder):
         )
 
     def update_config(
-        self,
-        provider: str | None = None,
-        model: str | None = None,
-        ontology: str | None = None,
-        use_reranker: bool | None = None,
-        extractor_type: str | None = None,
+            self,
+            provider: str | None = None,
+            model: str | None = None,
+            ontology: str | None = None,
+            use_reranker: bool | None = None,
+            extractor_type: str | None = None,
     ) -> None:
         # Record which components are affected by actual config changes
         rebuild_set = set()
@@ -239,7 +239,7 @@ class RagGrounder(BaseGrounder):
 
     def ground(self, text: str) -> list[ScoredMatch]:
         """ Coerces the result of `process` into GILDA-compatible results """
-        
+
         result = self.process(text)
         matches: list[ScoredMatch] = []
         for concept in result["Concepts"]:
