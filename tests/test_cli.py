@@ -16,12 +16,14 @@ from coda.inference.agent import CodaToyInferenceAgent
 
 class _StubGrounder:
     """Grounder that produces no annotations (avoids loading Gilda/KG)."""
+
     def annotate(self, text):
         return []
 
 
 class _StubAnnotation:
     """Minimal gilda-compatible annotation for write_outputs."""
+
     def to_json(self):
         return {"text": "fever"}
 

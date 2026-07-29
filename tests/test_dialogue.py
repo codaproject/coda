@@ -74,7 +74,7 @@ def test_faster_whisper_filter_drops_silent_segments_english():
         ],
     }
     assert transcriber._filter_segments(result, language="en") == \
-        "patient had a fever"
+           "patient had a fever"
 
 
 def test_faster_whisper_filter_uses_higher_threshold_non_english():

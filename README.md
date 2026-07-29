@@ -183,7 +183,7 @@ Ollama-backed inference:
 
 ```bash
 INFERENCE_LLM_PROVIDER=ollama
-INFERENCE_LLM_MODEL=llama3.2
+INFERENCE_LLM_MODEL=qwen3:8b
 ```
 
 Custom local LLM backend on a Mac: the `openai` provider can point at any
@@ -260,7 +260,7 @@ for either deployment path with `OLLAMA_BASE_URL`.
 Before starting CODA, confirm the configured model is available:
 
 ```bash
-ollama pull llama3.2
+ollama pull qwen3:8b
 ollama list
 ```
 
