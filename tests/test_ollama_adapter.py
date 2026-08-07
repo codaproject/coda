@@ -31,7 +31,7 @@ def test_ollama_adapter_uses_configured_base_url(monkeypatch):
 
 
 def test_ollama_adapter_uses_base_url_from_config(monkeypatch):
-    from coda.config import settings
+    from coda.config import reload_settings
 
     captured = {}
 
@@ -44,10 +44,10 @@ def test_ollama_adapter_uses_base_url_from_config(monkeypatch):
         "CODA_LLM__OLLAMA__BASE_URL",
         "http://host.docker.internal:11434",
     )
-    settings.reload()
+    reload_settings()
     try:
         ollama_adapter.OllamaAdapter(model="llama3.2")
         assert captured["host"] == "http://host.docker.internal:11434"
     finally:
         monkeypatch.undo()
-        settings.reload()
+        reload_settings()

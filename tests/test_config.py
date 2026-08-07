@@ -4,12 +4,14 @@ import os
 
 import pytest
 
-from coda.config import PROMPTS, inference_url, settings
+from coda.config import PROMPTS, inference_url, reload_settings, settings
 
 # CODA_-prefixed env vars that override config values.
 CODA_ENV_VARS = (
     "CODA_APP__HOST",
     "CODA_APP__PORT",
+    "CODA_APP__ONBOARDING_NOTICE__FILE",
+    "CODA_APP__ONBOARDING_NOTICE__VERSION",
     "CODA_INFERENCE__HOST",
     "CODA_INFERENCE__PORT",
     "CODA_INFERENCE__URL",
@@ -39,7 +41,7 @@ def isolate_settings():
     def clean_reload():
         for var in CODA_ENV_VARS:
             os.environ.pop(var, None)
-        settings.reload()
+        reload_settings()
 
     clean_reload()
     yield
@@ -49,6 +51,8 @@ def isolate_settings():
 def test_defaults():
     assert settings.app.host == "0.0.0.0"
     assert settings.app.port == 8000
+    assert settings.app.onboarding_notice.file == ""
+    assert settings.app.onboarding_notice.version == "default"
     assert settings.inference.host == "0.0.0.0"
     assert settings.inference.port == 5123
     assert settings.inference.llm.provider == "openai"
@@ -77,13 +81,23 @@ def test_types_are_coerced():
     assert isinstance(settings.grounder.rag.reranker.enabled, bool)
 
 
+def test_onboarding_notice_version_stays_a_string(monkeypatch):
+    # Dynaconf infers types from env-var text, so a date-shaped consent version
+    # would arrive as a datetime.date and break the JSON-encoded version that
+    # the onboarding page embeds.
+    monkeypatch.setenv("CODA_APP__ONBOARDING_NOTICE__VERSION", "2026-08-06")
+    reload_settings()
+    assert settings.app.onboarding_notice.version == "2026-08-06"
+    assert isinstance(settings.app.onboarding_notice.version, str)
+
+
 def test_inference_url_derived_from_host_port():
     assert inference_url() == "http://127.0.0.1:5123"
 
 
 def test_inference_url_explicit(monkeypatch):
     monkeypatch.setenv("CODA_INFERENCE__URL", "http://inference:5123")
-    settings.reload()
+    reload_settings()
     assert inference_url() == "http://inference:5123"
 
 
@@ -93,7 +107,10 @@ def test_env_var_overrides(monkeypatch):
     monkeypatch.setenv("CODA_INFERENCE__LLM__MODEL", "gpt-5.4")
     monkeypatch.setenv("CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY", "icd11")
     monkeypatch.setenv("CODA_GROUNDER__RAG__RERANKER__ENABLED", "false")
-    settings.reload()
+    monkeypatch.setenv(
+        "CODA_APP__ONBOARDING_NOTICE__FILE", "/srv/pages/demo_terms.html"
+    )
+    reload_settings()
 
     assert settings.app.port == 9000
     assert isinstance(settings.app.port, int)
@@ -101,6 +118,9 @@ def test_env_var_overrides(monkeypatch):
     assert settings.inference.llm.model == "gpt-5.4"
     assert settings.grounder.rag.retriever.ontology == "icd11"
     assert settings.grounder.rag.reranker.enabled is False
+    # A nested override must not clobber the sibling key in the same block.
+    assert settings.app.onboarding_notice.file == "/srv/pages/demo_terms.html"
+    assert settings.app.onboarding_notice.version == "default"
 
 
 def test_secrets_merge_without_clobbering_settings():

@@ -27,11 +27,11 @@ def client(inference_server):
 
 
 def test_inference_server_uses_config(monkeypatch, toy_agent):
-    from coda.config import settings
+    from coda.config import reload_settings
 
     monkeypatch.setenv("CODA_INFERENCE__HOST", "127.0.0.1")
     monkeypatch.setenv("CODA_INFERENCE__PORT", "6123")
-    settings.reload()
+    reload_settings()
     try:
         server = InferenceServer(toy_agent)
 
@@ -39,7 +39,7 @@ def test_inference_server_uses_config(monkeypatch, toy_agent):
         assert server.port == 6123
     finally:
         monkeypatch.undo()
-        settings.reload()
+        reload_settings()
 
 
 class TestInferenceAgent:

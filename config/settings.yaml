@@ -19,6 +19,15 @@
 app:
   host: 0.0.0.0
   port: 8000
+  onboarding_notice:
+    # Optional deployment-specific HTML fragment shown on the onboarding page
+    # before the consent checkbox. Empty -> no notice. The file is trusted
+    # admin-authored content and is inserted as markup, so it may carry its own
+    # styling; it must not contain user-generated input.
+    file: ""
+    # Consent version. Bump it to make browsers that already consented show
+    # the onboarding page again.
+    version: default
 
 inference:
   host: 0.0.0.0

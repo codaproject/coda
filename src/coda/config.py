@@ -59,8 +59,29 @@ settings = Dynaconf(
         Validator("grounder.rag.retriever.top_k", cast=int),
         Validator("grounder.rag.retriever.min_similarity", cast=float),
         Validator("grounder.rag.reranker.enabled", cast=bool),
+        # And the other direction: keep these text. Dynaconf infers types, so a
+        # date-shaped consent version (`2026-08-06`) would otherwise arrive as a
+        # `datetime.date` and break the JSON-encoded version the page embeds.
+        Validator(
+            "app.onboarding_notice.file",
+            "app.onboarding_notice.version",
+            cast=str,
+        ),
     ],
 )
+
+
+def reload_settings() -> None:
+    """Re-read the settings files and re-apply the validators.
+
+    ``settings.reload()`` on its own reloads the raw data but does **not** re-run
+    validation, so every ``cast=`` above is silently lost and values fall back to
+    whatever type Dynaconf infers from the env-var text. Use this instead of
+    ``settings.reload()`` whenever config is reloaded mid-process (which today is
+    only the tests) so the result matches what a fresh process would see.
+    """
+    settings.reload()
+    settings.validators.validate()
 
 
 def _load_prompts() -> dict:

@@ -165,6 +165,10 @@ The Compose path is env-driven. The main runtime variables are:
   instead (faster and more accurate for whole files); override with
   `--transcriber`.
 - `CODA_KG__URL` when Neo4j is outside the standard deployment topology
+- `CODA_APP__ONBOARDING_NOTICE__FILE` points at a deployment-specific HTML
+  fragment shown on the onboarding page before the consent checkbox (unset
+  means no notice); `CODA_APP__ONBOARDING_NOTICE__VERSION` is the consent
+  version, bumped to make browsers that already consented see it again
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`
 
 `CODA_INFERENCE__URL` is wired automatically for Compose and normally does not
@@ -178,9 +182,11 @@ build argument are documented in `.env.example` for GPU deployments.
 > `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY`, `RAG_USE_RERANKER` →
 > `CODA_GROUNDER__RAG__RERANKER__ENABLED`, `CODA_KG_URL` → `CODA_KG__URL`,
 > `TRANSCRIBER_BACKEND` → `CODA_DIALOGUE__TRANSCRIBER_BACKEND`,
-> `CODA_DEVICE` → `CODA_DIALOGUE__DEVICE`, and so on. `OPENAI_API_KEY` and
-> `SPEECHMATICS_API_KEY` are unchanged. The old names are no longer read;
-> update existing `.env` files accordingly.
+> `CODA_DEVICE` → `CODA_DIALOGUE__DEVICE`,
+> `CODA_ONBOARDING_NOTICE_FILE` → `CODA_APP__ONBOARDING_NOTICE__FILE`,
+> `CODA_ONBOARDING_NOTICE_VERSION` → `CODA_APP__ONBOARDING_NOTICE__VERSION`, and
+> so on. `OPENAI_API_KEY` and `SPEECHMATICS_API_KEY` are unchanged. The old
+> names are no longer read; update existing `.env` files accordingly.
 
 On Apple Silicon, the `whisper-livekit` backend can run on the GPU via Apple's
 MLX. Install `mlx-whisper` and set the backend to use it:

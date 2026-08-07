@@ -688,12 +688,12 @@ async def get_index():
     with open(os.path.join(templates_dir, "index.html"), "r") as fh:
         html_content = fh.read()
     notice_html = load_onboarding_notice_html(
-        get_onboarding_notice_file(),
+        settings.app.onboarding_notice.file,
     )
     html_content = render_onboarding_notice(
         html_content,
         notice_html=notice_html,
-        notice_version=get_onboarding_notice_version(),
+        notice_version=settings.app.onboarding_notice.version,
     )
     return HTMLResponse(content=html_content)
 
