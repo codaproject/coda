@@ -94,6 +94,8 @@ dialogue:
   # App/server speech-to-text backend.
   # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics
   transcriber_backend: whisper-livekit
+  # Native whisperlivekit-server URL for the whisper-livekit-remote backend
+  transcriber_url: ws://localhost:8765
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:

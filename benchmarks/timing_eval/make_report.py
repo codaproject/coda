@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
 HERE = Path(__file__).parent
@@ -23,20 +24,19 @@ TRUTH = json.loads((HERE / "real_cases" / "true_labels_group.json").read_text())
 CASES = sorted(TRUTH, key=int)
 
 SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e2"
-C_TOP1, C_TOP3 = "#2a78d6", "#eb6834"
-LINESTYLES = ["-", "--", "-.", ":"]
+COLORS = ["#0072b2", "#d55e00", "#009e73", "#cc79a7", "#56b4e9", "#e69f00", "#000000"]
 PHASES = [("phase1_va", "VA narrative only"),
           ("phase2_va_clinical", "VA + clinical")]
 
 
 def discover_models(root):
-    """Every model under the results root as [(name, dir, linestyle)], sorted by
-    name. A model is any subfolder that holds case* directories."""
+    """Every model under the results root as [(name, dir, color)], sorted by name.
+    A model is any subfolder that holds case* directories."""
     if not root.exists():
         return []
     dirs = sorted((d for d in root.iterdir() if d.is_dir() and any(d.glob("case*"))),
                   key=lambda d: d.name)
-    return [(d.name, d, LINESTYLES[i % len(LINESTYLES)]) for i, d in enumerate(dirs)]
+    return [(d.name, d, COLORS[i % len(COLORS)]) for i, d in enumerate(dirs)]
 
 
 MODELS = discover_models(RESULTS_ROOT)
@@ -114,12 +114,12 @@ def write_accuracy_png():
             ax.axvspan(min(vas), max(vas), color=MUTED, alpha=0.08, zorder=0)
             ax.text(np.median(vas), 1.02, "clinical onset (range across cases)",
                     color=MUTED, fontsize=8, ha="center")
-        for name, root, ls in MODELS:
+        for name, root, color in MODELS:
             if not root.exists():
                 continue
             top1, top3 = phase_curves(root, phase, grid)
-            ax.plot(grid, top3, color=C_TOP3, lw=2.2, ls=ls, label=f"{name} top-3")
-            ax.plot(grid, top1, color=C_TOP1, lw=2.2, ls=ls, label=f"{name} top-1")
+            ax.plot(grid, top1, color=color, lw=2.2, ls="-", label=f"{name} top-1")
+            ax.plot(grid, top3, color=color, lw=2.2, ls=":", label=f"{name} top-3")
         ax.set_ylim(0, 1.05)
         ax.set_xlim(0, grid[-1])
         ax.set_title(label, fontsize=12, color=INK)
@@ -128,11 +128,17 @@ def write_accuracy_png():
         for s in ax.spines.values():
             s.set_color(GRID)
         ax.grid(True, color=GRID, lw=0.6)
-        ax.legend(fontsize=9, loc="upper right", facecolor=SURFACE, edgecolor=GRID)
     axes[0].set_ylabel("accuracy (fraction of 20 cases)", fontsize=10, color=MUTED)
-    fig.tight_layout()
+    handles = [Line2D([0], [0], color=c, lw=2.2) for _, _, c in MODELS]
+    labels = [n for n, _, _ in MODELS]
+    handles += [Line2D([0], [0], color=INK, lw=2.2, ls="-"),
+                Line2D([0], [0], color=INK, lw=2.2, ls=":")]
+    labels += ["top-1", "top-3"]
+    fig.tight_layout(rect=(0, 0.09, 1, 1))
+    fig.legend(handles, labels, loc="lower center", ncol=min(len(handles), 6),
+               fontsize=9, frameon=True, facecolor=SURFACE, edgecolor=GRID)
     out = REPORT / "accuracy_over_time.png"
-    fig.savefig(out, dpi=130, facecolor=SURFACE)
+    fig.savefig(out, dpi=130, facecolor=SURFACE, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")
 
