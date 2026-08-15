@@ -62,7 +62,7 @@ def create_transcriber(backend: str = None, model: str = None, **kwargs):
     Defaults to the dialogue.transcriber_backend config value.
     """
     backend = (backend or settings.dialogue.transcriber_backend).lower()
-    return _load_backend_class(backend).create(model=model)
+    return _load_backend_class(backend).create(model=model, **kwargs)
 
 
 def get_transcriber_models(backend: str) -> dict:
