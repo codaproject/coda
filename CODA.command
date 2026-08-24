@@ -11,12 +11,21 @@
 #   - pipx install whisperlivekit && pipx inject whisperlivekit mlx-whisper
 set -euo pipefail
 
+cd "$(dirname "$0")"
+
+# Load .env so the defaults below respect the user's own configuration
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+
 WLK_PORT="${WLK_PORT:-8765}"
 WLK_BACKEND="${WLK_BACKEND:-mlx-whisper}"
 WLK_MODEL="${WLK_MODEL:-small}"
-APP_PORT="${APP_PORT:-8000}"
+APP_PORT="${CODA_APP__PORT:-8000}"
 
-cd "$(dirname "$0")"
+# Inference runs on native Ollama by default (offline-friendly). Override in .env.
+INFERENCE_PROVIDER="${CODA_INFERENCE__LLM__PROVIDER:-ollama}"
+INFERENCE_MODEL="${CODA_INFERENCE__LLM__MODEL:-qwen2.5:7b-instruct}"
+export CODA_INFERENCE__LLM__PROVIDER="$INFERENCE_PROVIDER"
+export CODA_INFERENCE__LLM__MODEL="$INFERENCE_MODEL"
 
 log() { printf "\n\033[1;36m==> %s\033[0m\n" "$1"; }
 die() {
@@ -43,6 +52,15 @@ fi
 curl -s http://localhost:11434/api/tags >/dev/null 2>&1 || \
     echo "Warning: Ollama is not reachable, inference may fail."
 
+# Make sure the local inference model is present (first run pulls it)
+if [ "$INFERENCE_PROVIDER" = "ollama" ] && command -v ollama >/dev/null 2>&1; then
+    if ! ollama show "$INFERENCE_MODEL" >/dev/null 2>&1; then
+        log "Pulling $INFERENCE_MODEL (first run, may take a while)..."
+        ollama pull "$INFERENCE_MODEL" || \
+            echo "Warning: could not pull $INFERENCE_MODEL, inference may fail."
+    fi
+fi
+
 # Native transcription sidecar on Apple GPU (MLX/Metal)
 command -v whisperlivekit-server >/dev/null 2>&1 || \
     die "whisperlivekit-server not found. Install with: pipx install whisperlivekit && pipx inject whisperlivekit mlx-whisper"
@@ -63,6 +81,7 @@ trap cleanup EXIT
 # Containerized app, using the native sidecar for transcription
 log "Starting CODA app..."
 export CODA_DIALOGUE__TRANSCRIBER_BACKEND=whisper-livekit-remote
+export CODA_DIALOGUE__TRANSCRIBER_URL="ws://host.docker.internal:${WLK_PORT}"
 docker compose up -d
 
 for _ in $(seq 1 60); do curl -s "http://localhost:$APP_PORT/health" >/dev/null 2>&1 && break; sleep 1; done
