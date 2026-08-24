@@ -1,0 +1,43 @@
+Anemias
+Cancer
+Congenital birth defects
+Congenital infection
+Diabetes
+Diarrheal Diseases
+HIV
+HIV exposure
+Heart Diseases
+Injury
+Kidney Disease
+Liver disease
+Lower respiratory infections
+Malaria
+Malnutrition
+Measles
+Meningitis/Encephalitis
+Neonatal encephalopathy
+Neonatal preterm birth complications
+Neonatal sepsis
+Other
+Other disorders of fluid, electrolyte and acid-base balance
+Other endocrine, metabolic, blood, and immune disorders
+Other gastrointestinal disease
+Other immunodeficiencies
+Other infections
+Other maternal factor
+Other neonatal disorders
+Other neurological disorders
+Other nutritional deficiencies
+Other nutritional disorders
+Other respiratory disease
+Other skin and subcutaneous diseases
+Paralytic ileus and intestinal obstruction
+Perinatal asphyxia/hypoxia
+Poisoning
+Rabies
+Sepsis
+Sickle cell disorders
+Thalassaemia
+Tuberculosis
+Undetermined
+Upper respiratory infections
