@@ -1,10 +1,13 @@
 """Benchmark WhisperLiveKit speech-to-text, matching CODA's transcriber path.
 
 Ryzen/Windows variant of the Mac stt_bench: same WhisperLiveKit streaming path,
-model size, and localagreement policy, but the faster-whisper backend (CTranslate2
-on CPU) instead of Apple-only mlx-whisper. keep_up stays directly comparable to the
-Mac runs since it is a real-time factor. The whisper weights differ across backends,
-so this compares throughput, not word error rate.
+model size, and localagreement policy. faster-whisper (CTranslate2) has no
+Vulkan/ROCm support and falls back to CPU on this hardware, which can't keep up
+with real time (keep_up ~2.9x). "lemonade-whisper" instead routes through
+Lemonade's whispercpp/Vulkan backend (iGPU-accelerated), which keeps up with
+real time (keep_up ~1.0x). keep_up stays directly comparable to the Mac runs
+since it is a real-time factor. The whisper weights differ across backends, so
+this compares throughput, not word error rate.
 
 Prints a single JSON object to stdout. Logs go to stderr.
 """
@@ -12,8 +15,39 @@ import argparse
 import asyncio
 import contextlib
 import json
+import os
 import time
 import wave
+
+LEMONADE_BASE = "http://localhost:13305/api/v1"
+
+
+def _patch_lemonade_whisper():
+    """Adapt WhisperLiveKit's OpenaiApiASR to Lemonade's whisper.cpp response shape.
+
+    WhisperLiveKit hardcodes model="whisper-1" (register that alias in Lemonade
+    to point at your loaded whisper model, e.g. `lemonade alias add whisper-1
+    Whisper-Small`). Lemonade also nests word timestamps per-segment as plain
+    dicts (segments[i].words[j]['word']) rather than OpenAI's flat top-level
+    resp.words with object attributes, so the real OpenAI API would not need
+    (and would break under) this patch.
+    """
+    from whisperlivekit.local_agreement.backends import OpenaiApiASR
+    from whisperlivekit.timed_objects import ASRToken
+
+    def ts_words(self, resp):
+        tokens = []
+        for seg in (resp.segments or []):
+            for w in (seg.words or []):
+                tokens.append(ASRToken(w["start"], w["end"], w["word"],
+                    probability=w.get("probability")))
+        return tokens
+
+    def segments_end_ts(self, resp):
+        return [seg.end for seg in (resp.segments or [])]
+
+    OpenaiApiASR.ts_words = ts_words
+    OpenaiApiASR.segments_end_ts = segments_end_ts
 
 
 def peak_gb():
@@ -43,6 +77,12 @@ def read_float32(path):
 
 
 async def run_stream(audio, model_size, backend, policy, language):
+    if backend == "lemonade-whisper":
+        os.environ["OPENAI_API_KEY"] = "local"
+        os.environ["OPENAI_BASE_URL"] = LEMONADE_BASE
+        _patch_lemonade_whisper()
+        backend = "openai-api"
+
     from whisperlivekit import TranscriptionEngine, AudioProcessor
     pcm, rate = read_pcm(audio)
     clip = len(pcm) / 2 / rate
@@ -140,7 +180,7 @@ def main():
         default="stream")
     ap.add_argument("--model", default="small",
         help="whisper model size (small matches the Mac run)")
-    ap.add_argument("--backend", default="faster-whisper")
+    ap.add_argument("--backend", default="lemonade-whisper")
     ap.add_argument("--policy", default="localagreement")
     ap.add_argument("--language", default="en")
     ap.add_argument("--loop-seconds", type=float, default=20.0)

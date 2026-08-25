@@ -2,19 +2,33 @@
 
 Ryzen/Windows counterpart of the Mac benchmark. Runs the same two CODA stages with
 the same prompt, schema, narratives, and clip, so results plot against the Macs:
-  1. Speech-to-text: WhisperLiveKit (faster-whisper, CPU) fed the clip as real-time PCM.
+  1. Speech-to-text: WhisperLiveKit fed the clip as real-time PCM, routed through
+     Lemonade's whispercpp/Vulkan backend (iGPU-accelerated) so it keeps up with
+     real time; faster-whisper/CTranslate2 has no Vulkan support and falls back
+     to CPU on this hardware (keep_up ~2.9x, not real time).
   2. Inference: the CHAMPS system prompt, COD_OUTPUT_SCHEMA, and schema-constrained
-     decoding, across the models, served by Lemonade over its OpenAI-compatible API
-     (NPU + iGPU hybrid for ONNX models, llama.cpp/Vulkan for GGUF).
+     decoding, across the models, served by Lemonade over its OpenAI-compatible API.
+     Only llama.cpp/GGUF models are used here: Lemonade's ryzenai-llm (NPU/Hybrid)
+     recipe does not honor response_format/json_schema at all, so it can't do
+     CODA's constrained decoding regardless of speed.
 
 The vendored CHAMPS prompt, schema, and request shapes (coda_snapshot.py + champs/)
 are copied byte-for-byte from the Mac benchmark, so the only difference is hardware
 and serving backend. Reports STT real-time keep-up plus per-model warm latency,
 validity, and the predicted top cause, tagged with the machine's hardware.
+
+One-time Lemonade-side setup this script assumes is already done:
+  lemonade alias add whisper-1 Whisper-Small
+  lemonade load <model> --ctx-size 8192 --llamacpp-args "--reasoning off" --save-options
+      (for each model in MODELS; --reasoning off avoids models burning their
+      context on chain-of-thought before ever emitting the JSON answer, and
+      models over ~10GB will OOM on this hardware's iGPU-allocatable memory
+      regardless of dense vs MoE architecture)
 """
 import argparse
 import asyncio
 import json
+import re
 import statistics as stats
 import time
 import urllib.request
@@ -31,11 +45,22 @@ LEMONADE_BASE = "http://localhost:13305/api/v1"
 # Verify the exact ids against your Lemonade install (Model Manager in the app,
 # or `lemonade-server list`). Match family/size/quant to the Mac rows so the
 # comparison is hardware, not model. Edit ids here to whatever you pulled.
+#
+# Excluded, with reasons (see module docstring / benchmarking notes):
+#   Qwen2.5-7B-Instruct-NPU/-Hybrid, gpt-oss-20b-NPU  - ryzenai-llm recipe ignores
+#       response_format/json_schema entirely (0% schema-valid regardless of speed)
+#   gpt-oss-20b-mxfp4-GGUF   - Lemonade catalog bug resolves to the wrong cached
+#       file (an eagle3 speculative-decoding draft model) even after a fresh pull
+#   Gemma-4-26B-A4B-it-GGUF, Qwen3-30B-A3B-GGUF  - OOM on this ~31GB-RAM machine;
+#       MoE architecture does not help, only total file size matters (>~10GB fails)
+#   DeepSeek-Qwen3-8B-GGUF  - R1-distill reasoning model; --reasoning off only
+#       reroutes thinking tags, doesn't stop it reasoning at length (>3min/call)
 MODELS = [
-    {"name": "Qwen2.5-7B-Instruct", "backend": "lemonade",
-     "id": "Qwen2.5-7B-Instruct-Hybrid"},
-    {"name": "gpt-oss-20b", "backend": "lemonade", "id": "gpt-oss-20b-GGUF"},
-    {"name": "gemma-3-27b", "backend": "lemonade", "id": "gemma-3-27b-it-GGUF"},
+    {"name": "Qwen2.5-7B-Instruct-GGUF", "backend": "lemonade",
+     "id": "Qwen2.5-7B-Instruct-GGUF-Q4_K_M"},
+    {"name": "Qwen3-8B-GGUF", "backend": "lemonade", "id": "Qwen3-8B-GGUF"},
+    {"name": "Qwen3-14B-GGUF", "backend": "lemonade", "id": "Qwen3-14B-GGUF"},
+    {"name": "Gemma-4-12B-it-GGUF", "backend": "lemonade", "id": "Gemma-4-12B-it-GGUF"},
 ]
 
 
@@ -96,7 +121,7 @@ def run_stt(audio, reps):
     runs, err = [], None
     for _ in range(reps):
         try:
-            runs.append(asyncio.run(stt_run_stream(audio, "small", "faster-whisper",
+            runs.append(asyncio.run(stt_run_stream(audio, "small", "lemonade-whisper",
                 "localagreement", "en")))
         except Exception as e:
             err = str(e)[:200]
@@ -162,7 +187,7 @@ def main():
 
     out_dir = HERE / "results"
     out_dir.mkdir(exist_ok=True)
-    tag = (hw["chip"] or "ryzen").replace(" ", "_")
+    tag = re.sub(r"[^A-Za-z0-9._+-]+", "_", hw["chip"] or "ryzen")
     out = out_dir / f"{tag}_{report['timestamp'].replace(':', '')}.json"
     out.write_text(json.dumps(report, indent=2))
 

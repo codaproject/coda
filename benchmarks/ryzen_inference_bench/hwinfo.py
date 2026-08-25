@@ -19,8 +19,9 @@ _BANDWIDTH_GBPS = {
 
 
 def _bandwidth_for(chip):
+    chip_lower = chip.lower()
     for name in sorted(_BANDWIDTH_GBPS, key=len, reverse=True):
-        if name in chip:
+        if name.lower() in chip_lower:
             return _BANDWIDTH_GBPS[name]
     return None
 
