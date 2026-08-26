@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# One-command setup for the CODA Mac benchmark.
+# One-command setup for the CODA hardware benchmark on Apple Silicon (mac config).
 # Installs the benchmark's dependencies into an isolated venv and pulls the two
 # Ollama models. Self-contained: no coda install or git needed. The MLX model
-# downloads on first run.
+# downloads on first run. For the Ryzen AI config, use setup.ps1 instead.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="${CODA_INBENCH_VENV:-$HOME/.virtualenvs/coda-inbench}"
 
-echo "== CODA Mac inference benchmark setup =="
+echo "== CODA hardware benchmark setup (mac config) =="
 
 if ! command -v ollama >/dev/null 2>&1; then
     echo "Ollama not found. Install it once with:  brew install ollama"
@@ -39,10 +39,13 @@ fi
 echo "Installing dependencies..."
 "$VENV/bin/pip" install --quiet --upgrade pip
 "$VENV/bin/pip" install --quiet ollama openai mlx-openai-server \
-    whisperlivekit mlx-whisper numpy
+    whisperlivekit mlx-whisper numpy matplotlib
 
 echo
 echo "Setup complete. Run the benchmark with:"
 echo "  $VENV/bin/python $HERE/run_bench.py"
+echo "(config auto-detects as 'mac'; override with --config)"
 echo
 echo "First run downloads the MLX Qwen3-30B model (~17 GB)."
+echo "After collecting results, chart them with:"
+echo "  $VENV/bin/python $HERE/plot_results.py"

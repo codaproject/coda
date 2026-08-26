@@ -1,32 +1,70 @@
 """Benchmark WhisperLiveKit speech-to-text, matching CODA's transcriber path.
 
-Prints a single JSON object to stdout. Logs go to stderr.
+Same WhisperLiveKit streaming path, model size, and localagreement policy on every
+machine, so keep_up (wall / clip) is a comparable real-time factor. Only the
+inference backend differs per platform:
+  - mlx-whisper       Apple Silicon (Macs), iGPU-free unified-memory path.
+  - lemonade-whisper  Ryzen AI, routes through Lemonade's whispercpp/Vulkan backend
+                      (iGPU-accelerated). faster-whisper/CTranslate2 has no Vulkan
+                      support and falls back to CPU here (keep_up ~2.9x, not real
+                      time), so it is not used for the streaming metric on Ryzen.
+  - faster-whisper    portable CPU fallback (CTranslate2), used for batch mode.
 
-The shipped clip is a 16 kHz mono PCM WAV read with the standard library, so no
-ffmpeg is needed. stream mode feeds that PCM to WhisperLiveKit in real time the
-same way CODA feeds browser audio (pcm_input=True), so keep_up = wall / clip
-reports whether the machine transcribes in real time (<= 1.0) or fell behind.
-
-batch mode hands the decoded samples to the underlying mlx-whisper model as fast
-as possible and reports its raw throughput (speedup over real time).
+The whisper weights differ across backends, so this compares throughput, not word
+error rate. Prints a single JSON object to stdout; logs go to stderr.
 """
 import argparse
 import asyncio
 import contextlib
 import json
+import os
 import time
 import wave
 
+LEMONADE_BASE = os.environ.get("LEMONADE_BASE", "http://localhost:13305/api/v1")
+
+
+def _patch_lemonade_whisper():
+    """Adapt WhisperLiveKit's OpenaiApiASR to Lemonade's whisper.cpp response shape.
+
+    WhisperLiveKit hardcodes model="whisper-1" (register that alias in Lemonade
+    to point at your loaded whisper model, e.g. `lemonade alias add whisper-1
+    Whisper-Small`). Lemonade nests word timestamps per-segment as plain dicts
+    (segments[i].words[j]['word']) rather than OpenAI's flat top-level resp.words
+    with object attributes, so the real OpenAI API would not need this patch.
+    """
+    from whisperlivekit.local_agreement.backends import OpenaiApiASR
+    from whisperlivekit.timed_objects import ASRToken
+
+    def ts_words(self, resp):
+        tokens = []
+        for seg in (resp.segments or []):
+            for w in (seg.words or []):
+                tokens.append(ASRToken(w["start"], w["end"], w["word"],
+                    probability=w.get("probability")))
+        return tokens
+
+    def segments_end_ts(self, resp):
+        return [seg.end for seg in (resp.segments or [])]
+
+    OpenaiApiASR.ts_words = ts_words
+    OpenaiApiASR.segments_end_ts = segments_end_ts
+
 
 def peak_gb():
-    import mlx.core as mx
-    fn = getattr(mx, "get_peak_memory", None)
-    if fn is None:
-        fn = getattr(getattr(mx, "metal", None), "get_peak_memory", None)
-    if fn is None:
-        return None
     try:
-        return fn() / 1e9
+        import mlx.core as mx
+        fn = getattr(mx, "get_peak_memory", None) \
+            or getattr(getattr(mx, "metal", None), "get_peak_memory", None)
+        if fn is not None:
+            return fn() / 1e9
+    except Exception:
+        pass
+    try:
+        import psutil
+        mi = psutil.Process().memory_info()
+        peak = getattr(mi, "peak_wset", None) or mi.rss
+        return peak / 1e9
     except Exception:
         return None
 
@@ -48,6 +86,12 @@ def read_float32(path):
 
 
 async def run_stream(audio, model_size, backend, policy, language):
+    if backend == "lemonade-whisper":
+        os.environ["OPENAI_API_KEY"] = "local"
+        os.environ["OPENAI_BASE_URL"] = LEMONADE_BASE
+        _patch_lemonade_whisper()
+        backend = "openai-api"
+
     from whisperlivekit import TranscriptionEngine, AudioProcessor
     pcm, rate = read_pcm(audio)
     clip = len(pcm) / 2 / rate
@@ -97,26 +141,35 @@ async def run_stream(audio, model_size, backend, policy, language):
     }
 
 
-def run_batch(audio, model_repo, language, loop_seconds):
-    import mlx_whisper
+def run_batch(audio, model, language, loop_seconds, backend):
     samples, rate = read_float32(audio)
     clip = len(samples) / rate
-    kw = dict(path_or_hf_repo=model_repo, language=language)
-    mlx_whisper.transcribe(samples, **kw)
-    audio_sec = 0.0
-    wall = 0.0
+    if "mlx" in backend:
+        import mlx_whisper
+        repo = model if "/" in model else "mlx-community/whisper-small-mlx"
+        transcribe = lambda: mlx_whisper.transcribe(samples,
+            path_or_hf_repo=repo, language=language)
+        used = repo
+    else:
+        from faster_whisper import WhisperModel
+        fw = WhisperModel(model, device="cpu", compute_type="int8")
+        transcribe = lambda: [None for _ in fw.transcribe(samples, language=language)[0]]
+        used = model
+
+    transcribe()
+    audio_sec = wall = 0.0
     iters = 0
     deadline = time.time() + loop_seconds
     while time.time() < deadline:
         t0 = time.time()
-        mlx_whisper.transcribe(samples, **kw)
+        transcribe()
         wall += time.time() - t0
         audio_sec += clip
         iters += 1
     return {
         "mode": "batch",
-        "backend": "mlx-whisper",
-        "model": model_repo,
+        "backend": "mlx-whisper" if "mlx" in backend else "faster-whisper",
+        "model": used,
         "clip_sec": round(clip, 2),
         "iterations": iters,
         "rtf": round(wall / audio_sec, 3) if audio_sec else None,
@@ -138,15 +191,16 @@ def main():
     ap.add_argument("--mode", choices=("stream", "batch", "prepull"),
         default="stream")
     ap.add_argument("--model", default="small",
-        help="WLK model size for stream mode, or hf repo for batch mode")
-    ap.add_argument("--backend", default="mlx-whisper")
+        help="whisper model size (small matches the shared runs)")
+    ap.add_argument("--backend", default="mlx-whisper",
+        help="mlx-whisper | lemonade-whisper | faster-whisper")
     ap.add_argument("--policy", default="localagreement")
     ap.add_argument("--language", default="en")
     ap.add_argument("--loop-seconds", type=float, default=20.0)
     args = ap.parse_args()
     if args.mode == "batch":
-        repo = args.model if "/" in args.model else "mlx-community/whisper-small-mlx"
-        result = run_batch(args.audio, repo, args.language, args.loop_seconds)
+        result = run_batch(args.audio, args.model, args.language,
+            args.loop_seconds, args.backend)
     elif args.mode == "prepull":
         result = prepull(args.model, args.backend, args.policy, args.language)
     else:
