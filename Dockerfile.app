@@ -21,13 +21,16 @@ COPY pyproject.toml README.md ./
 COPY src/ ./src/
 COPY config/ ./config/
 
-# Install the package. For the CPU device, pre-install the CPU-only torch wheel
-# first so the package install reuses it instead of pulling the multi-GB CUDA
-# build that ships by default.
+# Pre-install an explicit torch wheel for the selected
+# device so the package install reuses it instead of resolving an unintended
+# CPU or CUDA variant.
 RUN if [ "$COMPUTE_DEVICE" = "cpu" ]; then \
-        pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu ; \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu ; \
+    else \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu128 ; \
     fi && \
     pip install --no-cache-dir .
+
 
 # Build a namespace-filtered SQLite grounding db (only the namespaces CODA grounds to) for fast startup
 RUN python -m gilda.resources && \
