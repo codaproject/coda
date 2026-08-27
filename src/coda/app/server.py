@@ -12,6 +12,8 @@ import json
 import logging
 import os
 import time
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -49,10 +51,6 @@ app = FastAPI()
 # HTTP client for inference agent
 INFERENCE_URL = inference_url()
 inference_client = httpx.AsyncClient(base_url=INFERENCE_URL, timeout=120.0)
-
-# Queue management for backpressure
-MAX_PENDING_CHUNKS = 20
-pending_chunks: Dict[str, asyncio.Task] = {}
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +98,7 @@ translation_mode = "llm"
 # agent with every inference request.
 current_metadata = Metadata()
 transcriber: Transcriber
+active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
 
 class SettingsRequest(BaseModel):
@@ -115,6 +114,121 @@ class SettingsRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
+
+
+@dataclass
+class PendingInferenceChunk:
+    chunk_id: str
+    timestamp: float
+    text: str
+    annotations: list
+    queued_at: float = field(default_factory=time.perf_counter)
+
+
+@dataclass
+class CoalescedInferenceBatch:
+    chunk_id: str
+    timestamp: float
+    text: str
+    annotations: list
+    queued_at: float
+    chunk_count: int
+
+
+class InferenceSessionCoordinator:
+    """Per-WebSocket inference scheduler with request coalescing."""
+
+    def __init__(self, websocket: WebSocket, session_id: Optional[str] = None):
+        self.websocket = websocket
+        self.session_id = session_id or str(uuid.uuid4())
+        self.generation = 0
+        self._lock = asyncio.Lock()
+        self._pending: list[PendingInferenceChunk] = []
+        self._drain_task: asyncio.Task | None = None
+
+    async def enqueue(self, chunk_id: str, timestamp: float, text: str,
+                      annotations: list):
+        if not text:
+            return
+        async with self._lock:
+            self._pending.append(PendingInferenceChunk(
+                chunk_id=chunk_id,
+                timestamp=timestamp,
+                text=text,
+                annotations=list(annotations),
+            ))
+            if self._drain_task is None or self._drain_task.done():
+                self._drain_task = asyncio.create_task(self._drain_loop())
+
+    async def invalidate(self, reason: str):
+        async with self._lock:
+            dropped = len(self._pending)
+            old_generation = self.generation
+            self.generation += 1
+            self._pending.clear()
+        logger.info(
+            "Invalidated inference session %s generation %d (%s, cleared %d buffered chunk(s))",
+            self.session_id, old_generation, reason, dropped
+        )
+        await _reset_inference_session(self.session_id, old_generation)
+
+    async def wait_for_idle(self):
+        task = None
+        async with self._lock:
+            task = self._drain_task
+        if task is not None:
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def _drain_loop(self):
+        while True:
+            async with self._lock:
+                request_generation = self.generation
+                batch = self._take_pending_batch_locked()
+                if batch is None:
+                    self._drain_task = None
+                    return
+            buffer_wait_s = time.perf_counter() - batch.queued_at
+            logger.info(
+                "Dispatching inference batch for session %s generation %d: chunks=%d text_chars=%d buffer_wait=%.2fs latest_chunk=%s",
+                self.session_id, request_generation, batch.chunk_count,
+                len(batch.text), buffer_wait_s, batch.chunk_id
+            )
+            await process_inference(
+                self,
+                request_generation=request_generation,
+                batch=batch,
+                buffer_wait_s=buffer_wait_s,
+            )
+
+    def _take_pending_batch_locked(self) -> CoalescedInferenceBatch | None:
+        if not self._pending:
+            return None
+        chunks = self._pending
+        self._pending = []
+        newest = chunks[-1]
+        text = " ".join(chunk.text for chunk in chunks)
+        annotations = [
+            ann
+            for chunk in chunks
+            for ann in chunk.annotations
+        ]
+        return CoalescedInferenceBatch(
+            chunk_id=newest.chunk_id,
+            timestamp=newest.timestamp,
+            text=text,
+            annotations=annotations,
+            queued_at=chunks[0].queued_at,
+            chunk_count=len(chunks),
+        )
+
+    async def is_current_generation(self, generation: int) -> bool:
+        async with self._lock:
+            return self.generation == generation
+
+
+class ResetRequest(BaseModel):
+    session_id: Optional[str] = None
+    session_generation: Optional[int] = None
 
 
 def get_language_name(code: str) -> str:
@@ -247,55 +361,101 @@ async def _ws_send_safe(websocket: WebSocket, data: dict):
         pass
 
 
-async def process_inference(chunk_id: str, timestamp: float, transcript: str,
-                            annotations: list, websocket: WebSocket):
+async def _reset_inference_session(session_id: str, generation: int):
+    try:
+        resp = await inference_client.post("/reset", json={
+            "session_id": session_id,
+            "session_generation": generation,
+        })
+        resp.raise_for_status()
+        logger.info(
+            "Inference agent reset for session %s generation %d",
+            session_id, generation
+        )
+    except Exception as e:
+        logger.warning(
+            "Could not reset inference session %s generation %d: %s",
+            session_id, generation, e
+        )
+
+
+async def process_inference(session: InferenceSessionCoordinator,
+                            request_generation: int,
+                            batch: CoalescedInferenceBatch,
+                            buffer_wait_s: float):
     """Process inference in background and send results via HTTP."""
+    started = time.perf_counter()
     try:
         # Send request to inference agent
         response = await inference_client.post("/infer", json={
-            "chunk_id": chunk_id,
-            "timestamp": timestamp,
-            "text": transcript,
-            "annotations": [a.to_json() for a in annotations],
-            "metadata": current_metadata.to_dict()
+            "chunk_id": batch.chunk_id,
+            "timestamp": batch.timestamp,
+            "text": batch.text,
+            "annotations": [a.to_json() for a in batch.annotations],
+            "metadata": current_metadata.to_dict(),
+            "session_id": session.session_id,
+            "session_generation": request_generation,
         })
         response.raise_for_status()
         result = response.json()
+        infer_s = time.perf_counter() - started
+        result["timings"] = {
+            **result.get("timings", {}),
+            "request_s": round(infer_s, 3),
+            "buffer_wait_s": round(buffer_wait_s, 3),
+        }
+
+        if not await session.is_current_generation(request_generation):
+            logger.info(
+                "Discarded stale inference result for session %s generation %d after %.2fs",
+                session.session_id, request_generation, infer_s
+            )
+            return
 
         # Send inference result to client
-        await _ws_send_safe(websocket, {"type": "inference", **result})
+        await _ws_send_safe(session.websocket, {"type": "inference", **result})
         # Log top cause
         causes = result.get('causes', {})
         if causes:
             top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
             top_cause_name = causes[top_curie]['name']
             top_score = causes[top_curie]['score']
-            logger.info(f"Inference result for {chunk_id}: {top_cause_name} ({top_curie}, score={top_score:.2f})")
+            logger.info(
+                "Inference result for %s in %.2fs: %s (%s, score=%.2f, chunks=%d, text_chars=%d, wait=%.2fs)",
+                batch.chunk_id, infer_s, top_cause_name, top_curie, top_score,
+                batch.chunk_count, len(batch.text), buffer_wait_s
+            )
         else:
-            logger.info(f"Inference result for {chunk_id}: no causes")
+            logger.info(
+                "Inference result for %s in %.2fs: no causes (chunks=%d, text_chars=%d, wait=%.2fs)",
+                batch.chunk_id, infer_s, batch.chunk_count, len(batch.text),
+                buffer_wait_s
+            )
 
     except httpx.TimeoutException:
-        logger.error(f"Inference timeout for chunk {chunk_id}")
-        await _ws_send_safe(websocket, {
-            "type": "error", "chunk_id": chunk_id,
-            "error": "Inference timeout"
-        })
+        logger.error("Inference timeout for chunk %s after %.2fs",
+                     batch.chunk_id, time.perf_counter() - started)
+        if await session.is_current_generation(request_generation):
+            await _ws_send_safe(session.websocket, {
+                "type": "error", "chunk_id": batch.chunk_id,
+                "error": "Inference timeout"
+            })
     except httpx.ConnectError:
-        logger.error(f"Cannot connect to inference agent for chunk {chunk_id}")
-        await _ws_send_safe(websocket, {
-            "type": "error", "chunk_id": chunk_id,
-            "error": "Inference agent unavailable"
-        })
+        logger.error("Cannot connect to inference agent for chunk %s after %.2fs",
+                     batch.chunk_id, time.perf_counter() - started)
+        if await session.is_current_generation(request_generation):
+            await _ws_send_safe(session.websocket, {
+                "type": "error", "chunk_id": batch.chunk_id,
+                "error": "Inference agent unavailable"
+            })
     except Exception as e:
-        logger.error(f"Inference error for chunk {chunk_id}: {e}", exc_info=True)
-        await _ws_send_safe(websocket, {
-            "type": "error", "chunk_id": chunk_id,
-            "error": str(e)
-        })
-    finally:
-        # Clean up pending task
-        if chunk_id in pending_chunks:
-            del pending_chunks[chunk_id]
+        logger.error("Inference error for chunk %s after %.2fs: %s",
+                     batch.chunk_id, time.perf_counter() - started, e, exc_info=True)
+        if await session.is_current_generation(request_generation):
+            await _ws_send_safe(session.websocket, {
+                "type": "error", "chunk_id": batch.chunk_id,
+                "error": str(e)
+            })
 
 
 @app.get("/languages")
@@ -489,9 +649,18 @@ async def websocket_endpoint(websocket: WebSocket):
     if save_enabled and not save_files:
         open_save_files(current_language)
 
+    inference_session = InferenceSessionCoordinator(websocket)
+    active_inference_sessions.add(inference_session)
+    await _ws_send_safe(websocket, {
+        "type": "session",
+        "session_id": inference_session.session_id,
+        "session_generation": inference_session.generation,
+    })
     audio_queue: asyncio.Queue = asyncio.Queue()
     capture = asyncio.create_task(capture_audio(websocket, audio_queue))
-    consume = asyncio.create_task(consume_transcripts(websocket, audio_queue))
+    consume = asyncio.create_task(
+        consume_transcripts(websocket, audio_queue, inference_session)
+    )
 
     try:
         # `capture` surfaces WebSocketDisconnect when the user ends the session.
@@ -499,13 +668,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
     finally:
-        # Stop processing and any pending inference tasks.
         consume.cancel()
-        for task in pending_chunks.values():
-            task.cancel()
-        pending_chunks.clear()
         capture.cancel()
         await asyncio.gather(capture, consume, return_exceptions=True)
+        await inference_session.invalidate("disconnect")
+        await inference_session.wait_for_idle()
+        active_inference_sessions.discard(inference_session)
 
 
 async def capture_audio(websocket: WebSocket, queue: asyncio.Queue):
@@ -521,7 +689,8 @@ async def capture_audio(websocket: WebSocket, queue: asyncio.Queue):
         queue.put_nowait(None)
 
 
-async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
+async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
+                              inference_session: InferenceSessionCoordinator):
     """Process: consume transcript events from the active transcriber and, for
     each committed event, translate, ground, save, and display it. Inference
     runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
@@ -557,7 +726,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue):
             return
         text, anns, chunk_id, timestamp = batch
         last_infer = time.monotonic()
-        await _start_inference(websocket, chunk_id, timestamp, text, anns)
+        await _start_inference(inference_session, chunk_id, timestamp, text, anns)
 
     async def idle_flush():
         # Flush pending text that never reached the word threshold once it has
@@ -604,24 +773,34 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
     timestamp = event.timestamp
     original_transcript = None
     english_text = event.text
+    total_start = time.perf_counter()
+    translation_s = 0.0
+    grounding_s = 0.0
+    save_s = 0.0
+    emit_s = 0.0
 
     # If non-English and not already translated to English, translate via LLM
     # (skip if transcript is too short to be real speech).
     if (not direct_translate and current_language != "en"
             and len(event.text.split()) > 1):
         original_transcript = event.text
+        translation_start = time.perf_counter()
         english_text = await translate_text(event.text, current_language)
+        translation_s = time.perf_counter() - translation_start
 
     # Ground the (final, English) text without blocking the loop
     annotations = []
     if english_text:
+        grounding_start = time.perf_counter()
         annotations = await asyncio.to_thread(grounder.annotate, english_text)
+        grounding_s = time.perf_counter() - grounding_start
 
     if not english_text:
         return None
 
     # Save transcripts and annotations if enabled
     if save_enabled:
+        save_start = time.perf_counter()
         save_transcript(english_text, "en")
         if original_transcript and current_language != "en":
             save_transcript(original_transcript, current_language)
@@ -631,6 +810,7 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
             original_language=(current_language
                                if current_language != "en" else None),
         )
+        save_s = time.perf_counter() - save_start
 
     # Build structured annotations for inline display
     structured_annotations = [
@@ -655,46 +835,52 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
     if original_transcript:
         msg["original_transcript"] = original_transcript
         msg["original_language"] = current_language
+    emit_start = time.perf_counter()
     await _ws_send_safe(websocket, msg)
+    emit_s = time.perf_counter() - emit_start
+    total_s = time.perf_counter() - total_start
+    logger.info(
+        "Chunk %s processed in %.2fs (translate=%.2fs ground=%.2fs save=%.2fs emit=%.2fs text_chars=%d annotations=%d)",
+        chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
+        len(english_text), len(annotations)
+    )
     logger.info(f"Chunk {chunk_id}: {english_text}")
 
     return chunk_id, timestamp, english_text, annotations
 
 
-async def _start_inference(websocket: WebSocket, chunk_id: str, timestamp: float,
+async def _start_inference(inference_session: InferenceSessionCoordinator,
+                           chunk_id: str, timestamp: float,
                            text: str, annotations: list):
-    """Launch a background inference on accumulated committed text.
-
-    Gating upstream keeps the rate sane; backpressure here is a last resort that
-    drops the oldest pending inference if the service still falls behind."""
-    if len(pending_chunks) >= MAX_PENDING_CHUNKS:
-        oldest_id = next(iter(pending_chunks))
-        pending_chunks[oldest_id].cancel()
-        del pending_chunks[oldest_id]
-        logger.warning(f"Dropped inference {oldest_id} due to backpressure")
-        await _ws_send_safe(websocket, {
-            "type": "warning",
-            "message": "Processing slower than audio - dropping old chunks"
-        })
-
-    inference_task = asyncio.create_task(
-        process_inference(chunk_id, timestamp, text, annotations, websocket)
-    )
-    pending_chunks[chunk_id] = inference_task
+    """Queue a chunk for coalesced inference dispatch."""
+    await inference_session.enqueue(chunk_id, timestamp, text, annotations)
 
 
 @app.post("/reset")
-async def reset_session():
+async def reset_session(req: Optional[ResetRequest] = None):
     """Reset session state: close save files and reset the inference agent."""
     global current_metadata
-    current_metadata = Metadata()
-    close_save_files()
-    try:
-        resp = await inference_client.post("/reset")
-        resp.raise_for_status()
-        logger.info("Inference agent reset")
-    except Exception as e:
-        logger.warning(f"Could not reset inference agent: {e}")
+    targeted_reset = req is not None and req.session_id is not None
+    if not targeted_reset:
+        current_metadata = Metadata()
+        close_save_files()
+    target_sessions = list(active_inference_sessions)
+    if targeted_reset:
+        target_sessions = [
+            session for session in target_sessions
+            if session.session_id == req.session_id
+        ]
+    await asyncio.gather(
+        *(session.invalidate("reset") for session in target_sessions),
+        return_exceptions=True,
+    )
+    if not target_sessions:
+        try:
+            resp = await inference_client.post("/reset", json=req.model_dump() if req else {})
+            resp.raise_for_status()
+            logger.info("Inference agent reset")
+        except Exception as e:
+            logger.warning(f"Could not reset inference agent: {e}")
     return {"status": "reset"}
 
 

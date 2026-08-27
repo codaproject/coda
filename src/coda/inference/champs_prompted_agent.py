@@ -6,10 +6,12 @@ with dialogue text (verbal autopsy narratives), using CODA's LLMClient
 infrastructure for LLM calls.
 """
 
+import asyncio
 import csv
 import difflib
 import logging
 import os
+import time
 from typing import Dict, Any, List, Optional
 
 from gilda import Annotation
@@ -105,9 +107,11 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
     """
 
     def __init__(self, llm_client: LLMClient,
-                 use_diagnosis_standard: bool = False):
+                 use_diagnosis_standard: bool = False,
+                 llm_semaphore: asyncio.Semaphore | None = None):
         super().__init__()
         self.llm_client = llm_client
+        self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
 
         self.allowed_causes = CHAMPS_GROUP_CAUSES
         self.cause_to_icd10 = CHAMPS_GROUP_TO_ICD10
@@ -137,13 +141,18 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
 
         try:
             logger.info(f'Inferring causes up to chunk {chunk_id}...')
-            response = self.llm_client.call_with_schema(
-                system_prompt=self.rendered_system_prompt,
-                user_prompt=user_prompt,
-                schema=COD_OUTPUT_SCHEMA,
-                schema_name="champs_cod_classification",
-                temperature=0,
-            )
+            started = time.perf_counter()
+            async with self.llm_semaphore:
+                response = await asyncio.to_thread(
+                    self.llm_client.call_with_schema,
+                    system_prompt=self.rendered_system_prompt,
+                    user_prompt=user_prompt,
+                    schema=COD_OUTPUT_SCHEMA,
+                    schema_name="champs_cod_classification",
+                    temperature=0,
+                )
+            logger.info("LLM call for chunk %s completed in %.2fs",
+                        chunk_id, time.perf_counter() - started)
         except Exception:
             logger.exception("LLM call failed for chunk %s", chunk_id)
             return {
@@ -186,6 +195,13 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
         close = difflib.get_close_matches(
             name, self.allowed_causes, n=1, cutoff=self.FUZZY_MATCH_CUTOFF)
         return close[0] if close else None
+
+    def create_session_agent(self) -> "ChampsPromptedInferenceAgent":
+        return ChampsPromptedInferenceAgent(
+            llm_client=self.llm_client,
+            use_diagnosis_standard=self.use_diagnosis_standard,
+            llm_semaphore=self.llm_semaphore,
+        )
 
     def _parse_response(self, response: Dict[str, Any]) -> dict:
         """Convert LLM structured response to CODA cause format."""

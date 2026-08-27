@@ -3983,6 +3983,8 @@
       const ieSettingsBtn = document.getElementById("ieSettingsBtn");
       let inferenceOffline = false;
       let lastInferenceErrorAt = null;
+      let currentInferenceSessionId = null;
+      let currentInferenceSessionGeneration = null;
 
       function enterInferenceOffline(errMsg) {
         inferenceOffline = true;
@@ -4693,7 +4695,11 @@
           ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
-            if (data.type === "transcript") {
+            if (data.type === "session") {
+              currentInferenceSessionId = data.session_id || null;
+              currentInferenceSessionGeneration =
+                data.session_generation ?? null;
+            } else if (data.type === "transcript") {
               if (chunkCount === 0) {
                 transcript.innerHTML = "";
               }
@@ -5098,7 +5104,16 @@
           renderIdleRecent();
           setSessionState("idle");
           try {
-            await fetch("/reset", { method: "POST" });
+            await fetch("/reset", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                session_id: currentInferenceSessionId,
+                session_generation: currentInferenceSessionGeneration,
+              }),
+            });
+            currentInferenceSessionId = null;
+            currentInferenceSessionGeneration = null;
             showStatus("Session reset — ready for new recording", "success");
           } catch (e) {
             showStatus("UI cleared but server reset failed", "warning");
