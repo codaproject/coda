@@ -237,6 +237,10 @@ if __name__ == "__main__":
         description="CODA inference agent server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--agent",
+                        default=getattr(settings.inference, "agent", "champs_prompted"),
+                        help="Inference agent implementation "
+                             "(champs_prompted | champs_finetuned)")
     parser.add_argument("--provider", default=settings.inference.llm.provider,
                         help="LLM provider (e.g. openai, ollama)")
     parser.add_argument("--model", default=settings.inference.llm.model,
@@ -252,7 +256,13 @@ if __name__ == "__main__":
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    from coda.inference.champs_llm_agent import create_champs_agent
-    agent = create_champs_agent(provider=args.provider, model=args.model)
+    if args.agent == "champs_finetuned":
+        from coda.inference.champs_finetuned import create_champs_finetuned_agent
+        agent = create_champs_finetuned_agent()
+        agent.ensure_model()
+    else:
+        from coda.inference.champs_prompted_agent import create_champs_prompted_agent
+        agent = create_champs_prompted_agent(provider=args.provider, model=args.model)
+
     server = InferenceServer(agent, host=args.host, port=args.port)
     server.run()

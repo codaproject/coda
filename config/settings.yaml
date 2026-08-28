@@ -30,6 +30,7 @@ app:
     version: default
 
 inference:
+  agent: champs_prompted    # inference agent implementation: champs_prompted | champs_finetuned
   host: 0.0.0.0
   port: 5123
   # Empty -> derived from host/port at runtime. Set to point the app at a
@@ -38,8 +39,8 @@ inference:
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
-  medgemma:                 # fine-tuned MedGemma CHAMPS classifier agent
-    adapter_path: ""        # local path to the LoRA adapter; set via CODA_INFERENCE__MEDGEMMA__ADAPTER_PATH
+  champs_finetuned:         # CHAMPS-fine-tuned classifier agent (MedGemma LoRA)
+    adapter_path: ""        # local path to the LoRA adapter; set via CODA_INFERENCE__CHAMPS_FINETUNED__ADAPTER_PATH
     menu: icd_all_labels.json
     top_k: 3
     batch_size: 8
