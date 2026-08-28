@@ -38,6 +38,11 @@ inference:
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
+  medgemma:                 # fine-tuned MedGemma CHAMPS classifier agent
+    adapter_path: ""        # local path to the LoRA adapter; set via CODA_INFERENCE__MEDGEMMA__ADAPTER_PATH
+    menu: icd_all_labels.json
+    top_k: 3
+    batch_size: 8
 
 llm:                        # shared LLM provider endpoints; api keys -> .secrets.yaml
   openai:
