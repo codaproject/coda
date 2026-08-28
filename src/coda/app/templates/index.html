@@ -3376,6 +3376,7 @@
       const resultTitle = document.getElementById("resultTitle");
       const resultConfidence = document.getElementById("resultConfidence");
       const resultIcd = document.getElementById("resultIcd");
+      const resultIcdLabel = document.getElementById("resultIcdLabel");
       const resultBarFill = document.getElementById("resultBarFill");
 
       // Session state: 'idle' | 'recording' | 'result'
@@ -3395,6 +3396,15 @@
         return ids.icd11 || ids.icd10 || Object.values(ids)[0] || "";
       }
 
+      // Display label for the coding system backing a cause's code.
+      function causeSystemLabel(identifiers) {
+        const ids = identifiers || {};
+        if (ids.icd11) return "ICD-11";
+        if (ids.icd10) return "ICD-10";
+        const key = Object.keys(ids)[0];
+        return key ? key.toUpperCase() : "";
+      }
+
       function renderResultHero() {
         if (!latestCauses) return;
         const sorted = Object.entries(latestCauses).sort(
@@ -3406,6 +3416,7 @@
         resultConfidence.textContent = top.score.toFixed(2);
         const icd = causeCode(top.identifiers);
         resultIcd.textContent = icd || "—";
+        if (resultIcdLabel) resultIcdLabel.textContent = causeSystemLabel(top.identifiers);
         resultBarFill.style.width = Math.round(top.score * 100) + "%";
       }
 
