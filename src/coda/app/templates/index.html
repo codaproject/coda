@@ -3388,6 +3388,13 @@
         body.dataset.state = next;
       }
 
+      // Best available cause code from an identifiers map, regardless of
+      // coding system (icd11, icd10, ...).
+      function causeCode(identifiers) {
+        const ids = identifiers || {};
+        return ids.icd11 || ids.icd10 || Object.values(ids)[0] || "";
+      }
+
       function renderResultHero() {
         if (!latestCauses) return;
         const sorted = Object.entries(latestCauses).sort(
@@ -3397,7 +3404,7 @@
         const [, top] = sorted[0];
         resultTitle.textContent = top.name;
         resultConfidence.textContent = top.score.toFixed(2);
-        const icd = top.identifiers && top.identifiers.icd10;
+        const icd = causeCode(top.identifiers);
         resultIcd.textContent = icd || "—";
         resultBarFill.style.width = Math.round(top.score * 100) + "%";
       }
@@ -3416,7 +3423,7 @@
             causeObj && typeof causeObj.score === "number" ? causeObj.score : 0;
           const scorePercent = (score * 100).toFixed(0);
           const ids = (causeObj && causeObj.identifiers) || {};
-          const icd10Code = ids.icd10 || "";
+          const code = causeCode(ids);
           const name = (causeObj && causeObj.name) || curie;
           const isTop = idx === 0;
 
@@ -3437,8 +3444,8 @@
           }
 
           const barWidth = Math.max(0, Math.min(100, score * 100)).toFixed(1);
-          const metaHtml = icd10Code
-            ? `<span class="cause-meta">${escapeHtml(icd10Code)}</span>`
+          const metaHtml = code
+            ? `<span class="cause-meta">${escapeHtml(code)}</span>`
             : "";
 
           html += `
@@ -3520,7 +3527,7 @@
           transcript: transcriptText.trim(),
           topCause: {
             name: top.name,
-            icd10: (top.identifiers && top.identifiers.icd10) || null,
+            code: causeCode(top.identifiers) || null,
             score: top.score,
           },
           causes: latestCauses,
@@ -3582,7 +3589,7 @@
           row.innerHTML = `
                     <div class="idle-recent-row-body">
                         <strong>${escapeHtml(s.topCause.name)}</strong>
-                        <small>${s.topCause.score.toFixed(2)} · ${escapeHtml(s.topCause.icd10 || "—")} · ${escapeHtml(formatShortDate(s.startedAt))}</small>
+                        <small>${s.topCause.score.toFixed(2)} · ${escapeHtml(s.topCause.code || s.topCause.icd10 || "—")} · ${escapeHtml(formatShortDate(s.startedAt))}</small>
                     </div>
                     <i class="bi bi-chevron-right" style="color: var(--ink-faint);"></i>
                 `;
@@ -3621,7 +3628,7 @@
                     <div class="history-item-body">
                         <div class="history-item-title">
                             <strong>${escapeHtml(s.topCause.name)}</strong>
-                            <span class="code">${escapeHtml(s.topCause.icd10 || "")}</span>
+                            <span class="code">${escapeHtml(s.topCause.code || s.topCause.icd10 || "")}</span>
                         </div>
                         <div class="history-item-meta">${escapeHtml(formatShortDate(s.startedAt))} · ${escapeHtml(formatDuration(s.durationSeconds))}</div>
                     </div>
