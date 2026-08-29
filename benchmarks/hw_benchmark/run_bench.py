@@ -6,8 +6,8 @@ machine so results are comparable:
   2. Inference: the CHAMPS system prompt, COD_OUTPUT_SCHEMA, and schema-constrained
      decoding, across the config's models.
 
-The CHAMPS prompt, schema, request shapes (coda_snapshot.py + champs/), narratives,
-and clip are shared. Only the per-platform model list and serving backend differ,
+The CHAMPS prompt and schema (coda_snapshot.py, reading CODA's own resources) plus
+narratives and clip are shared. Only the per-platform model list and serving backend differ,
 and those live in configs/. The runner auto-selects mac vs ryzen from the OS
 (override with --config). Writes one report per run to the shared results/ folder,
 tagged with the machine's hardware, for plot_results.py to chart together.

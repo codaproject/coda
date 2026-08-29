@@ -12,10 +12,10 @@ list and serving backend differ, and those are isolated in `configs/`.
 2. **Inference** — cause-of-death across the config's models using CODA's request:
    the CHAMPS system prompt, `COD_OUTPUT_SCHEMA`, and schema-constrained decoding.
 
-The CHAMPS prompt, schema, request shapes (`coda_snapshot.py` + `champs/`),
-narratives, and audio clip are shared and identical across machines. `keep_up` and
-inference latency are backend-agnostic, so Ollama/MLX (Mac) and Lemonade (Ryzen)
-land on the same axes.
+The CHAMPS prompt and schema (`coda_snapshot.py`, which reads CODA's own
+`src/coda/resources/champs`), narratives, and audio clip are shared and identical
+across machines. `keep_up` and inference latency are backend-agnostic, so Ollama/MLX
+(Mac) and Lemonade (Ryzen) land on the same axes.
 
 ## Configs (how mac and ryzen differ)
 
@@ -85,8 +85,7 @@ Reads every `results/*.json` and writes `comparison.png` + `summary.md`:
 ## Files
 - `run_bench.py` — the benchmark driver (config-driven; STT + inference)
 - `configs/` — per-platform model list + backends (`mac.py`, `ryzen.py`)
-- `coda_snapshot.py` — vendored CHAMPS prompt, schema, and request shapes (shared)
-- `champs/` — CHAMPS system prompt, schema guidance, allowed causes (shared)
+- `coda_snapshot.py` — CHAMPS request builder + schema; reads CODA's own `src/coda/resources/champs`
 - `stt_bench.py` — speech-to-text stage (all backends; also runnable standalone)
 - `hwinfo.py` — cross-platform hardware probe, tags every report
 - `plot_results.py` — charts all results together

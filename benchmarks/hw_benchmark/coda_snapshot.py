@@ -1,15 +1,18 @@
-"""Vendored snapshot of CODA's CHAMPS inference request.
+"""CODA's CHAMPS inference request, as this benchmark issues it.
 
-Lets this benchmark run standalone (no coda install). It mirrors
-coda.inference.champs_llm_agent (the system prompt and COD_OUTPUT_SCHEMA) and the
-constrained-decoding calls in coda.llm_api: Ollama's native format=schema and the
-OpenAI-compatible response_format json_schema (strict). Re-copy champs/*.txt and
-the schema below whenever CODA's prompt or schema change.
+Reads CODA's checked-in CHAMPS resources (src/coda/resources/champs) directly for
+the system prompt, schema guidance, and allowed causes, so the benchmark never
+drifts from coda.inference.champs_llm_agent. COD_OUTPUT_SCHEMA below mirrors that
+agent's schema, kept inline (rather than imported) so the benchmark stays free of
+CODA's inference dependencies; keep it in sync if CODA's schema changes. The infer
+helpers issue the constrained-decoding calls directly (Ollama's native
+format=schema and the OpenAI-compatible response_format json_schema, strict) to
+measure raw backend latency.
 """
 import json
 from pathlib import Path
 
-CHAMPS = Path(__file__).resolve().parent / "champs"
+CHAMPS = Path(__file__).resolve().parents[2] / "src" / "coda" / "resources" / "champs"
 
 COD_OUTPUT_SCHEMA = {
     "type": "object",
