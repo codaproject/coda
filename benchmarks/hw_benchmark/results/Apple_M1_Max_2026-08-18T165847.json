@@ -1,0 +1,271 @@
+{
+  "hardware": {
+    "chip": "Apple M1 Max",
+    "ram_gb": 64,
+    "bandwidth_gbps": 400,
+    "cpu_cores": 10,
+    "macos": "15.7.3"
+  },
+  "timestamp": "2026-08-18T16:58:47",
+  "n_narratives": 10,
+  "stt": {
+    "reps": 3,
+    "clip_sec": 38.56,
+    "keep_up_mean": 1.023,
+    "keep_up_median": 1.023,
+    "peak_gb": 1.45,
+    "runs": [
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.48,
+        "keep_up": 1.024,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      },
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.42,
+        "keep_up": 1.022,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      },
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.44,
+        "keep_up": 1.023,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      }
+    ]
+  },
+  "models": [
+    {
+      "name": "qwen2.5-7b-instruct",
+      "backend": "ollama",
+      "id": "qwen2.5:7b-instruct",
+      "cases": [
+        {
+          "i": 0,
+          "latency_sec": 4.84,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 1,
+          "latency_sec": 4.93,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 2,
+          "latency_sec": 5.87,
+          "valid": true,
+          "top_cause": "Neonatal sepsis"
+        },
+        {
+          "i": 3,
+          "latency_sec": 4.61,
+          "valid": true,
+          "top_cause": "Malaria"
+        },
+        {
+          "i": 4,
+          "latency_sec": 4.88,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 5,
+          "latency_sec": 4.73,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 6,
+          "latency_sec": 5.01,
+          "valid": true,
+          "top_cause": "Meningitis/Encephalitis"
+        },
+        {
+          "i": 7,
+          "latency_sec": 4.87,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 8,
+          "latency_sec": 4.89,
+          "valid": true,
+          "top_cause": "Congenital heart diseases"
+        },
+        {
+          "i": 9,
+          "latency_sec": 4.5,
+          "valid": true,
+          "top_cause": "Injury"
+        }
+      ],
+      "valid_rate": 1.0,
+      "mean_latency_sec": 4.91,
+      "median_latency_sec": 4.88,
+      "stdev_latency_sec": 0.37,
+      "min_latency_sec": 4.5,
+      "max_latency_sec": 5.87
+    },
+    {
+      "name": "gpt-oss-20b",
+      "backend": "ollama",
+      "id": "gpt-oss:20b",
+      "cases": [
+        {
+          "i": 0,
+          "latency_sec": 14.26,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 1,
+          "latency_sec": 15.67,
+          "valid": true,
+          "top_cause": "Diarrheal Diseases"
+        },
+        {
+          "i": 2,
+          "latency_sec": 46.85,
+          "valid": true,
+          "top_cause": "Neonatal sepsis"
+        },
+        {
+          "i": 3,
+          "latency_sec": 14.93,
+          "valid": true,
+          "top_cause": "Malaria"
+        },
+        {
+          "i": 4,
+          "latency_sec": 26.51,
+          "valid": true,
+          "top_cause": "Upper respiratory infections"
+        },
+        {
+          "i": 5,
+          "latency_sec": 17.59,
+          "valid": true,
+          "top_cause": "Measles"
+        },
+        {
+          "i": 6,
+          "latency_sec": 15.56,
+          "valid": true,
+          "top_cause": "Meningitis/Encephalitis"
+        },
+        {
+          "i": 7,
+          "latency_sec": 18.95,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 8,
+          "latency_sec": 18.02,
+          "valid": true,
+          "top_cause": "Congenital birth defects"
+        },
+        {
+          "i": 9,
+          "latency_sec": 19.01,
+          "valid": true,
+          "top_cause": "Injury"
+        }
+      ],
+      "valid_rate": 1.0,
+      "mean_latency_sec": 20.73,
+      "median_latency_sec": 17.8,
+      "stdev_latency_sec": 9.81,
+      "min_latency_sec": 14.26,
+      "max_latency_sec": 46.85
+    },
+    {
+      "name": "Qwen3-30B-A3B-Instruct-2507-4bit",
+      "backend": "mlx",
+      "id": "mlx-community/Qwen3-30B-A3B-Instruct-2507-4bit",
+      "cases": [
+        {
+          "i": 0,
+          "latency_sec": 9.16,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 1,
+          "latency_sec": 11.86,
+          "valid": true,
+          "top_cause": "Diarrheal Diseases"
+        },
+        {
+          "i": 2,
+          "latency_sec": 13.21,
+          "valid": true,
+          "top_cause": "Neonatal sepsis"
+        },
+        {
+          "i": 3,
+          "latency_sec": 11.43,
+          "valid": true,
+          "top_cause": "Malaria"
+        },
+        {
+          "i": 4,
+          "latency_sec": 14.38,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 5,
+          "latency_sec": 11.87,
+          "valid": true,
+          "top_cause": "Measles"
+        },
+        {
+          "i": 6,
+          "latency_sec": 10.97,
+          "valid": true,
+          "top_cause": "Meningitis/Encephalitis"
+        },
+        {
+          "i": 7,
+          "latency_sec": 9.5,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 8,
+          "latency_sec": 11.02,
+          "valid": true,
+          "top_cause": "Congenital birth defects"
+        },
+        {
+          "i": 9,
+          "latency_sec": 10.65,
+          "valid": true,
+          "top_cause": "Injury"
+        }
+      ],
+      "valid_rate": 1.0,
+      "mean_latency_sec": 11.4,
+      "median_latency_sec": 11.22,
+      "stdev_latency_sec": 1.57,
+      "min_latency_sec": 9.16,
+      "max_latency_sec": 14.38
+    }
+  ]
+}

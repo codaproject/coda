@@ -72,7 +72,8 @@ def load_machines():
     vend = {}
     per_family = defaultdict(dict)
     for f in sorted(glob.glob(str(HERE / "results" / "*.json"))):
-        d = json.load(open(f))
+        with open(f) as fh:
+            d = json.load(fh)
         hw = d.get("hardware", {})
         chip = short_chip(hw.get("chip"))
         if not chip:

@@ -171,7 +171,7 @@ def main():
             print(f"  ERROR: {stt['error']}\n")
         else:
             print(f"  keep_up mean={stt['keep_up_mean']} median={stt['keep_up_median']} "
-                  f"(<=1.0 real time)  peak={stt['peak_gb']}GB\n")
+                  f"(~1.0 keeps up, >1.0 falls behind)  peak={stt['peak_gb']}GB\n")
         report["stt"] = stt
 
     models = [m for m in cfg["models"] if not args.models or m["name"] in args.models]

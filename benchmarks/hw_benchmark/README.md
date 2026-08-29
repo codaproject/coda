@@ -6,8 +6,9 @@ on Apple Silicon (Macs) and Windows AMD Ryzen AI boxes; only the per-platform mo
 list and serving backend differ, and those are isolated in `configs/`.
 
 1. **Speech-to-text** — WhisperLiveKit fed the shared clip as real-time PCM, the
-   same streaming path CODA uses. Reports `keep_up` (`<= 1.0` means the machine
-   transcribes in real time).
+   same streaming path CODA uses. Reports `keep_up` = wall / clip: the audio is
+   played at real time, so `~1.0` means the machine keeps up in real time and
+   `> 1.0` means it falls behind (the excess is trailing transcription lag).
 2. **Inference** — cause-of-death across the config's models using CODA's request:
    the CHAMPS system prompt, `COD_OUTPUT_SCHEMA`, and schema-constrained decoding.
 
@@ -22,7 +23,7 @@ land on the same axes.
 
 | | STT backend | Inference backend | Models |
 |---|---|---|---|
-| **mac** (`configs/mac.py`) | mlx-whisper | Ollama + mlx-openai-server | qwen2.5-7b, gpt-oss-20b, gemma4-26b, Qwen3-30B-A3B (MLX) |
+| **mac** (`configs/mac.py`) | mlx-whisper | Ollama + mlx-openai-server | qwen2.5-7b, gpt-oss-20b, Qwen3-30B-A3B (MLX) |
 | **ryzen** (`configs/ryzen.py`) | lemonade-whisper | Lemonade (llama.cpp/GGUF) | Qwen2.5-7B, Qwen3-8B, Qwen3-14B, Gemma-4-12B |
 
 Ryzen uses only GGUF models: Lemonade's ryzenai-llm (NPU/Hybrid) recipe does not
