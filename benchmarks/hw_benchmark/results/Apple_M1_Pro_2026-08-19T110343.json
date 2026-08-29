@@ -1,0 +1,203 @@
+{
+  "hardware": {
+    "chip": "Apple M1 Pro",
+    "ram_gb": 16,
+    "bandwidth_gbps": 200,
+    "cpu_cores": 8,
+    "macos": "15.7.4"
+  },
+  "timestamp": "2026-08-19T11:03:43",
+  "n_narratives": 10,
+  "stt": {
+    "reps": 3,
+    "clip_sec": 38.56,
+    "keep_up_mean": 1.03,
+    "keep_up_median": 1.031,
+    "peak_gb": 1.45,
+    "runs": [
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.77,
+        "keep_up": 1.031,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      },
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.9,
+        "keep_up": 1.035,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      },
+      {
+        "mode": "stream",
+        "backend": "mlx-whisper",
+        "model": "small",
+        "clip_sec": 38.56,
+        "wall_sec": 39.48,
+        "keep_up": 1.024,
+        "committed_words": 135,
+        "peak_gb": 1.45
+      }
+    ]
+  },
+  "models": [
+    {
+      "name": "qwen2.5-7b-instruct",
+      "backend": "ollama",
+      "id": "qwen2.5:7b-instruct",
+      "cases": [
+        {
+          "i": 0,
+          "latency_sec": 9.85,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 1,
+          "latency_sec": 9.46,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 2,
+          "latency_sec": 11.06,
+          "valid": true,
+          "top_cause": "Neonatal sepsis"
+        },
+        {
+          "i": 3,
+          "latency_sec": 9.46,
+          "valid": true,
+          "top_cause": "Malaria"
+        },
+        {
+          "i": 4,
+          "latency_sec": 9.39,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 5,
+          "latency_sec": 9.63,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 6,
+          "latency_sec": 10.39,
+          "valid": true,
+          "top_cause": "Meningitis/Encephalitis"
+        },
+        {
+          "i": 7,
+          "latency_sec": 11.24,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 8,
+          "latency_sec": 10.01,
+          "valid": true,
+          "top_cause": "Congenital heart diseases"
+        },
+        {
+          "i": 9,
+          "latency_sec": 8.03,
+          "valid": true,
+          "top_cause": "Injury"
+        }
+      ],
+      "valid_rate": 1.0,
+      "mean_latency_sec": 9.85,
+      "median_latency_sec": 9.74,
+      "stdev_latency_sec": 0.92,
+      "min_latency_sec": 8.03,
+      "max_latency_sec": 11.24
+    },
+    {
+      "name": "gpt-oss-20b",
+      "backend": "ollama",
+      "id": "gpt-oss:20b",
+      "cases": [
+        {
+          "i": 0,
+          "latency_sec": 87.08,
+          "valid": true,
+          "top_cause": "Lower respiratory infections"
+        },
+        {
+          "i": 1,
+          "latency_sec": 141.16,
+          "valid": true,
+          "top_cause": "Diarrheal Diseases"
+        },
+        {
+          "i": 2,
+          "latency_sec": 75.12,
+          "valid": true,
+          "top_cause": "Neonatal sepsis"
+        },
+        {
+          "i": 3,
+          "latency_sec": 79.37,
+          "valid": true,
+          "top_cause": "Malaria"
+        },
+        {
+          "i": 4,
+          "latency_sec": 300.28,
+          "valid": false,
+          "top_cause": null
+        },
+        {
+          "i": 5,
+          "latency_sec": 116.74,
+          "valid": true,
+          "top_cause": "Measles"
+        },
+        {
+          "i": 6,
+          "latency_sec": 64.88,
+          "valid": true,
+          "top_cause": "Meningitis/Encephalitis"
+        },
+        {
+          "i": 7,
+          "latency_sec": 86.17,
+          "valid": true,
+          "top_cause": "Malnutrition"
+        },
+        {
+          "i": 8,
+          "latency_sec": 71.94,
+          "valid": true,
+          "top_cause": "Congenital birth defects"
+        },
+        {
+          "i": 9,
+          "latency_sec": 55.78,
+          "valid": true,
+          "top_cause": "Injury"
+        }
+      ],
+      "valid_rate": 0.9,
+      "mean_latency_sec": 86.47,
+      "median_latency_sec": 79.37,
+      "stdev_latency_sec": 26.71,
+      "min_latency_sec": 55.78,
+      "max_latency_sec": 141.16
+    },
+    {
+      "name": "Qwen3-30B-A3B-Instruct-2507-4bit",
+      "backend": "mlx",
+      "error": "[Errno 2] No such file or directory: 'mlx-openai-server'"
+    }
+  ]
+}
