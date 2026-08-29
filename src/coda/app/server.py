@@ -641,7 +641,7 @@ async def _handle_committed(websocket: WebSocket, event, direct_translate: bool)
     if original_transcript:
         msg["original_transcript"] = original_transcript
         msg["original_language"] = current_language
-    await websocket.send_json(msg)
+    await _ws_send_safe(websocket, msg)
     logger.info(f"Chunk {chunk_id}: {english_text}")
 
     return chunk_id, timestamp, english_text, annotations
