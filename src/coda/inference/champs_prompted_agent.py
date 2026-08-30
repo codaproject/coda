@@ -96,7 +96,7 @@ COD_OUTPUT_SCHEMA = {
 }
 
 
-class ChampsLLMInferenceAgent(InferenceAgent):
+class ChampsPromptedInferenceAgent(InferenceAgent):
     """CHAMPS LLM-based cause-of-death inference agent.
 
     Uses a CODA LLMClient to call an LLM with the CHAMPS COD classification
@@ -225,12 +225,12 @@ class ChampsLLMInferenceAgent(InferenceAgent):
                 "questions": questions}
 
 
-def create_champs_agent(
+def create_champs_prompted_agent(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     **kwargs,
-) -> ChampsLLMInferenceAgent:
-    """Create a ChampsLLMInferenceAgent with a new LLM client.
+) -> ChampsPromptedInferenceAgent:
+    """Create a ChampsPromptedInferenceAgent with a new LLM client.
 
     Defaults to the configured inference provider/model.
     """
@@ -239,7 +239,7 @@ def create_champs_agent(
     provider = provider or settings.inference.llm.provider
     model = model or settings.inference.llm.model
     client = create_llm_client(provider=provider, model=model, **kwargs)
-    return ChampsLLMInferenceAgent(llm_client=client)
+    return ChampsPromptedInferenceAgent(llm_client=client)
 
 
 if __name__ == "__main__":
@@ -248,7 +248,7 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    agent = create_champs_agent()
+    agent = create_champs_prompted_agent()
     server = InferenceServer(
         agent,
         host=settings.inference.host,

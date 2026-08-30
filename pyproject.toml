@@ -66,6 +66,13 @@ benchmark = [
     "kagglehub",
     "soundfile",
 ]
+champs-finetuned = [
+    "torch",
+    "transformers",
+    "peft",
+    "accelerate",
+    "jinja2",
+]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"

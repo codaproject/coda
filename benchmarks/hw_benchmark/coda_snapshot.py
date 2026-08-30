@@ -2,7 +2,7 @@
 
 Reads CODA's checked-in CHAMPS resources (src/coda/resources/champs) directly for
 the system prompt, schema guidance, and allowed causes, so the benchmark never
-drifts from coda.inference.champs_llm_agent. COD_OUTPUT_SCHEMA below mirrors that
+drifts from coda.inference.champs_prompted_agent. COD_OUTPUT_SCHEMA below mirrors that
 agent's schema, kept inline (rather than imported) so the benchmark stays free of
 CODA's inference dependencies; keep it in sync if CODA's schema changes. The infer
 helpers issue the constrained-decoding calls directly (Ollama's native
