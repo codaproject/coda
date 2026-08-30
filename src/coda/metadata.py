@@ -8,11 +8,45 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+# Days per age unit
+DAYS_PER_UNIT = {
+    "hours": 1 / 24,
+    "days": 1.0,
+    "weeks": 7.0,
+    "months": 365.25 / 12,
+    "years": 365.25,
+}
+
 
 @dataclass
 class Age:
     value: Optional[float] = None
     unit: Optional[str] = None
+
+    def in_unit(self, unit: str) -> Optional[float]:
+        if self.value is None or self.unit not in DAYS_PER_UNIT:
+            return None
+        return self.value * DAYS_PER_UNIT[self.unit] / DAYS_PER_UNIT[unit]
+
+    @property
+    def hours(self) -> Optional[float]:
+        return self.in_unit("hours")
+
+    @property
+    def days(self) -> Optional[float]:
+        return self.in_unit("days")
+
+    @property
+    def weeks(self) -> Optional[float]:
+        return self.in_unit("weeks")
+
+    @property
+    def months(self) -> Optional[float]:
+        return self.in_unit("months")
+
+    @property
+    def years(self) -> Optional[float]:
+        return self.in_unit("years")
 
     @classmethod
     def from_dict(cls, d: Optional[dict]) -> Optional["Age"]:
