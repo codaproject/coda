@@ -381,6 +381,54 @@
       }
 
       /* Thin waveform strip during recording */
+      .profile-bar {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 8px 32px;
+        background: var(--paper-elevated);
+        border-bottom: 1px solid var(--border-warm);
+        font-size: 13px;
+      }
+      body[data-state="history"] .profile-bar {
+        display: none;
+      }
+      .profile-field,
+      .profile-still {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .profile-field label,
+      .profile-still {
+        color: var(--ink-soft);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .profile-field input[type="number"] {
+        width: 72px;
+        padding: 4px 8px;
+        border: 1px solid var(--border-warm);
+        border-radius: 6px;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .profile-field select {
+        padding: 4px 8px;
+        border: 1px solid var(--border-warm);
+        border-radius: 6px;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 13px;
+      }
+      .profile-still {
+        cursor: pointer;
+      }
+      .profile-bar[data-stillbirth="true"] .profile-field {
+        opacity: 0.4;
+        pointer-events: none;
+      }
       .waveform {
         height: 40px;
         display: none;
@@ -2403,6 +2451,22 @@
         </div>
       </header>
 
+      <div class="profile-bar" id="profileBar">
+        <div class="profile-field">
+          <label for="ageValue" data-i18n="profile.age">Age</label>
+          <input type="number" id="ageValue" min="0" step="1" placeholder="—" />
+          <select id="ageUnit">
+            <option value="days">days</option>
+            <option value="months" selected>months</option>
+            <option value="years">years</option>
+          </select>
+        </div>
+        <label class="profile-still">
+          <input type="checkbox" id="stillbirthToggle" />
+          <span data-i18n="profile.stillbirth">Stillbirth</span>
+        </label>
+      </div>
+
       <div class="waveform" aria-hidden="true">
         <span class="wf-bar" style="height: 8px"></span>
         <span class="wf-bar" style="height: 14px"></span>
@@ -2904,6 +2968,8 @@
       // pass — they should be reviewed by a native speaker before production.
       const I18N_STRINGS = {
         en: {
+          "profile.age": "Age",
+          "profile.stillbirth": "Stillbirth",
           "common.new": "New",
           "common.copy": "Copy transcript",
           "common.back": "Back",
@@ -2973,6 +3039,8 @@
             "Everything is stored locally on this device. Nothing is synced or uploaded.",
         },
         sw: {
+          "profile.age": "Umri",
+          "profile.stillbirth": "Aliyezaliwa mfu",
           "common.new": "Mpya",
           "common.copy": "Nakili maandishi",
           "common.back": "Rudi",
@@ -3041,6 +3109,8 @@
             "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
         },
         fr: {
+          "profile.age": "Âge",
+          "profile.stillbirth": "Mort-né",
           "common.new": "Nouveau",
           "common.copy": "Copier la transcription",
           "common.back": "Retour",
@@ -4872,12 +4942,57 @@
         else stopRecording();
       });
 
+      // Decedent profile inputs (per-interview metadata, optional).
+      const profileBar = document.getElementById("profileBar");
+      const ageValueInput = document.getElementById("ageValue");
+      const ageUnitSelect = document.getElementById("ageUnit");
+      const stillbirthToggle = document.getElementById("stillbirthToggle");
+
+      function applyStillbirthState() {
+        profileBar.setAttribute(
+          "data-stillbirth",
+          stillbirthToggle.checked ? "true" : "false"
+        );
+      }
+
+      async function pushMetadata() {
+        applyStillbirthState();
+        const ageValue =
+          ageValueInput.value === "" ? null : Number(ageValueInput.value);
+        const profile = {
+          age:
+            ageValue === null
+              ? null
+              : { value: ageValue, unit: ageUnitSelect.value },
+          stillbirth: stillbirthToggle.checked,
+        };
+        try {
+          await fetch("/metadata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profile }),
+          });
+        } catch (e) {}
+      }
+
+      function clearProfileInputs() {
+        ageValueInput.value = "";
+        ageUnitSelect.value = "months";
+        stillbirthToggle.checked = false;
+        applyStillbirthState();
+      }
+
+      ageValueInput.addEventListener("change", pushMetadata);
+      ageUnitSelect.addEventListener("change", pushMetadata);
+      stillbirthToggle.addEventListener("change", pushMetadata);
+
       document
         .getElementById("resetBtn")
         .addEventListener("click", async () => {
           if (isRecording) {
             stopRecording();
           }
+          clearProfileInputs();
           transcriptText = "";
           chunkCount = 0;
           transcript.innerHTML =
