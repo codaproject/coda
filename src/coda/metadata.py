@@ -1,7 +1,6 @@
-"""Structured per-interview metadata passed to inference agents.
+"""Structured per-interview metadata.
 
-Shape: metadata -> profile -> age. Profile holds decedent attributes;
-further top-level fields (date, location) can be added over time.
+Shape: metadata -> profile -> age. Profile holds decedent attributes.
 """
 from __future__ import annotations
 
