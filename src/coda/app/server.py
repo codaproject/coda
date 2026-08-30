@@ -257,7 +257,7 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
             "timestamp": timestamp,
             "text": transcript,
             "annotations": [a.to_json() for a in annotations],
-            "metadata": current_metadata.to_dict() if not current_metadata.is_empty() else None
+            "metadata": current_metadata.to_dict()
         })
         response.raise_for_status()
         result = response.json()
