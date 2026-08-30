@@ -382,16 +382,50 @@
 
       /* Thin waveform strip during recording */
       .profile-bar {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 8px 32px;
         background: var(--paper-elevated);
         border-bottom: 1px solid var(--border-warm);
         font-size: 13px;
       }
       body[data-state="history"] .profile-bar {
         display: none;
+      }
+      .profile-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 32px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--ink-soft);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        font-size: 13px;
+      }
+      .profile-chevron {
+        font-size: 11px;
+        transition: transform 0.15s ease;
+      }
+      .profile-bar[data-expanded="true"] .profile-chevron {
+        transform: rotate(180deg);
+      }
+      .profile-summary {
+        margin-left: 4px;
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .profile-bar[data-expanded="true"] .profile-summary {
+        display: none;
+      }
+      .profile-fields {
+        display: none;
+        align-items: center;
+        gap: 20px;
+        padding: 0 32px 10px;
+      }
+      .profile-bar[data-expanded="true"] .profile-fields {
+        display: flex;
       }
       .profile-field,
       .profile-still {
@@ -2451,20 +2485,34 @@
         </div>
       </header>
 
-      <div class="profile-bar" id="profileBar">
-        <div class="profile-field">
-          <label for="ageValue" data-i18n="profile.age">Age</label>
-          <input type="number" id="ageValue" min="0" step="1" placeholder="—" />
-          <select id="ageUnit">
-            <option value="days">days</option>
-            <option value="months" selected>months</option>
-            <option value="years">years</option>
-          </select>
+      <div class="profile-bar" id="profileBar" data-expanded="false">
+        <button
+          type="button"
+          class="profile-toggle"
+          id="profileToggle"
+          aria-expanded="false"
+          aria-controls="profileFields"
+        >
+          <i class="bi bi-person-vcard"></i>
+          <span data-i18n="profile.title">Case profile</span>
+          <i class="bi bi-chevron-down profile-chevron"></i>
+          <span class="profile-summary" id="profileSummary"></span>
+        </button>
+        <div class="profile-fields" id="profileFields">
+          <div class="profile-field">
+            <label for="ageValue" data-i18n="profile.age">Age</label>
+            <input type="number" id="ageValue" min="0" step="1" placeholder="—" />
+            <select id="ageUnit">
+              <option value="days">days</option>
+              <option value="months" selected>months</option>
+              <option value="years">years</option>
+            </select>
+          </div>
+          <label class="profile-still">
+            <input type="checkbox" id="stillbirthToggle" />
+            <span data-i18n="profile.stillbirth">Stillbirth</span>
+          </label>
         </div>
-        <label class="profile-still">
-          <input type="checkbox" id="stillbirthToggle" />
-          <span data-i18n="profile.stillbirth">Stillbirth</span>
-        </label>
       </div>
 
       <div class="waveform" aria-hidden="true">
@@ -2968,6 +3016,7 @@
       // pass — they should be reviewed by a native speaker before production.
       const I18N_STRINGS = {
         en: {
+          "profile.title": "Case profile",
           "profile.age": "Age",
           "profile.stillbirth": "Stillbirth",
           "common.new": "New",
@@ -3039,6 +3088,7 @@
             "Everything is stored locally on this device. Nothing is synced or uploaded.",
         },
         sw: {
+          "profile.title": "Wasifu wa kesi",
           "profile.age": "Umri",
           "profile.stillbirth": "Aliyezaliwa mfu",
           "common.new": "Mpya",
@@ -3109,6 +3159,7 @@
             "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
         },
         fr: {
+          "profile.title": "Profil du cas",
           "profile.age": "Âge",
           "profile.stillbirth": "Mort-né",
           "common.new": "Nouveau",
@@ -3184,6 +3235,9 @@
         },
         ar: {
           "common.new": "جديد",
+          "profile.title": "ملف الحالة",
+          "profile.age": "العمر",
+          "profile.stillbirth": "مولود ميت",
           "common.copy": "نسخ النص",
           "common.back": "رجوع",
           "common.clearAll": "مسح الكل",
@@ -3251,6 +3305,9 @@
         },
         bn: {
           "common.new": "নতুন",
+          "profile.title": "কেসের প্রোফাইল",
+          "profile.age": "বয়স",
+          "profile.stillbirth": "মৃত জন্ম",
           "common.copy": "প্রতিলিপি কপি করুন",
           "common.back": "ফিরে যান",
           "common.clearAll": "সব মুছুন",
@@ -3320,6 +3377,9 @@
         },
         es: {
           "common.new": "Nuevo",
+          "profile.title": "Perfil del caso",
+          "profile.age": "Edad",
+          "profile.stillbirth": "Mortinato",
           "common.copy": "Copiar transcripción",
           "common.back": "Atrás",
           "common.clearAll": "Borrar todo",
@@ -4944,6 +5004,8 @@
 
       // Decedent profile inputs (per-interview metadata, optional).
       const profileBar = document.getElementById("profileBar");
+      const profileToggle = document.getElementById("profileToggle");
+      const profileSummary = document.getElementById("profileSummary");
       const ageValueInput = document.getElementById("ageValue");
       const ageUnitSelect = document.getElementById("ageUnit");
       const stillbirthToggle = document.getElementById("stillbirthToggle");
@@ -4955,8 +5017,31 @@
         );
       }
 
+      function setProfileExpanded(expanded) {
+        profileBar.setAttribute("data-expanded", expanded ? "true" : "false");
+        profileToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      }
+
+      // One-line summary shown on the toggle while collapsed.
+      function updateProfileSummary() {
+        let text = "";
+        if (stillbirthToggle.checked) {
+          text = t("profile.stillbirth");
+        } else if (ageValueInput.value !== "") {
+          text = ageValueInput.value + " " + ageUnitSelect.value;
+        }
+        profileSummary.textContent = text;
+      }
+
+      profileToggle.addEventListener("click", () => {
+        setProfileExpanded(
+          profileBar.getAttribute("data-expanded") !== "true"
+        );
+      });
+
       async function pushMetadata() {
         applyStillbirthState();
+        updateProfileSummary();
         const ageValue =
           ageValueInput.value === "" ? null : Number(ageValueInput.value);
         const profile = {
@@ -4980,6 +5065,8 @@
         ageUnitSelect.value = "months";
         stillbirthToggle.checked = false;
         applyStillbirthState();
+        updateProfileSummary();
+        setProfileExpanded(false);
       }
 
       ageValueInput.addEventListener("change", pushMetadata);
