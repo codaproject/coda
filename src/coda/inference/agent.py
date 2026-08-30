@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from gilda import Annotation
 from coda.config import settings
+from coda.metadata import Metadata
 
 logger = logging.getLogger('coda.inference')
 
@@ -16,15 +17,18 @@ class InferenceAgent:
         """Initialize the agent with empty dialogue history."""
         self.dialogue_history = []  # List of (chunk_id, timestamp, text, annotations) tuples
         self.all_text = ""  # Accumulated text from all chunks
+        self.metadata = Metadata()
 
     def reset(self):
         """Reset dialogue history for a new interview."""
         self.dialogue_history = []
         self.all_text = ""
+        self.metadata = Metadata()
         logger.info("Agent state reset for new interview")
 
     async def process_chunk(self, chunk_id: str, text: str,
-                           annotations: List[Annotation], timestamp: float = None) -> dict:
+                           annotations: List[Annotation], timestamp: float = None,
+                           metadata: dict = None) -> dict:
         """Process dialogue chunk and return inference results.
 
         This method handles dialogue history tracking and delegates
@@ -54,6 +58,10 @@ class InferenceAgent:
         if timestamp is None:
             import time
             timestamp = time.time()
+
+        # Carry per-interview metadata forward if provided
+        if metadata is not None:
+            self.metadata = Metadata.from_dict(metadata)
 
         # Add to dialogue history
         self.dialogue_history.append((chunk_id, timestamp, text, annotations))
@@ -170,6 +178,8 @@ class InferenceRequest(BaseModel):
     text: str
     annotations: list
     timestamp: float = None  # Optional timestamp
+    # Structured per-interview metadata
+    metadata: dict = None
 
 
 class InferenceServer:
@@ -194,7 +204,8 @@ class InferenceServer:
                     request.chunk_id,
                     request.text,
                     request.annotations,
-                    request.timestamp
+                    request.timestamp,
+                    request.metadata
                 )
                 causes = result.get('causes', {})
                 if causes:

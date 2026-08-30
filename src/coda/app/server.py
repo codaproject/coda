@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -42,6 +42,7 @@ from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
 from coda.config import settings, inference_url
+from coda.metadata import Metadata
 
 app = FastAPI()
 
@@ -95,6 +96,9 @@ rag_config = {
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = "llm"
+# Per-interview metadata, set via /metadata and forwarded to the inference
+# agent with every inference request.
+current_metadata = Metadata()
 transcriber: Transcriber
 
 
@@ -252,7 +256,8 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
             "chunk_id": chunk_id,
             "timestamp": timestamp,
             "text": transcript,
-            "annotations": [a.to_json() for a in annotations]
+            "annotations": [a.to_json() for a in annotations],
+            "metadata": current_metadata.to_dict()
         })
         response.raise_for_status()
         result = response.json()
@@ -327,6 +332,15 @@ async def get_settings():
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
     }
+
+
+@app.post("/metadata")
+async def set_metadata(payload: dict = Body(...)):
+    """Set per-interview metadata forwarded to the inference agent."""
+    global current_metadata
+    current_metadata = Metadata.from_dict(payload)
+    logger.info(f"Metadata set: {current_metadata.to_dict()}")
+    return current_metadata.to_dict()
 
 
 @app.get("/transcriber_backends")
@@ -672,6 +686,8 @@ async def _start_inference(websocket: WebSocket, chunk_id: str, timestamp: float
 @app.post("/reset")
 async def reset_session():
     """Reset session state: close save files and reset the inference agent."""
+    global current_metadata
+    current_metadata = Metadata()
     close_save_files()
     try:
         resp = await inference_client.post("/reset")
