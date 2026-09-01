@@ -44,6 +44,7 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         model: Optional[MedGemmaModel] = None,
         top_k: int = 3,
         batch_size: int = 8,
+        llm_semaphore: asyncio.Semaphore | None = None,
     ):
         super().__init__()
         self.menu = menu
@@ -52,6 +53,8 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         self.top_k = top_k
         self.batch_size = batch_size
         self._model = model
+        # Serialize access to the single shared model across sessions
+        self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
 
     def ensure_model(self) -> MedGemmaModel:
         if self._model is None:
@@ -72,6 +75,16 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
             prompt.messages, candidates, batch_size=self.batch_size
         )
 
+    def create_session_agent(self) -> "ChampsFinetunedInferenceAgent":
+        return ChampsFinetunedInferenceAgent(
+            menu=self.menu,
+            adapter_path=self.adapter_path,
+            model=self._model,
+            top_k=self.top_k,
+            batch_size=self.batch_size,
+            llm_semaphore=self.llm_semaphore,
+        )
+
     async def infer(self, chunk_id: str, text: str,
                     annotations: List[Annotation]) -> dict:
         narrative = self.all_text.strip()
@@ -79,7 +92,8 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
             return {"causes": {}, "reasoning": "No narrative text yet."}
 
         try:
-            scores = await asyncio.to_thread(self.score_menu, narrative)
+            async with self.llm_semaphore:
+                scores = await asyncio.to_thread(self.score_menu, narrative)
         except Exception:
             logger.exception("MedGemma inference failed for chunk %s", chunk_id)
             return {"causes": {}, "reasoning": "MedGemma inference raised an exception."}

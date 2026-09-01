@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from coda.inference.agent import InferenceServer
+from coda.inference.champs_finetuned.agent import ChampsFinetunedInferenceAgent
 from coda.inference.champs_prompted_agent import ChampsPromptedInferenceAgent
 
 
@@ -224,3 +225,61 @@ def test_inference_server_reset_clears_only_target_session():
     assert reset_resp.status_code == 200
     assert resp_a_new.json()["chunks_processed"] == 1
     assert resp_b2.json()["chunks_processed"] == 2
+
+
+FINETUNED_MENU = {"C1": "Cause one", "C2": "Cause two"}
+
+
+class FakeMedGemmaModel:
+    def __init__(self, counter=None):
+        self.counter = counter
+
+    def score_candidates(self, messages, candidates, batch_size=8):
+        counter = self.counter
+        if counter is not None:
+            with counter["lock"]:
+                counter["active"] += 1
+                counter["max_active"] = max(counter["max_active"], counter["active"])
+        try:
+            time.sleep(0.1)
+            return [0.9, 0.1][: len(candidates)]
+        finally:
+            if counter is not None:
+                with counter["lock"]:
+                    counter["active"] -= 1
+
+
+def test_finetuned_create_session_agent_shares_model_and_semaphore():
+    model = FakeMedGemmaModel()
+    agent = ChampsFinetunedInferenceAgent(
+        menu=FINETUNED_MENU, adapter_path="x", model=model)
+    session = agent.create_session_agent()
+
+    assert session._model is model
+    assert session.llm_semaphore is agent.llm_semaphore
+    assert session.menu == FINETUNED_MENU
+
+
+@pytest.mark.asyncio
+async def test_finetuned_infer_returns_causes():
+    agent = ChampsFinetunedInferenceAgent(
+        menu=FINETUNED_MENU, adapter_path="x", model=FakeMedGemmaModel())
+    result = await agent.process_chunk("chunk-1", "Patient had fever.", [])
+
+    assert result["causes"]
+
+
+@pytest.mark.asyncio
+async def test_finetuned_concurrency_bound_shared_across_sessions():
+    counter = {"active": 0, "max_active": 0, "lock": threading.Lock()}
+    prototype = ChampsFinetunedInferenceAgent(
+        menu=FINETUNED_MENU, adapter_path="x", model=FakeMedGemmaModel(counter))
+    agent_a = prototype.create_session_agent()
+    agent_b = prototype.create_session_agent()
+
+    await asyncio.gather(
+        agent_a.process_chunk("chunk-a", "one", []),
+        agent_b.process_chunk("chunk-b", "two", []),
+    )
+
+    assert counter["max_active"] == 1
