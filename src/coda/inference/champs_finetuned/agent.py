@@ -135,6 +135,8 @@ def create_champs_finetuned_agent(
     menu_resource = menu_resource or (cfg and cfg.menu) or "icd_all_labels.json"
     top_k = int((cfg and cfg.get("top_k")) or 3)
     batch_size = int((cfg and cfg.get("batch_size")) or 8)
+    max_concurrency = int(settings.inference.get("max_concurrency", 1) or 1)
+    kwargs.setdefault("llm_semaphore", asyncio.Semaphore(max_concurrency))
 
     return ChampsFinetunedInferenceAgent(
         menu=load_menu(menu_resource),

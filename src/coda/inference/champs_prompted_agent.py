@@ -255,7 +255,11 @@ def create_champs_prompted_agent(
     provider = provider or settings.inference.llm.provider
     model = model or settings.inference.llm.model
     client = create_llm_client(provider=provider, model=model, **kwargs)
-    return ChampsPromptedInferenceAgent(llm_client=client)
+    max_concurrency = int(settings.inference.get("max_concurrency", 1) or 1)
+    return ChampsPromptedInferenceAgent(
+        llm_client=client,
+        llm_semaphore=asyncio.Semaphore(max_concurrency),
+    )
 
 
 if __name__ == "__main__":

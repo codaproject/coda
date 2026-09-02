@@ -36,6 +36,9 @@ inference:
   # Empty -> derived from host/port at runtime. Set to point the app at a
   # remote inference service (Compose sets this to http://inference:5123).
   url: ""
+  # Max concurrent in-flight inference calls across all sessions. Keep at 1 for
+  # a serial backend like Ollama; raise for a batching server like vLLM.
+  max_concurrency: 1
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
