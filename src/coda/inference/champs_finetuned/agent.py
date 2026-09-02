@@ -16,7 +16,6 @@ from gilda import Annotation
 
 from coda.config import settings
 from coda.inference.agent import InferenceAgent
-from coda.inference.champs_finetuned.engine import MedGemmaModel
 from coda.inference.champs_finetuned.prompt import MenuPrompt, build_menu_prompt
 from coda.resources import get_resource_path
 
@@ -41,7 +40,7 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         menu: dict[str, str],
         adapter_path: str,
         *,
-        model: Optional[MedGemmaModel] = None,
+        model=None,
         top_k: int = 3,
         batch_size: int = 8,
         llm_semaphore: asyncio.Semaphore | None = None,
@@ -56,8 +55,9 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         # Serialize access to the single shared model across sessions
         self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
 
-    def ensure_model(self) -> MedGemmaModel:
+    def ensure_model(self):
         if self._model is None:
+            from coda.inference.champs_finetuned.engine import MedGemmaModel
             logger.info("Loading MedGemma model with adapter %s", self.adapter_path)
             self._model = MedGemmaModel(adapter_path=self.adapter_path)
             logger.info("MedGemma model loaded")
