@@ -19,6 +19,8 @@
 app:
   host: 0.0.0.0
   port: 8000
+  # When true, the server rejects changes to server-global settings.
+  lock_server_settings: false
   onboarding_notice:
     # Optional deployment-specific HTML fragment shown on the onboarding page
     # before the consent checkbox. Empty -> no notice. The file is trusted
