@@ -491,6 +491,7 @@ async def get_settings():
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
+        "server_settings_locked": settings.app.get("lock_server_settings", False),
     }
 
 
@@ -530,6 +531,8 @@ async def get_transcriber_backend_models(backend: str):
 @app.post("/settings")
 async def update_settings(req: SettingsRequest):
     """Update server settings."""
+    if settings.app.get("lock_server_settings", False):
+        raise HTTPException(status_code=403, detail="Server settings are locked")
     global current_language, save_enabled, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
     global translation_mode
@@ -635,6 +638,7 @@ async def update_settings(req: SettingsRequest):
         "llm_provider": current_llm_provider,
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
+        "server_settings_locked": settings.app.get("lock_server_settings", False),
     }
 
 

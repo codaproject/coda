@@ -4418,11 +4418,25 @@
           updateFilePathDisplay(data.file_paths);
           updateTranslationVisibility();
           updateLangChip();
+          applyServerSettingsLock(data.server_settings_locked === true);
           // Populate mic list (labels may be blank until permission is granted)
           await populateMicList();
         } catch (e) {
           console.error("Failed to load settings:", e);
         }
+      }
+
+      function applyServerSettingsLock(locked) {
+        const controls = [
+          languageSelect, saveToggle, transcriberBackendSelect,
+          transcriberModelSelect, modelApplyBtn, grounderSelect,
+          translationModeSelect, llmProviderSelect, llmModelInput,
+          ragProviderSelect, ragModelSelect, ragOntologySelect,
+          ragRerankerToggle,
+        ];
+        controls.forEach((el) => {
+          if (el) el.disabled = locked;
+        });
       }
 
       async function updateSettings(changes) {
