@@ -901,6 +901,11 @@ async def get_index():
         notice_html=notice_html,
         notice_version=settings.app.onboarding_notice.version,
     )
+    if not settings.app.get("show_case_profile", True):
+        html_content = html_content.replace(
+            '<div class="profile-bar" id="profileBar" data-expanded="false">',
+            '<div class="profile-bar" id="profileBar" data-expanded="false" hidden>',
+        )
     return HTMLResponse(content=html_content)
 
 
