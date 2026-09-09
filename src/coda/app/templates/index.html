@@ -1019,6 +1019,11 @@
         font-family: inherit;
         font-size: 13px;
       }
+      .settings-row select:disabled,
+      .settings-row input[type="text"]:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       .settings-row .row-inline {
         display: flex;
         gap: 8px;
@@ -1086,6 +1091,13 @@
       }
       .switch input:checked ~ .switch-thumb {
         transform: translateX(20px);
+      }
+      .switch input:disabled {
+        cursor: not-allowed;
+      }
+      .switch input:disabled ~ .switch-track,
+      .switch input:disabled ~ .switch-thumb {
+        opacity: 0.5;
       }
 
       /* Theme switch segmented control */
@@ -3492,6 +3504,7 @@
       let audioChunks = [];
       let audioBlob = null;
       let audioUrl = null;
+      let serverSettingsLocked = false;
 
       const body = document.body;
       const recordBtn = document.getElementById("recordBtn");
@@ -4427,6 +4440,7 @@
       }
 
       function applyServerSettingsLock(locked) {
+        serverSettingsLocked = locked;
         const controls = [
           languageSelect, saveToggle, transcriberBackendSelect,
           transcriberModelSelect, modelApplyBtn, grounderSelect,
@@ -4953,15 +4967,17 @@
         stopTimer();
         updatingPill.style.display = "none";
 
+        // Mic choice is client-side, the rest stay disabled while server settings
+        // are locked
         micSelect.disabled = false;
-        languageSelect.disabled = false;
-        transcriberBackendSelect.disabled = false;
-        transcriberModelSelect.disabled = false;
-        grounderSelect.disabled = false;
-        ragProviderSelect.disabled = false;
-        ragModelSelect.disabled = false;
-        ragOntologySelect.disabled = false;
-        ragRerankerToggle.disabled = false;
+        languageSelect.disabled = serverSettingsLocked;
+        transcriberBackendSelect.disabled = serverSettingsLocked;
+        transcriberModelSelect.disabled = serverSettingsLocked;
+        grounderSelect.disabled = serverSettingsLocked;
+        ragProviderSelect.disabled = serverSettingsLocked;
+        ragModelSelect.disabled = serverSettingsLocked;
+        ragOntologySelect.disabled = serverSettingsLocked;
+        ragRerankerToggle.disabled = serverSettingsLocked;
 
         // Refresh mic list (labels become available after first permission grant)
         populateMicList();
