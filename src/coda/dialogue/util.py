@@ -82,3 +82,21 @@ def normalize_language(code):
     code = code.strip()
     code = WHISPER_TO_SPEECHMATICS.get(code, code)
     return code if code in SPEECHMATICS_LANGUAGES else None
+
+
+## ___IndicConformer___
+
+INDIC_CONFORMER_LANGUAGES = {
+    "as", "bn", "brx", "doi", "gu", "hi", "kn", "kok", "ks", "mai", "ml",
+    "mni", "mr", "ne", "or", "pa", "sa", "sat", "sd", "ta", "te", "ur",
+}
+
+CALLER_TO_INDIC_CONFORMER = {}
+
+def normalize_language_indic_conformer(code):
+    """Map a code to its IndicConformer equivalent, or None if unsupported."""
+    if not code:
+        return None
+    code = code.strip()
+    code = CALLER_TO_INDIC_CONFORMER.get(code, code)
+    return code if code in INDIC_CONFORMER_LANGUAGES else None

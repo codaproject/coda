@@ -25,7 +25,7 @@ DEFAULT_CHUNK_DURATION = 3
 # (see coda.config). whisper/faster-whisper/speechmatics are chunked;
 # whisper-livekit is in-process streaming.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
-                        "whisper-livekit")
+                        "whisper-livekit", "indic-conformer")
 
 
 def _load_backend_class(backend: str):
@@ -46,6 +46,9 @@ def _load_backend_class(backend: str):
     if backend == "whisper-livekit":
         from .whisper_livekit import WhisperLiveKitTranscriber
         return WhisperLiveKitTranscriber
+    if backend == "indic-conformer":
+        from .indic_conformer import IndicConformerTranscriber
+        return IndicConformerTranscriber
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
