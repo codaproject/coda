@@ -39,6 +39,9 @@ inference:
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
+    # Ollama only. Empty -> model default. false disables thinking (gemma4,
+    # qwen3.x). Leave empty for models without a thinking mode (gpt-oss).
+    think: ""
   champs_finetuned:         # CHAMPS-fine-tuned classifier agent (MedGemma LoRA)
     adapter_path: ""        # local path to the LoRA adapter; set via CODA_INFERENCE__CHAMPS_FINETUNED__ADAPTER_PATH
     menu: icd_all_labels.json
@@ -94,6 +97,8 @@ dialogue:
   # App/server speech-to-text backend.
   # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics
   transcriber_backend: whisper-livekit
+  # Native whisperlivekit-server URL for the whisper-livekit-remote backend
+  transcriber_url: ws://localhost:8765
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:

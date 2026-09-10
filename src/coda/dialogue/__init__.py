@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_DURATION = 3
 
 # Selectable transcription backends, chosen via dialogue.transcriber_backend
-# (see coda.config). whisper/faster-whisper/speechmatics are chunked;
-# whisper-livekit is in-process streaming.
+# (see coda.config). whisper, faster-whisper and speechmatics are chunked.
+# whisper-livekit is in-process streaming. whisper-livekit-remote proxies to a
+# native whisperlivekit-server (e.g. MLX/Metal on the host).
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
-                        "whisper-livekit")
+                        "whisper-livekit", "whisper-livekit-remote")
 
 
 def _load_backend_class(backend: str):
@@ -46,6 +47,9 @@ def _load_backend_class(backend: str):
     if backend == "whisper-livekit":
         from .whisper_livekit import WhisperLiveKitTranscriber
         return WhisperLiveKitTranscriber
+    if backend == "whisper-livekit-remote":
+        from .whisper_livekit_remote import WhisperLiveKitRemoteTranscriber
+        return WhisperLiveKitRemoteTranscriber
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
@@ -58,7 +62,7 @@ def create_transcriber(backend: str = None, model: str = None, **kwargs):
     Defaults to the dialogue.transcriber_backend config value.
     """
     backend = (backend or settings.dialogue.transcriber_backend).lower()
-    return _load_backend_class(backend).create(model=model)
+    return _load_backend_class(backend).create(model=model, **kwargs)
 
 
 def get_transcriber_models(backend: str) -> dict:

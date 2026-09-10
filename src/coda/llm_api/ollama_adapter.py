@@ -21,6 +21,14 @@ from coda.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _parse_think(value):
+    """Coerce the configured think setting to True, False, or None (unset)."""
+    if isinstance(value, str):
+        value = value.strip().lower()
+        return {"true": True, "false": False}.get(value, None)
+    return value if isinstance(value, bool) else None
+
+
 class OllamaAdapter(LLMClient):
     """
     Ollama implementation of LLM client adapter.
@@ -60,6 +68,10 @@ class OllamaAdapter(LLMClient):
         self.timeout = timeout
         self.provider = "ollama"
         self.client = Client(host=self.base_url, timeout=self.timeout)
+        self._think = _parse_think(settings.inference.llm.get("think", ""))
+
+    def _think_kwargs(self):
+        return {} if self._think is None else {"think": self._think}
 
     def call(self, user_prompt: str, temperature: float = 0.0) -> str:
         """
@@ -94,14 +106,15 @@ class OllamaAdapter(LLMClient):
                     options={
                         "temperature": temperature,
                     },
+                    **self._think_kwargs(),
                 )
-                
+
                 # Extract message content
                 response_text = response.message.content.strip()
-                
+
                 if not response_text:
                     raise ValueError("Empty response from Ollama")
-                
+
                 return response_text
                 
             except Exception as e:
@@ -181,6 +194,7 @@ class OllamaAdapter(LLMClient):
                     options={
                         "temperature": temperature,  # Use parameter instead of hardcoded value
                     },
+                    **self._think_kwargs(),
                 )
                 
                 # Extract message content

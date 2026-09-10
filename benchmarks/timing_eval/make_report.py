@@ -14,6 +14,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
 HERE = Path(__file__).parent
@@ -23,20 +24,19 @@ TRUTH = json.loads((HERE / "real_cases" / "true_labels_group.json").read_text())
 CASES = sorted(TRUTH, key=int)
 
 SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e2"
-C_TOP1, C_TOP3 = "#2a78d6", "#eb6834"
-LINESTYLES = ["-", "--", "-.", ":"]
+COLORS = ["#0072b2", "#d55e00", "#009e73", "#cc79a7", "#56b4e9", "#e69f00", "#000000"]
 PHASES = [("phase1_va", "VA narrative only"),
           ("phase2_va_clinical", "VA + clinical")]
 
 
 def discover_models(root):
-    """Every model under the results root as [(name, dir, linestyle)], sorted by
-    name. A model is any subfolder that holds case* directories."""
+    """Every model under the results root as [(name, dir, color)], sorted by name.
+    A model is any subfolder that holds case* directories."""
     if not root.exists():
         return []
     dirs = sorted((d for d in root.iterdir() if d.is_dir() and any(d.glob("case*"))),
                   key=lambda d: d.name)
-    return [(d.name, d, LINESTYLES[i % len(LINESTYLES)]) for i, d in enumerate(dirs)]
+    return [(d.name, d, COLORS[i % len(COLORS)]) for i, d in enumerate(dirs)]
 
 
 MODELS = discover_models(RESULTS_ROOT)
@@ -114,12 +114,12 @@ def write_accuracy_png():
             ax.axvspan(min(vas), max(vas), color=MUTED, alpha=0.08, zorder=0)
             ax.text(np.median(vas), 1.02, "clinical onset (range across cases)",
                     color=MUTED, fontsize=8, ha="center")
-        for name, root, ls in MODELS:
+        for name, root, color in MODELS:
             if not root.exists():
                 continue
             top1, top3 = phase_curves(root, phase, grid)
-            ax.plot(grid, top3, color=C_TOP3, lw=2.2, ls=ls, label=f"{name} top-3")
-            ax.plot(grid, top1, color=C_TOP1, lw=2.2, ls=ls, label=f"{name} top-1")
+            ax.plot(grid, top1, color=color, lw=2.2, ls="-", label=f"{name} top-1")
+            ax.plot(grid, top3, color=color, lw=2.2, ls=":", label=f"{name} top-3")
         ax.set_ylim(0, 1.05)
         ax.set_xlim(0, grid[-1])
         ax.set_title(label, fontsize=12, color=INK)
@@ -128,11 +128,142 @@ def write_accuracy_png():
         for s in ax.spines.values():
             s.set_color(GRID)
         ax.grid(True, color=GRID, lw=0.6)
-        ax.legend(fontsize=9, loc="upper right", facecolor=SURFACE, edgecolor=GRID)
     axes[0].set_ylabel("accuracy (fraction of 20 cases)", fontsize=10, color=MUTED)
-    fig.tight_layout()
+    handles = [Line2D([0], [0], color=c, lw=2.2) for _, _, c in MODELS]
+    labels = [f"{n} [{hw_mark(n)}]" for n, _, _ in MODELS]
+    handles += [Line2D([0], [0], color=INK, lw=2.2, ls="-"),
+                Line2D([0], [0], color=INK, lw=2.2, ls=":")]
+    labels += ["top-1", "top-3"]
+    fig.tight_layout(rect=(0, 0.09, 1, 1))
+    fig.legend(handles, labels, loc="lower center", ncol=min(len(handles), 6),
+               fontsize=9, frameon=True, facecolor=SURFACE, edgecolor=GRID)
     out = REPORT / "accuracy_over_time.png"
-    fig.savefig(out, dpi=130, facecolor=SURFACE)
+    fig.savefig(out, dpi=130, facecolor=SURFACE, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
+# Additional overview figures (small multiples + final-accuracy dumbbell)
+
+# Deployability marks. L+ = fits an M5 Max 48GB laptop AND snappy per COD call
+# (~<=6s: small dense or few-active MoE). L~ = fits the laptop but slow (~>=10s:
+# large dense, or reasoning-heavy output). C = GPU-cluster-grade (>48GB).
+# Tiers from architecture plus our measured Mac COD latencies.
+LAPTOP_FAST = ("qwen2.5-7b", "gemma4-e4b", "gemma4-26b",
+               "qwen3-30b-a3b", "qwen3-30b-a3b-instruct")
+LAPTOP_SLOW = ("qwen2.5-32b", "gemma-4-31b", "medgemma-27b", "medgemma",
+               "gpt-oss-20b")
+CLUSTER = ("deepseek-v4-flash", "gpt-oss-120b", "qwen3-235b")
+
+
+def hw_mark(name):
+    n = name.lower()
+    if any(s in n for s in CLUSTER):
+        return "C"
+    if any(s in n for s in LAPTOP_SLOW):
+        return "L~"
+    if any(s in n for s in LAPTOP_FAST):
+        return "L+"
+    return "?"
+
+
+def short_name(name):
+    base = (name.replace("mlx-community-", "").replace("-Instruct-2507", "")
+            .replace("-instruct", ""))[:24]
+    return f"{base} [{hw_mark(name)}]"
+
+
+def final_acc(root, phase):
+    """(top1_frac, top3_frac) from whole-file predictions over all cases."""
+    t1 = t3 = 0
+    for k in CASES:
+        ranked = whole_top(root / f"case{k}" / phase / "whole" / "inference.json", 3)
+        ref = ref_cause(k)
+        t1 += int(ranked[:1] == [ref])
+        t3 += int(ref in ranked[:3])
+    n = len(CASES)
+    return t1 / n, t3 / n
+
+
+def write_small_multiples():
+    """One panel per model per phase: its top-1 (solid) and top-3 (dotted) over
+    spoken time, with the other models drawn faint for context."""
+    grids = {ph: phase_grid(ph) for ph, _ in PHASES}
+    curves = {ph: {name: phase_curves(mdir, ph, grids[ph])
+                   for name, mdir, _ in MODELS} for ph, _ in PHASES}
+    n = len(MODELS)
+    fig, axes = plt.subplots(n, 2, figsize=(11, 1.9 * n), squeeze=False,
+                             sharey=True)
+    fig.patch.set_facecolor(SURFACE)
+    for i, (name, _, color) in enumerate(MODELS):
+        for j, (ph, label) in enumerate(PHASES):
+            ax = axes[i][j]
+            ax.set_facecolor(SURFACE)
+            grid = grids[ph]
+            for other, (t1o, _) in curves[ph].items():
+                if other != name:
+                    ax.plot(grid, t1o, color=GRID, lw=0.8, zorder=1)
+            top1, top3 = curves[ph][name]
+            ax.plot(grid, top1, color=color, lw=2.0, zorder=3)
+            ax.plot(grid, top3, color=color, lw=1.8, ls=":", zorder=3)
+            ax.set_ylim(0, 1.05)
+            ax.set_xlim(0, grid[-1])
+            ax.grid(True, color=GRID, lw=0.5)
+            ax.tick_params(labelsize=8, colors=MUTED)
+            for s in ax.spines.values():
+                s.set_color(GRID)
+            if i == 0:
+                ax.set_title(label, fontsize=11, color=INK)
+            if j == 0:
+                ax.set_ylabel(short_name(name), fontsize=8, color=INK)
+            if i == n - 1:
+                ax.set_xlabel("spoken time (s)", fontsize=9, color=MUTED)
+    handles = [Line2D([0], [0], color=INK, lw=2.0),
+               Line2D([0], [0], color=INK, lw=1.8, ls=":")]
+    fig.legend(handles, ["top-1", "top-3"], loc="upper center", ncol=2,
+               fontsize=9, frameon=True, facecolor=SURFACE, edgecolor=GRID)
+    fig.tight_layout(rect=(0, 0, 1, 0.99))
+    out = REPORT / "accuracy_small_multiples.png"
+    fig.savefig(out, dpi=130, facecolor=SURFACE, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
+def write_dumbbell():
+    """Final accuracy per model: end-of-VA vs end-of-VA+clinical, sorted."""
+    data = {name: {ph: final_acc(mdir, ph) for ph, _ in PHASES}
+            for name, mdir, _ in MODELS}
+    fig, axes = plt.subplots(1, 2, figsize=(13, 0.5 * len(MODELS) + 2),
+                             sharey=False)
+    fig.patch.set_facecolor(SURFACE)
+    for ax, (idx, metric) in zip(axes, [(0, "top-1"), (1, "top-3")]):
+        ax.set_facecolor(SURFACE)
+        order = sorted(MODELS, key=lambda m: data[m[0]]["phase2_va_clinical"][idx])
+        for y, (name, _, _) in enumerate(order):
+            va = data[name]["phase1_va"][idx]
+            cm = data[name]["phase2_va_clinical"][idx]
+            ax.plot([va, cm], [y, y], color=GRID, lw=2, zorder=1)
+            ax.scatter([va], [y], color=COLORS[0], s=60, zorder=3)
+            ax.scatter([cm], [y], color=COLORS[1], s=60, zorder=3)
+        ax.set_yticks(range(len(order)))
+        ax.set_yticklabels([short_name(m[0]) for m in order], fontsize=8,
+                           color=INK)
+        ax.set_xlim(0, 1)
+        ax.set_title(f"final {metric} accuracy", fontsize=12, color=INK)
+        ax.set_xlabel("accuracy (n=20)", fontsize=10, color=MUTED)
+        ax.tick_params(labelsize=8, colors=MUTED)
+        ax.grid(True, axis="x", color=GRID, lw=0.5)
+        for s in ax.spines.values():
+            s.set_color(GRID)
+    handles = [Line2D([0], [0], marker="o", color=SURFACE, markerfacecolor=COLORS[0],
+                      markersize=9),
+               Line2D([0], [0], marker="o", color=SURFACE, markerfacecolor=COLORS[1],
+                      markersize=9)]
+    fig.legend(handles, ["VA only", "VA + clinical"], loc="upper center", ncol=2,
+               fontsize=9, frameon=True, facecolor=SURFACE, edgecolor=GRID)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    out = REPORT / "final_accuracy_dumbbell.png"
+    fig.savefig(out, dpi=130, facecolor=SURFACE, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")
 
@@ -207,7 +338,7 @@ def model_detail(name, mdir, k, phase):
     qs = "".join(f"<li>{html.escape(q)}</li>" for q in d["questions"])
     infer = f"{d['infer_s']:.1f}s" if d["infer_s"] is not None else "-"
     return (f"<div class='model'><p class='mname'>{html.escape(name)} "
-            f"<span class='timing'>({infer} inference)</span></p>"
+            f"[{hw_mark(name)}] <span class='timing'>({infer} inference)</span></p>"
             f"<p class='top'><b>Final top-3:</b> {top3}</p>"
             f"<p class='reason'>{html.escape(d['reasoning'])}</p>"
             f"<b style='font-size:13px'>Follow-up questions</b><ul>{qs}</ul></div>")
@@ -258,6 +389,11 @@ def write_index():
              "<nav>" + " ".join(f"<a href='#c{k}'>#{k}</a>" for k in CASES) + "</nav></header>",
              "<main>",
              "<div class='overview'><h2>Accuracy vs spoken time (n=20)</h2>"
+             "<p><b>Deployability key:</b> <b>[L+]</b> = M5 Max 48GB laptop, fast "
+             "(~&le;6s/call, small dense or few-active MoE); <b>[L~]</b> = fits the "
+             "laptop but slow (~&ge;10s/call, large dense or reasoning-heavy, e.g. "
+             "gpt-oss-20b); <b>[C]</b> = GPU cluster-grade (120B/235B/"
+             "DeepSeek-V4-Flash, &gt;48GB); [?] = unclassified.</p>"
              "<p>Plots showing whether the CHAMPS reference group cause matches the top CODA-inferred "
              "cause (blue) or is found in the top 3 CODA-inferred causes (orange) based on "
              "voice input containing only a VA narrative (left) or the same VA narrative "
@@ -266,7 +402,16 @@ def write_index():
              "there is a VA narrative to clinical narrative switch over is shown as a gray "
              "shaded area. Once a case's recording ends, the final inferred causes are used "
              "when calculating the average accuracy across cases.</p>"
-             "<img src='accuracy_over_time.png' alt='accuracy over time'></div>"]
+             "<img src='accuracy_over_time.png' alt='accuracy over time'>"
+             "<h2>Final accuracy by model</h2>"
+             "<p>End-of-VA vs end-of-VA+clinical accuracy per model, sorted "
+             "(blue = VA only, orange = VA + clinical).</p>"
+             "<img src='final_accuracy_dumbbell.png' alt='final accuracy'>"
+             "<h2>Accuracy over time, per model</h2>"
+             "<p>Each model's top-1 (solid) and top-3 (dotted) accuracy over "
+             "spoken time; the other models are drawn faint for context.</p>"
+             "<img src='accuracy_small_multiples.png' alt='accuracy small multiples'>"
+             "</div>"]
     for k in CASES:
         refs = "  ".join(f"<b>{name}:</b> {', '.join(c)}" for name, c in ref_types(k))
         parts.append(f"<div class='case' id='c{k}'><h2>Case {k}</h2>"
@@ -284,6 +429,8 @@ def main():
         raise SystemExit(f"No model results under {RESULTS_ROOT}. Run run_eval.py first.")
     REPORT.mkdir(exist_ok=True)
     write_accuracy_png()
+    write_small_multiples()
+    write_dumbbell()
     write_table()
     write_index()
 
