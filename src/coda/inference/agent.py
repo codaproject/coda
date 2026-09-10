@@ -251,11 +251,13 @@ if __name__ == "__main__":
     parser.add_argument("--agent",
                         default=getattr(settings.inference, "agent", "champs_prompted"),
                         help="Inference agent implementation "
-                             "(champs_prompted | champs_finetuned)")
+                             "(champs_prompted | champs_finetuned | embedding)")
     parser.add_argument("--provider", default=settings.inference.llm.provider,
                         help="LLM provider (e.g. openai, ollama)")
     parser.add_argument("--model", default=settings.inference.llm.model,
                         help="LLM model name (e.g. gpt-5.4-mini, gpt-oss:20b)")
+    parser.add_argument("--model-path",
+                        help="Path to a joblib bundle for --agent embedding")
     parser.add_argument("--host", default=settings.inference.host,
                         help="Server host")
     parser.add_argument("--port", type=int, default=settings.inference.port,
@@ -271,6 +273,11 @@ if __name__ == "__main__":
         from coda.inference.champs_finetuned import create_champs_finetuned_agent
         agent = create_champs_finetuned_agent()
         agent.ensure_model()
+    elif args.agent == "embedding":
+        from coda.inference.embedding_agent import create_embedding_agent
+        if not args.model_path:
+            parser.error("--agent embedding requires --model-path")
+        agent = create_embedding_agent(args.model_path)
     else:
         from coda.inference.champs_prompted_agent import create_champs_prompted_agent
         agent = create_champs_prompted_agent(provider=args.provider, model=args.model)
