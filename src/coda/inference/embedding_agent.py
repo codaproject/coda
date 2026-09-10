@@ -5,6 +5,7 @@ scikit-learn classifiers (one per CHAMPS age group, plus a generic
 age-agnostic fallback), predicting CHAMPS cause-of-death groups.
 """
 import logging
+import re
 from typing import Dict, List, Optional
 
 import joblib
@@ -12,10 +13,13 @@ from gilda import Annotation
 
 from coda.embedding import BaseEmbedder, SentenceTransformerEmbedder
 from coda.inference.agent import InferenceAgent, InferenceServer
-from coda.inference.champs_prompted_agent import CHAMPS_GROUP_TO_ICD10
 from coda.metadata import Metadata
 
 logger = logging.getLogger(__name__)
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^0-9a-z]+", "_", name.lower()).strip("_")
 
 # Upper bound in days for each CHAMPS age-group model, checked in order.
 AGE_GROUP_BOUNDARIES = [
@@ -51,10 +55,12 @@ class EmbeddingCODAgent(InferenceAgent):
     model when no age-specific model is available.
     """
 
-    def __init__(self, embedder: BaseEmbedder, models: Dict[str, object]):
+    def __init__(self, embedder: BaseEmbedder, models: Dict[str, object],
+                 label_meta: Optional[Dict[str, dict]] = None):
         super().__init__()
         self.embedder = embedder
         self.models = models
+        self.label_meta = label_meta or {}
         self.dialogue_embedding = None
 
     def reset(self):
@@ -85,13 +91,11 @@ class EmbeddingCODAgent(InferenceAgent):
 
         causes = {}
         for group_name, probability in zip(model.classes_, probabilities):
-            icd10 = CHAMPS_GROUP_TO_ICD10.get(group_name)
-            if icd10 is None:
-                logger.warning("No ICD-10 mapping for CHAMPS group '%s'", group_name)
-                continue
-            causes[f"icd10:{icd10}"] = {
-                "name": group_name,
-                "identifiers": {"icd10": icd10},
+            meta = self.label_meta.get(group_name)
+            curie = meta["curie"] if meta else f"champs.group:{_slug(group_name)}"
+            causes[curie] = {
+                "name": meta["name"] if meta else group_name,
+                "identifiers": meta.get("identifiers", {}) if meta else {},
                 "score": float(probability),
             }
 
@@ -114,7 +118,8 @@ def create_embedding_agent(model_path: str,
     models = {"generic": bundle["generic"], **bundle.get("by_age", {})}
     embedder = SentenceTransformerEmbedder(
         model_name=bundle.get("embed_model", embed_model))
-    return EmbeddingCODAgent(embedder=embedder, models=models)
+    return EmbeddingCODAgent(embedder=embedder, models=models,
+                             label_meta=bundle.get("label_meta"))
 
 
 if __name__ == "__main__":
