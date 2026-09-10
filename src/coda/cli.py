@@ -60,10 +60,14 @@ def build_grounder(name: str, provider: str = None, model: str = None):
     return GildaGrounder()
 
 
-def build_agent(name: str, provider: str = None, model: str = None):
-    """Construct an inference agent from a flag value ("champs" or "toy")."""
+def build_agent(name: str, provider: str = None, model: str = None,
+                model_path: str = None):
+    """Construct an inference agent from a flag value ("champs", "toy", or "embedding")."""
     if name == "toy":
         return CodaToyInferenceAgent()
+    if name == "embedding":
+        from coda.inference.embedding_agent import create_embedding_agent
+        return create_embedding_agent(model_path)
     from coda.inference.champs_prompted_agent import create_champs_prompted_agent
     kwargs = {k: v for k, v in (("provider", provider), ("model", model)) if v}
     return create_champs_prompted_agent(**kwargs)
@@ -300,7 +304,7 @@ def main():
                              "of committed transcript accumulate "
                              f"(default: {INFERENCE_MIN_WORDS}). Higher means fewer, larger "
                              "inference calls.")
-    parser.add_argument("--agent", choices=["champs", "toy"], default="champs",
+    parser.add_argument("--agent", choices=["champs", "toy", "embedding"], default="champs",
                         help="Inference agent (default: champs LLM agent)")
     parser.add_argument("--grounder", choices=["gilda", "rag"], default="gilda",
                         help="Grounder for entity/code annotation (default: gilda)")
@@ -308,6 +312,8 @@ def main():
                         help="LLM provider for the agent / RAG grounder (e.g. openai, ollama)")
     parser.add_argument("--model", default=None,
                         help="LLM model name (e.g. gpt-4o-mini, gpt-oss:20b)")
+    parser.add_argument("--model-path", default=None,
+                        help="Joblib bundle path (--agent embedding)")
     parser.add_argument("--transcriber", choices=list(TRANSCRIBER_BACKENDS),
                         default=DEFAULT_CLI_TRANSCRIBER,
                         help="Transcription backend (default: faster-whisper; "
@@ -330,13 +336,14 @@ def main():
     )
 
     grounder = build_grounder(args.grounder, args.provider, args.model)
-    agent = build_agent(args.agent, args.provider, args.model)
+    agent = build_agent(args.agent, args.provider, args.model, args.model_path)
 
     common_meta = {
         "agent": args.agent,
         "grounder": args.grounder,
         "provider": args.provider,
         "model": args.model,
+        "model_path": args.model_path,
     }
 
     if args.text:

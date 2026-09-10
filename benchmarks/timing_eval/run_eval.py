@@ -11,6 +11,7 @@ clinical narrative (combined audio), run so the agent carries VA context into it
 
     python run_eval.py --model qwen2.5:7b-instruct
     python run_eval.py --model gpt-oss:20b
+    python run_eval.py --agent embedding --model-path ../../../champs_statsML/output/coda_dialogue_model.joblib
 
 Results are written to real_cases_results/<model>/, one subfolder per model, so the
 report can compare every model that has been run.
@@ -92,9 +93,9 @@ async def get_segments(cache_file, input_path, mode, retranscribe, transcriber_h
 
 # Inference
 
-async def infer(segments, provider, model):
-    """Replay transcript segments through the CHAMPS agent, timing each inference."""
-    agent = build_agent("champs", provider=provider, model=model)
+async def infer(segments, agent_name, provider, model, model_path):
+    """Replay transcript segments through the inference agent, timing each inference."""
+    agent = build_agent(agent_name, provider=provider, model=model, model_path=model_path)
     per_chunk = []
     for s in segments:
         t = time.perf_counter()
@@ -110,7 +111,8 @@ async def infer(segments, provider, model):
 
 async def run(args):
     cache_root = HERE / "transcripts" / f"{slug(TRANSCRIBER)}-{slug(WHISPER_MODEL)}"
-    out_root = Path(args.out) / slug(args.model) if args.model else None
+    run_name = args.tag or args.model or ("embedding" if args.agent == "embedding" else None)
+    out_root = Path(args.out) / slug(run_name) if run_name else None
     cases = load_cases()
     case_ids = args.only or sorted(cases, key=int)
     phases = [p for p in args.phases.split(",") if p]
@@ -136,7 +138,7 @@ async def run(args):
             for mode in modes:
                 total += 1
                 print(f"=== [{total}] case{cid} {PHASE_DIRS[phase]} {mode}  "
-                      f"({args.model or 'transcribe-only'})")
+                      f"({run_name or 'transcribe-only'})")
                 out_dir = out_root / f"case{cid}" / PHASE_DIRS[phase] / mode if out_root else None
                 if out_dir and (out_dir / "inference.json").exists() and not args.force:
                     print("    skip (already done)")
@@ -147,13 +149,15 @@ async def run(args):
                                               args.retranscribe, transcriber_holder)
                     if args.transcribe_only:
                         continue
-                    full_text, per_chunk = await infer(segs, args.provider, args.model)
+                    full_text, per_chunk = await infer(
+                        segs, args.agent, args.provider, args.model, args.model_path)
                 except Exception as e:
                     failed += 1
                     print(f"!! FAILED: {e}", file=sys.stderr)
                     continue
                 meta = {"input": str(inputs[phase]), "input_type": "audio", "mode": mode,
-                        "agent": "champs", "provider": args.provider, "model": args.model,
+                        "agent": args.agent, "provider": args.provider, "model": args.model,
+                        "model_path": args.model_path,
                         "transcriber": TRANSCRIBER, "whisper_model": WHISPER_MODEL,
                         "language": LANGUAGE, "task": TASK,
                         "audio_duration_s": round(sum(s["audio_s"] for s in segs), 1),
@@ -170,7 +174,12 @@ async def run(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model", help="Inference model (e.g. qwen2.5:7b-instruct)")
+    ap.add_argument("--agent", choices=["champs", "embedding"], default="champs",
+                    help="Inference agent (default: champs LLM agent)")
+    ap.add_argument("--model", help="LLM model, --agent champs (e.g. qwen2.5:7b-instruct)")
+    ap.add_argument("--model-path", help="Joblib bundle path, --agent embedding")
+    ap.add_argument("--tag", default=None,
+                    help="Results subfolder name (default: --model, or 'embedding')")
     ap.add_argument("--transcribe-only", action="store_true",
                     help="Populate the transcript cache and skip inference")
     ap.add_argument("--provider", default=PROVIDER)
@@ -184,8 +193,11 @@ def main():
     ap.add_argument("--retranscribe", action="store_true",
                     help="Ignore the transcript cache and transcribe again")
     args = ap.parse_args()
-    if not args.transcribe_only and not args.model:
-        ap.error("--model is required unless --transcribe-only")
+    if not args.transcribe_only:
+        if args.agent == "champs" and not args.model:
+            ap.error("--model is required for --agent champs unless --transcribe-only")
+        if args.agent == "embedding" and not args.model_path:
+            ap.error("--model-path is required for --agent embedding unless --transcribe-only")
     sys.exit(asyncio.run(run(args)))
 
 
