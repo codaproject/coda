@@ -30,8 +30,6 @@ dependencies = [
     "pystow",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    # >=13.0: websockets.asyncio.client (used by whisper_livekit_remote) didn't
-    # exist before 13.0.
     "websockets>=13.0",
     "openai-whisper>=20231117",
     "faster-whisper>=1.0.0",
