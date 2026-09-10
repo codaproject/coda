@@ -92,6 +92,15 @@ def test_whisper_livekit_backend_registered():
     assert "whisper-livekit" in TRANSCRIBER_BACKENDS
 
 
+def test_whisper_livekit_remote_backend_registered():
+    assert "whisper-livekit-remote" in TRANSCRIBER_BACKENDS
+
+
+def test_whisper_livekit_remote_url_defaults_from_settings():
+    from coda.dialogue.whisper_livekit_remote import WhisperLiveKitRemoteTranscriber
+    assert WhisperLiveKitRemoteTranscriber().url == "ws://localhost:8765"
+
+
 def test_whisper_livekit_events_from_response():
     # A line's text is extended across responses (and the first line repeats);
     # only the new suffix per line should be emitted, plus changed previews.
