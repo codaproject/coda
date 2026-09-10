@@ -2,13 +2,16 @@
 
 Embeds the accumulated dialogue transcript and scores it against one or more
 scikit-learn classifiers (one per CHAMPS age group, plus a generic
-age-agnostic fallback), predicting CHAMPS cause-of-death groups.
+age-agnostic fallback), predicting CHAMPS cause-of-death groups. If the
+bundle's `feature_config` says so, age (from case metadata, optional) is
+appended to the embedding as an extra model input.
 """
 import logging
 import re
 from typing import Dict, List, Optional
 
 import joblib
+import numpy as np
 from gilda import Annotation
 
 from coda.embedding import BaseEmbedder, SentenceTransformerEmbedder
@@ -20,6 +23,21 @@ logger = logging.getLogger(__name__)
 
 def _slug(name: str) -> str:
     return re.sub(r"[^0-9a-z]+", "_", name.lower()).strip("_")
+
+
+def _age_feature(metadata: Optional[Metadata], max_age_days: float) -> np.ndarray:
+    """3-dim [scaled_log_age, age_known, stillbirth] feature, mirroring the
+    identical encoding in champs_statsML's export_coda_dialogue_model.py so
+    train/serve featurization matches exactly."""
+    profile = metadata.profile if metadata else None
+    stillbirth = bool(profile.stillbirth) if profile else False
+    age_days = profile.age.days if (profile and profile.age) else None
+    if stillbirth:
+        return np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    if age_days is None:
+        return np.array([0.0, 0.0, 0.0], dtype=np.float32)
+    scaled = np.log1p(max(float(age_days), 0.0)) / np.log1p(max_age_days)
+    return np.array([scaled, 1.0, 0.0], dtype=np.float32)
 
 # Upper bound in days for each CHAMPS age-group model, checked in order.
 AGE_GROUP_BOUNDARIES = [
@@ -56,11 +74,13 @@ class EmbeddingCODAgent(InferenceAgent):
     """
 
     def __init__(self, embedder: BaseEmbedder, models: Dict[str, object],
-                 label_meta: Optional[Dict[str, dict]] = None):
+                 label_meta: Optional[Dict[str, dict]] = None,
+                 feature_config: Optional[dict] = None):
         super().__init__()
         self.embedder = embedder
         self.models = models
         self.label_meta = label_meta or {}
+        self.feature_config = feature_config or {}
         self.dialogue_embedding = None
 
     def reset(self):
@@ -87,7 +107,12 @@ class EmbeddingCODAgent(InferenceAgent):
             }
 
         self.dialogue_embedding = self.embedder.embed(self.all_text.strip())
-        probabilities = model.predict_proba([self.dialogue_embedding])[0]
+        features = self.dialogue_embedding
+        if self.feature_config.get("use_age"):
+            max_age_days = self.feature_config.get("max_age_days", 5 * 365.25)
+            features = np.concatenate(
+                [features, _age_feature(self.metadata, max_age_days)])
+        probabilities = model.predict_proba([features])[0]
 
         causes = {}
         for group_name, probability in zip(model.classes_, probabilities):
@@ -119,7 +144,8 @@ def create_embedding_agent(model_path: str,
     embedder = SentenceTransformerEmbedder(
         model_name=bundle.get("embed_model", embed_model))
     return EmbeddingCODAgent(embedder=embedder, models=models,
-                             label_meta=bundle.get("label_meta"))
+                             label_meta=bundle.get("label_meta"),
+                             feature_config=bundle.get("feature_config"))
 
 
 if __name__ == "__main__":

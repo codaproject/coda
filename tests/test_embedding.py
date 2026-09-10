@@ -30,6 +30,14 @@ class DummyModel:
         return np.tile([0.7, 0.3], (len(X), 1))
 
 
+class RecordingModel(DummyModel):
+    """Records the feature vector it was scored on, for shape/value assertions."""
+
+    def predict_proba(self, X):
+        self.last_X = np.asarray(X)
+        return super().predict_proba(X)
+
+
 def _agent():
     return EmbeddingCODAgent(embedder=DummyEmbedder(),
                              models={"generic": DummyModel()})
@@ -62,6 +70,54 @@ class TestEmbeddingPlumbing:
         r = await agent.process_chunk("c1", "fever", [])
         assert agent.dialogue_embedding is None
         assert "icd10:R99" in r["causes"]
+
+
+class TestAgeFeature:
+    @pytest.mark.asyncio
+    async def test_age_appended_when_configured(self):
+        from coda.metadata import Metadata
+
+        model = RecordingModel()
+        agent = EmbeddingCODAgent(
+            embedder=DummyEmbedder(), models={"generic": model},
+            feature_config={"use_age": True, "max_age_days": 1826.25})
+        agent.metadata = Metadata.from_dict(
+            {"profile": {"age": {"value": 2, "unit": "years"}}})
+        await agent.process_chunk("c1", "fever", [])
+
+        assert model.last_X.shape == (1, 2 + 3)  # DummyEmbedder.dim + age feature
+        assert model.last_X[0, -2:].tolist() == [1.0, 0.0]  # age known, not stillbirth
+
+    @pytest.mark.asyncio
+    async def test_age_unknown_when_not_provided(self):
+        model = RecordingModel()
+        agent = EmbeddingCODAgent(
+            embedder=DummyEmbedder(), models={"generic": model},
+            feature_config={"use_age": True, "max_age_days": 1826.25})
+        await agent.process_chunk("c1", "fever", [])
+
+        assert model.last_X[0, -3:].tolist() == [0.0, 0.0, 0.0]
+
+    @pytest.mark.asyncio
+    async def test_stillbirth_flag(self):
+        from coda.metadata import Metadata
+
+        model = RecordingModel()
+        agent = EmbeddingCODAgent(
+            embedder=DummyEmbedder(), models={"generic": model},
+            feature_config={"use_age": True, "max_age_days": 1826.25})
+        agent.metadata = Metadata.from_dict({"profile": {"stillbirth": True}})
+        await agent.process_chunk("c1", "fever", [])
+
+        assert model.last_X[0, -3:].tolist() == [0.0, 0.0, 1.0]
+
+    @pytest.mark.asyncio
+    async def test_no_age_feature_when_not_configured(self):
+        model = RecordingModel()
+        agent = EmbeddingCODAgent(embedder=DummyEmbedder(), models={"generic": model})
+        await agent.process_chunk("c1", "fever", [])
+
+        assert model.last_X.shape == (1, 2)
 
 
 @pytest.mark.skipif(not HAS_ST, reason="sentence-transformers not installed")
