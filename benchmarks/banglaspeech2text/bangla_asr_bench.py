@@ -13,12 +13,11 @@ import os
 import re
 import subprocess
 import time
+import unicodedata
 from pathlib import Path
 
 import numpy as np
 
-import re
-import unicodedata
 from coda.config import settings
 
 # Initialize shared configuration before model libraries read environment variables.
@@ -50,8 +49,13 @@ def clip_duration(path):
         return None
 
 BASE = Path(__file__).resolve().parent
-CASES = {c["case_id"]: c["bn_narrative"]
-         for c in json.loads((BASE / "coda-audio" / "cases_bn.json").read_text())}
+
+
+def load_cases():
+    """Map case_id to its Bengali reference narrative."""
+    path = BASE / "coda-audio" / "cases_bn.json"
+    return {c["case_id"]: c["bn_narrative"] for c in json.loads(path.read_text())}
+
 
 BENGALI_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
 # Ambiguous words such as নয় (nine / is not) are left unchanged.
@@ -69,11 +73,11 @@ BENGALI_CARDINAL_WORDS = {
 }
 
 
-def normalize_bengali_numerals(text: str) -> str:
-    """Canonicalize Bengali digits/cardinal words to Western digit strings
-    (e.g. "৫" and "পাঁচ" both -> "5"), so numeral-form differences don't
-    register as WER/CER errors.
-    TO DISABLE: comment out the single call site inside norm() 
+def normalize_bengali_numerals(text):
+    """Canonicalize Bengali digits and cardinal words to Western digit strings.
+
+    Both "৫" and "পাঁচ" become "5", so numeral-form differences don't register
+    as WER/CER errors.
     """
     text = text.translate(BENGALI_DIGIT_MAP)
     words = text.split()
@@ -81,12 +85,13 @@ def normalize_bengali_numerals(text: str) -> str:
 
 
 def _is_punctuation(ch):
-    """True if ch is genuine punctuation (Unicode category starting with
-    'P'). Deliberately NOT using [^\\w\\s] regex-based stripping here --
-    that approach incorrectly treats Bengali vowel signs/diacritics
-    (category Mc/Mn, e.g. া ি ু ে ঁ ্) as if they were punctuation, since
-    \\w doesn't match combining marks."""
-    return unicodedata.category(ch).startswith('P')
+    """True if ch is punctuation, meaning a Unicode category starting with P.
+
+    A [^\\w\\s] regex is not equivalent, it also strips Bengali vowel signs and
+    diacritics (categories Mc/Mn, e.g. া ি ু ে ঁ ্) because \\w does not match
+    combining marks.
+    """
+    return unicodedata.category(ch).startswith("P")
 
 
 def strip_punctuation(text):
@@ -102,41 +107,53 @@ def norm(t):
 
 def levenshtein_ops(a, b):
     """Return (S, D, I, N): substitutions, deletions, insertions, len(a).
-    Generic over any equality-comparable sequence -- used for both
-    word-level (wer) and character-level (cer) edit distance."""
+
+    Generic over any equality-comparable sequence, used for both word-level
+    and character-level edit distance.
+    """
     n, m = len(a), len(b)
     dp = [[0] * (m + 1) for _ in range(n + 1)]
     op = [[None] * (m + 1) for _ in range(n + 1)]
     for i in range(1, n + 1):
-        dp[i][0] = i; op[i][0] = 'D'
+        dp[i][0] = i
+        op[i][0] = "D"
     for j in range(1, m + 1):
-        dp[0][j] = j; op[0][j] = 'I'
+        dp[0][j] = j
+        op[0][j] = "I"
     for i in range(1, n + 1):
         for j in range(1, m + 1):
-            if a[i-1] == b[j-1]:
-                dp[i][j] = dp[i-1][j-1]; op[i][j] = 'E'
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+                op[i][j] = "E"
             else:
-                sub, ins, dele = dp[i-1][j-1]+1, dp[i][j-1]+1, dp[i-1][j]+1
+                sub = dp[i - 1][j - 1] + 1
+                ins = dp[i][j - 1] + 1
+                dele = dp[i - 1][j] + 1
                 best = min(sub, ins, dele)
                 dp[i][j] = best
-                op[i][j] = 'S' if best == sub else ('I' if best == ins else 'D')
+                op[i][j] = "S" if best == sub else ("I" if best == ins else "D")
     i, j = n, m
     S = D = I = 0
     while i > 0 or j > 0:
         cur = op[i][j]
-        if cur == 'E':
-            i -= 1; j -= 1
-        elif cur == 'S':
-            S += 1; i -= 1; j -= 1
-        elif cur == 'I':
-            I += 1; j -= 1
-        elif cur == 'D':
-            D += 1; i -= 1
+        if cur == "E":
+            i -= 1
+            j -= 1
+        elif cur == "S":
+            S += 1
+            i -= 1
+            j -= 1
+        elif cur == "I":
+            I += 1
+            j -= 1
+        elif cur == "D":
+            D += 1
+            i -= 1
         else:
             break
     return S, D, I, n
- 
- 
+
+
 def wer_details(ref, hyp):
     """Full breakdown: (WER, S, D, I, N, Accuracy)."""
     r, h = norm(ref).split(), norm(hyp).split()
@@ -144,24 +161,26 @@ def wer_details(ref, hyp):
     w = (S + D + I) / N if N else float("nan")
     acc = (N - S - D - I) / N if N else float("nan")
     return w, S, D, I, N, acc
- 
- 
+
+
 def cer(ref, hyp):
-    """Character-level error rate (edits / ref_char_count), same
-    normalization as wer(), operating on characters instead of words.
-    Matches the cer_ops convention used in benchmark_asr.py (total edit
-    rate, no separate S/D/I breakdown at the character level)."""
+    """Character-level error rate, edits divided by reference character count.
+
+    Uses the same normalization as wer_details(), on characters instead of
+    words, and reports a total edit rate with no S/D/I breakdown.
+    """
     r, h = list(norm(ref).replace(" ", "")), list(norm(hyp).replace(" ", ""))
     S, D, I, N = levenshtein_ops(r, h)
     return (S + D + I) / N if N else float("nan")
 
 
 def samples():
+    cases = load_cases()
     out = []
     for f in sorted(glob.glob(str(BASE / "coda-audio" / "*.m4a"))):
         cid = re.sub(r".*cod-case_id_|\.m4a", "", f)
-        if cid in CASES:
-            out.append((cid, f, CASES[cid], clip_duration(f)))
+        if cid in cases:
+            out.append((cid, f, cases[cid], clip_duration(f)))
     return out
 
 

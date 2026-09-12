@@ -3,7 +3,11 @@
 A fake transcribe_file lets us exercise transcribe_audio without loading a
 real Whisper model or any network/grounder.
 """
+import asyncio
+import time
+
 import numpy as np
+import pytest
 
 from coda.dialogue import (
     ChunkedTranscriber,
@@ -11,6 +15,7 @@ from coda.dialogue import (
     TranscriptEvent,
 )
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
+from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue.whisper_livekit import _events_from_response
 
 
@@ -86,6 +91,67 @@ def test_faster_whisper_filter_uses_higher_threshold_non_english():
         "segments": [{"text": "জ্বর ছিল", "no_speech_prob": 0.7}],
     }
     assert transcriber._filter_segments(result, language="bn") == "জ্বর ছিল"
+
+
+def test_indic_conformer_backend_registered():
+    assert "indic-conformer" in TRANSCRIBER_BACKENDS
+
+
+def test_indic_conformer_rejects_unknown_decoding():
+    with pytest.raises(ValueError):
+        IndicConformerTranscriber(decoding="beam")
+
+
+def test_indic_conformer_decoding_strategies():
+    assert IndicConformerTranscriber.DEFAULT_MODEL in \
+        IndicConformerTranscriber.MODELS
+    assert IndicConformerTranscriber.normalize_language("bn") == "bn"
+    assert IndicConformerTranscriber.normalize_language("en") is None
+
+
+def _indic_conformer_without_model(decoding="ctc"):
+    # Bypass __init__ to avoid downloading a real model.
+    transcriber = object.__new__(IndicConformerTranscriber)
+    transcriber.decoding = decoding
+    transcriber.model = lambda wav, language, dec: "জ্বর ছিল"
+    return transcriber
+
+
+async def test_indic_conformer_transcribes_audio():
+    transcriber = _indic_conformer_without_model()
+    audio = np.full(16000, 1000, dtype=np.int16)
+    assert await transcriber.transcribe_audio(audio, language="bn") == "জ্বর ছিল"
+
+
+async def test_indic_conformer_unsupported_language_returns_empty_string():
+    transcriber = _indic_conformer_without_model()
+    audio = np.full(16000, 1000, dtype=np.int16)
+    assert await transcriber.transcribe_audio(audio, language="en") == ""
+
+
+async def test_indic_conformer_rejects_wrong_sample_rate():
+    transcriber = _indic_conformer_without_model()
+    audio = np.full(16000, 1000, dtype=np.int16)
+    assert await transcriber.transcribe_audio(
+        audio, sample_rate=8000, language="bn") == ""
+
+
+async def test_indic_conformer_does_not_block_the_event_loop():
+    transcriber = _indic_conformer_without_model()
+    transcriber.model = lambda wav, language, dec: time.sleep(0.3) or "জ্বর"
+    audio = np.full(16000, 1000, dtype=np.int16)
+    ticks = 0
+
+    async def heartbeat():
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    beat = asyncio.create_task(heartbeat())
+    await transcriber.transcribe_audio(audio, language="bn")
+    beat.cancel()
+    assert ticks > 5
 
 
 def test_whisper_livekit_backend_registered():
