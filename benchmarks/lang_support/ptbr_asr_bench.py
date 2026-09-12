@@ -6,12 +6,8 @@ faster-whisper, both run with language="pt". Word-level WER is computed
 in-process (no jiwer). Run with no args for all engines, or pass engine names.
 """
 import argparse
-import json
 import os
-import re
 import subprocess
-import time
-import unicodedata
 from pathlib import Path
 
 from dataset_io import load_samples
@@ -94,62 +90,6 @@ def main():
         device=args.device, fw_device=args.fw_device,
         compute_type=args.compute_type,
     )
-
-    all_engines = build_engines(args)
-    which = args.engines or list(all_engines)
-    unknown = [n for n in which if n not in all_engines]
-    if unknown:
-        ap.error(f"unknown engines: {unknown}. Available: {list(all_engines)}")
-
-    data = samples()
-    hw = hardware()
-    print(f"Hardware: {hw['chip']} {hw['ram_gb']}GB  language={args.language}  "
-          f"clips={len(data)}", flush=True)
-    for name in which:
-        print(f"\n=== {name} ===", flush=True)
-        t0 = time.time()
-        try:
-            fn = all_engines[name]()
-        except Exception as e:
-            print(f"  engine load failed: {str(e)[:150]}")
-            continue
-        load_s = round(time.time() - t0, 1)
-        wers, rtfs, clips = [], [], []
-        for cid, path, ref, dur in data:
-            try:
-                t1 = time.time()
-                hyp = fn(path)
-                dt = time.time() - t1
-                w = wer(ref, hyp, args.strip_accents)
-                rtf = dt / dur if dur else None
-                wers.append(w)
-                if rtf is not None:
-                    rtfs.append(rtf)
-                clips.append({"case_id": cid, "wer": round(w, 3),
-                              "audio_sec": round(dur, 1) if dur else None,
-                              "time_sec": round(dt, 2),
-                              "rtf": round(rtf, 3) if rtf else None,
-                              "ref": ref, "hyp": hyp})
-                print(f"  {cid:<14} WER={w:.3f}  {dt:5.1f}s  "
-                      f"RTF={rtf:.2f}" if rtf else f"  {cid:<14} WER={w:.3f}",
-                      flush=True)
-            except Exception as e:
-                print(f"  {cid:<14} ERROR {str(e)[:90]}", flush=True)
-        if wers:
-            mean_rtf = sum(rtfs) / len(rtfs) if rtfs else None
-            print(f"  MEAN WER={sum(wers)/len(wers):.3f}  load={load_s}s  "
-                  f"mean_RTF={mean_rtf:.2f}  (n={len(wers)})" if mean_rtf else
-                  f"  MEAN WER={sum(wers)/len(wers):.3f}  load={load_s}s  "
-                  f"(n={len(wers)})", flush=True)
-        if clips:
-            out = BASE / "results" / "pt-BR" / f"transcripts_{name}.json"
-            out.parent.mkdir(exist_ok=True)
-            out.write_text(json.dumps(
-                {"engine": name, "language": args.language, "hardware": hw,
-                 "compute_type": args.compute_type, "load_sec": load_s,
-                 "clips": clips},
-                ensure_ascii=False, indent=2))
-            print(f"  transcripts -> {out}", flush=True)
 
 
 if __name__ == "__main__":

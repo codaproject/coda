@@ -7,11 +7,9 @@ WER is computed in-process (no jiwer). Run with no args for all engines, or pass
 engine names.
 """
 import argparse
-import json
 import os
 import re
 import subprocess
-import time
 import unicodedata
 from pathlib import Path
 
@@ -338,58 +336,6 @@ def main():
     args = ap.parse_args()
     from run_benchmark import run
     return run("bn", args.engines or None)
-    which = args.engines or list(ENGINES)
-    data = samples()
-    hw = hardware()
-    print(f"Hardware: {hw['chip']} {hw['ram_gb']}GB  device={_device()}", flush=True)
-    for name in which:
-        print(f"\n=== {name} ===", flush=True)
-        t0 = time.time()
-        try:
-            fn = ENGINES[name]()
-        except Exception as e:
-            print(f"  engine load failed: {str(e)[:150]}")
-            continue
-        load_s = round(time.time() - t0, 1)
-        wers, cers, rtfs, clips = [], [], [], []
-        for cid, path, ref, dur in data:
-            try:
-                t1 = time.time()
-                hyp = fn(path)
-                dt = time.time() - t1
-                w, S, D, I, N, acc = wer_details(ref, hyp)
-                c = cer(ref, hyp)
-                rtf = dt / dur if dur else None
-                wers.append(w)
-                cers.append(c)
-                if rtf is not None:
-                    rtfs.append(rtf)
-                clips.append({"case_id": cid, "wer": round(w, 3), "cer": round(c, 3),
-                              "S": S, "D": D, "I": I, "N": N, "accuracy": round(acc, 3),
-                              "audio_sec": round(dur, 1) if dur else None,
-                              "time_sec": round(dt, 2),
-                              "rtf": round(rtf, 3) if rtf else None,
-                              "ref": ref, "hyp": hyp,
-                              "ref_norm": norm(ref), "hyp_norm": norm(hyp)})
-                print(f"  {cid:<14} WER={w:.3f} CER={c:.3f}  {dt:5.1f}s  "
-                      f"RTF={rtf:.2f}" if rtf else f"  {cid:<14} WER={w:.3f} CER={c:.3f}",
-                      flush=True)
-            except Exception as e:
-                print(f"  {cid:<14} ERROR {str(e)[:90]}", flush=True)
-        if wers:
-            mean_rtf = sum(rtfs) / len(rtfs) if rtfs else None
-            mean_cer = sum(cers) / len(cers)
-            print(f"  MEAN WER={sum(wers)/len(wers):.3f}  MEAN CER={mean_cer:.3f}  load={load_s}s  "
-                  f"mean_RTF={mean_rtf:.2f}  (n={len(wers)})" if mean_rtf else
-                  f"  MEAN WER={sum(wers)/len(wers):.3f}  MEAN CER={mean_cer:.3f}  load={load_s}s  "
-                  f"(n={len(wers)})", flush=True)
-        if clips:
-            out = BASE / "results" / "bn" / f"transcripts_{name}.json"
-            out.parent.mkdir(exist_ok=True)
-            out.write_text(json.dumps(
-                {"engine": name, "hardware": hw, "load_sec": load_s, "clips": clips},
-                ensure_ascii=False, indent=2))
-            print(f"  transcripts -> {out}", flush=True)
 
 
 if __name__ == "__main__":
