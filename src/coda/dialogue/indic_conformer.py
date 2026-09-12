@@ -49,12 +49,8 @@ class IndicConformerTranscriber(ChunkedTranscriber):
 
         from transformers import AutoModel
 
-        hf_token = os.environ.get("HF_TOKEN")
-        if not hf_token:
-            raise ValueError(
-                "No HF_TOKEN found; ai4bharat/indic-conformer-600m-multilingual "
-                "is a gated repo requiring an accepted-terms token."
-            )
+        # None lets Hugging Face use credentials saved by `hf auth login`.
+        hf_token = os.environ.get("HF_TOKEN") or None
         self.model = AutoModel.from_pretrained(
             self.MODEL_ID, trust_remote_code=True, token=hf_token
         )
