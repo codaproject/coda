@@ -8,7 +8,6 @@ import websockets
 from coda.config import settings
 
 from . import ChunkedTranscriber
-from .util import normalize_language
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,72 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
     Each chunk is sent over a short-lived connection: StartRecognition,
     stream the raw PCM, EndOfStream, then collect the finalized transcript.
     """
+    LANGUAGES = {
+        "en": "English",
+        "ar": "Arabic",
+        "ba": "Bashkir",
+        "eu": "Basque",
+        "be": "Belarusian",
+        "bn": "Bengali",
+        "bg": "Bulgarian",
+        "yue": "Cantonese",
+        "ca": "Catalan",
+        "hr": "Croatian",
+        "cs": "Czech",
+        "da": "Danish",
+        "nl": "Dutch",
+        "eo": "Esperanto",
+        "et": "Estonian",
+        "fi": "Finnish",
+        "fr": "French",
+        "gl": "Galician",
+        "de": "German",
+        "el": "Greek",
+        "he": "Hebrew",
+        "hi": "Hindi",
+        "hu": "Hungarian",
+        "id": "Indonesian",
+        "ia": "Interlingua",
+        "ga": "Irish",
+        "it": "Italian",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "lv": "Latvian",
+        "lt": "Lithuanian",
+        "ms": "Malay",
+        "mt": "Maltese",
+        "cmn": "Mandarin",
+        "mr": "Marathi",
+        "mn": "Mongolian",
+        "no": "Norwegian",
+        "fa": "Persian",
+        "pl": "Polish",
+        "pt": "Portuguese",
+        "ro": "Romanian",
+        "ru": "Russian",
+        "sk": "Slovakian",
+        "sl": "Slovenian",
+        "es": "Spanish",
+        "sw": "Swahili",
+        "sv": "Swedish",
+        "tl": "Tagalog",
+        "ta": "Tamil",
+        "th": "Thai",
+        "tr": "Turkish",
+        "uk": "Ukrainian",
+        "ur": "Urdu",
+        "ug": "Uyghur",
+        "vi": "Vietnamese",
+        "cy": "Welsh",
+    }
+
+    LANGUAGE_ALIASES = {
+        "zh": "cmn",
+        "nn": "no",
+        "nb": "no",
+        "jw": "id",
+    }
+
     # Speechmatics selects an "operating point" rather than a Whisper size.
     MODELS = ("enhanced", "standard")
     DEFAULT_MODEL = settings.dialogue.speechmatics.model
@@ -57,7 +122,7 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
                                language: str = "en",
                                task: str = "transcribe") -> str:
         try:
-            sm_language = normalize_language(language)
+            sm_language = self.normalize_language(language)
             if sm_language is None:
                 logger.error(
                     "Language %r is not supported by Speechmatics; skipping chunk",

@@ -6,6 +6,7 @@ import uuid
 from typing import AsyncIterator
 
 from . import StreamingTranscriber, TranscriptEvent
+from .util import get_whisper_languages
 
 # Model size used when none is supplied (matches the other backends).
 DEFAULT_MODEL_SIZE = "small"
@@ -56,6 +57,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     MODELS = ("tiny", "base", "small", "medium",
               "large", "large-v2", "large-v3")
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
+    LANGUAGES = get_whisper_languages()
 
     @classmethod
     def create(cls, model=None):

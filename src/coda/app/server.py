@@ -31,8 +31,8 @@ from coda.dialogue import (
     TRANSCRIBER_BACKENDS,
     create_transcriber,
     get_transcriber_models,
+    get_transcriber_languages,
 )
-from coda.dialogue.util import SPEECHMATICS_LANGUAGES
 from coda.inference.streaming import (
     INFERENCE_MAX_WAIT_S,
     INFERENCE_MIN_WORDS,
@@ -58,11 +58,6 @@ logger = logging.getLogger(__name__)
 
 here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
-
-# All languages supported by Whisper, keyed by ISO code
-from whisper.tokenizer import LANGUAGES as _WHISPER_LANGUAGES
-
-LANGUAGE_NAMES = {code: name.title() for code, name in _WHISPER_LANGUAGES.items()}
 
 # Server-level settings
 current_language = "en"
@@ -118,7 +113,7 @@ class SettingsRequest(BaseModel):
 
 
 def get_language_name(code: str) -> str:
-    return LANGUAGE_NAMES.get(code) or SPEECHMATICS_LANGUAGES.get(code, code)
+    return get_transcriber_languages(current_transcriber_backend).get(code, code)
 
 
 def create_grounder(grounder_name: str):
@@ -301,9 +296,7 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
 @app.get("/languages")
 async def get_languages():
     """Get supported languages for the active transcription backend."""
-    names = (SPEECHMATICS_LANGUAGES
-             if current_transcriber_backend == "speechmatics"
-             else LANGUAGE_NAMES)
+    names = get_transcriber_languages(current_transcriber_backend)
     # Return sorted by name, with English first
     langs = [{"code": code, "name": name}
              for code, name in sorted(names.items(), key=lambda x: x[1])]

@@ -1,6 +1,6 @@
 __all__ = ["AudioProcessor", "Transcriber", "ChunkedTranscriber",
            "StreamingTranscriber", "TranscriptEvent", "create_transcriber",
-           "get_transcriber_models", "TRANSCRIBER_BACKENDS"]
+           "get_transcriber_models", "get_transcriber_languages", "TRANSCRIBER_BACKENDS"]
 
 import os
 import logging
@@ -25,7 +25,7 @@ DEFAULT_CHUNK_DURATION = 3
 # (see coda.config). whisper/faster-whisper/speechmatics are chunked;
 # whisper-livekit is in-process streaming.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
-                        "whisper-livekit")
+                        "whisper-livekit", "indic-conformer")
 
 
 def _load_backend_class(backend: str):
@@ -46,6 +46,9 @@ def _load_backend_class(backend: str):
     if backend == "whisper-livekit":
         from .whisper_livekit import WhisperLiveKitTranscriber
         return WhisperLiveKitTranscriber
+    if backend == "indic-conformer":
+        from .indic_conformer import IndicConformerTranscriber
+        return IndicConformerTranscriber
     raise ValueError(
         f"Unknown transcriber backend {backend!r}; "
         f"choose from {TRANSCRIBER_BACKENDS}"
@@ -70,6 +73,11 @@ def get_transcriber_models(backend: str) -> dict:
     """
     cls = _load_backend_class(backend.lower())
     return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
+
+
+def get_transcriber_languages(backend: str) -> dict:
+    """Return supported language codes and display names without loading a model."""
+    return dict(_load_backend_class(backend.lower()).LANGUAGES)
 
 
 class AudioProcessor:
@@ -155,6 +163,17 @@ class Transcriber:
     # Selectable models for this backend, surfaced in the settings UI.
     MODELS = ()
     DEFAULT_MODEL = None
+    LANGUAGES = {}
+    LANGUAGE_ALIASES = {}
+
+    @classmethod
+    def normalize_language(cls, code):
+        """Resolve aliases and return a supported code, or None."""
+        if not code:
+            return None
+        code = code.strip()
+        code = cls.LANGUAGE_ALIASES.get(code, code)
+        return code if code in cls.LANGUAGES else None
 
     @classmethod
     def create(cls, model=None):

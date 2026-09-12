@@ -5,6 +5,7 @@ import torch
 from faster_whisper import WhisperModel
 
 from . import ChunkedTranscriber
+from .util import get_whisper_languages
 
 # For available model sizes see
 # https://github.com/SYSTRAN/faster-whisper#usage
@@ -26,6 +27,7 @@ class FasterWhisperTranscriber(ChunkedTranscriber):
     MODELS = ("tiny", "base", "small", "medium",
               "large", "large-v2", "large-v3")
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
+    LANGUAGES = get_whisper_languages()
 
     @classmethod
     def create(cls, model=None, **kwargs):
