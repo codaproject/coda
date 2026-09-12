@@ -2,7 +2,7 @@
 Quick comparison plot across all engines tested by bangla_asr_bench.py.
 
 Reads results/transcripts_{engine}.json (the script's own output format)
-and produces a two-panel bar chart: mean WER and corpus RTF per engine,
+and produces a three-panel bar chart: mean WER, mean CER, and mean RTF per engine,
 sorted by WER (best first).
 
 Usage:
@@ -40,7 +40,7 @@ def load_results(results_dir: Path):
     return results
 
 
-def plot_comparison(results: dict, out_path: Path):
+def plot_comparison(results: dict, out_path: Path, *, show: bool = True):
     engines = sorted(results, key=lambda e: results[e]["mean_wer"])
     wers = [results[e]["mean_wer"] for e in engines]
     cers = [results[e]["mean_cer"] if results[e]["mean_cer"] is not None else 0 for e in engines]
@@ -82,7 +82,9 @@ def plot_comparison(results: dict, out_path: Path):
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     print(f"Saved to {out_path}")
-    plt.show()
+    if show:
+        plt.show()
+    plt.close(fig)
 
 
 def main():
@@ -104,14 +106,14 @@ def main():
     if not results:
         raise FileNotFoundError(f"No transcripts_*.json found in {results_dir}")
 
-    print(f"\n{'engine':30s} {'mean WER':>10s} {'mean RTF':>10s} {'n':>4s}")
+    print(f"\n{'engine':30s} {'mean WER':>10s} {'mean CER':>10s} {'mean RTF':>10s} {'n':>4s}")
     for engine in sorted(results, key=lambda e: results[e]["mean_wer"]):
         r = results[engine]
         cer_str = f"{r['mean_cer']:.3f}" if r["mean_cer"] is not None else "n/a"
         rtf_str = f"{r['mean_rtf']:.2f}" if r["mean_rtf"] is not None else "n/a"
         print(f"{engine:30s} {r['mean_wer']:10.3f} {cer_str:>10s} {rtf_str:>10s} {r['n']:4d}")
 
-    plot_comparison(results, out_dir / "engine_comparison.png")
+    plot_comparison(results, out_dir / "engine_comparison.png", show=not args.no_show)
 
 
 if __name__ == "__main__":
