@@ -5,6 +5,7 @@ import torch
 import whisper
 
 from . import ChunkedTranscriber
+from .util import get_whisper_languages
 
 # For more info on models see
 # https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages
@@ -22,6 +23,7 @@ class WhisperTranscriber(ChunkedTranscriber):
     MODELS = ("tiny", "base", "small", "medium",
               "large", "large-v2", "large-v3")
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
+    LANGUAGES = get_whisper_languages()
 
     @classmethod
     def create(cls, model=None, **kwargs):

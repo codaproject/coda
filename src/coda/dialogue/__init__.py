@@ -1,6 +1,6 @@
 __all__ = ["AudioProcessor", "Transcriber", "ChunkedTranscriber",
            "StreamingTranscriber", "TranscriptEvent", "create_transcriber",
-           "get_transcriber_models", "TRANSCRIBER_BACKENDS"]
+           "get_transcriber_models", "get_transcriber_languages", "TRANSCRIBER_BACKENDS"]
 
 import os
 import logging
@@ -73,6 +73,11 @@ def get_transcriber_models(backend: str) -> dict:
     """
     cls = _load_backend_class(backend.lower())
     return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
+
+
+def get_transcriber_languages(backend: str) -> dict:
+    """Return supported language codes and display names without loading a model."""
+    return dict(_load_backend_class(backend.lower()).LANGUAGES)
 
 
 class AudioProcessor:
@@ -158,6 +163,17 @@ class Transcriber:
     # Selectable models for this backend, surfaced in the settings UI.
     MODELS = ()
     DEFAULT_MODEL = None
+    LANGUAGES = {}
+    LANGUAGE_ALIASES = {}
+
+    @classmethod
+    def normalize_language(cls, code):
+        """Resolve aliases and return a supported code, or None."""
+        if not code:
+            return None
+        code = code.strip()
+        code = cls.LANGUAGE_ALIASES.get(code, code)
+        return code if code in cls.LANGUAGES else None
 
     @classmethod
     def create(cls, model=None):

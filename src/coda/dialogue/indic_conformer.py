@@ -11,7 +11,6 @@ import numpy as np
 import torch
 
 from . import ChunkedTranscriber
-from .util import normalize_language_indic_conformer 
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +27,16 @@ class IndicConformerTranscriber(ChunkedTranscriber):
     """
 
     MODEL_ID = "ai4bharat/indic-conformer-600m-multilingual"
-    # Selectable decoding strategies, surfaced in the settings UI --
-    # same role as SpeechmaticsTranscriber.MODELS = ("enhanced", "standard").
+    LANGUAGES = {
+        "as": "Assamese", "bn": "Bengali", "brx": "Bodo", "doi": "Dogri",
+        "gu": "Gujarati", "hi": "Hindi", "kn": "Kannada", "kok": "Konkani",
+        "ks": "Kashmiri", "mai": "Maithili", "ml": "Malayalam", "mni": "Manipuri",
+        "mr": "Marathi", "ne": "Nepali", "or": "Odia", "pa": "Punjabi",
+        "sa": "Sanskrit", "sat": "Santali", "sd": "Sindhi", "ta": "Tamil",
+        "te": "Telugu", "ur": "Urdu",
+    }
+
+    # Selectable decoding strategies.
     MODELS = ("ctc", "rnnt")
     DEFAULT_MODEL = "ctc"  # project decision: CTC confirmed as default
 
@@ -62,7 +69,7 @@ class IndicConformerTranscriber(ChunkedTranscriber):
         # task accepted for signature compatibility with stream()'s calling
         # convention, ignored -- no translate mode for this model.
         try:
-            im_language = normalize_language_indic_conformer(language)
+            im_language = self.normalize_language(language)
             if im_language is None:
                 logger.error(
                     "Language %r is not supported by IndicConformer; skipping chunk",
