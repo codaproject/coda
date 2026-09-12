@@ -1,13 +1,12 @@
 """Benchmark Bangla ASR models on the COD audio clips (WER vs bn_narrative).
 
-Each clip's reference is the matching case's bn_narrative in coda-audio/cases_bn.json.
+Each clip's reference is the matching case's bn_narrative in data/bn/references/cases_bn_filtered.json.
 Whisper-based models run through the transformers ASR pipeline with long-form
 chunking; indic-seamless and indic-conformer use their own code paths. Word-level
 WER is computed in-process (no jiwer). Run with no args for all engines, or pass
 engine names.
 """
 import argparse
-import glob
 import json
 import os
 import re
@@ -15,6 +14,8 @@ import subprocess
 import time
 import unicodedata
 from pathlib import Path
+
+from dataset_io import load_samples
 
 import numpy as np
 
@@ -49,12 +50,6 @@ def clip_duration(path):
         return None
 
 BASE = Path(__file__).resolve().parent
-
-
-def load_cases():
-    """Map case_id to its Bengali reference narrative."""
-    path = BASE / "coda-audio" / "cases_bn.json"
-    return {c["case_id"]: c["bn_narrative"] for c in json.loads(path.read_text())}
 
 
 BENGALI_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
@@ -175,13 +170,8 @@ def cer(ref, hyp):
 
 
 def samples():
-    cases = load_cases()
-    out = []
-    for f in sorted(glob.glob(str(BASE / "coda-audio" / "*.m4a"))):
-        cid = re.sub(r".*cod-case_id_|\.m4a", "", f)
-        if cid in cases:
-            out.append((cid, f, cases[cid], clip_duration(f)))
-    return out
+    return [(s.case_id, str(s.audio_path), s.reference, clip_duration(s.audio_path))
+            for s in load_samples("bn")]
 
 
 def _device():
@@ -380,7 +370,7 @@ def main():
                   f"  MEAN WER={sum(wers)/len(wers):.3f}  MEAN CER={mean_cer:.3f}  load={load_s}s  "
                   f"(n={len(wers)})", flush=True)
         if clips:
-            out = BASE / "results" / f"transcripts_{name}.json"
+            out = BASE / "results" / "bn" / f"transcripts_{name}.json"
             out.parent.mkdir(exist_ok=True)
             out.write_text(json.dumps(
                 {"engine": name, "hardware": hw, "load_sec": load_s, "clips": clips},

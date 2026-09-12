@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল এক বছর। মারা যাওয়ার প্রায় এক সপ্তাহ আগে তার সর্দি লেগেছিল, নাক দিয়ে পানি পড়ছিল এবং হালকা কাশি ছিল। তিন-চার দিন পর কাশি অনেক বেড়ে যায় এবং সে খুব দ্রুত শ্বাস নিতে শুরু করে। শ্বাস নেওয়ার সময় তার পাঁজরের নিচে ও মাঝের চামড়া ভেতরে দেবে যেত, এবং নাকের ফুটো ফুলে উঠত। প্রতিটি শ্বাসের সঙ্গে সে গোঙানির মতো শব্দ করত এবং তার জ্বর কমছিল না। সে এত শ্বাসকষ্টে ভুগছিল যে দুধ খেতে পারত না এবং তার ঠোঁট হালকা নীল হয়ে গিয়েছিল। তার ডায়রিয়া ছিল না এবং কোনো ফুসকুড়িও ছিল না। শেষ রাতে তার শ্বাস খুব দ্রুত ও অগভীর হয়ে যায়, সে ঝিমিয়ে পড়ে, এবং আমরা স্বাস্থ্যকেন্দ্রে পৌঁছানোর আগেই বাড়িতে সে মারা যায়।"
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল ছয় মাস। হঠাৎ একদিন তার তীব্র জ্বর আসে এবং সে কাশতে শুরু করে। দুই দিনের মধ্যে তার শ্বাস খুব দ্রুত ও শব্দযুক্ত হয়ে ওঠে, এবং প্রতিবার শ্বাস নেওয়ার সময় আমি দেখতাম তার পাঁজরের নিচের চামড়া ভেতরে দেবে যাচ্ছে। তার নাকের ফুটো ফুলে উঠত এবং সে ছোট ছোট গোঙানির শব্দ করত। সে এত শ্বাসকষ্টে ভুগছিল যে বুকের দুধ মুখে নিত না। তার বুকে কান লাগালে কড়কড় শব্দ শোনা যেত। তার কোনো ফুসকুড়ি ছিল না এবং পায়খানা স্বাভাবিক ছিল। সে একসময় নেতিয়ে পড়ে এবং তার রং কালচে হয়ে যায়, এবং অসুস্থতার চতুর্থ দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। তার প্রায় পাঁচ দিন ধরে কাশি ও জ্বর ছিল যা ভালো হওয়ার বদলে ক্রমশ খারাপ হচ্ছিল। তার শ্বাসপ্রশ্বাস দ্রুত হয়ে যায় আর শ্বাস নেওয়ার সময় বুকে ব্যথার কথা বলত। কাশির সময় সে ঘন কফ তুলত। তার খাওয়ার রুচি ছিল না এবং শুধু শুয়ে থাকতে চাইত। তার শ্বাস কষ্টকর হয়ে ওঠে, বুকের নিচের অংশ ভেতরে দেবে যেত, এবং তার গা গরম হয়ে ঝিমুনি আসত। তার কোনো ফুসকুড়ি বা ডায়রিয়া ছিল না, এবং ঘাড় শক্ত ছিল না। সে আমাদের ডাকে সাড়া দেওয়া বন্ধ করে দেয় এবং ক্লিনিকে পৌঁছানোর কিছুক্ষণ পরেই মারা যায়।"
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। আমরা নদীর কাছে একটি গ্রামীণ এলাকায় থাকি, যেখানে মশার উপদ্রব বেশি এবং বর্ষাকালে মানুষের প্রায়ই জ্বর হয়। তার তীব্র জ্বর আসে, সঙ্গে কাঁপুনি দিয়ে শীত লাগা এবং পরে প্রচণ্ড ঘাম হওয়া, এবং এটি প্রতি এক-দুই দিন পরপর ফিরে আসত। সে মাথাব্যথা ও শরীরে ব্যথার অভিযোগ করত এবং কয়েকবার বমি করে। কয়েক দিন পর সে খুব ফ্যাকাশে হয়ে পড়ে, তার হাতের তালু ও চোখ সাদা দেখাত, এবং সে দুর্বল ও ঘুমকাতুরে হয়ে পড়ে। তার কাশি বা নাক দিয়ে পানি পড়া ছিল না। তৃতীয় দিনে তার কয়েকবার খিঁচুনি হয়, সে অজ্ঞান হয়ে পড়ে এবং আর জ্ঞান ফেরেনি। পরদিন সকালে সে মারা যায়।"
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। আমাদের গ্রামে তখন বর্ষাকাল ছিল এবং চারদিকে মশা ছিল। তার তীব্র জ্বর আসে, সে কয়েকবার বমি করে, এবং খুব দুর্বল হয়ে পড়ে। দুই দিন পর তার চোখ হলুদ হয়ে যায় এবং তার প্রস্রাব কোকাকোলার মতো গাঢ় রঙের হয়ে যায়। সে খুব ফ্যাকাশে হয়ে পড়ে এবং দ্রুত শ্বাস নিতে শুরু করে। খাবার বা পানি ও আর খেতে চায় না। তার কাশি বা ফুসকুড়ি ছিল না। তৃতীয় দিনে তার একটা খিঁচুনি হয়, শরীর কাঁপতে থাকে, এবং সে একেবারে অজ্ঞান হয়ে পড়ে। সে এরপর আর জাগেনি এবং সেই রাতেই মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় দেড় বছর। হঠাৎ তার পাতলা পায়খানা শুরু হয়, দিনে বহুবার, প্রায় ভাতের ফ্যানের মতো, এবং আমরা যা খাওয়াতাম সে তা বমি করে ফেলত। এটি দুই দিন ধরে চলে। শুরুতে সে খুব তৃষ্ণার্ত হয়ে ওঠে কিন্তু পরে পানি খাওয়া বন্ধ করে দেয়। তার চোখ বসে যায়, মুখ শুকিয়ে যায়, এবং পেটের চামড়া টিপলে তা উঁচু হয়ে উঠে থাকত এবং ধীরে ধীরে আগের অবস্থায় ফিরত। সে খুব অল্প প্রস্রাব করত এবং চোখের পানি ছাড়াই কাঁদত। তার সামান্য জ্বর ছিল কিন্তু কাশি বা ফুসকুড়ি ছিল না। সে দুর্বল হয়ে যায়, নেতিয়ে পড়ে ও ঝিমাতে থাকে। এরপর সে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল নয় মাস। তিন দিন ধরে তার ঘনঘন পাতলা পায়খানা ও বমি হচ্ছিল। শুরুতে সে খুব তৃষ্ণার্ত ছিল এবং আগ্রহ নিয়ে পানি খেত, কিন্তু পরে সে এতটাই দুর্বল হয়ে পড়ে যে পানি খেতে পারত না। তার মাথার তালু এবং চোখ দুটোই বসে গিয়েছিল, মুখ শুকনো ছিল, এবং চামড়া টিপলে তা ধীরে ধীরে আগের অবস্থায় ফিরত। সে প্রায় কোনো প্রস্রাব করত না। তার কাশি বা ফুসকুড়ি ছিল না। তার হাত-পা স্পর্শ করলে ঠাণ্ডা লাগত, তারপর সে খুব ঝিমুনিগ্রস্ত হয়ে যায় ও নেতিয়ে পড়ে, এবং সে মারা যায়।"
+  }
+]

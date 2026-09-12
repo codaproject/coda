@@ -6,7 +6,6 @@ faster-whisper, both run with language="pt". Word-level WER is computed
 in-process (no jiwer). Run with no args for all engines, or pass engine names.
 """
 import argparse
-import glob
 import json
 import os
 import re
@@ -15,13 +14,12 @@ import time
 import unicodedata
 from pathlib import Path
 
+from dataset_io import load_samples
+
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
 BASE = Path(__file__).resolve().parent
 SIZES = ["tiny", "base", "small", "medium", "large-v3"]
-
-# Audio file stems use "Iri" where the case ids use "lri"
-STEM_FIXES = {"iri": "lri"}
 
 
 def hardware():
@@ -46,18 +44,6 @@ def clip_duration(path):
     except Exception:
         return None
 
-
-def load_cases():
-    """Map case_id to Portuguese narrative, accepting the stale bn_narrative key."""
-    cases = {}
-    for c in json.loads((BASE / "cases_ptbr_filtered.json").read_text()):
-        text = c.get("ptbr_narrative") or c.get("bn_narrative")
-        if text:
-            cases[c["case_id"]] = text
-    return cases
-
-
-CASES = load_cases()
 
 _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
@@ -86,14 +72,8 @@ def wer(ref, hyp, strip_accents=False):
 
 
 def samples():
-    out = []
-    for f in sorted(glob.glob(str(BASE / "*.m4a"))):
-        cid = Path(f).stem.lower()
-        prefix, _, num = cid.rpartition("_")
-        cid = f"{STEM_FIXES.get(prefix, prefix)}_{num}"
-        if cid in CASES:
-            out.append((cid, f, CASES[cid], clip_duration(f)))
-    return out
+    return [(s.case_id, str(s.audio_path), s.reference, clip_duration(s.audio_path))
+            for s in load_samples("pt-BR")]
 
 
 def make_whisper(size, language, device):
@@ -191,7 +171,7 @@ def main():
                   f"  MEAN WER={sum(wers)/len(wers):.3f}  load={load_s}s  "
                   f"(n={len(wers)})", flush=True)
         if clips:
-            out = BASE / "results" / f"transcripts_{name}.json"
+            out = BASE / "results" / "pt-BR" / f"transcripts_{name}.json"
             out.parent.mkdir(exist_ok=True)
             out.write_text(json.dumps(
                 {"engine": name, "language": args.language, "hardware": hw,

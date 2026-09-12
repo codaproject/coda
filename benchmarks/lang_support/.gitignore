@@ -1,0 +1,5 @@
+# The repository ignores data/ globally; track supplied references here.
+!data/
+data/*/audio/
+data/*/originals/
+results/

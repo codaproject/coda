@@ -89,7 +89,7 @@ def plot_comparison(results: dict, out_path: Path, *, show: bool = True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--results_dir", default="results")
+    ap.add_argument("--results_dir", default=str(Path(__file__).resolve().parent / "results" / "bn"))
     ap.add_argument("--out_dir", default=None)
     ap.add_argument("--no_show", action="store_true")
     args = ap.parse_args()
