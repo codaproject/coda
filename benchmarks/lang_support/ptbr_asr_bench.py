@@ -47,32 +47,6 @@ def clip_duration(path):
         return None
 
 
-_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
-
-
-def norm(t, strip_accents=False):
-    t = t.lower()
-    if strip_accents:
-        t = "".join(c for c in unicodedata.normalize("NFD", t)
-                    if unicodedata.category(c) != "Mn")
-    return re.sub(r"\s+", " ", _PUNCT.sub(" ", t)).strip()
-
-
-def wer(ref, hyp, strip_accents=False):
-    r, h = norm(ref, strip_accents).split(), norm(hyp, strip_accents).split()
-    n, m = len(r), len(h)
-    dp = [[0] * (m + 1) for _ in range(n + 1)]
-    for i in range(n + 1):
-        dp[i][0] = i
-    for j in range(m + 1):
-        dp[0][j] = j
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            c = 0 if r[i - 1] == h[j - 1] else 1
-            dp[i][j] = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + c)
-    return dp[n][m] / n if n else float("nan")
-
-
 # Shared edit-distance accounting keeps the two language runners comparable.
 def wer(ref, hyp, strip_accents=False):
     return metric_wer_details(
