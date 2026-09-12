@@ -1,5 +1,22 @@
-"""Brazilian Portuguese inputs, preserving the supplier's filenames and JSON."""
+"""Brazilian Portuguese dataset loading and scoring normalization."""
+import re
+import unicodedata
 from dataset_io import match_recordings, read_references
+
+
+def normalize(text, strip_accents=False):
+    """Lowercase Portuguese and optionally ignore accents while scoring."""
+    text = text.lower()
+    if strip_accents:
+        text = "".join(
+            char for char in unicodedata.normalize("NFD", text)
+            if unicodedata.category(char) != "Mn"
+        )
+    text = "".join(
+        " " if unicodedata.category(char).startswith("P") else char
+        for char in text
+    )
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def case_id(path):

@@ -16,6 +16,8 @@ import unicodedata
 from pathlib import Path
 
 from dataset_io import load_samples
+from languages.bn import normalize as normalize_bengali
+from metrics import cer as metric_cer, wer_details as metric_wer_details
 
 import numpy as np
 
@@ -167,6 +169,16 @@ def cer(ref, hyp):
     r, h = list(norm(ref).replace(" ", "")), list(norm(hyp).replace(" ", ""))
     S, D, I, N = levenshtein_ops(r, h)
     return (S + D + I) / N if N else float("nan")
+
+
+# Shared scoring is the source of truth; the legacy definitions above remain
+# temporarily for compatibility with notebooks that imported them directly.
+def wer_details(ref, hyp):
+    return metric_wer_details(ref, hyp, normalize_bengali)
+
+
+def cer(ref, hyp):
+    return metric_cer(ref, hyp, normalize_bengali)
 
 
 def samples():

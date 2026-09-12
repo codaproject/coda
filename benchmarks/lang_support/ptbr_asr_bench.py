@@ -15,6 +15,8 @@ import unicodedata
 from pathlib import Path
 
 from dataset_io import load_samples
+from languages.pt_br import normalize as normalize_portuguese
+from metrics import wer_details as metric_wer_details
 
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
@@ -69,6 +71,13 @@ def wer(ref, hyp, strip_accents=False):
             c = 0 if r[i - 1] == h[j - 1] else 1
             dp[i][j] = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + c)
     return dp[n][m] / n if n else float("nan")
+
+
+# Shared edit-distance accounting keeps the two language runners comparable.
+def wer(ref, hyp, strip_accents=False):
+    return metric_wer_details(
+        ref, hyp, lambda text: normalize_portuguese(text, strip_accents)
+    )[0]
 
 
 def samples():
