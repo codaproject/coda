@@ -87,8 +87,12 @@ def normalize_language(code):
 ## ___IndicConformer___
 
 INDIC_CONFORMER_LANGUAGES = {
-    "as", "bn", "brx", "doi", "gu", "hi", "kn", "kok", "ks", "mai", "ml",
-    "mni", "mr", "ne", "or", "pa", "sa", "sat", "sd", "ta", "te", "ur",
+    "as": "Assamese", "bn": "Bengali", "brx": "Bodo", "doi": "Dogri",
+    "gu": "Gujarati", "hi": "Hindi", "kn": "Kannada", "kok": "Konkani",
+    "ks": "Kashmiri", "mai": "Maithili", "ml": "Malayalam", "mni": "Manipuri",
+    "mr": "Marathi", "ne": "Nepali", "or": "Odia", "pa": "Punjabi",
+    "sa": "Sanskrit", "sat": "Santali", "sd": "Sindhi", "ta": "Tamil",
+    "te": "Telugu", "ur": "Urdu",
 }
 
 CALLER_TO_INDIC_CONFORMER = {}

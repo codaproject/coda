@@ -4342,7 +4342,7 @@
       }
 
       // Repopulate the language list (it depends on the active backend) and
-      // select `preferred` if still supported, otherwise fall back to English.
+      // select `preferred` if supported, otherwise the first supported language.
       // Returns the resulting language code.
       async function reloadLanguages(preferred) {
         const langResp = await fetch("/languages");
@@ -4355,7 +4355,7 @@
           languageSelect.appendChild(opt);
         });
         const codes = languages.map((l) => l.code);
-        languageSelect.value = codes.includes(preferred) ? preferred : "en";
+        languageSelect.value = codes.includes(preferred) ? preferred : (codes[0] || "");
         return languageSelect.value;
       }
 
@@ -4397,7 +4397,10 @@
 
           const resp = await fetch("/settings");
           const data = await resp.json();
-          await reloadLanguages(data.language);
+          const language = await reloadLanguages(data.language);
+          if (language !== data.language) {
+            await updateSettings({ language });
+          }
           saveToggle.checked = data.save_enabled;
           transcriberBackendSelect.value = data.transcriber_backend;
           await loadBackendModels(
@@ -4497,7 +4500,7 @@
           await updateSettings({ translation_mode: "llm" });
         }
         // Available languages depend on the backend; keep the current one if
-        // still supported, otherwise it falls back to English.
+        // still supported, otherwise select the first supported language.
         await reloadLanguages(languageSelect.value);
         await updateSettings({ language: languageSelect.value });
         updateTranslationVisibility();

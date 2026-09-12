@@ -32,7 +32,7 @@ from coda.dialogue import (
     create_transcriber,
     get_transcriber_models,
 )
-from coda.dialogue.util import SPEECHMATICS_LANGUAGES
+from coda.dialogue.util import INDIC_CONFORMER_LANGUAGES, SPEECHMATICS_LANGUAGES
 from coda.inference.streaming import (
     INFERENCE_MAX_WAIT_S,
     INFERENCE_MIN_WORDS,
@@ -301,9 +301,12 @@ async def process_inference(chunk_id: str, timestamp: float, transcript: str,
 @app.get("/languages")
 async def get_languages():
     """Get supported languages for the active transcription backend."""
-    names = (SPEECHMATICS_LANGUAGES
-             if current_transcriber_backend == "speechmatics"
-             else LANGUAGE_NAMES)
+    if current_transcriber_backend == "speechmatics":
+        names = SPEECHMATICS_LANGUAGES
+    elif current_transcriber_backend == "indic-conformer":
+        names = INDIC_CONFORMER_LANGUAGES
+    else:
+        names = LANGUAGE_NAMES
     # Return sorted by name, with English first
     langs = [{"code": code, "name": name}
              for code, name in sorted(names.items(), key=lambda x: x[1])]
