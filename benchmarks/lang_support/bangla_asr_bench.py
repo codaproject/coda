@@ -336,6 +336,8 @@ def main():
     ap.add_argument("engines", nargs="*", default=None,
                     help="engine names to run (default: all)")
     args = ap.parse_args()
+    from run_benchmark import run
+    return run("bn", args.engines or None)
     which = args.engines or list(ENGINES)
     data = samples()
     hw = hardware()

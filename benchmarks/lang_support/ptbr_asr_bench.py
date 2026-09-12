@@ -106,6 +106,13 @@ def main():
     ap.add_argument("--strip-accents", action="store_true",
                     help="ignore diacritics when scoring")
     args = ap.parse_args()
+    from run_benchmark import run
+    return run(
+        "pt-BR", args.engines or None,
+        strip_accents=args.strip_accents,
+        device=args.device, fw_device=args.fw_device,
+        compute_type=args.compute_type,
+    )
 
     all_engines = build_engines(args)
     which = args.engines or list(all_engines)
