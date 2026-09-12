@@ -19,8 +19,10 @@ import numpy as np
 
 import re
 import unicodedata
-from dotenv import load_dotenv
-load_dotenv()
+from coda.config import settings
+
+# Initialize shared configuration before model libraries read environment variables.
+settings.validators.validate()
 
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
@@ -233,8 +235,6 @@ def make_conformer(decoding="ctc"):
     class from src/coda/dialogue/indic_conformer.py
     """
     import asyncio
-    from coda.config import settings
-    _ = settings.dialogue.transcriber_backend  # force dynaconf's .env load (HF_TOKEN)
     from coda.dialogue.indic_conformer import IndicConformerTranscriber
 
     transcriber = IndicConformerTranscriber.create(model=decoding)
@@ -270,8 +270,6 @@ def make_speechmatics(model="enhanced"):
     ENGINES closures are synchronous, so asyncio.run() bridges the two.
     """
     import asyncio
-    from coda.config import settings
-    _ = settings.dialogue.transcriber_backend  # force dynaconf's .env load (needed for SPEECHMATICS_API_KEY set in .env)
     from coda.dialogue.speechmatics import SpeechmaticsTranscriber
 
     transcriber = SpeechmaticsTranscriber.create(model=model)
