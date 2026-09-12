@@ -3,6 +3,8 @@ import re
 import unicodedata
 from dataset_io import match_recordings, read_references
 
+# Whisper-style code this dataset is transcribed with
+ASR_LANGUAGE = "bn"
 
 BENGALI_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
 BENGALI_CARDINAL_WORDS = {
@@ -19,8 +21,12 @@ BENGALI_CARDINAL_WORDS = {
 }
 
 
-def normalize(text):
-    """Preserve Bengali marks while removing punctuation and folding numerals."""
+def normalize(text, strip_accents=False):
+    """Preserve Bengali marks while removing punctuation and folding numerals.
+
+    strip_accents is accepted for a uniform signature across languages and has
+    no meaning for Bengali, where combining marks carry the vowels.
+    """
     text = "".join(
         " " if unicodedata.category(char).startswith("P") else char
         for char in text

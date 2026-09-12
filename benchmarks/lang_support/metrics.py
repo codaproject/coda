@@ -15,11 +15,14 @@ def levenshtein_ops(reference, hypothesis):
             if reference[i - 1] == hypothesis[j - 1]:
                 distance[i][j], operation[i][j] = distance[i - 1][j - 1], "E"
             else:
-                distance[i][j], operation[i][j] = min(
-                    (distance[i - 1][j - 1] + 1, "S"),
-                    (distance[i][j - 1] + 1, "I"),
-                    (distance[i - 1][j] + 1, "D"),
+                # Rank keys break distance ties toward substitution, then
+                # insertion, so the S/D/I split stays stable across runs
+                _, _, operation[i][j] = best = min(
+                    (distance[i - 1][j - 1] + 1, 0, "S"),
+                    (distance[i][j - 1] + 1, 1, "I"),
+                    (distance[i - 1][j] + 1, 2, "D"),
                 )
+                distance[i][j] = best[0]
     i, j = n, m
     substitutions = deletions = insertions = 0
     while i or j:

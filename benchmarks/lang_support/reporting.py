@@ -1,6 +1,20 @@
 """Shared statistics and plotting for language-support benchmarks."""
 import json
+import subprocess
 from pathlib import Path
+
+
+def hardware():
+    """Describe the host so recorded RTF values can be compared across machines."""
+    def sysctl(key):
+        try:
+            return subprocess.run(["sysctl", "-n", key], capture_output=True,
+                                  text=True).stdout.strip()
+        except Exception:
+            return ""
+    memory = sysctl("hw.memsize")
+    return {"chip": sysctl("machdep.cpu.brand_string"),
+            "ram_gb": round(int(memory) / 1024 ** 3) if memory.isdigit() else None}
 
 
 def load_results(results_dir):

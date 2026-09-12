@@ -1,187 +1,22 @@
-"""Benchmark Bangla ASR models on the COD audio clips (WER vs bn_narrative).
+"""Benchmark Bangla ASR engines on the COD audio clips.
 
-Each clip's reference is the matching case's bn_narrative in data/bn/references/cases_bn_filtered.json.
 Whisper-based models run through the transformers ASR pipeline with long-form
-chunking; indic-seamless and indic-conformer use their own code paths. Word-level
-WER is computed in-process (no jiwer). Run with no args for all engines, or pass
-engine names.
+chunking, indic-seamless and indic-conformer use their own code paths. Scoring,
+reporting and dataset loading are shared, see run_benchmark and languages.bn.
+Run with no args for all engines, or pass engine names.
 """
-import argparse
 import os
-import re
 import subprocess
-import unicodedata
-from pathlib import Path
-
-from dataset_io import load_samples
-from languages.bn import normalize as normalize_bengali
-from metrics import cer as metric_cer, wer_details as metric_wer_details
 
 import numpy as np
 
 from coda.config import settings
+from run_benchmark import main_for
 
 # Initialize shared configuration before model libraries read environment variables.
 settings.validators.validate()
 
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
-
-
-def hardware():
-    def sc(k):
-        try:
-            return subprocess.run(["sysctl", "-n", k], capture_output=True,
-                text=True).stdout.strip()
-        except Exception:
-            return ""
-    mem = sc("hw.memsize")
-    return {"chip": sc("machdep.cpu.brand_string"),
-            "ram_gb": round(int(mem) / 1024 ** 3) if mem.isdigit() else None}
-
-
-def clip_duration(path):
-    try:
-        out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=nokey=1:noprint_wrappers=1", str(path)],
-            capture_output=True, text=True, check=True).stdout.strip()
-        return float(out)
-    except Exception:
-        return None
-
-BASE = Path(__file__).resolve().parent
-
-
-BENGALI_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
-# Ambiguous words such as নয় (nine / is not) are left unchanged.
-BENGALI_CARDINAL_WORDS = {
-    "শূন্য": "0", "এক": "1", "দুই": "2", "দু": "2", "দো": "2",
-    "তিন": "3", "চার": "4", "চারি": "4", "পাঁচ": "5",
-    "ছয়": "6", "সাত": "7", "আট": "8",
-    "দশ": "10", "এগারো": "11", "বারো": "12", "তেরো": "13",
-    "চৌদ্দ": "14", "চোদ্দ": "14", "পনেরো": "15", "পনর": "15",
-    "ষোলো": "16", "সতেরো": "17", "সতর": "17", "আঠারো": "18", "আঠেরো": "18",
-    "ঊনিশ": "19", "ঊন্নিশ": "19", "বিশ": "20", "কুড়ি": "20", "একুশ": "21",
-    "ত্রিশ": "30", "তিরিশ": "30", "চল্লিশ": "40", "পঞ্চাশ": "50",
-    "ষাট": "60", "ষাটি": "60", "ষাইট": "60", "সত্তর": "70", "আশি": "80",
-    "নব্বই": "90", "নব্বুই": "90", "শত": "100", "একশ": "100",
-}
-
-
-def normalize_bengali_numerals(text):
-    """Canonicalize Bengali digits and cardinal words to Western digit strings.
-
-    Both "৫" and "পাঁচ" become "5", so numeral-form differences don't register
-    as WER/CER errors.
-    """
-    text = text.translate(BENGALI_DIGIT_MAP)
-    words = text.split()
-    return " ".join(BENGALI_CARDINAL_WORDS.get(w, w) for w in words)
-
-
-def _is_punctuation(ch):
-    """True if ch is punctuation, meaning a Unicode category starting with P.
-
-    A [^\\w\\s] regex is not equivalent, it also strips Bengali vowel signs and
-    diacritics (categories Mc/Mn, e.g. া ি ু ে ঁ ্) because \\w does not match
-    combining marks.
-    """
-    return unicodedata.category(ch).startswith("P")
-
-
-def strip_punctuation(text):
-    return "".join(" " if _is_punctuation(ch) else ch for ch in text)
-
-
-def norm(t):
-    t = strip_punctuation(t)
-    t = re.sub(r"\s+", " ", t).strip()
-    t = normalize_bengali_numerals(t)
-    return t
-
-
-def levenshtein_ops(a, b):
-    """Return (S, D, I, N): substitutions, deletions, insertions, len(a).
-
-    Generic over any equality-comparable sequence, used for both word-level
-    and character-level edit distance.
-    """
-    n, m = len(a), len(b)
-    dp = [[0] * (m + 1) for _ in range(n + 1)]
-    op = [[None] * (m + 1) for _ in range(n + 1)]
-    for i in range(1, n + 1):
-        dp[i][0] = i
-        op[i][0] = "D"
-    for j in range(1, m + 1):
-        dp[0][j] = j
-        op[0][j] = "I"
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            if a[i - 1] == b[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1]
-                op[i][j] = "E"
-            else:
-                sub = dp[i - 1][j - 1] + 1
-                ins = dp[i][j - 1] + 1
-                dele = dp[i - 1][j] + 1
-                best = min(sub, ins, dele)
-                dp[i][j] = best
-                op[i][j] = "S" if best == sub else ("I" if best == ins else "D")
-    i, j = n, m
-    S = D = I = 0
-    while i > 0 or j > 0:
-        cur = op[i][j]
-        if cur == "E":
-            i -= 1
-            j -= 1
-        elif cur == "S":
-            S += 1
-            i -= 1
-            j -= 1
-        elif cur == "I":
-            I += 1
-            j -= 1
-        elif cur == "D":
-            D += 1
-            i -= 1
-        else:
-            break
-    return S, D, I, n
-
-
-def wer_details(ref, hyp):
-    """Full breakdown: (WER, S, D, I, N, Accuracy)."""
-    r, h = norm(ref).split(), norm(hyp).split()
-    S, D, I, N = levenshtein_ops(r, h)
-    w = (S + D + I) / N if N else float("nan")
-    acc = (N - S - D - I) / N if N else float("nan")
-    return w, S, D, I, N, acc
-
-
-def cer(ref, hyp):
-    """Character-level error rate, edits divided by reference character count.
-
-    Uses the same normalization as wer_details(), on characters instead of
-    words, and reports a total edit rate with no S/D/I breakdown.
-    """
-    r, h = list(norm(ref).replace(" ", "")), list(norm(hyp).replace(" ", ""))
-    S, D, I, N = levenshtein_ops(r, h)
-    return (S + D + I) / N if N else float("nan")
-
-
-# Shared scoring is the source of truth; the legacy definitions above remain
-# temporarily for compatibility with notebooks that imported them directly.
-def wer_details(ref, hyp):
-    return metric_wer_details(ref, hyp, normalize_bengali)
-
-
-def cer(ref, hyp):
-    return metric_cer(ref, hyp, normalize_bengali)
-
-
-def samples():
-    return [(s.case_id, str(s.audio_path), s.reference, clip_duration(s.audio_path))
-            for s in load_samples("bn")]
 
 
 def _device():
@@ -329,13 +164,12 @@ ENGINES = {
 }
 
 
+def build_engines(args):
+    return ENGINES
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("engines", nargs="*", default=None,
-                    help="engine names to run (default: all)")
-    args = ap.parse_args()
-    from run_benchmark import run
-    return run("bn", args.engines or None)
+    return main_for("bn", build_engines)
 
 
 if __name__ == "__main__":

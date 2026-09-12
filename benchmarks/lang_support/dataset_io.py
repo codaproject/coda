@@ -1,6 +1,7 @@
 """Shared representation and validation for language benchmark inputs."""
 from dataclasses import dataclass
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -56,3 +57,15 @@ def load_samples(language, data_dir=None):
         raise ValueError(f"Unknown dataset language {language!r}; choose {list(loaders)}")
     data_dir = Path(data_dir) if data_dir is not None else Path(__file__).parent / "data"
     return loaders[language](data_dir / language)
+
+
+def clip_duration(path):
+    """Return a recording's duration in seconds, or None if ffprobe fails."""
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=nokey=1:noprint_wrappers=1", str(path)],
+            capture_output=True, text=True, check=True).stdout.strip()
+        return float(out)
+    except Exception:
+        return None

@@ -3,6 +3,9 @@ import re
 import unicodedata
 from dataset_io import match_recordings, read_references
 
+# Whisper-style code this dataset is transcribed with
+ASR_LANGUAGE = "pt"
+
 
 def normalize(text, strip_accents=False):
     """Lowercase Portuguese and optionally ignore accents while scoring."""

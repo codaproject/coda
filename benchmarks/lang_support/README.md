@@ -30,9 +30,11 @@ produce explicit errors. Place the original recordings under the corresponding
 The existing runners remain available during consolidation. From the repo root:
 
 ```bash
-PYTHONPATH=src python benchmarks/lang_support/bangla_asr_bench.py --help
+PYTHONPATH="$PYTHONPATH:benchmarks/lang_support" python benchmarks/lang_support/run_benchmark.py --language bn indic-conformer
+PYTHONPATH="$PYTHONPATH:benchmarks/lang_support" python benchmarks/lang_support/run_benchmark.py --language pt-BR whisper-small
+PYTHONPATH="$PYTHONPATH:src" python benchmarks/lang_support/bangla_asr_bench.py --help
 python benchmarks/lang_support/ptbr_asr_bench.py --help
-python benchmarks/lang_support/plot_engines.py --results_dir benchmarks/lang_support/results/bn --no_show
+python benchmarks/lang_support/plot_engines.py --results_dir benchmarks/lang_support/results/bn
 ```
 
 Old result files are preserved without rescoring. Some Bengali files include an
