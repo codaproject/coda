@@ -15,6 +15,7 @@ import unicodedata
 from pathlib import Path
 
 from dataset_io import load_samples
+from engines import make_faster_whisper, make_whisper
 from languages.pt_br import normalize as normalize_portuguese
 from metrics import wer_details as metric_wer_details
 
@@ -57,26 +58,6 @@ def wer(ref, hyp, strip_accents=False):
 def samples():
     return [(s.case_id, str(s.audio_path), s.reference, clip_duration(s.audio_path))
             for s in load_samples("pt-BR")]
-
-
-def make_whisper(size, language, device):
-    import whisper
-    model = whisper.load_model(size, device=device)
-
-    def run(path):
-        return model.transcribe(str(path), language=language,
-                                fp16=(device != "cpu"))["text"]
-    return run
-
-
-def make_faster_whisper(size, language, device, compute_type):
-    from faster_whisper import WhisperModel
-    model = WhisperModel(size, device=device, compute_type=compute_type)
-
-    def run(path):
-        segments, _ = model.transcribe(str(path), language=language)
-        return " ".join(s.text for s in segments)
-    return run
 
 
 def build_engines(args):
