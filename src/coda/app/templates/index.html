@@ -614,14 +614,15 @@
       .chunk:hover {
         background: rgba(34, 34, 59, 0.04);
       }
-      /* Highlight the most recent chunk as the "current" live window */
-      .chunk:last-of-type {
-        display: block;
-        padding: 6px 0 6px 16px;
-        border-left: 3px solid var(--record-red);
+      /* Highlight the most recent utterance as the "current" live window */
+      .utterance:last-of-type > .original-text,
+      .utterance:last-of-type > .chunk:only-child {
         color: var(--ink);
         font-weight: 500;
-        margin-top: 16px;
+      }
+      .utterance:last-of-type {
+        border-left: 3px solid var(--record-red);
+        padding-left: 16px;
       }
       .annotation {
         text-decoration: underline dotted var(--ink-muted);
@@ -631,13 +632,54 @@
       .annotation:hover {
         background: var(--border-warm);
       }
+      /* One spoken chunk and its translation, read as a single unit */
+      .utterance {
+        display: block;
+        margin-top: 16px;
+      }
+      /* The spoken words are the primary record */
       .original-text {
         display: block;
-        font-size: 14px;
-        font-style: italic;
+        font-size: 15px;
+        color: var(--ink);
+        margin-bottom: 4px;
+      }
+      /* The translation is a derived artifact, subordinate to the original */
+      .utterance.has-original > .chunk {
+        display: block;
+        font-size: 13px;
         color: var(--ink-muted);
-        margin-top: 8px;
-        margin-bottom: 2px;
+        padding-left: 12px;
+        border-left: 2px solid var(--border-warm);
+      }
+      .entity-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+        padding-left: 12px;
+      }
+      .entity-chip {
+        font-size: 11px;
+        color: var(--ink-muted);
+        background: var(--border-warm);
+        border-radius: 10px;
+        padding: 1px 8px;
+        white-space: nowrap;
+      }
+      /* Density control: which languages are visible */
+      .transcript-body.density-original .utterance.has-original > .chunk,
+      .transcript-body.density-original .entity-chips {
+        display: none;
+      }
+      .transcript-body.density-english .utterance.has-original > .original-text {
+        display: none;
+      }
+      .transcript-body.density-english .utterance.has-original > .chunk {
+        font-size: 15px;
+        color: var(--ink);
+        padding-left: 0;
+        border-left: none;
       }
       /* Chunk whose translation is still in flight */
       .chunk.pending-translation::after {
@@ -1498,11 +1540,9 @@
       body[data-state="result"] .updating-pill {
         display: none !important;
       }
-      body[data-state="result"] .chunk:last-of-type {
-        display: inline;
-        padding: 1px 0;
+      body[data-state="result"] .utterance:last-of-type {
         border-left: none;
-        margin-top: 0;
+        padding-left: 0;
         font-weight: normal;
         color: var(--ink-soft);
       }
@@ -2709,6 +2749,10 @@
           <div class="section-head">
             <span class="kicker" data-i18n="record.transcript">Transcript</span>
             <span class="section-meta"
+              ><select id="transcriptDensity" title="Transcript languages">
+                <option value="both">Both</option>
+                <option value="original">Original</option>
+                <option value="english">English</option></select
               ><span id="wordCount" data-i18n-dynamic="wordCount"
                 >0 words</span
               ></span
@@ -3556,6 +3600,17 @@
       const inference = document.getElementById("inference");
       const timerEl = document.getElementById("timer");
       const wordCountEl = document.getElementById("wordCount");
+      const transcriptDensity = document.getElementById("transcriptDensity");
+      // Hidden until a non-English interview actually produces a pair
+      transcriptDensity.style.display = "none";
+
+      function applyTranscriptDensity() {
+        const mode = transcriptDensity.value;
+        transcript.classList.remove(
+          "density-both", "density-original", "density-english");
+        transcript.classList.add(`density-${mode}`);
+      }
+      transcriptDensity.addEventListener("change", applyTranscriptDensity);
       const updatingPill = document.getElementById("updatingPill");
       const langChipText = document.getElementById("langChipText");
       const resultTitle = document.getElementById("resultTitle");
@@ -4770,6 +4825,22 @@
         }
       }
 
+      // Grounded entities as chips, so they stay legible whichever language
+      // the density control is showing.
+      function chipsHtml(anns) {
+        if (!anns || !anns.length) return "";
+        const seen = new Set();
+        const chips = [];
+        for (const a of anns) {
+          if (seen.has(a.curie)) continue;
+          seen.add(a.curie);
+          chips.push(
+            `<span class="entity-chip" title="${escapeHtml(a.curie)}">${escapeHtml(a.name)}</span>`,
+          );
+        }
+        return `<span class="entity-chips">${chips.join("")}</span>`;
+      }
+
       function updateWordCount() {
         const words = transcriptText.trim().split(/\s+/).filter(Boolean).length;
         wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
@@ -4846,12 +4917,17 @@
                 : "";
               const chunkSpan = `<span class="chunk${pendingClass}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
 
-              if (data.original_transcript) {
-                const origSpan = `<span class="original-text" data-original-for="${data.chunk_id}" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
-                transcript.insertAdjacentHTML("beforeend", origSpan);
-              }
-
-              transcript.insertAdjacentHTML("beforeend", chunkSpan);
+              // The spoken text and its translation form one utterance, so the
+              // pair moves, hides and highlights together.
+              const origSpan = data.original_transcript
+                ? `<span class="original-text" dir="auto" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span>`
+                : "";
+              const hasOriginal = origSpan ? " has-original" : "";
+              if (origSpan) transcriptDensity.style.display = "";
+              transcript.insertAdjacentHTML(
+                "beforeend",
+                `<div class="utterance${hasOriginal}" data-utterance-id="${data.chunk_id}">${origSpan}${chunkSpan}${chipsHtml(anns)}</div>`,
+              );
               transcript.scrollTop = transcript.scrollHeight;
               updateWordCount();
             } else if (data.type === "transcript_update") {
@@ -4876,6 +4952,12 @@
                 if (pos < text.length) html += escapeHtml(text.slice(pos));
                 chunk.innerHTML = html + " ";
                 chunk.classList.remove("pending-translation");
+                const utt = chunk.closest(".utterance");
+                if (utt) {
+                  const old = utt.querySelector(".entity-chips");
+                  if (old) old.remove();
+                  utt.insertAdjacentHTML("beforeend", chipsHtml(anns));
+                }
                 transcript.scrollTop = transcript.scrollHeight;
                 updateWordCount();
               }
