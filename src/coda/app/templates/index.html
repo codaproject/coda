@@ -639,6 +639,12 @@
         margin-top: 8px;
         margin-bottom: 2px;
       }
+      /* Chunk whose translation is still in flight */
+      .chunk.pending-translation::after {
+        content: "\2026";
+        color: var(--ink-muted);
+        opacity: 0.6;
+      }
       /* Interim, not-yet-committed transcription text (streaming backends) */
       .preview-line {
         color: var(--ink-muted);
@@ -4813,7 +4819,9 @@
               if (prevLine) prevLine.remove();
 
               const text = data.transcript;
-              transcriptText += text + " ";
+              // A pending chunk carries no English yet, its text arrives in the
+              // transcript_update that follows.
+              if (!data.pending_translation) transcriptText += text + " ";
 
               const anns = (data.annotations || [])
                 .slice()
@@ -4833,16 +4841,44 @@
               }
 
               chunkCount++;
-              const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
+              const pendingClass = data.pending_translation
+                ? " pending-translation"
+                : "";
+              const chunkSpan = `<span class="chunk${pendingClass}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
 
               if (data.original_transcript) {
-                const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
+                const origSpan = `<span class="original-text" data-original-for="${data.chunk_id}" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
                 transcript.insertAdjacentHTML("beforeend", origSpan);
               }
 
               transcript.insertAdjacentHTML("beforeend", chunkSpan);
               transcript.scrollTop = transcript.scrollHeight;
               updateWordCount();
+            } else if (data.type === "transcript_update") {
+              // The spoken text was shown as soon as it was transcribed; this
+              // fills in the English once translation and grounding finish.
+              const chunk = transcript.querySelector(
+                `.chunk[data-chunk-id="${data.chunk_id}"]`,
+              );
+              if (chunk) {
+                const text = data.transcript || "";
+                transcriptText += text + " ";
+                const anns = (data.annotations || [])
+                  .slice()
+                  .sort((a, b) => a.start - b.start);
+                let html = "";
+                let pos = 0;
+                for (const ann of anns) {
+                  if (ann.start > pos) html += escapeHtml(text.slice(pos, ann.start));
+                  html += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+                  pos = ann.end;
+                }
+                if (pos < text.length) html += escapeHtml(text.slice(pos));
+                chunk.innerHTML = html + " ";
+                chunk.classList.remove("pending-translation");
+                transcript.scrollTop = transcript.scrollHeight;
+                updateWordCount();
+              }
             } else if (data.type === "preview") {
               // Interim, not-yet-committed text (streaming backends).
               // Shown muted at the end until it firms into a chunk.

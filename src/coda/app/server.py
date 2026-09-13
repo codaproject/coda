@@ -809,11 +809,22 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     save_s = 0.0
     emit_s = 0.0
 
-    # If non-English and not already translated to English, translate via LLM
-    # (skip if transcript is too short to be real speech).
-    if (not direct_translate and current_language != "en"
-            and len(event.text.split()) > 1):
+    # Translation and grounding both take time, so the spoken text is shown as
+    # soon as it is transcribed and the English is patched in when it arrives.
+    needs_translation = (not direct_translate and current_language != "en"
+                         and len(event.text.split()) > 1)
+    if needs_translation:
         original_transcript = event.text
+        await _ws_send_safe(websocket, {
+            "type": "transcript",
+            "chunk_id": chunk_id,
+            "timestamp": timestamp,
+            "transcript": "",
+            "annotations": [],
+            "original_transcript": original_transcript,
+            "original_language": current_language,
+            "pending_translation": True,
+        })
         translation_start = time.perf_counter()
         english_text = await translate_text(event.text, current_language)
         translation_s = time.perf_counter() - translation_start
@@ -826,6 +837,17 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         grounding_s = time.perf_counter() - grounding_start
 
     if not english_text:
+        # An already-displayed chunk must be resolved, or it stays pending
+        if needs_translation:
+            await _ws_send_safe(websocket, {
+                "type": "transcript_update",
+                "chunk_id": chunk_id,
+                "timestamp": timestamp,
+                "transcript": original_transcript,
+                "annotations": [],
+                "original_transcript": original_transcript,
+                "original_language": current_language,
+            })
         return None
 
     recorder = inference_session.recorder
@@ -853,9 +875,9 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         for ann in annotations
     ] if annotations else []
 
-    # Send transcript to client
+    # Send the finished chunk, or fill in the one already shown untranslated
     msg = {
-        "type": "transcript",
+        "type": "transcript_update" if needs_translation else "transcript",
         "chunk_id": chunk_id,
         "timestamp": timestamp,
         "transcript": english_text,
