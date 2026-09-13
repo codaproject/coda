@@ -1,0 +1,642 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল এক বছর। মারা যাওয়ার প্রায় এক সপ্তাহ আগে তার সর্দি লেগেছিল, নাক দিয়ে পানি পড়ছিল এবং হালকা কাশি ছিল। তিন-চার দিন পর কাশি অনেক বেড়ে যায় এবং সে খুব দ্রুত শ্বাস নিতে শুরু করে। শ্বাস নেওয়ার সময় তার পাঁজরের নিচে ও মাঝের চামড়া ভেতরে দেবে যেত, এবং নাকের ফুটো ফুলে উঠত। প্রতিটি শ্বাসের সঙ্গে সে গোঙানির মতো শব্দ করত এবং তার জ্বর কমছিল না। সে এত শ্বাসকষ্টে ভুগছিল যে দুধ খেতে পারত না এবং তার ঠোঁট হালকা নীল হয়ে গিয়েছিল। তার ডায়রিয়া ছিল না এবং কোনো ফুসকুড়িও ছিল না। শেষ রাতে তার শ্বাস খুব দ্রুত ও অগভীর হয়ে যায়, সে ঝিমিয়ে পড়ে, এবং আমরা স্বাস্থ্যকেন্দ্রে পৌঁছানোর আগেই বাড়িতে সে মারা যায়।"
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল ছয় মাস। হঠাৎ একদিন তার তীব্র জ্বর আসে এবং সে কাশতে শুরু করে। দুই দিনের মধ্যে তার শ্বাস খুব দ্রুত ও শব্দযুক্ত হয়ে ওঠে, এবং প্রতিবার শ্বাস নেওয়ার সময় আমি দেখতাম তার পাঁজরের নিচের চামড়া ভেতরে দেবে যাচ্ছে। তার নাকের ফুটো ফুলে উঠত এবং সে ছোট ছোট গোঙানির শব্দ করত। সে এত শ্বাসকষ্টে ভুগছিল যে বুকের দুধ মুখে নিত না। তার বুকে কান লাগালে কড়কড় শব্দ শোনা যেত। তার কোনো ফুসকুড়ি ছিল না এবং পায়খানা স্বাভাবিক ছিল। সে একসময় নেতিয়ে পড়ে এবং তার রং কালচে হয়ে যায়, এবং অসুস্থতার চতুর্থ দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। তার প্রায় পাঁচ দিন ধরে কাশি ও জ্বর ছিল যা ভালো হওয়ার বদলে ক্রমশ খারাপ হচ্ছিল। তার শ্বাসপ্রশ্বাস দ্রুত হয়ে যায় আর শ্বাস নেওয়ার সময় বুকে ব্যথার কথা বলত। কাশির সময় সে ঘন কফ তুলত। তার খাওয়ার রুচি ছিল না এবং শুধু শুয়ে থাকতে চাইত। তার শ্বাস কষ্টকর হয়ে ওঠে, বুকের নিচের অংশ ভেতরে দেবে যেত, এবং তার গা গরম হয়ে ঝিমুনি আসত। তার কোনো ফুসকুড়ি বা ডায়রিয়া ছিল না, এবং ঘাড় শক্ত ছিল না। সে আমাদের ডাকে সাড়া দেওয়া বন্ধ করে দেয় এবং ক্লিনিকে পৌঁছানোর কিছুক্ষণ পরেই মারা যায়।"
+  },
+  {
+    "case_id": "lri_4",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. It began like an ordinary cold, but after a few days she developed a high fever and a deep, harsh cough. She began breathing very quickly and shallowly, and the spaces between her ribs sucked in with every breath. She refused all food and water and her lips and fingertips looked dusky. She was hot to the touch the whole time. She did not have a rash, her bowels were normal, and her neck moved freely. She became very weak and difficult to wake, and she died two days after the fever started.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। শুরুটা ছিল সাধারণ সর্দির মতো, কিন্তু কয়েক দিন পর তার তীব্র জ্বর ও গভীর, কর্কশ কাশি দেখা দেয়। সে খুব দ্রুত ও অগভীরভাবে শ্বাস নিতে শুরু করে, এবং প্রতিটি শ্বাসে তার পাঁজরের মাঝের চামড়া ভেতরে দেবে যেত। সে সব খাবার ও পানি সরিয়ে দিত। তার ঠোঁট ও আঙুলের ডগা কালচে দেখাতে থাকে। সারাক্ষণ তার গা স্পর্শ করলে গরম লাগত। তার কোনো ফুসকুড়ি ছিল না, পায়খানা স্বাভাবিক ছিল, এবং ঘাড় স্বাভাবিকভাবে নড়ত। সে খুব দুর্বল হয়ে পড়ে এবং তাকে জাগানো কঠিন হয়ে যায়, এবং জ্বর শুরুর দুই দিন পর সে মারা যায়।"
+  },
+  {
+    "case_id": "lri_5",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was ten months old. He had a cough for several days and then became very hot. His breathing turned fast and difficult, and his head seemed to nod with each breath. The skin under his ribs pulled in and his nostrils opened wide as he struggled to breathe. He could not feed and became weak and sleepy. His lips had a bluish tinge. He had no rash, no loose stools, and he did not vomit much. His fast breathing continued until he became unresponsive, and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দশ মাস। কয়েক দিন ধরে তার কাশি ছিল এবং তারপর তার গা খুব গরম হয়ে যায়। তার শ্বাস দ্রুত ও কষ্টকর হয়ে ওঠে, এবং প্রতিটি শ্বাসে তার মাথা নড়ত বলে মনে হতো। তার পাঁজরের নিচের চামড়া ভেতরে দেবে যেত এবং শ্বাস নিতে কষ্ট হওয়ায় তার নাকের ফুটো প্রশস্ত হয়ে যেত। সে দুধ খেতে পারত না এবং দুর্বল ও ঘুমকাতুরে হয়ে পড়ে। তার ঠোঁটে নীলচে আভা দেখা যেত। তার কোনো ফুসকুড়ি, পাতলা পায়খানা ছিল না, এবং খুব বেশি বমিও করেনি। তার দ্রুত শ্বাস চলতে থাকে যতক্ষণ না সে সাড়া দেওয়া বন্ধ করে, এবং সে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। আমরা নদীর কাছে একটি গ্রামীণ এলাকায় থাকি, যেখানে মশার উপদ্রব বেশি এবং বর্ষাকালে মানুষের প্রায়ই জ্বর হয়। তার তীব্র জ্বর আসে, সঙ্গে কাঁপুনি দিয়ে শীত লাগা এবং পরে প্রচণ্ড ঘাম হওয়া, এবং এটি প্রতি এক-দুই দিন পরপর ফিরে আসত। সে মাথাব্যথা ও শরীরে ব্যথার অভিযোগ করত এবং কয়েকবার বমি করে। কয়েক দিন পর সে খুব ফ্যাকাশে হয়ে পড়ে, তার হাতের তালু ও চোখ সাদা দেখাত, এবং সে দুর্বল ও ঘুমকাতুরে হয়ে পড়ে। তার কাশি বা নাক দিয়ে পানি পড়া ছিল না। তৃতীয় দিনে তার কয়েকবার খিঁচুনি হয়, সে অজ্ঞান হয়ে পড়ে এবং আর জ্ঞান ফেরেনি। পরদিন সকালে সে মারা যায়।"
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। আমাদের গ্রামে তখন বর্ষাকাল ছিল এবং চারদিকে মশা ছিল। তার তীব্র জ্বর আসে, সে কয়েকবার বমি করে, এবং খুব দুর্বল হয়ে পড়ে। দুই দিন পর তার চোখ হলুদ হয়ে যায় এবং তার প্রস্রাব কোকাকোলার মতো গাঢ় রঙের হয়ে যায়। সে খুব ফ্যাকাশে হয়ে পড়ে এবং দ্রুত শ্বাস নিতে শুরু করে। খাবার বা পানি ও আর খেতে চায় না। তার কাশি বা ফুসকুড়ি ছিল না। তৃতীয় দিনে তার একটা খিঁচুনি হয়, শরীর কাঁপতে থাকে, এবং সে একেবারে অজ্ঞান হয়ে পড়ে। সে এরপর আর জাগেনি এবং সেই রাতেই মারা যায়।"
+  },
+  {
+    "case_id": "malaria_3",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was four years old. We live where fever is common, especially after the rains. Over about a week she had repeated bouts of fever with chills and then sweating. She lost her appetite and became increasingly pale, with white palms and the inside of her eyelids very pale. Her belly was swollen and tender on the left side. She had no cough, no rash, and her neck was not stiff. She grew weaker and more drowsy, then had convulsions and slipped into a coma. She died at home before we could get her treatment.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল চার বছর। আমরা এমন জায়গায় থাকি যেখানে জ্বর সাধারণ ব্যাপার, বিশেষ করে বৃষ্টির পর। প্রায় এক সপ্তাহ ধরে তার বারবার কাঁপুনি দিয়ে জ্বর ও পরে ঘাম হতো। তার খাওয়ার রুচি কমে যায় এবং সে ক্রমশ ফ্যাকাশে হয়ে পড়ে, তার হাতের তালু সাদা এবং চোখের পাতার ভেতরের দিক খুব ফ্যাকাশে হয়ে যায়। তার পেট ফুলে ওঠে এবং বাম দিকে চাপ দিলে ব্যথা করত। তার কাশি, ফুসকুড়ি ছিল না, এবং ঘাড় শক্ত ছিল না। সে ক্রমশ দুর্বল ও ঝিমিয়ে পড়ে, এরপর তার খিঁচুনি হয় এবং সে কোমায় চলে যায়। চিকিৎসা পাওয়ার আগেই সে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "malaria_4",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "infant",
+    "narrative": "My son was about eighteen months old. He lived with us in a malarious area. He became very hot with fever and then started breathing fast and deeply, though he did not have a cough. He was extremely weak and could not sit or feed, just lay limp. He was pale and his hands felt cold while his body was hot. He had no rash and his neck was not stiff. He had two convulsions and then would not wake. His fast breathing and unconsciousness continued until he died on the second day.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় আঠারো মাস। সে ম্যালেরিয়াপ্রবণ এলাকায় আমাদের সঙ্গে থাকত। তার তীব্র জ্বর আসে এবং তারপর সে দ্রুত ও গভীরভাবে শ্বাস নিতে শুরু করে, যদিও তার কাশি ছিল না। সে চরম দুর্বল হয়ে পড়ে এবং বসতে বা খেতে পারত না, শুধু নেতিয়ে শুয়ে থাকত। সে ফ্যাকাশে ছিল এবং তার গা গরম থাকলেও হাত ঠাণ্ডা অনুভূত হতো। তার ফুসকুড়ি ছিল না এবং ঘাড় শক্ত ছিল না। তার দুইবার খিঁচুনি হয় এবং তারপর আর জাগেনি। তার দ্রুত শ্বাস ও অজ্ঞান অবস্থা চলতে থাকে যতক্ষণ না দ্বিতীয় দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "malaria_5",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was three years old. He had travelled with me to stay near a lake where there are many mosquitoes. A few days after we returned he developed high fever with shaking chills. He vomited and complained of headache, and soon his eyes and skin looked yellow. He passed very little urine and what came was very dark. He became very pale and weak. He had no cough and no rash. He grew confused and then unconscious, and he died after a convulsion on the third day of fever.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর। সে আমার সঙ্গে একটি হ্রদের কাছে গিয়েছিল, যেখানে মশার উপদ্রব বেশি। ফেরার কয়েক দিন পর তার কাঁপুনি দিয়ে তীব্র জ্বর আসে। সে বমি করে এবং মাথাব্যথার অভিযোগ করে, এবং শীঘ্রই তার চোখ ও ত্বক হলুদ দেখাতে থাকে। সে খুব অল্প প্রস্রাব করত এবং তা খুব গাঢ় রঙের ছিল। সে খুব ফ্যাকাশে ও দুর্বল হয়ে পড়ে। তার কাশি বা ফুসকুড়ি ছিল না। সে বিভ্রান্ত হয়ে পড়ে এবং তারপর অজ্ঞান হয়ে যায়, এবং জ্বরের তৃতীয় দিনে একটি খিঁচুনির পর সে মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় দেড় বছর। হঠাৎ তার পাতলা পায়খানা শুরু হয়, দিনে বহুবার, প্রায় ভাতের ফ্যানের মতো, এবং আমরা যা খাওয়াতাম সে তা বমি করে ফেলত। এটি দুই দিন ধরে চলে। শুরুতে সে খুব তৃষ্ণার্ত হয়ে ওঠে কিন্তু পরে পানি খাওয়া বন্ধ করে দেয়। তার চোখ বসে যায়, মুখ শুকিয়ে যায়, এবং পেটের চামড়া টিপলে তা উঁচু হয়ে উঠে থাকত এবং ধীরে ধীরে আগের অবস্থায় ফিরত। সে খুব অল্প প্রস্রাব করত এবং চোখের পানি ছাড়াই কাঁদত। তার সামান্য জ্বর ছিল কিন্তু কাশি বা ফুসকুড়ি ছিল না। সে দুর্বল হয়ে যায়, নেতিয়ে পড়ে ও ঝিমাতে থাকে। এরপর সে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল নয় মাস। তিন দিন ধরে তার ঘনঘন পাতলা পায়খানা ও বমি হচ্ছিল। শুরুতে সে খুব তৃষ্ণার্ত ছিল এবং আগ্রহ নিয়ে পানি খেত, কিন্তু পরে সে এতটাই দুর্বল হয়ে পড়ে যে পানি খেতে পারত না। তার মাথার তালু এবং চোখ দুটোই বসে গিয়েছিল, মুখ শুকনো ছিল, এবং চামড়া টিপলে তা ধীরে ধীরে আগের অবস্থায় ফিরত। সে প্রায় কোনো প্রস্রাব করত না। তার কাশি বা ফুসকুড়ি ছিল না। তার হাত-পা স্পর্শ করলে ঠাণ্ডা লাগত, তারপর সে খুব ঝিমুনিগ্রস্ত হয়ে যায় ও নেতিয়ে পড়ে, এবং সে মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_3",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "child",
+    "narrative": "My son was two years old. He suddenly began passing large amounts of watery stool over and over, and he vomited several times. Within a single day he became very weak and his eyes sank into his face. His lips and mouth were dry and he stopped passing urine. When I pinched his skin it stood up like a tent. He had no cough and no rash, and his neck was not stiff. His pulse felt weak and fast and his breathing was deep. He became drowsy and unresponsive and died the same day.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। হঠাৎ সে বারবার প্রচুর পরিমাণে পাতলা পায়খানা করতে শুরু করে এবং কয়েকবার বমি করে। মাত্র এক দিনের মধ্যে সে খুব দুর্বল হয়ে পড়ে এবং তার চোখ বসে যায়। তার ঠোঁট ও মুখ শুকিয়ে যায় এবং প্রস্রাব করা বন্ধ করে দেয়। তার চামড়া টিপলে তা তাঁবুর মতো দাঁড়িয়ে থাকত। তার কাশি বা ফুসকুড়ি ছিল না, এবং ঘাড় শক্ত ছিল না। তার নাড়ি দুর্বল ও দ্রুত অনুভূত হতো এবং শ্বাস ছিল গভীর। সে ঝিমুনিগ্রস্ত ও সাড়াহীন হয়ে পড়ে এবং সেদিনই মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_4",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was about fourteen months old. She had loose, frequent stools for several days, sometimes with a little mucus, along with a mild fever and vomiting. She became very thirsty and then refused to drink. Her eyes were sunken, her mouth dry, and she passed little urine. Her skin was slow to return when pinched. She had no cough and no rash on her body. She grew weaker and more drowsy each day until she became limp and unresponsive, and she died at home.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় চৌদ্দ মাস। কয়েক দিন ধরে তার ঘনঘন পাতলা পায়খানা হচ্ছিল, মাঝে মাঝে সামান্য মিউকাসসহ, সঙ্গে হালকা জ্বর ও বমি। সে খুব তেষ্টার্ত হয়ে ওঠে এবং পরে পানি খেতে অস্বীকার করে। তার চোখ বসে গিয়েছিল, মুখ শুকনো ছিল, এবং সে অল্প প্রস্রাব করত। চামড়া টিপলে তা ধীরে ফিরে আসত। তার শরীরে কাশি বা ফুসকুড়ি ছিল না। প্রতিদিন সে আরও দুর্বল ও ঝিমুনিগ্রস্ত হয়ে পড়ে, শেষে নেতিয়ে পড়ে ও সাড়াহীন হয়ে যায়, এবং বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "diarrhea_5",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was one year old. He had watery diarrhoea that went on for about a week and would not stop, with some vomiting. Over those days he steadily lost weight and dried out. His eyes became deeply sunken, his mouth stayed dry, and he hardly passed any urine. He was too weak to cry properly and made no tears. He had no cough and no rash, and his neck was not stiff. He became very lethargic and floppy, stopped responding, and died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল এক বছর। তার প্রায় এক সপ্তাহ ধরে পাতলা পায়খানা চলছিল যা থামছিল না, সঙ্গে কিছুটা বমি। এই দিনগুলোতে সে ক্রমশ ওজন হারায় ও শুকিয়ে যায়। তার চোখ গভীরভাবে বসে যায়, মুখ শুকনোই থাকে, এবং সে প্রায় কোনো প্রস্রাব করত না। সে এতটাই দুর্বল ছিল যে ঠিকমতো কাঁদতেও পারত না এবং চোখের পানি বের হতো না। তার কাশি বা ফুসকুড়ি ছিল না, এবং ঘাড় শক্ত ছিল না। সে খুব নিস্তেজ ও নেতিয়ে পড়ে, সাড়া দেওয়া বন্ধ করে, এবং মারা যায়।"
+  },
+  {
+    "case_id": "preterm_1",
+    "cause_name": "Neonatal preterm birth complications",
+    "icd10": "P07.3",
+    "age_group": "neonate",
+    "narrative": "My baby was born too early, after about seven months of pregnancy. He was very small and thin and weighed very little, and his skin was reddish and looked thin and transparent. From the moment he was born he had trouble breathing, his chest pulled in and he breathed fast and grunted. He was too weak to suckle and we had to give drops of milk. He could not keep himself warm and felt cold to touch even when wrapped. There was no rash, no diarrhoea, and he did not have a fever. He grew weaker over the first two days, had long pauses in his breathing, and died on the third day of life.",
+    "bn_narrative": "আমার বাচ্চা খুব তাড়াতাড়ি জন্ম নেয়, প্রায় সাত মাসের গর্ভাবস্থার পর। সে খুব ছোট ও পাতলা ছিল এবং তার ওজন খুব কম ছিল, এবং তার ত্বক লালচে এবং পাতলা, স্বচ্ছ দেখাত। জন্মের মুহূর্ত থেকেই তার শ্বাস নিতে কষ্ট হতো, তার বুক ভেতরে দেবে যেত এবং সে দ্রুত শ্বাস নিত ও গোঙাত। সে এত দুর্বল ছিল যে স্তন্যপান করতে পারত না, তাই আমরা তাকে ফোঁটায় ফোঁটায় দুধ দিতাম। সে নিজেকে গরম রাখতে পারত না এবং কাপড়ে জড়ালেও স্পর্শ করলে ঠাণ্ডা লাগত। তার কোনো ফুসকুড়ি, ডায়রিয়া ছিল না, এবং জ্বরও ছিল না। প্রথম দুই দিনে সে আরও দুর্বল হয়ে পড়ে, তার শ্বাসে দীর্ঘ বিরতি আসত, এবং জীবনের তৃতীয় দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "preterm_2",
+    "cause_name": "Neonatal preterm birth complications",
+    "icd10": "P07.3",
+    "age_group": "neonate",
+    "narrative": "My daughter was born about two months before she was due. She was tiny and her skin was thin and red. From birth she grunted and the skin between her ribs pulled in as she breathed. She was too weak to suck at the breast, so we dripped milk into her mouth. Her body went yellow after a couple of days and she stayed very cold no matter how we wrapped her. She had no fever and no rash. She had spells where her breathing stopped for a while, and she died on the fifth day of life.",
+    "bn_narrative": "আমার মেয়ে নির্ধারিত সময়ের প্রায় দুই মাস আগে জন্ম নেয়। সে খুব ছোট ছিল এবং তার ত্বক পাতলা ও লাল ছিল। জন্ম থেকেই সে গোঙাত এবং শ্বাস নেওয়ার সময় তার পাঁজরের মাঝের চামড়া ভেতরে দেবে যেত। সে এত দুর্বল ছিল যে স্তন্যপান করতে পারত না, তাই আমরা তার মুখে ফোঁটায় ফোঁটায় দুধ দিতাম। কয়েক দিন পর তার শরীর হলুদ হয়ে যায় এবং যতই জড়াই না কেন সে খুব ঠাণ্ডা থাকত। তার জ্বর বা ফুসকুড়ি ছিল না। তার মাঝে মাঝে কিছুক্ষণের জন্য শ্বাস বন্ধ হয়ে যেত, এবং জীবনের পঞ্চম দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "preterm_3",
+    "cause_name": "Neonatal preterm birth complications",
+    "icd10": "P07.3",
+    "age_group": "neonate",
+    "narrative": "I gave birth to twins early, and this was the smaller one. She weighed almost nothing and her skin was fragile and thin. She breathed fast and then would pause for long moments before starting again. She could not keep warm and her hands and feet were always cold. She had no strength to feed. There was no rash and she never had a fever. She became weaker over two days and her breathing pauses grew longer until she stopped breathing and died.",
+    "bn_narrative": "আমি জমজ সন্তান প্রসব করেছিলাম তাড়াতাড়ি, এবং এটি ছিল ছোটটি। তার ওজন প্রায় কিছুই ছিল না এবং তার ত্বক ছিল নাজুক ও পাতলা। সে দ্রুত শ্বাস নিত এবং তারপর কিছুক্ষণের জন্য থেমে যেত, পরে আবার শুরু করত। সে নিজেকে গরম রাখতে পারত না এবং তার হাত-পা সবসময় ঠাণ্ডা থাকত। তার দুধ খাওয়ার শক্তি ছিল না। তার ফুসকুড়ি ছিল না এবং কখনো জ্বরও হয়নি। দুই দিনের মধ্যে সে আরও দুর্বল হয়ে পড়ে এবং তার শ্বাসের বিরতি দীর্ঘ হতে থাকে, শেষে শ্বাস বন্ধ হয়ে সে মারা যায়।"
+  },
+  {
+    "case_id": "preterm_4",
+    "cause_name": "Neonatal preterm birth complications",
+    "icd10": "P07.3",
+    "age_group": "neonate",
+    "narrative": "My baby came early because I had heavy bleeding in pregnancy. He was very small and immediately had difficulty breathing, working hard with grunting and indrawing of the chest. At the clinic they gave him oxygen. He was too weak to feed and could not maintain his temperature. He had no fever and no rash and his cord was clean. He kept having episodes where he stopped breathing and turned blue, and despite their efforts he died in the first week of life.",
+    "bn_narrative": "গর্ভাবস্থায় তীব্র রক্তক্ষরণের কারণে আমার বাচ্চা তাড়াতাড়ি জন্ম নেয়। সে খুব ছোট ছিল এবং সঙ্গে সঙ্গেই তার শ্বাস নিতে কষ্ট হতে শুরু করে, সে গোঙাতে গোঙাতে কঠিনভাবে শ্বাস নিত এবং বুক ভেতরে দেবে যেত। ক্লিনিকে তাকে অক্সিজেন দেওয়া হয়। সে এত দুর্বল ছিল যে দুধ খেতে পারত না এবং নিজের শরীরের তাপমাত্রা ধরে রাখতে পারত না। তার জ্বর বা ফুসকুড়ি ছিল না এবং নাড়ির ঘা পরিষ্কার ছিল। তার বারবার শ্বাস বন্ধ হয়ে নীল হয়ে যাওয়ার ঘটনা ঘটত, এবং সব চেষ্টার পরও সে জীবনের প্রথম সপ্তাহে মারা যায়।"
+  },
+  {
+    "case_id": "preterm_5",
+    "cause_name": "Neonatal preterm birth complications",
+    "icd10": "P07.3",
+    "age_group": "neonate",
+    "narrative": "My son was born when I was about eight months pregnant. He was small and light with a weak, thin cry. He fed poorly and tired quickly at the breast. His breathing was fast with the chest pulling in, and several times a day he would stop breathing and his colour would change to blue until we rubbed him. He stayed cold and we struggled to keep him warm. He had no fever and no rash. He weakened steadily and died on the fourth day.",
+    "bn_narrative": "আমি প্রায় আট মাসের গর্ভবতী থাকা অবস্থায় আমার ছেলে জন্ম নেয়। সে ছোট ও হালকা ছিল এবং তার কান্নার স্বর ছিল দুর্বল ও ক্ষীণ। সে ঠিকমতো দুধ খেতে পারত না এবং স্তন্যপানে দ্রুত ক্লান্ত হয়ে পড়ত। তার শ্বাস ছিল দ্রুত এবং বুক ভেতরে দেবে যেত, এবং দিনে কয়েকবার তার শ্বাস বন্ধ হয়ে যেত এবং রং নীল হয়ে যেত, যতক্ষণ না আমরা তাকে ঘষে দিতাম। সে সবসময় ঠাণ্ডা থাকত এবং আমরা তাকে গরম রাখতে সংগ্রাম করতাম। তার জ্বর বা ফুসকুড়ি ছিল না। সে ক্রমশ দুর্বল হয়ে পড়ে এবং চতুর্থ দিনে মারা যায়।"
+  },
+  {
+    "case_id": "asphyxia_1",
+    "cause_name": "Perinatal asphyxia/hypoxia",
+    "icd10": "P21.9",
+    "age_group": "neonate",
+    "narrative": "My baby was born at full term but the labour was very long and difficult and lasted more than a day at home before we reached the clinic. When she was finally born she was limp and blue and did not cry for a long time. The birth attendant rubbed her and she eventually gasped, but she never became active or fed well. She did not open her eyes or move much, her body was floppy, and she had twitching of her arms. She did not have a fever and there was no rash. She never suckled properly and her breathing was irregular. She died on the first day of life.",
+    "bn_narrative": "আমার বাচ্চা পূর্ণ মেয়াদে জন্ম নেয় কিন্তু প্রসব ছিল খুব দীর্ঘ ও কঠিন, যা ক্লিনিকে পৌঁছানোর আগে বাড়িতে একদিনেরও বেশি সময় ধরে চলে। অবশেষে যখন সে জন্ম নেয় তখন সে নেতিয়ে পড়া ও নীল ছিল এবং অনেকক্ষণ কাঁদেনি। ধাত্রী তাকে ঘষে দেওয়ার পর সে অবশেষে হাঁপাতে শুরু করে, কিন্তু সে কখনো সক্রিয় হয়নি বা ঠিকমতো দুধ খায়নি। সে চোখ খুলত না বা বেশি নড়াচড়া করত না, তার শরীর নেতিয়ে থাকত, এবং তার হাতে কাঁপুনি ছিল। তার জ্বর ছিল না এবং ফুসকুড়িও ছিল না। সে কখনো ঠিকমতো স্তন্যপান করেনি এবং তার শ্বাস অনিয়মিত ছিল। জীবনের প্রথম দিনেই সে মারা যায়।"
+  },
+  {
+    "case_id": "asphyxia_2",
+    "cause_name": "Perinatal asphyxia/hypoxia",
+    "icd10": "P21.9",
+    "age_group": "neonate",
+    "narrative": "My labour was obstructed and went on for a very long time. When my son was finally born he was not breathing at all and was blue and limp. The midwife worked on him until he started to gasp. After that he never woke up properly, did not cry normally, and could not suck. He lay stiff at times and then floppy, and he had jerking movements of his limbs. He had no fever and no rash. He never fed and his breathing stayed irregular, and he died on the second day.",
+    "bn_narrative": "আমার প্রসব বাধাগ্রস্ত হয়েছিল এবং খুব দীর্ঘ সময় ধরে চলেছিল। অবশেষে যখন আমার ছেলে জন্ম নেয় তখন সে একদমই শ্বাস নিচ্ছিল না এবং নীল ও নেতিয়ে পড়া ছিল। ধাত্রী তার ওপর কাজ করার পর সে হাঁপাতে শুরু করে। এরপর সে আর কখনো ঠিকমতো জাগেনি, স্বাভাবিকভাবে কাঁদেনি, এবং চুষতে পারেনি। কখনো তার শরীর শক্ত হয়ে যেত আবার কখনো নেতিয়ে পড়ত, এবং তার হাত-পায়ে ঝাঁকুনি হতো। তার জ্বর বা ফুসকুড়ি ছিল না। সে কখনো দুধ খায়নি এবং তার শ্বাস অনিয়মিতই থেকে যায়, এবং দ্বিতীয় দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "asphyxia_3",
+    "cause_name": "Perinatal asphyxia/hypoxia",
+    "icd10": "P21.9",
+    "age_group": "neonate",
+    "narrative": "When my daughter was born the cord was wrapped tightly around her neck. She came out blue and floppy and did not cry for several minutes. Once she finally breathed she remained weak with poor muscle tone and would not feed. She did not respond to us and made abnormal jerking movements. She had no fever and no rash, and her cord stump was clean. Her breathing was irregular and she became less responsive over the day, and she died on the first day of life.",
+    "bn_narrative": "আমার মেয়ের জন্মের সময় নাড়ি তার গলায় শক্তভাবে পেঁচিয়ে ছিল। সে নীল ও নেতিয়ে পড়া অবস্থায় জন্মায় এবং কয়েক মিনিট কাঁদেনি। অবশেষে শ্বাস নেওয়ার পরও সে দুর্বল থেকে যায়, তার পেশির টান কম ছিল এবং দুধ খেত না। সে আমাদের সাড়া দিত না এবং অস্বাভাবিক ঝাঁকুনি দিত। তার জ্বর বা ফুসকুড়ি ছিল না, এবং নাড়ির ঘা পরিষ্কার ছিল। তার শ্বাস অনিয়মিত ছিল এবং দিনভর তার সাড়া কমতে থাকে, এবং জীবনের প্রথম দিনেই সে মারা যায়।"
+  },
+  {
+    "case_id": "asphyxia_4",
+    "cause_name": "Perinatal asphyxia/hypoxia",
+    "icd10": "P21.9",
+    "age_group": "neonate",
+    "narrative": "I delivered at home and the baby was stuck for a long time during the birth. He came out limp and pale and did not cry, only gasping weakly. He never became alert, did not open his eyes, and could not suckle at all. At times his body went stiff and then floppy again. He had no fever and there was no rash. His breathing was irregular and he had episodes of jerking, and he weakened and died on the third day of life.",
+    "bn_narrative": "আমি বাড়িতে প্রসব করেছিলাম এবং প্রসবের সময় বাচ্চা অনেকক্ষণ আটকে ছিল। সে নেতিয়ে পড়া ও ফ্যাকাশে অবস্থায় বের হয় এবং কাঁদেনি, শুধু দুর্বলভাবে হাঁপাচ্ছিল। সে কখনো সজাগ হয়নি, চোখ খোলেনি, এবং একদমই স্তন্যপান করতে পারেনি। মাঝে মাঝে তার শরীর শক্ত হয়ে যেত আবার নেতিয়ে পড়ত। তার জ্বর ছিল না এবং ফুসকুড়িও ছিল না। তার শ্বাস অনিয়মিত ছিল এবং তার ঝাঁকুনির ঘটনা ঘটত, এবং সে দুর্বল হয়ে জীবনের তৃতীয় দিনে মারা যায়।"
+  },
+  {
+    "case_id": "asphyxia_5",
+    "cause_name": "Perinatal asphyxia/hypoxia",
+    "icd10": "P21.9",
+    "age_group": "neonate",
+    "narrative": "My baby came feet first and the delivery was very difficult and slow. When she was born she did not cry for a long time and was floppy and blue. She remained weak and unresponsive, never opened her eyes properly, and could not feed. She had episodes of twitching and her muscle tone was abnormal. She had no fever and no rash. Her breathing stayed irregular and she did not improve, and she died early in the first days of life.",
+    "bn_narrative": "আমার বাচ্চা পা আগে দিয়ে জন্ম নেয় এবং প্রসব ছিল খুব কঠিন ও ধীর। জন্মের সময় সে অনেকক্ষণ কাঁদেনি এবং নেতিয়ে পড়া ও নীল ছিল। সে দুর্বল ও সাড়াহীন থেকে যায়, কখনো ঠিকমতো চোখ খোলেনি, এবং দুধ খেতে পারেনি। তার মাঝে মাঝে কাঁপুনি হতো এবং তার পেশির টান অস্বাভাবিক ছিল। তার জ্বর বা ফুসকুড়ি ছিল না। তার শ্বাস অনিয়মিতই থেকে যায় এবং সে ভালো হয়নি, এবং জীবনের প্রথম কয়েক দিনের মধ্যেই সে মারা যায়।"
+  },
+  {
+    "case_id": "measles_1",
+    "cause_name": "Measles",
+    "icd10": "B05.9",
+    "age_group": "child",
+    "narrative": "My daughter was two years old and had not received her childhood vaccinations. She first had a high fever, red watery eyes, a runny nose and a harsh cough for a few days. Then a red blotchy rash appeared, starting on her face and behind the ears and spreading down over her whole body. Her mouth was sore and she stopped eating. After the rash she became more ill, her breathing became fast and difficult, and she had loose stools. Several other children in our village had the same rash illness around that time. She grew weaker and died about ten days after the fever began.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল দুই বছর এবং সে তার শৈশবের টিকা পায়নি। প্রথমে কয়েক দিন তার তীব্র জ্বর, লাল পানিভরা চোখ, নাক দিয়ে পানি পড়া ও কর্কশ কাশি ছিল। তারপর তার মুখে ও কানের পেছনে লাল ছোপ ছোপ ফুসকুড়ি দেখা দেয় এবং তা সারা শরীরে ছড়িয়ে পড়ে। তার মুখ ঘা হয়ে যায় এবং সে খাওয়া বন্ধ করে দেয়। ফুসকুড়ির পর সে আরও অসুস্থ হয়ে পড়ে, তার শ্বাস দ্রুত ও কষ্টকর হয়ে ওঠে, এবং তার পাতলা পায়খানা হয়। সেই সময় আমাদের গ্রামের আরও কয়েকটি শিশুর একই ফুসকুড়ির অসুখ হয়েছিল। সে দুর্বল হয়ে জ্বর শুরুর প্রায় দশ দিন পর মারা যায়।"
+  },
+  {
+    "case_id": "measles_2",
+    "cause_name": "Measles",
+    "icd10": "B05.9",
+    "age_group": "child",
+    "narrative": "My son was three years old and never got his vaccines. He started with fever, red sore eyes and a cough. A blotchy red rash then came out on his face and spread down his body. Tiny white spots were seen inside his mouth. After the rash he developed severe watery diarrhoea and vomiting and could not keep anything down. He became very dehydrated and weak. Other children nearby had the same rash sickness. He died about a week and a half after the illness began.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর এবং সে কখনো টিকা পায়নি। শুরুতে তার জ্বর, লাল ও জ্বালাপোড়া চোখ এবং কাশি দেখা দেয়। এরপর তার মুখে লাল ছোপ ছোপ ফুসকুড়ি বের হয় এবং তা শরীরে ছড়িয়ে পড়ে। তার মুখের ভেতরে ছোট ছোট সাদা দাগ দেখা যায়। ফুসকুড়ির পর তার তীব্র পাতলা পায়খানা ও বমি শুরু হয় এবং সে কিছুই ধরে রাখতে পারত না। সে খুব পানিশূন্য ও দুর্বল হয়ে পড়ে। আশেপাশের অন্য শিশুদেরও একই ফুসকুড়ির অসুখ হয়েছিল। অসুখ শুরুর প্রায় দেড় সপ্তাহ পর সে মারা যায়।"
+  },
+  {
+    "case_id": "measles_3",
+    "cause_name": "Measles",
+    "icd10": "B05.9",
+    "age_group": "infant",
+    "narrative": "My daughter was about eighteen months old. There was a rash illness going around our community at the time. She developed a high fever with red watery eyes and a barking cough, and then a red rash spread over her body starting from the face. A few days after the rash she began breathing fast and with difficulty, working hard to breathe. She stopped feeding and became drowsy. She had not been immunised. She weakened and died roughly two weeks after the first fever.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় আঠারো মাস। সেই সময় আমাদের এলাকায় একটি ফুসকুড়ির অসুখ ছড়িয়ে পড়েছিল। তার লাল পানিভরা চোখ ও ঘেউ ঘেউ কাশিসহ তীব্র জ্বর দেখা দেয়, এবং তারপর মুখ থেকে শুরু করে সারা শরীরে লাল ফুসকুড়ি ছড়িয়ে পড়ে। ফুসকুড়ির কয়েক দিন পর সে দ্রুত ও কষ্টকরভাবে শ্বাস নিতে শুরু করে, কঠিনভাবে শ্বাস নিচ্ছিল। সে দুধ খাওয়া বন্ধ করে দেয় এবং ঝিমুনিগ্রস্ত হয়ে পড়ে। তাকে টিকা দেওয়া হয়নি। প্রথম জ্বরের প্রায় দুই সপ্তাহ পর সে দুর্বল হয়ে মারা যায়।"
+  },
+  {
+    "case_id": "measles_4",
+    "cause_name": "Measles",
+    "icd10": "B05.9",
+    "age_group": "child",
+    "narrative": "My son was four years old and unvaccinated. He had several days of fever, red inflamed eyes and a cough, followed by a blotchy rash that began on his face and neck and spread downward. As the illness went on he became confused and unusually sleepy, and then he had repeated convulsions. He had no stiff neck at first but his mind was clearly affected. Other children in the area had had the same rash. He never recovered his senses and died a few days after the seizures began.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর এবং তাকে টিকা দেওয়া হয়নি। কয়েক দিন ধরে তার জ্বর, লাল ও ফোলা চোখ এবং কাশি ছিল, তারপর তার মুখ ও ঘাড়ে ছোপ ছোপ ফুসকুড়ি দেখা দেয় যা নিচের দিকে ছড়িয়ে পড়ে। অসুখ যত এগিয়ে যায় সে তত বিভ্রান্ত ও অস্বাভাবিকভাবে ঘুমকাতুরে হয়ে পড়ে, এবং তারপর তার বারবার খিঁচুনি হয়। শুরুতে তার ঘাড় শক্ত ছিল না কিন্তু তার মস্তিষ্কে স্পষ্টভাবে প্রভাব পড়েছিল। এলাকার অন্য শিশুদেরও একই ফুসকুড়ি হয়েছিল। সে আর জ্ঞান ফিরে পায়নি এবং খিঁচুনি শুরুর কয়েক দিন পর মারা যায়।"
+  },
+  {
+    "case_id": "measles_5",
+    "cause_name": "Measles",
+    "icd10": "B05.9",
+    "age_group": "child",
+    "narrative": "My daughter was two years old and had missed her vaccines. She had a fever, runny nose, cough and red eyes, then a red rash appeared on her face and spread down. Her mouth became full of ulcers so she could not eat. After the rash faded she remained weak, had ongoing diarrhoea, and steadily lost weight and strength over the following weeks. Several children around us had the same rash illness. She wasted away and died some weeks after the rash.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল দুই বছর এবং সে তার টিকা মিস করেছিল। তার জ্বর, নাক দিয়ে পানি পড়া, কাশি ও লাল চোখ ছিল, তারপর তার মুখে লাল ফুসকুড়ি দেখা দেয় এবং তা নিচের দিকে ছড়িয়ে পড়ে। তার মুখ ঘায়ে ভরে যায় ফলে সে খেতে পারত না। ফুসকুড়ি কমে যাওয়ার পরও সে দুর্বল থেকে যায়, তার ক্রমাগত ডায়রিয়া হতো, এবং পরবর্তী সপ্তাহগুলোতে সে ক্রমশ ওজন ও শক্তি হারায়। আমাদের আশেপাশের কয়েকটি শিশুর একই ফুসকুড়ির অসুখ হয়েছিল। সে শুকিয়ে যায় এবং ফুসকুড়ির কয়েক সপ্তাহ পর মারা যায়।"
+  },
+  {
+    "case_id": "meningitis_1",
+    "cause_name": "Meningitis/Encephalitis",
+    "icd10": "G03.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. He became ill quickly with a very high fever and a lot of crying, and he refused to feed. He vomited several times. His neck became stiff and he cried and arched his back when we tried to bend his head forward, and the soft spot on top of his head was bulging. He did not like the light and kept his eyes shut. He became very drowsy and then had repeated convulsions where his whole body shook. There was no diarrhoea. He slipped into unconsciousness and died within two days of becoming sick.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল এক বছর। সে দ্রুত অসুস্থ হয়ে পড়ে, তীব্র জ্বর ও প্রচুর কান্নাকাটি করত, এবং দুধ খেতে অস্বীকার করে। সে কয়েকবার বমি করে। তার ঘাড় শক্ত হয়ে যায় এবং আমরা যখন তার মাথা সামনে বাঁকানোর চেষ্টা করতাম তখন সে কেঁদে উঠত ও পিঠ বাঁকা করত, এবং তার মাথার তালু ফুলে উঠছিল। সে আলো পছন্দ করত না এবং চোখ বন্ধ রাখত। সে খুব ঝিমুনিগ্রস্ত হয়ে পড়ে এবং তারপর তার বারবার খিঁচুনি হয় যাতে তার পুরো শরীর কাঁপত। কোনো ডায়রিয়া ছিল না। সে অজ্ঞান হয়ে পড়ে এবং অসুস্থ হওয়ার দুই দিনের মধ্যে মারা যায়।"
+  },
+  {
+    "case_id": "meningitis_2",
+    "cause_name": "Meningitis/Encephalitis",
+    "icd10": "G03.9",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. She suddenly developed a very high fever and a severe headache, and she vomited again and again. Her neck became so stiff she could not lower her chin to her chest, and she could not bear bright light. Small dark purple spots that did not fade when pressed appeared on her skin. She quickly became drowsy and confused, then had a convulsion and lost consciousness. She had no cough and her breathing was not fast at first. She died within a day of becoming ill.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। হঠাৎ তার তীব্র জ্বর ও প্রচণ্ড মাথাব্যথা দেখা দেয়, এবং সে বারবার বমি করে। তার ঘাড় এতটাই শক্ত হয়ে যায় যে সে চিবুক বুকে নামাতে পারত না, এবং তীব্র আলো সহ্য করতে পারত না। তার ত্বকে ছোট ছোট গাঢ় বেগুনি দাগ দেখা দেয় যা চাপ দিলেও মিলিয়ে যেত না। সে দ্রুত ঝিমুনিগ্রস্ত ও বিভ্রান্ত হয়ে পড়ে, তারপর তার খিঁচুনি হয় এবং সে অজ্ঞান হয়ে পড়ে। তার কাশি ছিল না এবং শুরুতে তার শ্বাস দ্রুত ছিল না। অসুস্থ হওয়ার একদিনের মধ্যেই সে মারা যায়।"
+  },
+  {
+    "case_id": "meningitis_3",
+    "cause_name": "Meningitis/Encephalitis",
+    "icd10": "G03.9",
+    "age_group": "infant",
+    "narrative": "My son was eight months old. He became feverish and gave a strange high-pitched cry that was different from his normal crying. He refused the breast and vomited. The soft spot on top of his head was tense and bulging, and he did not want to be moved or have light near him. He grew very drowsy and floppy, and then his body began to jerk in convulsions. He had no diarrhoea and no rash. He became unresponsive and died within about two days.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল আট মাস। তার জ্বর আসে এবং সে অদ্ভুত উচ্চস্বরে কাঁদত যা তার স্বাভাবিক কান্না থেকে আলাদা ছিল। সে স্তন্যপান করতে অস্বীকার করে এবং বমি করে। তার মাথার তালু টানটান ও ফোলা ছিল, এবং সে নড়াচড়া করা বা কাছে আলো রাখা পছন্দ করত না। সে খুব ঝিমুনিগ্রস্ত ও নেতিয়ে পড়ে, এবং তারপর তার শরীর খিঁচুনিতে ঝাঁকতে শুরু করে। তার ডায়রিয়া বা ফুসকুড়ি ছিল না। সে সাড়াহীন হয়ে পড়ে এবং প্রায় দুই দিনের মধ্যে মারা যায়।"
+  },
+  {
+    "case_id": "meningitis_4",
+    "cause_name": "Meningitis/Encephalitis",
+    "icd10": "G03.9",
+    "age_group": "child",
+    "narrative": "My daughter was two years old. She had a fever and then began behaving strangely, not recognising us and saying confused things. She became very drowsy and then had repeated fits where her whole body shook. Her neck felt stiff when we tried to move her head. She had no cough and no diarrhoea. Over a day she sank into deep unconsciousness from which she could not be woken, and she died shortly after.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল দুই বছর। তার জ্বর আসে এবং তারপর সে অদ্ভুত আচরণ করতে শুরু করে, আমাদের চিনতে পারত না এবং বিভ্রান্তিকর কথা বলত। সে খুব ঝিমুনিগ্রস্ত হয়ে পড়ে এবং তারপর তার বারবার খিঁচুনি হতো যাতে তার পুরো শরীর কাঁপত। আমরা যখন তার মাথা নাড়ানোর চেষ্টা করতাম তখন তার ঘাড় শক্ত মনে হতো। তার কাশি বা ডায়রিয়া ছিল না। একদিনের মধ্যে সে গভীর অজ্ঞান অবস্থায় তলিয়ে যায় যা থেকে তাকে জাগানো যায়নি, এবং কিছুক্ষণ পরেই সে মারা যায়।"
+  },
+  {
+    "case_id": "meningitis_5",
+    "cause_name": "Meningitis/Encephalitis",
+    "icd10": "G03.9",
+    "age_group": "child",
+    "narrative": "My son was four years old. He suddenly had a high fever, a pounding headache and repeated vomiting. His neck became stiff and painful and he could not stand the light, keeping his eyes covered. He grew confused and then very drowsy. Within a day he had a convulsion and became unconscious. He had no cough, no rash, and his bowels were normal. He deteriorated very fast and died less than a day after he first fell ill.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর। হঠাৎ তার তীব্র জ্বর, প্রচণ্ড মাথাব্যথা ও বারবার বমি শুরু হয়। তার ঘাড় শক্ত ও ব্যথাযুক্ত হয়ে যায় এবং সে আলো সহ্য করতে পারত না, চোখ ঢেকে রাখত। সে বিভ্রান্ত হয়ে পড়ে এবং তারপর খুব ঝিমুনিগ্রস্ত হয়ে যায়। একদিনের মধ্যে তার খিঁচুনি হয় এবং সে অজ্ঞান হয়ে পড়ে। তার কাশি, ফুসকুড়ি ছিল না, এবং পায়খানা স্বাভাবিক ছিল। সে খুব দ্রুত খারাপ হয়ে পড়ে এবং প্রথম অসুস্থ হওয়ার একদিনেরও কম সময়ে মারা যায়।"
+  },
+  {
+    "case_id": "malnutrition_1",
+    "cause_name": "Malnutrition",
+    "icd10": "E46",
+    "age_group": "child",
+    "narrative": "My daughter was about two years old. Over several months she became thinner and thinner and stopped growing, even though the other children were well. Her arms and legs were very thin and you could see her ribs, but her feet and lower legs became swollen and puffy. Her hair turned a lighter colour and was easy to pull out, and her skin had peeling patches. She had a poor appetite, was often unhappy and listless, and had episodes of diarrhoea. We did not have enough food at home and she ate very little. She became very weak and died slowly at home.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় দুই বছর। কয়েক মাস ধরে সে ক্রমশ শুকিয়ে যাচ্ছিল এবং বড় হওয়া বন্ধ করে দেয়, যদিও অন্য শিশুরা সুস্থ ছিল। তার হাত-পা খুব পাতলা ছিল এবং তার পাঁজর দেখা যেত, কিন্তু তার পা ও পায়ের নিচের অংশ ফুলে গিয়েছিল। তার চুলের রং হালকা হয়ে যায় এবং সহজে উঠে আসত, এবং তার ত্বকে চামড়া ওঠার দাগ ছিল। তার খাওয়ার রুচি কম ছিল, সে প্রায়ই বিষণ্ণ ও নিস্তেজ থাকত, এবং তার মাঝে মাঝে ডায়রিয়া হতো। আমাদের বাড়িতে পর্যাপ্ত খাবার ছিল না এবং সে খুব কম খেত। সে খুব দুর্বল হয়ে পড়ে এবং ধীরে ধীরে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "malnutrition_2",
+    "cause_name": "Malnutrition",
+    "icd10": "E46",
+    "age_group": "infant",
+    "narrative": "My son was about eighteen months old. I had stopped breastfeeding early and there was little food for him. Over time he became extremely thin, with loose folds of skin, a wasted face and visible ribs and joints. He had no fat left on his body. He was weak, irritable and listless, caught one infection after another, and had bouts of diarrhoea. He was not feverish most of the time and had no rash. He grew steadily weaker over weeks and months and finally died quietly at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় আঠারো মাস। আমি তাড়াতাড়ি স্তন্যপান করানো বন্ধ করে দিয়েছিলাম এবং তার জন্য খাবার কম ছিল। সময়ের সাথে সাথে সে অত্যন্ত পাতলা হয়ে পড়ে, তার চামড়া ঝুলে যায়, মুখ শুকিয়ে যায় এবং পাঁজর ও জোড়াগুলো দেখা যেত। তার শরীরে কোনো চর্বি অবশিষ্ট ছিল না। সে দুর্বল, খিটখিটে ও নিস্তেজ ছিল, একের পর এক সংক্রমণে আক্রান্ত হতো, এবং তার ডায়রিয়ার পর্ব ছিল। বেশিরভাগ সময় তার জ্বর ছিল না এবং ফুসকুড়িও ছিল না। সে সপ্তাহ ও মাস ধরে ক্রমশ দুর্বল হয়ে পড়ে এবং শেষে নীরবে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "malnutrition_3",
+    "cause_name": "Malnutrition",
+    "icd10": "E46",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. Her face, hands and legs became swollen and puffy, and her belly was large, though the rest of her looked wasted. Her hair changed to a reddish, pale colour and fell out easily, and her skin developed dark peeling patches and sores. She had no appetite and was apathetic, barely reacting to anything. Our family had very little food after a poor harvest. She had occasional loose stools and no fever. She weakened over weeks and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। তার মুখ, হাত ও পা ফুলে গিয়েছিল, এবং তার পেট বড় ছিল, যদিও তার শরীরের বাকি অংশ শুকিয়ে গিয়েছিল। তার চুলের রং লালচে ফ্যাকাশে হয়ে যায় এবং সহজে উঠে আসত, এবং তার ত্বকে গাঢ় চামড়া ওঠার দাগ ও ঘা দেখা দেয়। তার খাওয়ার রুচি ছিল না এবং সে উদাসীন ছিল, প্রায় কিছুতেই সাড়া দিত না। দুর্বল ফসলের পর আমাদের পরিবারে খুব কম খাবার ছিল। তার মাঝে মাঝে পাতলা পায়খানা হতো এবং জ্বর ছিল না। সে সপ্তাহ ধরে দুর্বল হয়ে পড়ে এবং মারা যায়।"
+  },
+  {
+    "case_id": "malnutrition_4",
+    "cause_name": "Malnutrition",
+    "icd10": "E46",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had failed to grow for many months while other children his age thrived. He became severely wasted, with thin limbs and a shrunken face, and you could count his ribs. He suffered constant diarrhoea and frequent infections, and he was weak and miserable. There had been a long drought and food was very scarce. He had no rash and was not usually feverish. He continued to waste away and eventually died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। অনেক মাস ধরে সে বড় হচ্ছিল না, যদিও তার বয়সী অন্য শিশুরা ভালোভাবে বেড়ে উঠছিল। সে মারাত্মকভাবে শুকিয়ে যায়, তার হাত-পা পাতলা ও মুখ শুকনো হয়ে যায়, এবং তার পাঁজর গোনা যেত। সে ক্রমাগত ডায়রিয়া ও ঘনঘন সংক্রমণে ভুগছিল, এবং সে দুর্বল ও কষ্টে ছিল। দীর্ঘ খরা চলছিল এবং খাবার খুব কম ছিল। তার ফুসকুড়ি ছিল না এবং সাধারণত জ্বরও হতো না। সে ক্রমাগত শুকিয়ে যেতে থাকে এবং অবশেষে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "malnutrition_5",
+    "cause_name": "Malnutrition",
+    "icd10": "E46",
+    "age_group": "infant",
+    "narrative": "My daughter was about fifteen months old. After an illness she stopped feeding well and never recovered her weight, becoming thinner and thinner over the following months. She was weak and had no appetite, and later her legs and feet became swollen and puffy. Her hair was sparse and pale and her skin was dry and flaky. We were very poor and could not feed her properly. She had no rash and only mild fevers. She grew too weak to sit or cry and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় পনের মাস। একটি অসুখের পর সে ঠিকমতো দুধ খাওয়া বন্ধ করে দেয় এবং আর কখনো ওজন ফিরে পায়নি, পরবর্তী মাসগুলোতে সে ক্রমশ পাতলা হয়ে যায়। সে দুর্বল ছিল এবং তার খাওয়ার রুচি ছিল না, এবং পরে তার পা ও পায়ের নিচের অংশ ফুলে যায়। তার চুল পাতলা ও ফ্যাকাশে ছিল এবং তার ত্বক শুষ্ক ও খসখসে ছিল। আমরা খুব গরিব ছিলাম এবং তাকে ঠিকমতো খাওয়াতে পারিনি। তার ফুসকুড়ি ছিল না এবং শুধু হালকা জ্বর হতো। সে এতটাই দুর্বল হয়ে পড়ে যে বসতে বা কাঁদতেও পারত না, এবং মারা যায়।"
+  },
+  {
+    "case_id": "neonatal_sepsis_1",
+    "cause_name": "Neonatal sepsis",
+    "icd10": "P36.9",
+    "age_group": "neonate",
+    "narrative": "My baby was born at home at the normal time and seemed well at first. On about the fifth day of life she stopped suckling and became less active. She felt hot at times and at other times her body felt cold, and her hands and feet were cold. She breathed fast, and there were pauses in her breathing. Her skin looked yellow and a little mottled, and the stump of the cord looked red and smelled bad. She became floppy and difficult to wake, and her cry became weak. She did not have a rash. She died on the seventh day of life.",
+    "bn_narrative": "আমার বাচ্চা বাড়িতে স্বাভাবিক সময়ে জন্ম নেয় এবং শুরুতে সুস্থ মনে হয়েছিল। জীবনের প্রায় পঞ্চম দিনে সে স্তন্যপান বন্ধ করে দেয় এবং কম সক্রিয় হয়ে পড়ে। কখনো তার গা গরম লাগত আবার কখনো তার শরীর ঠাণ্ডা অনুভূত হতো, এবং তার হাত-পা ঠাণ্ডা ছিল। সে দ্রুত শ্বাস নিত, এবং তার শ্বাসে বিরতি আসত। তার ত্বক হলুদ ও কিছুটা দাগযুক্ত দেখাত, এবং নাড়ির ঘা লাল দেখাত ও দুর্গন্ধ ছিল। সে নেতিয়ে পড়ে এবং তাকে জাগানো কঠিন হয়ে যায়, এবং তার কান্নার স্বর দুর্বল হয়ে যায়। তার ফুসকুড়ি ছিল না। জীবনের সপ্তম দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "neonatal_sepsis_2",
+    "cause_name": "Neonatal sepsis",
+    "icd10": "P36.9",
+    "age_group": "neonate",
+    "narrative": "My son was born at home and was healthy for the first days. On the third day he became dull and stopped feeding well. He felt hot and his skin turned yellow. He breathed fast and grunted, and he was limp when I picked him up. His cry grew weak and his hands and feet were cold. The cord area looked a little red. He had no rash. He became harder and harder to wake and died on the sixth day of life.",
+    "bn_narrative": "আমার ছেলে বাড়িতে জন্ম নেয় এবং প্রথম কয়েক দিন সুস্থ ছিল। তৃতীয় দিনে সে নিস্তেজ হয়ে পড়ে এবং ঠিকমতো দুধ খাওয়া বন্ধ করে দেয়। তার গা গরম লাগছিল এবং তার ত্বক হলুদ হয়ে যায়। সে দ্রুত শ্বাস নিত ও গোঙাত, এবং কোলে নেওয়ার সময় সে নেতিয়ে থাকত। তার কান্নার স্বর দুর্বল হয়ে যায় এবং তার হাত-পা ঠাণ্ডা ছিল। নাড়ির জায়গাটা কিছুটা লাল দেখাত। তার ফুসকুড়ি ছিল না। তাকে জাগানো ক্রমশ কঠিন হয়ে ওঠে এবং জীবনের ষষ্ঠ দিনে সে মারা যায়।"
+  },
+  {
+    "case_id": "neonatal_sepsis_3",
+    "cause_name": "Neonatal sepsis",
+    "icd10": "P36.9",
+    "age_group": "neonate",
+    "narrative": "My waters broke a long time before my daughter was born. On the second day of her life she became hot and then cold by turns, stopped sucking, and was very sleepy and floppy. Her skin looked mottled and her hands and feet were cold. She breathed fast with pauses. Later she had some jerking movements. She had no rash. She would not wake to feed and her cry faded, and she died within the first week of life.",
+    "bn_narrative": "আমার মেয়ের জন্মের অনেক আগেই আমার পানি ভেঙে গিয়েছিল। তার জীবনের দ্বিতীয় দিনে তার গা কখনো গরম আবার কখনো ঠাণ্ডা হয়ে যেত, সে চোষা বন্ধ করে দেয়, এবং খুব ঘুমকাতুরে ও নেতিয়ে পড়া ছিল। তার ত্বক দাগযুক্ত দেখাত এবং তার হাত-পা ঠাণ্ডা ছিল। সে বিরতি দিয়ে দ্রুত শ্বাস নিত। পরে তার কিছু ঝাঁকুনি হয়। তার ফুসকুড়ি ছিল না। সে দুধ খেতে জাগত না এবং তার কান্নার স্বর মিলিয়ে যায়, এবং জীবনের প্রথম সপ্তাহের মধ্যেই সে মারা যায়।"
+  },
+  {
+    "case_id": "neonatal_sepsis_4",
+    "cause_name": "Neonatal sepsis",
+    "icd10": "P36.9",
+    "age_group": "neonate",
+    "narrative": "My son seemed fine when he was born but on about the sixth day he became irritable and then very lethargic. He vomited his feeds and his belly looked swollen. His temperature was unstable, sometimes hot and sometimes too cold, and his hands and feet were cold. He breathed quickly and his colour was poor and mottled. There was no rash on his skin. He weakened, stopped feeding entirely, and died soon after.",
+    "bn_narrative": "আমার ছেলেকে জন্মের সময় ভালোই মনে হয়েছিল কিন্তু প্রায় ষষ্ঠ দিনে সে খিটখিটে হয়ে ওঠে এবং তারপর খুব নিস্তেজ হয়ে পড়ে। সে খাওয়া বমি করে ফেলত এবং তার পেট ফোলা দেখাত। তার শরীরের তাপমাত্রা অস্থির ছিল, কখনো গরম আবার কখনো খুব ঠাণ্ডা, এবং তার হাত-পা ঠাণ্ডা ছিল। সে দ্রুত শ্বাস নিত এবং তার রং খারাপ ও দাগযুক্ত ছিল। তার ত্বকে কোনো ফুসকুড়ি ছিল না। সে দুর্বল হয়ে পড়ে, সম্পূর্ণভাবে খাওয়া বন্ধ করে দেয়, এবং শীঘ্রই মারা যায়।"
+  },
+  {
+    "case_id": "neonatal_sepsis_5",
+    "cause_name": "Neonatal sepsis",
+    "icd10": "P36.9",
+    "age_group": "neonate",
+    "narrative": "My daughter was delivered in unclean conditions and her cord was cut with a dirty blade. By the fourth day the cord stump was red, swollen and oozing with a bad smell. She became floppy and refused to feed, breathed fast, and her body temperature was low and unstable. Her skin looked mottled and her cry was feeble. She had no rash elsewhere. She became unresponsive and died on the seventh day of life.",
+    "bn_narrative": "আমার মেয়ে অপরিচ্ছন্ন পরিবেশে প্রসব হয় এবং তার নাড়ি একটি নোংরা ব্লেড দিয়ে কাটা হয়েছিল। চতুর্থ দিনের মধ্যে নাড়ির ঘা লাল, ফোলা ও পুঁজযুক্ত হয়ে দুর্গন্ধ ছড়াতে থাকে। সে নেতিয়ে পড়ে এবং দুধ খেতে অস্বীকার করে, দ্রুত শ্বাস নিত, এবং তার শরীরের তাপমাত্রা কম ও অস্থির ছিল। তার ত্বক দাগযুক্ত দেখাত এবং তার কান্নার স্বর ক্ষীণ ছিল। অন্য কোথাও তার ফুসকুড়ি ছিল না। সে সাড়াহীন হয়ে পড়ে এবং জীবনের সপ্তম দিনে মারা যায়।"
+  },
+  {
+    "case_id": "congenital_1",
+    "cause_name": "Congenital birth defects",
+    "icd10": "Q89.9",
+    "age_group": "infant",
+    "narrative": "My son looked different from birth and the midwife said his heart did not form properly. From his first days he would turn blue around the lips and tongue, especially when he cried or tried to feed, and he tired very quickly and sweated while feeding. He breathed fast and never gained weight well, staying small and weak. Sometimes he had spells where he became deeply blue and limp. He did not have a fever and there was no rash or diarrhoea. He had these problems his whole short life. He became more blue and breathless over time and died at a few months of age.",
+    "bn_narrative": "আমার ছেলেকে জন্ম থেকেই আলাদা দেখাত এবং ধাত্রী বলেছিল তার হৃদপিণ্ড ঠিকমতো গঠিত হয়নি। তার প্রথম দিনগুলো থেকেই তার ঠোঁট ও জিহ্বার চারপাশ নীল হয়ে যেত, বিশেষ করে কাঁদলে বা দুধ খাওয়ার চেষ্টা করলে, এবং সে খুব দ্রুত ক্লান্ত হয়ে পড়ত ও দুধ খাওয়ার সময় ঘামত। সে দ্রুত শ্বাস নিত এবং কখনো ঠিকমতো ওজন বাড়েনি, ছোট ও দুর্বল থেকে যায়। মাঝে মাঝে তার এমন পর্ব হতো যখন সে গভীরভাবে নীল ও নেতিয়ে পড়ত। তার জ্বর ছিল না এবং ফুসকুড়ি বা ডায়রিয়াও ছিল না। তার সারা সংক্ষিপ্ত জীবনে এই সমস্যাগুলো ছিল। সময়ের সাথে সাথে সে আরও নীল ও শ্বাসকষ্টযুক্ত হয়ে পড়ে এবং কয়েক মাস বয়সে মারা যায়।"
+  },
+  {
+    "case_id": "congenital_2",
+    "cause_name": "Congenital birth defects",
+    "icd10": "Q89.9",
+    "age_group": "neonate",
+    "narrative": "My daughter was born with an open swelling on her lower back that was covered only by a thin membrane and leaked fluid. Her legs were weak and she did not move them, and she could not pass urine or stool normally. The opening kept getting infected. She had been like this since birth and it was clearly something that had not formed properly while I carried her. She had no rash elsewhere. She became increasingly unwell from the infections and died in early infancy.",
+    "bn_narrative": "আমার মেয়ে তার পিঠের নিচের অংশে একটি খোলা ফোলা নিয়ে জন্ম নেয় যা শুধু একটি পাতলা পর্দা দিয়ে ঢাকা ছিল এবং তা থেকে তরল বের হতো। তার পা দুর্বল ছিল এবং সে তা নাড়াত না, এবং সে স্বাভাবিকভাবে প্রস্রাব বা পায়খানা করতে পারত না। এই ক্ষতস্থান বারবার সংক্রমিত হতো। জন্ম থেকেই সে এমন ছিল এবং এটি স্পষ্টভাবে এমন কিছু ছিল যা আমি গর্ভে থাকাকালীন ঠিকমতো গঠিত হয়নি। অন্য কোথাও তার ফুসকুড়ি ছিল না। সে সংক্রমণের কারণে ক্রমশ অসুস্থ হয়ে পড়ে এবং শৈশবের প্রথম দিকে মারা যায়।"
+  },
+  {
+    "case_id": "congenital_3",
+    "cause_name": "Congenital birth defects",
+    "icd10": "Q89.9",
+    "age_group": "infant",
+    "narrative": "My son was born with his lip and the roof of his mouth split open. Because of this he could never feed properly, milk would come back through his nose and he often choked. He failed to gain weight and stayed small. He caught chest infections again and again from the milk going the wrong way. This was how he was made from birth. He grew weaker with each illness and died in his first months of life.",
+    "bn_narrative": "আমার ছেলে তার ঠোঁট ও তালু ফাটা অবস্থায় জন্ম নেয়। এই কারণে সে কখনো ঠিকমতো দুধ খেতে পারত না, দুধ তার নাক দিয়ে ফিরে আসত এবং সে প্রায়ই দম আটকে যেত। তার ওজন বাড়েনি এবং ছোটই থেকে যায়। দুধ ভুল পথে যাওয়ার কারণে সে বারবার বুকের সংক্রমণে আক্রান্ত হতো। জন্ম থেকেই সে এভাবে তৈরি হয়েছিল। প্রতিটি অসুখের সাথে সে আরও দুর্বল হয়ে পড়ে এবং জীবনের প্রথম কয়েক মাসের মধ্যে মারা যায়।"
+  },
+  {
+    "case_id": "congenital_4",
+    "cause_name": "Congenital birth defects",
+    "icd10": "Q89.9",
+    "age_group": "infant",
+    "narrative": "My daughter's head was unusually large at birth and grew bigger and bigger over the following weeks while the rest of her stayed small. The soft spot was wide and tense and her eyes seemed pushed downward. She fed poorly, vomited often, and was very irritable, and she did not develop or respond like other babies. She had been this way from birth, with the head problem worsening. She had no fever or rash. She weakened and died in infancy.",
+    "bn_narrative": "আমার মেয়ের মাথা জন্মের সময় অস্বাভাবিকভাবে বড় ছিল এবং পরবর্তী সপ্তাহগুলোতে আরও বড় হতে থাকে, যদিও তার শরীরের বাকি অংশ ছোটই থেকে যায়। তার মাথার তালু চওড়া ও টানটান ছিল এবং তার চোখ নিচের দিকে ঠেলে যাওয়া মনে হতো। সে ঠিকমতো দুধ খেত না, প্রায়ই বমি করত, এবং খুব খিটখিটে ছিল, এবং সে অন্য বাচ্চাদের মতো বিকশিত হতো না বা সাড়া দিত না। জন্ম থেকেই সে এমন ছিল এবং মাথার সমস্যা খারাপ হতে থাকে। তার জ্বর বা ফুসকুড়ি ছিল না। সে দুর্বল হয়ে শৈশবেই মারা যায়।"
+  },
+  {
+    "case_id": "congenital_5",
+    "cause_name": "Congenital birth defects",
+    "icd10": "Q89.9",
+    "age_group": "infant",
+    "narrative": "My son was born with something wrong with his heart, the clinic said, and from birth he was often breathless and turned bluish, especially when feeding or crying. He could only feed a little at a time before tiring and sweating, and he hardly grew. He caught frequent chest infections. These troubles were present from his very first days. He had no rash and no diarrhoea. Over a few months he became more and more breathless and blue, and he died.",
+    "bn_narrative": "ক্লিনিক বলেছিল আমার ছেলের হৃদপিণ্ডে কিছু সমস্যা ছিল, এবং জন্ম থেকেই সে প্রায়ই শ্বাসকষ্টে ভুগত ও নীলচে হয়ে যেত, বিশেষ করে দুধ খাওয়া বা কাঁদার সময়। সে একবারে অল্প পরিমাণে দুধ খেতে পারত তারপর ক্লান্ত হয়ে ঘামত, এবং প্রায় বড়ই হতো না। সে ঘনঘন বুকের সংক্রমণে আক্রান্ত হতো। তার জীবনের প্রথম দিনগুলো থেকেই এই সমস্যাগুলো ছিল। তার ফুসকুড়ি বা ডায়রিয়া ছিল না। কয়েক মাসের মধ্যে সে আরও বেশি শ্বাসকষ্টযুক্ত ও নীল হয়ে পড়ে, এবং সে মারা যায়।"
+  },
+  {
+    "case_id": "sepsis_1",
+    "cause_name": "Sepsis",
+    "icd10": "A41.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a boil on his leg that became red and swollen and the redness spread. Then he developed a high fever and quickly became very ill, much sicker than an ordinary fever. He breathed fast, his hands and feet turned cold and mottled even though his body was hot, and he passed very little urine. He had no cough, no rash elsewhere, and his neck was not stiff. He became drowsy and unresponsive and his colour was grey. He died within two days of the fever starting.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। তার পায়ে একটি ফোঁড়া হয়েছিল যা লাল ও ফোলা হয়ে যায় এবং লালভাব ছড়িয়ে পড়ে। তারপর তার তীব্র জ্বর আসে এবং সে দ্রুত খুব অসুস্থ হয়ে পড়ে, সাধারণ জ্বরের চেয়ে অনেক বেশি অসুস্থ। সে দ্রুত শ্বাস নিত, তার গা গরম থাকলেও হাত-পা ঠাণ্ডা ও দাগযুক্ত হয়ে যায়, এবং সে খুব অল্প প্রস্রাব করত। তার কাশি ছিল না, অন্য কোথাও ফুসকুড়ি ছিল না, এবং ঘাড় শক্ত ছিল না। সে ঝিমুনিগ্রস্ত ও সাড়াহীন হয়ে পড়ে এবং তার রং ধূসর হয়ে যায়। জ্বর শুরুর দুই দিনের মধ্যে সে মারা যায়।"
+  },
+  {
+    "case_id": "sepsis_2",
+    "cause_name": "Sepsis",
+    "icd10": "A41.9",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. She had been recovering from a bout of dysentery when she suddenly became very ill again with a high fever. She turned weak and lethargic, breathing rapidly, and her arms and legs felt cold and looked blotchy while her trunk was hot. She made very little urine. She had no stiff neck and no real cough. She grew confused and then unresponsive, her pulse fast and weak, and she died quickly over about a day.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। সে আমাশয় থেকে সেরে উঠছিল যখন হঠাৎ তার তীব্র জ্বরসহ আবার গুরুতর অসুস্থতা দেখা দেয়। সে দুর্বল ও নিস্তেজ হয়ে পড়ে, দ্রুত শ্বাস নিচ্ছিল, এবং তার হাত-পা ঠাণ্ডা ও দাগযুক্ত দেখাত যদিও তার শরীরের মূল অংশ গরম ছিল। সে খুব অল্প প্রস্রাব করত। তার ঘাড় শক্ত ছিল না এবং তেমন কাশিও ছিল না। সে বিভ্রান্ত হয়ে পড়ে এবং তারপর সাড়াহীন হয়ে যায়, তার নাড়ি দ্রুত ও দুর্বল ছিল, এবং প্রায় একদিনের মধ্যে দ্রুত মারা যায়।"
+  },
+  {
+    "case_id": "sepsis_3",
+    "cause_name": "Sepsis",
+    "icd10": "A41.9",
+    "age_group": "infant",
+    "narrative": "My son was about eighteen months old. He developed a fever and refused his feeds, and within a day he became floppy and very ill. He was breathing fast and his hands and feet were cold and mottled even though he felt hot. He hardly passed any urine. He had no rash on his body and his neck moved freely, and he did not have much of a cough. He became grey and unresponsive and his breathing was laboured, and he died rapidly.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় আঠারো মাস। তার জ্বর আসে এবং সে খাওয়া অস্বীকার করে, এবং একদিনের মধ্যে সে নেতিয়ে পড়ে ও খুব অসুস্থ হয়ে যায়। সে দ্রুত শ্বাস নিচ্ছিল এবং তার গা গরম থাকলেও হাত-পা ঠাণ্ডা ও দাগযুক্ত ছিল। সে প্রায় কোনো প্রস্রাব করত না। তার শরীরে ফুসকুড়ি ছিল না এবং ঘাড় স্বাভাবিকভাবে নড়ত, এবং তার তেমন কাশিও ছিল না। সে ধূসর ও সাড়াহীন হয়ে পড়ে এবং তার শ্বাস কষ্টকর হয়ে ওঠে, এবং সে দ্রুত মারা যায়।"
+  },
+  {
+    "case_id": "sepsis_4",
+    "cause_name": "Sepsis",
+    "icd10": "A41.9",
+    "age_group": "child",
+    "narrative": "My daughter was four years old. She had spilled hot water and burned her arm and chest, and after a few days the wound became red, swollen and foul. She then spiked a high fever and became confused and very weak. Her hands and feet were cold and her skin was mottled, while her body burned hot. Her breathing and heartbeat were very fast and she passed little urine. She had no stiff neck. She slipped into unconsciousness and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল চার বছর। সে গরম পানি ফেলে তার হাত ও বুক পুড়িয়ে ফেলেছিল, এবং কয়েক দিন পর ক্ষতস্থান লাল, ফোলা ও দুর্গন্ধযুক্ত হয়ে যায়। তারপর তার তীব্র জ্বর আসে এবং সে বিভ্রান্ত ও খুব দুর্বল হয়ে পড়ে। তার হাত-পা ঠাণ্ডা ছিল এবং তার ত্বক দাগযুক্ত ছিল, যদিও তার শরীর প্রচণ্ড গরম ছিল। তার শ্বাস ও হৃদস্পন্দন খুব দ্রুত ছিল এবং সে অল্প প্রস্রাব করত। তার ঘাড় শক্ত ছিল না। সে অজ্ঞান হয়ে পড়ে এবং মারা যায়।"
+  },
+  {
+    "case_id": "sepsis_5",
+    "cause_name": "Sepsis",
+    "icd10": "A41.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. He had a high fever for two days and grew weaker and weaker. He stopped feeding and became very drowsy. His breathing was fast, his hands and feet were cold and his skin looked blotchy and grey even though he was hot. He passed almost no urine. He had no cough, no rash and no stiff neck. He became limp and unresponsive, with a fast weak pulse, and he died at the clinic.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল এক বছর। দুই দিন ধরে তার তীব্র জ্বর ছিল এবং সে ক্রমশ দুর্বল হয়ে পড়ে। সে খাওয়া বন্ধ করে দেয় এবং খুব ঝিমুনিগ্রস্ত হয়ে যায়। তার শ্বাস দ্রুত ছিল, তার হাত-পা ঠাণ্ডা ছিল এবং তার গা গরম থাকা সত্ত্বেও তার ত্বক দাগযুক্ত ও ধূসর দেখাত। সে প্রায় কোনো প্রস্রাব করত না। তার কাশি, ফুসকুড়ি বা শক্ত ঘাড় ছিল না। সে নেতিয়ে পড়ে ও সাড়াহীন হয়ে যায়, তার নাড়ি দ্রুত ও দুর্বল ছিল, এবং সে ক্লিনিকে মারা যায়।"
+  },
+  {
+    "case_id": "hiv_1",
+    "cause_name": "HIV",
+    "icd10": "B24",
+    "age_group": "infant",
+    "narrative": "My daughter was about eighteen months old. I had been unwell for a long time myself. From early in her life she failed to grow and was always sick. She had white patches in her mouth that would not go away, long-lasting diarrhoea, and one chest infection after another. The glands in her neck and groin were swollen, and she had a constant skin rash. She slowly wasted despite our feeding her. In the end she developed a severe pneumonia and died after months of poor health.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় আঠারো মাস। আমি নিজেও দীর্ঘদিন ধরে অসুস্থ ছিলাম। তার জীবনের শুরু থেকেই সে বড় হচ্ছিল না এবং সবসময় অসুস্থ থাকত। তার মুখে সাদা দাগ ছিল যা যেত না, দীর্ঘস্থায়ী ডায়রিয়া, এবং একের পর এক বুকের সংক্রমণ। তার গলা ও কুঁচকির গ্রন্থিগুলো ফোলা ছিল, এবং তার ক্রমাগত ত্বকের ফুসকুড়ি ছিল। আমরা তাকে খাওয়ানো সত্ত্বেও সে ধীরে ধীরে শুকিয়ে যায়। শেষে তার গুরুতর নিউমোনিয়া হয় এবং কয়েক মাসের খারাপ স্বাস্থ্যের পর সে মারা যায়।"
+  },
+  {
+    "case_id": "hiv_2",
+    "cause_name": "HIV",
+    "icd10": "B24",
+    "age_group": "child",
+    "narrative": "My son was two years old. For most of his life he was a sickly child who never thrived. He had a cough that lasted for months and steadily lost weight. There were white curd-like patches in his mouth, and he had a long-running discharge from his ears. He caught infections constantly and recovered poorly. His mother had died of a long illness. He grew weaker over many months and finally died after a chest infection he could not fight off.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল দুই বছর। তার জীবনের বেশিরভাগ সময় সে একটি অসুস্থ শিশু ছিল যে কখনো ভালোভাবে বেড়ে ওঠেনি। তার কাশি মাসের পর মাস ধরে চলত এবং সে ক্রমাগত ওজন হারাত। তার মুখে সাদা দইয়ের মতো দাগ ছিল, এবং তার কান থেকে দীর্ঘদিন ধরে স্রাব বের হতো। সে ক্রমাগত সংক্রমণে আক্রান্ত হতো এবং খারাপভাবে সুস্থ হতো। তার মা দীর্ঘ অসুখে মারা গিয়েছিলেন। সে অনেক মাস ধরে দুর্বল হয়ে পড়ে এবং শেষে এমন একটি বুকের সংক্রমণের পর মারা যায় যার সাথে সে লড়াই করতে পারেনি।"
+  },
+  {
+    "case_id": "hiv_3",
+    "cause_name": "HIV",
+    "icd10": "B24",
+    "age_group": "infant",
+    "narrative": "My son was about one year old, born to a mother who was chronically ill. From infancy he had repeated chest infections and persistent diarrhoea that never fully cleared. His belly was swollen with an enlarged liver and spleen, and the glands around his body were swollen. He had stopped reaching the milestones he had earlier achieved and was wasting. He had no single sudden illness but a long downhill course, and he died after another severe infection.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় এক বছর, যার মা দীর্ঘস্থায়ী অসুস্থ ছিলেন। শৈশব থেকেই তার বারবার বুকের সংক্রমণ ও ক্রমাগত ডায়রিয়া হতো যা কখনো পুরোপুরি সারত না। তার পেট ফোলা ছিল, যকৃত ও প্লীহা বড় হয়ে গিয়েছিল, এবং তার শরীরের চারপাশের গ্রন্থিগুলো ফোলা ছিল। আগে অর্জন করা বিকাশের ধাপগুলো সে আর অর্জন করছিল না এবং শুকিয়ে যাচ্ছিল। তার কোনো একক হঠাৎ অসুখ ছিল না বরং একটি দীর্ঘ অধোগতি ছিল, এবং আরেকটি গুরুতর সংক্রমণের পর সে মারা যায়।"
+  },
+  {
+    "case_id": "hiv_4",
+    "cause_name": "HIV",
+    "icd10": "B24",
+    "age_group": "child",
+    "narrative": "My daughter was three years old and had been in poor health since she was a baby. She was severely thin and wasted, had episodes of fever that came and went for weeks, and suffered persistent skin rashes and sores. White patches coated her mouth and she had widespread swollen glands. She caught pneumonia repeatedly. Neither she nor her mother had been tested or treated for any chronic infection. After a long decline she developed another severe pneumonia and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর এবং সে শিশুকাল থেকেই খারাপ স্বাস্থ্যে ছিল। সে মারাত্মকভাবে পাতলা ও শুকনো ছিল, সপ্তাহের পর সপ্তাহ ধরে আসা-যাওয়া করা জ্বরের পর্ব ছিল, এবং ক্রমাগত ত্বকের ফুসকুড়ি ও ঘায়ে ভুগছিল। তার মুখ সাদা দাগে ঢাকা ছিল এবং তার ব্যাপকভাবে গ্রন্থি ফোলা ছিল। সে বারবার নিউমোনিয়ায় আক্রান্ত হতো। তাকে বা তার মাকে কোনো দীর্ঘস্থায়ী সংক্রমণের জন্য পরীক্ষা বা চিকিৎসা করানো হয়নি। দীর্ঘ অবনতির পর তার আরেকটি গুরুতর নিউমোনিয়া হয় এবং সে মারা যায়।"
+  },
+  {
+    "case_id": "hiv_5",
+    "cause_name": "HIV",
+    "icd10": "B24",
+    "age_group": "infant",
+    "narrative": "My baby was breastfed by me, and I had been sick for years without treatment. He never grew properly and was always ill. He had thick white patches in his mouth that made feeding painful, chronic loose stools, and recurring fevers and chest infections. His weight kept falling and his glands were swollen. He had a slow, downhill course over many months rather than one sudden illness, and at the end a severe pneumonia took his life.",
+    "bn_narrative": "আমার বাচ্চাকে আমি স্তন্যপান করিয়েছিলাম, এবং আমি বছরের পর বছর চিকিৎসা ছাড়াই অসুস্থ ছিলাম। সে কখনো ঠিকমতো বড় হয়নি এবং সবসময় অসুস্থ থাকত। তার মুখে ঘন সাদা দাগ ছিল যা খাওয়া বেদনাদায়ক করে তুলত, দীর্ঘস্থায়ী পাতলা পায়খানা, এবং বারবার জ্বর ও বুকের সংক্রমণ। তার ওজন ক্রমাগত কমছিল এবং তার গ্রন্থি ফোলা ছিল। একটি হঠাৎ অসুখের পরিবর্তে তার অনেক মাস ধরে একটি ধীর অধোগতি ছিল, এবং শেষে একটি গুরুতর নিউমোনিয়া তার জীবন কেড়ে নেয়।"
+  },
+  {
+    "case_id": "tb_1",
+    "cause_name": "Tuberculosis",
+    "icd10": "A16.9",
+    "age_group": "child",
+    "narrative": "My son was four years old. His grandfather, who lived with us, had a long cough for many months. My son then developed a cough that went on for more than three weeks and would not clear. He slowly lost weight and his appetite faded. He had low fevers in the evenings and would sweat through the night, soaking his clothes. There was no sudden high fever or fast breathing at first. Over a couple of months he wasted away and grew very weak, and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর। আমাদের সাথে থাকা তার দাদার অনেক মাস ধরে দীর্ঘ কাশি ছিল। এরপর আমার ছেলের তিন সপ্তাহের বেশি সময় ধরে কাশি শুরু হয় যা সারছিল না। সে ধীরে ধীরে ওজন হারায় এবং তার খাওয়ার রুচি কমে যায়। সন্ধ্যায় তার হালকা জ্বর হতো এবং রাতভর ঘামে কাপড় ভিজে যেত। শুরুতে হঠাৎ তীব্র জ্বর বা দ্রুত শ্বাস ছিল না। কয়েক মাসের মধ্যে সে শুকিয়ে যায় এবং খুব দুর্বল হয়ে পড়ে, এবং বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "tb_2",
+    "cause_name": "Tuberculosis",
+    "icd10": "A16.9",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. Over a long period she failed to gain weight and instead became thinner. She had a persistent cough lasting many weeks and recurring low fevers, with sweating at night. The glands in her neck became swollen and firm, forming a lump that did not go away. A relative we visited often had a chronic productive cough. She declined slowly over months rather than suddenly, and she eventually died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। দীর্ঘ সময় ধরে তার ওজন বাড়ছিল না বরং সে পাতলা হয়ে যাচ্ছিল। তার অনেক সপ্তাহ ধরে স্থায়ী কাশি এবং বারবার আসা হালকা জ্বর ছিল, রাতে ঘাম হতো। তার গলার গ্রন্থি ফোলা ও শক্ত হয়ে যায়, একটি দলা তৈরি হয় যা যেত না। আমরা প্রায়ই যার কাছে যেতাম এমন একজন আত্মীয়ের দীর্ঘস্থায়ী কফসহ কাশি ছিল। সে হঠাৎ নয় বরং মাসের পর মাস ধরে ধীরে ধীরে অবনতি হয়, এবং অবশেষে মারা যায়।"
+  },
+  {
+    "case_id": "tb_3",
+    "cause_name": "Tuberculosis",
+    "icd10": "A16.9",
+    "age_group": "child",
+    "narrative": "My son was about two years old. For a couple of months he was unwell with a cough that never resolved, poor appetite and steady weight loss. His belly became swollen and full of fluid, and the glands in his neck were enlarged. He had a mild fever on and off and sweated at night. There was a person with a long-standing cough in our household. He did not have a sudden severe illness but a slow wasting decline, and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় দুই বছর। কয়েক মাস ধরে সে এমন কাশি নিয়ে অসুস্থ ছিল যা সারছিল না, তার খাওয়ার রুচি কম ছিল এবং ক্রমাগত ওজন কমছিল। তার পেট ফুলে গিয়ে তরলে ভরে যায়, এবং তার গলার গ্রন্থি বড় হয়ে যায়। তার মাঝে মাঝে হালকা জ্বর হতো এবং রাতে ঘাম হতো। আমাদের বাড়িতে একজনের দীর্ঘস্থায়ী কাশি ছিল। তার হঠাৎ গুরুতর অসুখ ছিল না বরং একটি ধীর শুকিয়ে যাওয়া অবনতি ছিল, এবং সে বাড়িতে মারা যায়।"
+  },
+  {
+    "case_id": "tb_4",
+    "cause_name": "Tuberculosis",
+    "icd10": "A16.9",
+    "age_group": "child",
+    "narrative": "My daughter was four years old. She had a cough that lasted for over a month and kept getting slowly worse, together with weight loss and tiredness. She ran low fevers, especially in the evening, and had drenching night sweats. She had been in close contact with an uncle who coughed for a long time and was very thin. She was never suddenly very hot or fast-breathing; instead she faded over weeks. She became too weak to walk and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল চার বছর। তার এক মাসেরও বেশি সময় ধরে কাশি ছিল যা ধীরে ধীরে খারাপ হচ্ছিল, সঙ্গে ওজন কমা ও ক্লান্তি। বিশেষ করে সন্ধ্যায় তার হালকা জ্বর হতো এবং রাতে প্রচুর ঘাম হতো। তার এমন একজন চাচার সাথে ঘনিষ্ঠ যোগাযোগ ছিল যার দীর্ঘদিন ধরে কাশি ছিল এবং যিনি খুব পাতলা ছিলেন। তার কখনো হঠাৎ তীব্র জ্বর বা দ্রুত শ্বাস হয়নি; বরং সে সপ্তাহের পর সপ্তাহ ধরে নিস্তেজ হয়ে যায়। সে হাঁটার মতো শক্তিও হারিয়ে ফেলে এবং মারা যায়।"
+  },
+  {
+    "case_id": "tb_5",
+    "cause_name": "Tuberculosis",
+    "icd10": "A16.9",
+    "age_group": "child",
+    "narrative": "My son was three years old. Over several months he had a long cough, gradually lost weight and energy, and stopped growing. He had low-grade fevers and sweated heavily at night. Firm swollen glands appeared in his neck. A member of our household had had a chronic cough and weight loss for a long time. His illness was slow and drawn out rather than a sudden fever. He became severely wasted and weak and finally died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর। কয়েক মাস ধরে তার দীর্ঘ কাশি ছিল, ধীরে ধীরে ওজন ও শক্তি হারায়, এবং বড় হওয়া বন্ধ করে দেয়। তার হালকা জ্বর হতো এবং রাতে প্রচুর ঘাম হতো। তার গলায় শক্ত ফোলা গ্রন্থি দেখা দেয়। আমাদের বাড়ির একজন সদস্যের দীর্ঘদিন ধরে দীর্ঘস্থায়ী কাশি ও ওজন কমা ছিল। তার অসুখ হঠাৎ জ্বরের পরিবর্তে ধীর ও দীর্ঘায়িত ছিল। সে মারাত্মকভাবে শুকিয়ে দুর্বল হয়ে পড়ে এবং শেষে মারা যায়।"
+  },
+  {
+    "case_id": "injury_1",
+    "cause_name": "Injury",
+    "icd10": "T14.9",
+    "age_group": "child",
+    "narrative": "My son was three years old. He was playing outside while I was busy, and he wandered to the pond near our home. When we found him he was face down in the water and not breathing. We pulled him out and tried to revive him, pressing on his chest and turning him over to let water out, but he never breathed again. He had been completely well and healthy that morning, with no illness, no fever and no cough beforehand. He died right there by the water.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর। আমি ব্যস্ত থাকা অবস্থায় সে বাইরে খেলছিল এবং আমাদের বাড়ির কাছের পুকুরের দিকে চলে যায়। আমরা যখন তাকে পাই তখন সে পানিতে মুখ থুবড়ে পড়ে ছিল এবং শ্বাস নিচ্ছিল না। আমরা তাকে টেনে তুলি এবং তাকে বাঁচানোর চেষ্টা করি, তার বুকে চাপ দিয়ে ও পানি বের করার জন্য তাকে উল্টে দিয়ে, কিন্তু সে আর কখনো শ্বাস নেয়নি। সেদিন সকালে সে সম্পূর্ণ সুস্থ ছিল, তার আগে কোনো অসুখ, জ্বর বা কাশি ছিল না। পানির পাশেই সে মারা যায়।"
+  },
+  {
+    "case_id": "injury_2",
+    "cause_name": "Injury",
+    "icd10": "T14.9",
+    "age_group": "infant",
+    "narrative": "My daughter was about two years old. She reached up and pulled a pot of boiling water from the fire onto herself. She was scalded badly across her chest, arm and face, and the skin came away in sheets. She was in terrible pain and the burns were extensive. She had been perfectly healthy before the accident with no illness at all. Despite our care the injury was too severe, and she died a couple of days after the burns.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় দুই বছর। সে হাত বাড়িয়ে চুলা থেকে ফুটন্ত পানির পাতিল নিজের গায়ে টেনে আনে। তার বুক, হাত ও মুখে মারাত্মক পোড়া দাগ পড়ে এবং তার চামড়া স্তরে স্তরে উঠে যায়। সে ভয়ানক ব্যথায় ছিল এবং পোড়া ছিল ব্যাপক। দুর্ঘটনার আগে সে সম্পূর্ণ সুস্থ ছিল, কোনো অসুখই ছিল না। আমাদের যত্ন সত্ত্বেও আঘাত খুব গুরুতর ছিল, এবং পোড়ার কয়েক দিন পর সে মারা যায়।"
+  },
+  {
+    "case_id": "injury_3",
+    "cause_name": "Injury",
+    "icd10": "T14.9",
+    "age_group": "child",
+    "narrative": "My son was four years old. He was crossing the road near the market when a motorbike struck him at speed. He was thrown and hit his head hard on the ground, and he lost consciousness immediately. He had a wound on his head and was bleeding. He never woke up and did not respond to us. He had been a healthy boy with no sickness before this happened. He died on the way to the hospital.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর। বাজারের কাছে রাস্তা পার হওয়ার সময় একটি মোটরবাইক জোরে তাকে ধাক্কা দেয়। সে ছিটকে পড়ে এবং মাথা মাটিতে জোরে ঠুকে যায়, এবং সঙ্গে সঙ্গেই সে অজ্ঞান হয়ে পড়ে। তার মাথায় ক্ষত হয় এবং রক্তপাত হচ্ছিল। সে আর জাগেনি এবং আমাদের সাড়া দেয়নি। এর আগে সে একটি সুস্থ ছেলে ছিল, কোনো অসুখ ছিল না। হাসপাতালে যাওয়ার পথে সে মারা যায়।"
+  },
+  {
+    "case_id": "injury_4",
+    "cause_name": "Injury",
+    "icd10": "T14.9",
+    "age_group": "infant",
+    "narrative": "My son was about eighteen months old. He climbed and then fell from a high platform in our compound, landing on his head. He vomited several times afterwards, became very drowsy, and then could not be woken. One side of his body seemed weak. He had been a completely healthy child before the fall, with no fever, cough or illness of any kind. He slipped into unconsciousness and died within a day of the fall.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় আঠারো মাস। সে আমাদের উঠানের একটি উঁচু জায়গায় উঠে পরে সেখান থেকে পড়ে যায়, মাথায় আঘাত পায়। এরপর সে কয়েকবার বমি করে, খুব ঝিমুনিগ্রস্ত হয়ে পড়ে, এবং তারপর তাকে আর জাগানো যায়নি। তার শরীরের একপাশ দুর্বল মনে হচ্ছিল। পড়ে যাওয়ার আগে সে সম্পূর্ণ সুস্থ শিশু ছিল, কোনো জ্বর, কাশি বা কোনো ধরনের অসুখ ছিল না। সে অজ্ঞান হয়ে পড়ে এবং পড়ে যাওয়ার একদিনের মধ্যে মারা যায়।"
+  },
+  {
+    "case_id": "injury_5",
+    "cause_name": "Injury",
+    "icd10": "T14.9",
+    "age_group": "infant",
+    "narrative": "My daughter was about one year old. I left her for a short while near a large bucket of water that I had filled for washing. When I came back she had toppled into it head first and was not breathing. We lifted her out and tried to revive her but it was too late. She had been a healthy, lively baby that day with no illness, fever or breathing trouble beforehand. She drowned in the bucket and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় এক বছর। আমি ধোয়ার জন্য ভর্তি করা একটি বড় বালতি পানির কাছে তাকে কিছুক্ষণের জন্য রেখে গিয়েছিলাম। ফিরে এসে দেখি সে মাথা আগে দিয়ে তাতে পড়ে গিয়েছিল এবং শ্বাস নিচ্ছিল না। আমরা তাকে তুলে বাঁচানোর চেষ্টা করি কিন্তু তখন অনেক দেরি হয়ে গিয়েছিল। সেদিন সে একটি সুস্থ, প্রাণবন্ত শিশু ছিল, এর আগে কোনো অসুখ, জ্বর বা শ্বাসকষ্ট ছিল না। সে বালতিতে ডুবে মারা যায়।"
+  },
+  {
+    "case_id": "rabies_1",
+    "cause_name": "Rabies",
+    "icd10": "A82.9",
+    "age_group": "child",
+    "narrative": "My son was four years old. About a month earlier he had been bitten on the leg by a stray dog, and the wound had healed, so we did not seek treatment. Then he suddenly became restless, frightened and irritable. He could not drink, even though he was thirsty, because his throat would go into painful spasms and he panicked at the sight of water. He drooled a great deal and could not swallow his saliva. He had spasms and then became paralysed, and he died a few days after the strange symptoms began.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর। প্রায় এক মাস আগে একটি বেওয়ারিশ কুকুর তার পায়ে কামড় দিয়েছিল, এবং ক্ষতটি সেরে গিয়েছিল, তাই আমরা চিকিৎসা নিইনি। তারপর হঠাৎ সে অস্থির, ভীত ও খিটখিটে হয়ে ওঠে। সে পান করতে পারত না, যদিও তেষ্টার্ত ছিল, কারণ তার গলায় বেদনাদায়ক খিঁচুনি হতো এবং পানি দেখলে সে আতঙ্কিত হয়ে পড়ত। তার প্রচুর লালা ঝরত এবং সে নিজের লালা গিলতে পারত না। তার খিঁচুনি হয় এবং তারপর সে পক্ষাঘাতগ্রস্ত হয়ে পড়ে, এবং অদ্ভুত লক্ষণ শুরুর কয়েক দিন পর সে মারা যায়।"
+  },
+  {
+    "case_id": "rabies_2",
+    "cause_name": "Rabies",
+    "icd10": "A82.9",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. Weeks before, she had been bitten by a neighbour's dog that later disappeared. The bite healed and we forgot about it. Then she became agitated and fearful and behaved strangely. Whenever we offered her water she would jerk and choke and become terrified, so she refused to drink at all. She produced a lot of saliva and could not swallow it. She had convulsive spasms and then grew limp, and she died within a few days.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল তিন বছর। কয়েক সপ্তাহ আগে প্রতিবেশীর একটি কুকুর তাকে কামড়েছিল যেটি পরে হারিয়ে যায়। কামড়টি সেরে গিয়েছিল এবং আমরা সেটা ভুলেই গিয়েছিলাম। তারপর সে অস্থির ও ভীত হয়ে অদ্ভুত আচরণ করতে শুরু করে। আমরা যখনই তাকে পানি দিতাম তখনই সে ঝাঁকুনি দিয়ে দম আটকে আতঙ্কিত হয়ে পড়ত, তাই সে পানি পান করতে সম্পূর্ণ অস্বীকার করে। তার প্রচুর লালা বের হতো এবং সে তা গিলতে পারত না। তার খিঁচুনির মতো ঝাঁকুনি হয় এবং তারপর সে নেতিয়ে পড়ে, এবং কয়েক দিনের মধ্যে সে মারা যায়।"
+  },
+  {
+    "case_id": "rabies_3",
+    "cause_name": "Rabies",
+    "icd10": "A82.9",
+    "age_group": "child",
+    "narrative": "My son was four years old. He had been scratched and bitten by a dog that died soon afterwards, but his wound healed and he received no injections. About a month later he developed a fever and then began acting oddly, very restless and easily startled. He was terrified of water and of drafts of air, and his throat spasmed when he tried to drink. He salivated heavily. He became wildly agitated, then slipped into a coma, and he died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর। একটি কুকুর তাকে আঁচড় ও কামড় দিয়েছিল যেটি শীঘ্রই মারা যায়, কিন্তু তার ক্ষত সেরে গিয়েছিল এবং সে কোনো ইনজেকশন পায়নি। প্রায় এক মাস পরে তার জ্বর আসে এবং তারপর সে অদ্ভুতভাবে আচরণ করতে শুরু করে, খুব অস্থির ও সহজে চমকে যেত। সে পানি ও বাতাসের ঝাপটায় আতঙ্কিত হতো, এবং পান করার চেষ্টা করলে তার গলায় খিঁচুনি হতো। তার প্রচুর লালা ঝরত। সে প্রচণ্ড অস্থির হয়ে ওঠে, তারপর কোমায় চলে যায়, এবং মারা যায়।"
+  },
+  {
+    "case_id": "rabies_4",
+    "cause_name": "Rabies",
+    "icd10": "A82.9",
+    "age_group": "child",
+    "narrative": "My daughter was about four years old. A puppy had bitten her hand some weeks earlier and the small wound healed without treatment. Then she suddenly could not swallow and would choke and panic when she tried to drink, so she avoided all water. She drooled constantly and could not manage her own saliva. She had painful muscle spasms in her throat and became very frightened and confused. Within a few days she became paralysed and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় চার বছর। কয়েক সপ্তাহ আগে একটি কুকুরছানা তার হাতে কামড় দিয়েছিল এবং ছোট ক্ষতটি চিকিৎসা ছাড়াই সেরে যায়। তারপর হঠাৎ সে গিলতে পারত না এবং পান করার চেষ্টা করলে দম আটকে আতঙ্কিত হয়ে পড়ত, তাই সে সব পানি এড়িয়ে চলত। তার ক্রমাগত লালা ঝরত এবং সে নিজের লালা সামলাতে পারত না। তার গলায় বেদনাদায়ক পেশির খিঁচুনি হতো এবং সে খুব ভীত ও বিভ্রান্ত হয়ে পড়ে। কয়েক দিনের মধ্যে সে পক্ষাঘাতগ্রস্ত হয়ে মারা যায়।"
+  },
+  {
+    "case_id": "rabies_5",
+    "cause_name": "Rabies",
+    "icd10": "A82.9",
+    "age_group": "child",
+    "narrative": "My son was four years old and had been bitten on the hand by a dog more than three weeks before, but we did not get him any vaccine. He first complained of tingling and odd sensations at the old bite site. Then he became anxious and restless, and he developed a great fear of water, with his throat tightening and choking whenever he tried to drink. He had heavy drooling and muscle spasms, and then weakness spread through his body until he died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল চার বছর এবং তিন সপ্তাহেরও বেশি আগে একটি কুকুর তার হাতে কামড় দিয়েছিল, কিন্তু আমরা তাকে কোনো টিকা দিইনি। সে প্রথমে পুরোনো কামড়ের জায়গায় ঝিনঝিন ও অদ্ভুত অনুভূতির অভিযোগ করে। তারপর সে উদ্বিগ্ন ও অস্থির হয়ে ওঠে, এবং তার পানির প্রতি প্রচণ্ড ভয় দেখা দেয়, পান করার চেষ্টা করলেই তার গলা শক্ত হয়ে দম আটকে যেত। তার প্রচুর লালা ঝরত এবং পেশির খিঁচুনি হতো, এবং তারপর তার শরীরে দুর্বলতা ছড়িয়ে পড়ে যতক্ষণ না সে মারা যায়।"
+  },
+  {
+    "case_id": "sickle_cell_1",
+    "cause_name": "Sickle cell disorders",
+    "icd10": "D57.1",
+    "age_group": "child",
+    "narrative": "My son was three years old. He had a known blood problem and had been pale and yellow-eyed on and off since he was a baby. He suffered repeated episodes of severe pain with swelling of his hands and feet, and at times needed blood given to him. Other relatives had the same blood condition. During his last illness he had a fever and then suddenly became extremely pale and breathless, his heart racing. He collapsed from the severe anaemia and died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর। তার একটি জানা রক্তের সমস্যা ছিল এবং শিশুকাল থেকেই মাঝে মাঝে তার ফ্যাকাশে ও হলুদ চোখ হতো। তার বারবার তীব্র ব্যথার পর্ব হতো সঙ্গে হাত-পা ফোলা, এবং মাঝে মাঝে তাকে রক্ত দিতে হতো। অন্য আত্মীয়দেরও একই রক্তের সমস্যা ছিল। তার শেষ অসুখের সময় তার জ্বর আসে এবং তারপর হঠাৎ সে অত্যন্ত ফ্যাকাশে ও শ্বাসকষ্টযুক্ত হয়ে পড়ে, তার হৃদস্পন্দন দ্রুত হয়ে যায়। তীব্র রক্তস্বল্পতার কারণে সে ভেঙে পড়ে এবং মারা যায়।"
+  },
+  {
+    "case_id": "sickle_cell_2",
+    "cause_name": "Sickle cell disorders",
+    "icd10": "D57.1",
+    "age_group": "infant",
+    "narrative": "My daughter was about two years old. Since infancy she had been anaemic and her eyes were often yellow, and she had needed blood transfusions more than once. She had bouts of crying with painful swollen joints. One day she suddenly became very pale and weak, her belly swelled up on the left side, and she gasped for breath. Her paleness worsened rapidly. She had this inherited blood condition that ran in our family, and during this sudden severe episode she collapsed and died.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল প্রায় দুই বছর। শিশুকাল থেকেই তার রক্তস্বল্পতা ছিল এবং তার চোখ প্রায়ই হলুদ থাকত, এবং তাকে একাধিকবার রক্ত দিতে হয়েছিল। তার বেদনাদায়ক ফোলা জোড়াসহ কান্নার পর্ব ছিল। একদিন হঠাৎ সে খুব ফ্যাকাশে ও দুর্বল হয়ে পড়ে, তার পেট বাম দিকে ফুলে ওঠে, এবং সে হাঁপাতে থাকে। তার ফ্যাকাশেভাব দ্রুত খারাপ হয়ে যায়। আমাদের পরিবারে চলে আসা এই বংশগত রক্তের সমস্যা তারও ছিল, এবং এই হঠাৎ গুরুতর পর্বের সময় সে ভেঙে পড়ে এবং মারা যায়।"
+  },
+  {
+    "case_id": "sickle_cell_3",
+    "cause_name": "Sickle cell disorders",
+    "icd10": "D57.1",
+    "age_group": "infant",
+    "narrative": "My son was about eighteen months old. He had been chronically pale with yellow eyes for most of his life and had episodes where his fingers and toes became painfully swollen. He caught infections often. During his final illness he developed a fever and then became severely pale and listless very quickly, breathing fast with a racing heart. The known blood disorder in our family had been passed to him. He weakened suddenly from the deep anaemia and died.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল প্রায় আঠারো মাস। তার জীবনের বেশিরভাগ সময় দীর্ঘস্থায়ী ফ্যাকাশেভাব ও হলুদ চোখ ছিল এবং তার মাঝে মাঝে আঙুল ও পায়ের আঙুল বেদনাদায়কভাবে ফুলে যেত। সে প্রায়ই সংক্রমণে আক্রান্ত হতো। তার শেষ অসুখের সময় তার জ্বর আসে এবং তারপর সে খুব দ্রুত মারাত্মকভাবে ফ্যাকাশে ও নিস্তেজ হয়ে পড়ে, দ্রুত শ্বাস নিচ্ছিল এবং হৃদস্পন্দন দ্রুত ছিল। আমাদের পরিবারের জানা রক্তের সমস্যাটি তার মধ্যেও ছিল। গভীর রক্তস্বল্পতার কারণে সে হঠাৎ দুর্বল হয়ে পড়ে এবং মারা যায়।"
+  },
+  {
+    "case_id": "sickle_cell_4",
+    "cause_name": "Sickle cell disorders",
+    "icd10": "D57.1",
+    "age_group": "child",
+    "narrative": "My daughter was four years old. An older sibling had died of the same inherited blood disease. She had lifelong anaemia with pale, yellow-tinged eyes and recurring crises of severe bone and joint pain. During her last illness she had a fever and cough, then became acutely breathless with chest pain and went very pale. The paleness and breathlessness came on fast. Despite reaching the clinic she could not be saved and died during this severe episode.",
+    "bn_narrative": "আমার মেয়ের বয়স ছিল চার বছর। তার একজন বড় ভাই-বোন একই বংশগত রক্তরোগে মারা গিয়েছিল। তার সারাজীবন রক্তস্বল্পতা ছিল সঙ্গে ফ্যাকাশে, হলুদাভ চোখ এবং বারবার ফিরে আসা তীব্র হাড় ও জোড়ার ব্যথার সংকট। তার শেষ অসুখের সময় তার জ্বর ও কাশি ছিল, তারপর সে হঠাৎ বুকে ব্যথাসহ তীব্র শ্বাসকষ্টে ভুগতে শুরু করে এবং খুব ফ্যাকাশে হয়ে যায়। ফ্যাকাশেভাব ও শ্বাসকষ্ট দ্রুত দেখা দেয়। ক্লিনিকে পৌঁছানো সত্ত্বেও তাকে বাঁচানো যায়নি এবং এই গুরুতর পর্বের সময় সে মারা যায়।"
+  },
+  {
+    "case_id": "sickle_cell_5",
+    "cause_name": "Sickle cell disorders",
+    "icd10": "D57.1",
+    "age_group": "child",
+    "narrative": "My son was three years old. From early infancy he had been anaemic and jaundiced, and his hands and feet had once swelled painfully when he was a baby. He had repeated painful crises over the years and was known to carry the family blood disorder. In his final illness he suffered a severe attack of pain and then turned extremely pale and weak, his breathing fast and his heartbeat pounding. The anaemia overwhelmed him and he died at home.",
+    "bn_narrative": "আমার ছেলের বয়স ছিল তিন বছর। শিশুকালের শুরু থেকেই তার রক্তস্বল্পতা ও জন্ডিস ছিল, এবং শিশু থাকা অবস্থায় একবার তার হাত-পা বেদনাদায়কভাবে ফুলে গিয়েছিল। বছরের পর বছর ধরে তার বারবার বেদনাদায়ক সংকট হতো এবং তার পরিবারের রক্তের সমস্যা বহন করার কথা জানা ছিল। তার শেষ অসুখে সে তীব্র ব্যথার আক্রমণে ভোগে এবং তারপর অত্যন্ত ফ্যাকাশে ও দুর্বল হয়ে পড়ে, তার শ্বাস দ্রুত এবং হৃদস্পন্দন জোরে ধাক্কা দিচ্ছিল। রক্তস্বল্পতা তাকে ছাপিয়ে যায় এবং সে বাড়িতে মারা যায়।"
+  }
+]

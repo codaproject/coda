@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "ptbr_narrative": "Meu filho tinha um ano de idade. Cerca de uma semana antes de morrer, ele ficou resfriado, com o nariz escorrendo e uma tosse leve. Depois de três ou quatro dias, a tosse piorou muito e ele começou a respirar muito rápido. Quando puxava o ar, a pele abaixo e entre as costelas afundava, e suas narinas abriam muito. Ele gemia a cada respiração e tinha uma febre que não baixava. Ficou com tanta falta de ar que não conseguia comer, e seus lábios ficaram um pouco azulados. Ele não teve diarreia e não apareceu nenhuma lesão na pele. Na última noite, sua respiração estava muito rápida e superficial, ele ficou sonolento e morreu em casa antes que conseguíssemos chegar ao hospital."
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "ptbr_narrative": "Minha filha tinha seis meses de idade. De repente, ela teve febre alta e começou a tossir. Em dois dias, sua respiração ficou muito rápida e barulhenta, e eu conseguia ver a pele sendo puxada abaixo das costelas cada vez que ela respirava. Suas narinas abriam e ela fazia pequenos sons de gemido. Ela não conseguia mamar porque estava com muita falta de ar. Quando coloquei meu ouvido no peito dela, parecia haver estalos. Ela não tinha lesão na pele e suas fezes estavam normais. Ela ficou molinha, sua cor ficou arroxeada e morreu no quarto dia da doença."
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "ptbr_narrative": "Meu filho tinha dois anos de idade. Ele teve tosse e febre por cerca de cinco dias, que continuavam piorando em vez de melhorar. Começou a respirar rapidamente e reclamava que o peito doía quando respirava. Ao tossir, eliminava catarro grosso. Estava sem apetite e só queria ficar deitado. Sua respiração ficou difícil, com repuxamento da parte inferior do peito, e ele ficou muito quente e sonolento. Não havia lesão na pele nem diarreia, e sua nuca não estava dura. Ele parou de responder e morreu na unidade de saúde pouco depois de chegarmos."
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "bn_narrative": "Minha filha tinha três anos de idade. Moramos em uma área rural perto do rio, onde há muitos mosquitos e as pessoas costumam ter febre na estação chuvosa. Ela adoeceu com febre alta, acompanhada de calafrios com tremores e depois suor intenso, e isso voltava a acontecer a cada um ou dois dias. Ela reclamava de dor de cabeça e dores no corpo e vomitou algumas vezes. Depois de alguns dias, ficou muito pálida; as palmas das mãos e os olhos estavam mais brancos, e ela ficou fraca e sonolenta. Ela não tinha tosse nem coriza. No terceiro dia, teve várias convulsões, ficou inconsciente e não acordou. Morreu na manhã seguinte."
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "bn_narrative": "Meu filho tinha dois anos de idade. Era a estação chuvosa em nossa aldeia e havia mosquitos por toda parte. Ele teve febre alta e vomitou várias vezes, ficando muito fraco. Depois de dois dias, seus olhos ficaram amarelos e sua urina escureceu, ficando da cor de coca cola. Ele estava muito pálido e respirava rapidamente, e se recusava a comer ou beber. Não tinha tosse nem lesão na pele. No terceiro dia, teve uma convulsão, seu corpo tremeu e ele ficou profundamente inconsciente. Não voltou a acordar e morreu naquela mesma noite."
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "bn_narrative": "Meu filho tinha cerca de um ano e meio de idade. Tudo começou de repente, com fezes líquidas muitas vezes ao dia, quase como água de arroz, e ele vomitava tudo o que dávamos a ele. Isso continuou por dois dias. No início, ficou com muita sede e depois parou de beber. Seus olhos ficaram fundos, sua boca estava seca e, quando eu beliscava a pele da barriga, ela ficava levantada e demorava a voltar ao normal. Ele urinava muito pouco e chorava sem lágrimas. Teve febre leve, mas não tinha tosse nem lesão na pele. Ficou fraco, molinho e sonolento, e morreu em casa."
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "bn_narrative": "Minha filha tinha nove meses de idade. Durante três dias, teve fezes líquidas frequentes e vômitos. No início, estava com muita sede e bebia com vontade, mas depois ficou fraca demais para beber. A moleira e os olhos ficaram fundos, sua boca estava seca e a pele demorava a voltar ao normal quando era beliscada. Ela quase não urinava. Não tinha tosse nem lesão na pele. Suas mãos e seus pés ficaram frios ao toque; depois ela ficou muito sonolenta e molinha, e morreu."
+  }
+]
