@@ -8112,6 +8112,31 @@
                 transcript.scrollTop = transcript.scrollHeight;
               }
               updateWordCount();
+            } else if (data.type === "transcript_update") {
+              // The spoken text was shown as soon as it was transcribed; this
+              // fills in the English once translation and grounding finish.
+              const chunk = transcript.querySelector(
+                `.chunk[data-chunk-id="${data.chunk_id}"]`,
+              );
+              if (chunk) {
+                const text = data.transcript || "";
+                transcriptText += text + " ";
+                const anns = (data.annotations || [])
+                  .slice()
+                  .sort((a, b) => a.start - b.start);
+                let html = "";
+                let pos = 0;
+                for (const ann of anns) {
+                  if (ann.start > pos) html += escapeHtml(text.slice(pos, ann.start));
+                  html += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+                  pos = ann.end;
+                }
+                if (pos < text.length) html += escapeHtml(text.slice(pos));
+                chunk.innerHTML = html + " ";
+                chunk.classList.remove("pending-translation");
+                transcript.scrollTop = transcript.scrollHeight;
+                updateWordCount();
+              }
             } else if (data.type === "preview") {
               // Interim, not-yet-committed text (streaming backends).
               // Shown muted at the end until it firms into a chunk.
