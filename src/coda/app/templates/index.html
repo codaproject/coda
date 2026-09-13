@@ -4933,9 +4933,25 @@
             } else if (data.type === "transcript_update") {
               // The spoken text was shown as soon as it was transcribed; this
               // fills in the English once translation and grounding finish.
-              const chunk = transcript.querySelector(
-                `.chunk[data-chunk-id="${data.chunk_id}"]`,
-              );
+              // One sentence can span several chunks, so those merge into the
+              // first one and the rest are dropped.
+              const ids = data.chunk_ids || [data.chunk_id];
+              const utts = ids
+                .map((id) =>
+                  transcript.querySelector(`.utterance[data-utterance-id="${id}"]`),
+                )
+                .filter(Boolean);
+              for (const extra of utts.slice(1)) extra.remove();
+              const anchor = utts[0];
+              if (anchor && data.original_transcript) {
+                const orig = anchor.querySelector(".original-text");
+                if (orig) orig.textContent = data.original_transcript;
+              }
+              const chunk = anchor
+                ? anchor.querySelector(".chunk")
+                : transcript.querySelector(
+                    `.chunk[data-chunk-id="${data.chunk_id}"]`,
+                  );
               if (chunk) {
                 const text = data.transcript || "";
                 transcriptText += text + " ";
