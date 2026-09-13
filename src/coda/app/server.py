@@ -54,6 +54,10 @@ from coda.translate import (
     get_asr_task,
     get_translator_models,
 )
+from coda.translate.sentences import (
+    TRANSLATION_MAX_WAIT_S,
+    SentenceBuffer,
+)
 from coda.config import settings, inference_url
 from coda.metadata import Metadata
 
@@ -976,6 +980,10 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
 
     last_infer = time.monotonic()
 
+    # Chunk text waiting for its sentence to close before being translated.
+    sentences = SentenceBuffer()
+    last_chunk_at = time.monotonic()
+
     async def flush():
         nonlocal last_infer
         batch = inference_session.buffer.take()
@@ -984,6 +992,16 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
         text, anns, chunk_id, timestamp = batch
         last_infer = time.monotonic()
         await _start_inference(inference_session, chunk_id, timestamp, text, anns)
+
+    async def translate_pending():
+        """Translate a closed sentence and hand its text to the inference buffer."""
+        done = await _flush_sentence(inference_session, sentences)
+        if done is None:
+            return
+        chunk_id, timestamp, text, anns = done
+        buf.add(text, anns, chunk_id, timestamp)
+        if buf.ready:
+            await flush()
 
     async def idle_flush():
         # Flush text held over a pause once recording resumes, and pending text
@@ -1009,7 +1027,10 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             # One bad event shouldn't kill the session.
             try:
                 committed = await _handle_committed(
-                    inference_session, event, direct_translate)
+                    inference_session, event, direct_translate, sentences)
+                last_chunk_at = time.monotonic()
+                if sentences.ready:
+                    await translate_pending()
             except Exception as e:
                 logger.error(f"Error on event {event.id}: {e}", exc_info=True)
                 continue
@@ -1021,6 +1042,8 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             if inference_session.buffer.ready and \
                     not inference_session.paused:
                 await flush()
+        # Translate and infer on whatever is left when the stream ends
+        await translate_pending()
         await flush()
         await inference_session.wait_for_idle()
         await _ws_send_safe(websocket, {"type": "stopped"})
@@ -1029,11 +1052,13 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
 
 
 async def _handle_committed(inference_session: InferenceSessionCoordinator,
-                            event, direct_translate: bool):
-    """Translate, ground, save, and display one committed transcript event.
+                            event, direct_translate: bool, sentences=None):
+    """Ground, save, and display one committed transcript event.
 
-    Returns (chunk_id, timestamp, english_text, annotations) for the caller to
-    accumulate toward inference, or None if there was no usable text.
+    Text that still needs translating is shown immediately and buffered into
+    `sentences`; its English arrives later via _flush_sentence. Returns
+    (chunk_id, timestamp, english_text, annotations) for the caller to
+    accumulate toward inference, or None if nothing is ready yet.
     """
     chunk_id = event.id
     timestamp = event.timestamp
@@ -1045,25 +1070,23 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     save_s = 0.0
     emit_s = 0.0
 
-    # Translation and grounding both take time, so the spoken text is shown as
-    # soon as it is transcribed and the English is patched in when it arrives.
+    # Translation needs whole sentences, but the spoken text can be shown as
+    # soon as it is transcribed, so the two are decoupled.
     needs_translation = (not direct_translate and current_language != "en"
                          and len(event.text.split()) > 1)
     if needs_translation:
-        original_transcript = event.text
-        await _ws_send_safe(websocket, {
+        await _ws_send_safe(inference_session.websocket, {
             "type": "transcript",
             "chunk_id": chunk_id,
             "timestamp": timestamp,
             "transcript": "",
             "annotations": [],
-            "original_transcript": original_transcript,
+            "original_transcript": event.text,
             "original_language": current_language,
             "pending_translation": True,
         })
-        translation_start = time.perf_counter()
-        english_text = await translate_text(event.text, current_language)
-        translation_s = time.perf_counter() - translation_start
+        sentences.add(event.text, chunk_id, timestamp)
+        return None
 
     # Ground the (final, English) text without blocking the loop
     annotations = []
@@ -1073,17 +1096,6 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         grounding_s = time.perf_counter() - grounding_start
 
     if not english_text:
-        # An already-displayed chunk must be resolved, or it stays pending
-        if needs_translation:
-            await _ws_send_safe(websocket, {
-                "type": "transcript_update",
-                "chunk_id": chunk_id,
-                "timestamp": timestamp,
-                "transcript": original_transcript,
-                "annotations": [],
-                "original_transcript": original_transcript,
-                "original_language": current_language,
-            })
         return None
 
     recorder = inference_session.recorder
@@ -1101,7 +1113,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
 
     # Send transcript to client
     msg = {
-        "type": "transcript_update" if needs_translation else "transcript",
+        "type": "transcript",
         "chunk_id": chunk_id,
         "timestamp": timestamp,
         "transcript": english_text,
