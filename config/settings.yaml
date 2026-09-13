@@ -131,6 +131,13 @@ dialogue:
   whisper_livekit:
     backend: faster-whisper
     policy: localagreement
+    # Commit text on decoder confidence instead of waiting for two consecutive
+    # passes to agree. Agreement is rare for languages the model is less sure
+    # of, which leaves their text uncommitted until the buffer is trimmed.
+    confidence_validation: true
+    # Upper bound on how long unconfirmed text can sit before being flushed,
+    # so worst-case display latency stays bounded.
+    buffer_trimming_sec: 8.0
   speechmatics:
     url: wss://us.rt.speechmatics.com/v2/
     model: enhanced         # operating point. alternatives: enhanced | standard

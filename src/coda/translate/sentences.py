@@ -8,8 +8,10 @@ carries a terminator still gets translated.
 """
 import re
 
-# Sentence terminators, including the Bengali danda
-SENTENCE_END = re.compile(r"[.!?।]\s*$")
+# Sentence terminators, including the Bengali danda. A trailing ellipsis is
+# excluded: transcribers emit it for hesitation mid-sentence, and treating it
+# as a boundary chops the sentence before the speaker has finished it.
+SENTENCE_END = re.compile(r"(?<!\.\.)[.!?।]\s*$")
 
 # Translate a partial sentence once it reaches this many words, so a speaker
 # who runs on without punctuation is not held indefinitely.

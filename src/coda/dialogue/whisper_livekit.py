@@ -64,25 +64,48 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         return cls(model_size=model or cls.DEFAULT_MODEL)
 
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
-        from whisperlivekit import TranscriptionEngine
         from coda.config import settings
-        wlk = settings.dialogue.whisper_livekit
-        # The language is fixed when the engine is built, so this backend
-        # transcribes whatever dialogue.language was set to at startup and
-        # ignores the per-stream language argument.
-        self._engine = TranscriptionEngine(
-            model_size=model_size,
-            lan=settings.dialogue.language,
-            backend=wlk.backend,
-            backend_policy=wlk.policy,
+        self._model_size = model_size
+        self._settings = settings.dialogue.whisper_livekit
+        self._language = settings.dialogue.language
+        self._engine = self._build_engine(self._language)
+
+    def _build_engine(self, language: str):
+        from whisperlivekit import TranscriptionEngine
+        # TranscriptionEngine is a singleton whose __init__ short-circuits once
+        # initialized, and its language is fixed at construction. Resetting is
+        # the only way to load a different one.
+        TranscriptionEngine.reset()
+        return TranscriptionEngine(
+            model_size=self._model_size,
+            lan=language,
+            backend=self._settings.backend,
+            backend_policy=self._settings.policy,
+            confidence_validation=self._settings.confidence_validation,
+            buffer_trimming_sec=self._settings.buffer_trimming_sec,
             pcm_input=True,
         )
+
+    def _engine_for(self, language: str):
+        """Return an engine transcribing `language`, rebuilding if it changed.
+
+        The language is fixed when the engine is constructed, so a different
+        one means reloading the model. That only happens when the interview
+        language actually changes.
+        """
+        if language and language != self._language:
+            logger.info("Reloading whisper-livekit engine for language %r",
+                        language)
+            self._engine = self._build_engine(language)
+            self._language = language
+        return self._engine
 
     async def stream(self, audio: AsyncIterator[bytes], *,
                      language: str = "en",
                      task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
         from whisperlivekit import AudioProcessor
-        processor = AudioProcessor(transcription_engine=self._engine)
+        processor = AudioProcessor(
+            transcription_engine=self._engine_for(language))
         results = await processor.create_tasks()
         forwarder = asyncio.create_task(self._forward(processor, audio))
         state = {"emitted": {}, "preview": ""}
