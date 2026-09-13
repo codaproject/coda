@@ -47,27 +47,50 @@ def print_summary(results):
         print(f"{engine:30s} {row['mean_wer']:10.3f} {cer:>10s} {rtf:>10s} {row['n']:4d}")
 
 
+def wer_colors(values):
+    """Color WER bars by quality tier: usable, poor, unusable."""
+    return ["#55A868" if v < 0.15 else "#DD8452" if v < 0.6 else "#C44E52"
+            for v in values]
+
+
 def plot_comparison(results, out_path, title, *, show=False):
     import matplotlib.pyplot as plt
 
     engines = sorted(results, key=lambda name: results[name]["mean_wer"])
-    values = ([results[name]["mean_wer"] for name in engines],
-              [results[name]["mean_cer"] or 0 for name in engines],
-              [results[name]["mean_rtf"] or 0 for name in engines])
-    labels = ("Mean WER", "Mean CER", "Mean RTF (latency / audio duration)")
-    titles = ("Mean WER by engine (lower is better)",
-              "Mean CER by engine (lower is better)",
-              "Speed by engine (lower is faster)")
+    wers = [results[name]["mean_wer"] for name in engines]
+    cers = [results[name]["mean_cer"] or 0 for name in engines]
+    rtfs = [results[name]["mean_rtf"] or 0 for name in engines]
+    # A missing CER is drawn gray so it reads as absent rather than as zero
+    cer_colors = ["#4C72B0" if results[name]["mean_cer"] is not None else "#CCCCCC"
+                  for name in engines]
+    panels = (
+        (wers, "Mean WER", "Mean WER by engine (lower is better)",
+         wer_colors(wers), "{:.3f}"),
+        (cers, "Mean CER", "Mean CER by engine (lower is better)",
+         cer_colors, "{:.3f}"),
+        (rtfs, "Mean RTF (latency / audio duration)",
+         "Speed by engine (lower is faster)", "#4C72B0", "{:.2f}"),
+    )
+
     fig, axes = plt.subplots(1, 3, figsize=(20, 6))
-    for index, axis in enumerate(axes):
-        axis.barh(engines, values[index], color="#55A868" if index == 0 else "#4C72B0")
-        axis.set_xlabel(labels[index])
-        axis.set_title(titles[index])
+    for axis, (values, xlabel, subtitle, color, fmt) in zip(axes, panels):
+        axis.barh(engines, values, color=color)
+        axis.set_xlabel(xlabel)
+        axis.set_title(subtitle)
         axis.grid(axis="x", alpha=0.3, linestyle="--")
-        if index in (0, 2):
-            axis.axvline(1.0, color="black", linestyle="--", linewidth=1, alpha=0.5)
-        for row, value in enumerate(values[index]):
-            axis.text(value + 0.02, row, f"{value:.3f}" if index < 2 else f"{value:.2f}", va="center")
+        # Only mark the break-even line when the data reaches it, otherwise it
+        # stretches the axis and squeezes every bar into a corner
+        if max(values) > 0.75:
+            axis.axvline(1.0, color="black", linestyle="--", linewidth=1,
+                         alpha=0.5)
+        axis.set_xlim(0, max(max(values), 1.0 if max(values) > 0.75 else 0) * 1.15)
+        # Offset labels by a fraction of the axis, not a fixed amount, so they
+        # stay beside their bars whatever the scale
+        offset = axis.get_xlim()[1] * 0.01
+        for row, value in enumerate(values):
+            label = fmt.format(value) if color is not cer_colors \
+                or results[engines[row]]["mean_cer"] is not None else "n/a"
+            axis.text(value + offset, row, label, va="center", fontsize=9)
     fig.suptitle(title, fontweight="bold")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
