@@ -48,7 +48,12 @@ from coda.inference.streaming import (
 )
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
-from coda.translate import create_translator, get_asr_task
+from coda.translate import (
+    TRANSLATOR_BACKENDS,
+    create_translator,
+    get_asr_task,
+    get_translator_models,
+)
 from coda.config import settings, inference_url
 from coda.metadata import Metadata
 
@@ -118,6 +123,19 @@ def text_translator_backend() -> str:
     if get_asr_task(translation_mode) == "translate":
         return FALLBACK_TEXT_TRANSLATOR
     return translation_mode
+
+
+def _default_translation_model_for(backend: str):
+    """The backend's default model, or None if the backend can't be loaded."""
+    try:
+        return get_translator_models(backend)["default_model"]
+    except Exception as e:
+        logger.warning("Translator backend %r unavailable: %s", backend, e)
+        return None
+
+
+current_translation_model = _default_translation_model_for(
+    text_translator_backend())
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
@@ -140,6 +158,7 @@ class SettingsRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
+    translation_model: Optional[str] = None
 
 
 @dataclass
@@ -420,10 +439,10 @@ if transcriber.normalize_language(current_language) is None:
 async def translate_text(text: str, source_language: str) -> str:
     """Translate text to English with the text translation backend."""
     backend = text_translator_backend()
-    # Only the LLM backend takes the app's provider and model, the rest carry
-    # their own model selection.
+    # The LLM backend uses the app's own provider and model, other backends
+    # carry a model selected from their own list.
     options = ({"provider": current_llm_provider, "model": current_llm_model}
-               if backend == "llm" else {})
+               if backend == "llm" else {"model": current_translation_model})
     translator = create_translator(backend, **options)
     return await translator.translate(
         text, source_language, language_name=get_language_name(source_language))
@@ -616,6 +635,7 @@ async def get_settings():
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
         "server_settings_locked": settings.app.get("lock_server_settings", False),
+        "translation_model": current_translation_model,
     }
 
 
@@ -683,7 +703,7 @@ async def update_settings(req: SettingsRequest):
         raise HTTPException(status_code=403, detail="Server settings are locked")
     global current_language, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
-    global translation_mode
+    global translation_mode, current_translation_model
     global current_grounder, current_transcriber_backend
     grounder_changed = False
     transcriber_changed = False
@@ -761,8 +781,22 @@ async def update_settings(req: SettingsRequest):
         current_llm_model = req.llm_model
         logger.info(f"LLM model set to: {current_llm_model}")
     if req.translation_mode is not None:
-        translation_mode = req.translation_mode
-        logger.info(f"Translation mode set to: {translation_mode}")
+        mode = req.translation_mode.strip()
+        if mode not in TRANSLATOR_BACKENDS:
+            logger.warning("Ignoring unknown translation mode %r", mode)
+            mode = translation_mode
+        if mode != translation_mode:
+            translation_mode = mode
+            # Each backend has its own model list, so fall back to the new
+            # backend's default unless the caller picked one.
+            if req.translation_model is None:
+                current_translation_model = await asyncio.to_thread(
+                    _default_translation_model_for, text_translator_backend())
+            logger.info(f"Translation mode set to: {translation_mode}")
+    if (req.translation_model is not None
+            and req.translation_model != current_translation_model):
+        current_translation_model = req.translation_model
+        logger.info(f"Translation model set to: {current_translation_model}")
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
@@ -780,6 +814,7 @@ async def update_settings(req: SettingsRequest):
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
         "server_settings_locked": settings.app.get("lock_server_settings", False),
+        "translation_model": current_translation_model,
     }
 
 

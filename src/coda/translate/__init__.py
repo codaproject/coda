@@ -1,5 +1,5 @@
 __all__ = ["Translator", "TRANSLATOR_BACKENDS", "create_translator",
-           "get_asr_task"]
+           "get_asr_task", "get_translator_models"]
 
 import logging
 
@@ -37,6 +37,17 @@ def create_translator(backend: str, **kwargs):
     return _load_backend_class(backend).create(**kwargs)
 
 
+def get_translator_models(backend: str) -> dict:
+    """Return the selectable models for one backend, loaded on demand.
+
+    Each backend class declares its own `MODELS` and `DEFAULT_MODEL`. Importing
+    the backend can fail if its optional dependencies aren't installed, callers
+    should surface that to the user (e.g. as a UI warning).
+    """
+    cls = _load_backend_class(backend)
+    return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
+
+
 def get_asr_task(backend: str) -> str:
     """Return the transcription task a backend needs the transcriber to run.
 
@@ -54,6 +65,9 @@ class Translator:
     """
     # Transcription task to run when this backend is selected
     ASR_TASK = "transcribe"
+    # Selectable models for this backend, surfaced in the settings UI
+    MODELS = ()
+    DEFAULT_MODEL = None
 
     @classmethod
     def create(cls, **kwargs):
