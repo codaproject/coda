@@ -52,7 +52,7 @@ def load_samples(language, data_dir=None):
     """Load a dataset identified by its BCP 47 language tag."""
     from languages import bn, pt_br
 
-    loaders = {"bn": bn.load_samples, "pt-BR": pt_br.load_samples}
+    loaders = {"bn": bn.load_samples, "pt_br": pt_br.load_samples}
     if language not in loaders:
         raise ValueError(f"Unknown dataset language {language!r}; choose {list(loaders)}")
     data_dir = Path(data_dir) if data_dir is not None else Path(__file__).parent / "data"

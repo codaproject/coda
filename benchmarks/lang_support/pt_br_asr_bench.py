@@ -26,7 +26,7 @@ def build_engines(args):
 
 
 def main():
-    return main_for("pt-BR", build_engines)
+    return main_for("pt_br", build_engines)
 
 
 if __name__ == "__main__":
