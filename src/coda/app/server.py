@@ -41,7 +41,7 @@ from coda.inference.streaming import (
 )
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
-from coda.llm_api import create_llm_client
+from coda.translate import create_translator, get_asr_task
 from coda.config import settings, inference_url
 from coda.metadata import Metadata
 
@@ -86,6 +86,9 @@ rag_config = {
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = settings.dialogue.translation_mode
+# Backend used whenever a transcript still needs translating, which covers
+# every case the transcriber did not already translate at the source.
+TEXT_TRANSLATOR_BACKEND = "llm"
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
@@ -270,18 +273,12 @@ if transcriber.normalize_language(current_language) is None:
 
 
 async def translate_text(text: str, source_language: str) -> str:
-    """Translate text to English using the LLM API."""
-    lang_name = get_language_name(source_language)
-    prompt = (f"Translate the following {lang_name} text to English. "
-              f"Return only the translation, nothing else.\n\n{text}")
-    try:
-        llm = create_llm_client(provider=current_llm_provider,
-                                model=current_llm_model)
-        translation = await asyncio.to_thread(llm.call, prompt)
-        return translation.strip()
-    except Exception as e:
-        logger.error(f"Translation error: {e}")
-        return text  # fall back to original text
+    """Translate text to English with the text translation backend."""
+    translator = create_translator(TEXT_TRANSLATOR_BACKEND,
+                                   provider=current_llm_provider,
+                                   model=current_llm_model)
+    return await translator.translate(
+        text, source_language, language_name=get_language_name(source_language))
 
 
 def render_annotations(annotations):
@@ -667,10 +664,10 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             yield data
 
     # Direct speech-to-English translation is a Whisper capability; for other
-    # backends, non-English transcribes then translates via the LLM. Captured at
+    # backends, non-English transcribes then translates the text. Captured at
     # connection start (settings changes apply on the next connection).
     direct_translate = (current_language != "en"
-                        and translation_mode == "whisper_translate"
+                        and get_asr_task(translation_mode) == "translate"
                         and current_transcriber_backend == "whisper")
     task = "translate" if direct_translate else "transcribe"
 
