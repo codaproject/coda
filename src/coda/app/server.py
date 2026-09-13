@@ -86,9 +86,16 @@ rag_config = {
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
 translation_mode = settings.dialogue.translation_mode
-# Backend used whenever a transcript still needs translating, which covers
-# every case the transcriber did not already translate at the source.
-TEXT_TRANSLATOR_BACKEND = "llm"
+# Backend used when the transcriber did not already translate at the source,
+# which also covers whisper_translate paired with a non-whisper transcriber.
+FALLBACK_TEXT_TRANSLATOR = "llm"
+
+
+def text_translator_backend() -> str:
+    """The backend that translates transcript text for the current mode."""
+    if get_asr_task(translation_mode) == "translate":
+        return FALLBACK_TEXT_TRANSLATOR
+    return translation_mode
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
@@ -274,9 +281,12 @@ if transcriber.normalize_language(current_language) is None:
 
 async def translate_text(text: str, source_language: str) -> str:
     """Translate text to English with the text translation backend."""
-    translator = create_translator(TEXT_TRANSLATOR_BACKEND,
-                                   provider=current_llm_provider,
-                                   model=current_llm_model)
+    backend = text_translator_backend()
+    # Only the LLM backend takes the app's provider and model, the rest carry
+    # their own model selection.
+    options = ({"provider": current_llm_provider, "model": current_llm_model}
+               if backend == "llm" else {})
+    translator = create_translator(backend, **options)
     return await translator.translate(
         text, source_language, language_name=get_language_name(source_language))
 
