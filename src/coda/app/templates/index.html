@@ -2934,7 +2934,13 @@
             Whisper (direct speech-to-English)
           </option>
           <option value="llm">LLM (transcribe then translate)</option>
+          <option value="ctranslate2">Local model (transcribe then translate)</option>
         </select>
+      </div>
+
+      <div class="settings-row" id="translationModelRow" style="display: none">
+        <label for="translationModelSelect">Translation model</label>
+        <select id="translationModelSelect"></select>
       </div>
 
       <div class="settings-row" id="llmSettingsRow" style="display: none">
@@ -4239,6 +4245,10 @@
         "translationModeSelect",
       );
       const llmSettingsRow = document.getElementById("llmSettingsRow");
+      const translationModelRow =
+        document.getElementById("translationModelRow");
+      const translationModelSelect =
+        document.getElementById("translationModelSelect");
       const llmProviderSelect = document.getElementById("llmProviderSelect");
       const llmModelInput = document.getElementById("llmModelInput");
       const grounderSelect = document.getElementById("grounderSelect");
@@ -4283,6 +4293,40 @@
           isNonEnglish && translationModeSelect.value === "llm"
             ? "flex"
             : "none";
+        translationModelRow.style.display =
+          isNonEnglish && translationModelSelect.options.length
+            ? "flex"
+            : "none";
+      }
+
+      // Labels for known translation models; unknown ids show their raw value.
+      const translationModelLabels = {
+        "nllb-600m": "NLLB-200 distilled (600M)",
+        "nllb-1.3b": "NLLB-200 distilled (1.3B)",
+      };
+
+      // Load the selected translation backend's model list. Backends without
+      // selectable models leave the row empty and hidden.
+      async function loadTranslationModels(backend, selected) {
+        translationModelSelect.innerHTML = "";
+        try {
+          const resp = await fetch(
+            `/translator_backends/${encodeURIComponent(backend)}`,
+          );
+          const info = await resp.json();
+          const models = info.available ? info.models || [] : [];
+          models.forEach((m) => {
+            const opt = document.createElement("option");
+            opt.value = m;
+            opt.textContent = translationModelLabels[m] || m;
+            translationModelSelect.appendChild(opt);
+          });
+          const want = selected != null ? selected : info.default_model;
+          if (want && models.includes(want)) translationModelSelect.value = want;
+        } catch (e) {
+          console.error("Failed to load translation models:", e);
+        }
+        updateTranslationVisibility();
       }
 
       function updateModelWarning() {
@@ -4457,6 +4501,10 @@
           llmProviderSelect.value = data.llm_provider;
           llmModelInput.value = data.llm_model;
           translationModeSelect.value = data.translation_mode;
+          await loadTranslationModels(
+            data.translation_mode,
+            data.translation_model,
+          );
           grounderSelect.value = data.grounder || "gilda";
           ragProviderSelect.value = data.rag_provider || "openai";
           populateRagModels(ragProviderSelect.value, data.rag_model);
@@ -4519,9 +4567,18 @@
         updateTranslationVisibility();
       });
 
-      translationModeSelect.addEventListener("change", () => {
-        updateSettings({ translation_mode: translationModeSelect.value });
+      translationModeSelect.addEventListener("change", async () => {
+        const mode = translationModeSelect.value;
+        await loadTranslationModels(mode);
+        updateSettings({
+          translation_mode: mode,
+          translation_model: translationModelSelect.value || null,
+        });
         updateTranslationVisibility();
+      });
+
+      translationModelSelect.addEventListener("change", () => {
+        updateSettings({ translation_model: translationModelSelect.value });
       });
 
       let loadedModel = null;
