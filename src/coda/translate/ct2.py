@@ -46,12 +46,36 @@ class CTranslate2Translator(Translator):
         "nllb-1.3b": "entai2965/nllb-200-distilled-1.3B-ctranslate2",
     }
     TARGET_LANGUAGE = "eng_Latn"
-    # Whisper-style code to the FLORES-200 code NLLB expects
+    # Whisper-style code to the FLORES-200 code NLLB expects. Where NLLB
+    # ships a specific variant of a macrolanguage the common one is used,
+    # for example Modern Standard Arabic and Simplified Chinese. Whisper
+    # languages NLLB has no equivalent for are absent and report as
+    # unsupported rather than being passed through silently.
     LANGUAGES = {
-        "en": "eng_Latn", "bn": "ben_Beng", "pt": "por_Latn",
-        "es": "spa_Latn", "fr": "fra_Latn", "ar": "arb_Arab",
-        "sw": "swh_Latn", "hi": "hin_Deva", "ur": "urd_Arab",
-        "am": "amh_Ethi",
+        "af": "afr_Latn", "am": "amh_Ethi", "ar": "arb_Arab", "as": "asm_Beng",
+        "az": "azj_Latn", "ba": "bak_Cyrl", "be": "bel_Cyrl", "bg": "bul_Cyrl",
+        "bn": "ben_Beng", "bo": "bod_Tibt", "bs": "bos_Latn", "ca": "cat_Latn",
+        "cs": "ces_Latn", "cy": "cym_Latn", "da": "dan_Latn", "de": "deu_Latn",
+        "el": "ell_Grek", "en": "eng_Latn", "es": "spa_Latn", "et": "est_Latn",
+        "eu": "eus_Latn", "fa": "pes_Arab", "fi": "fin_Latn", "fo": "fao_Latn",
+        "fr": "fra_Latn", "gl": "glg_Latn", "gu": "guj_Gujr", "ha": "hau_Latn",
+        "he": "heb_Hebr", "hi": "hin_Deva", "hr": "hrv_Latn", "ht": "hat_Latn",
+        "hu": "hun_Latn", "hy": "hye_Armn", "id": "ind_Latn", "is": "isl_Latn",
+        "it": "ita_Latn", "ja": "jpn_Jpan", "ka": "kat_Geor", "kk": "kaz_Cyrl",
+        "km": "khm_Khmr", "kn": "kan_Knda", "ko": "kor_Hang", "lb": "ltz_Latn",
+        "ln": "lin_Latn", "lo": "lao_Laoo", "lt": "lit_Latn", "lv": "lvs_Latn",
+        "mi": "mri_Latn", "mk": "mkd_Cyrl", "ml": "mal_Mlym", "mn": "khk_Cyrl",
+        "mr": "mar_Deva", "ms": "zsm_Latn", "mt": "mlt_Latn", "my": "mya_Mymr",
+        "ne": "npi_Deva", "nl": "nld_Latn", "nn": "nno_Latn", "no": "nob_Latn",
+        "oc": "oci_Latn", "pa": "pan_Guru", "pl": "pol_Latn", "pt": "por_Latn",
+        "ro": "ron_Latn", "ru": "rus_Cyrl", "sa": "san_Deva", "sd": "snd_Arab",
+        "si": "sin_Sinh", "sk": "slk_Latn", "sl": "slv_Latn", "sn": "sna_Latn",
+        "so": "som_Latn", "sq": "als_Latn", "sr": "srp_Cyrl", "su": "sun_Latn",
+        "sv": "swe_Latn", "sw": "swh_Latn", "ta": "tam_Taml", "te": "tel_Telu",
+        "tg": "tgk_Cyrl", "th": "tha_Thai", "tk": "tuk_Latn", "tl": "tgl_Latn",
+        "tr": "tur_Latn", "tt": "tat_Cyrl", "uk": "ukr_Cyrl", "ur": "urd_Arab",
+        "uz": "uzn_Latn", "vi": "vie_Latn", "yi": "ydd_Hebr", "yo": "yor_Latn",
+        "yue": "yue_Hant", "zh": "zho_Hans",
     }
 
     @classmethod
