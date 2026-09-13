@@ -993,15 +993,30 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
         last_infer = time.monotonic()
         await _start_inference(inference_session, chunk_id, timestamp, text, anns)
 
-    async def translate_pending():
-        """Translate a closed sentence and hand its text to the inference buffer."""
-        done = await _flush_sentence(inference_session, sentences)
-        if done is None:
-            return
-        chunk_id, timestamp, text, anns = done
-        buf.add(text, anns, chunk_id, timestamp)
-        if buf.ready:
-            await flush()
+    # Translation is slow enough that doing it inline would stall consumption of
+    # the transcript stream and the displayed text would fall behind the audio.
+    # Sentences are queued and translated by a worker, which keeps them ordered.
+    translations = asyncio.Queue()
+
+    def queue_pending():
+        batch = sentences.take()
+        if batch is not None:
+            translations.put_nowait(batch)
+
+    async def translation_worker():
+        while True:
+            batch = await translations.get()
+            try:
+                done = await _flush_sentence(inference_session, batch)
+                if done is not None:
+                    chunk_id, timestamp, text, anns = done
+                    buf.add(text, anns, chunk_id, timestamp)
+                    if buf.ready:
+                        await flush()
+            except Exception as e:
+                logger.error(f"Translation failed: {e}", exc_info=True)
+            finally:
+                translations.task_done()
 
     async def idle_flush():
         # Flush text held over a pause once recording resumes, and pending text
@@ -1017,6 +1032,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 await flush()
 
     timer = asyncio.create_task(idle_flush())
+    worker = asyncio.create_task(translation_worker())
     try:
         async for event in transcriber.stream(
                 audio_iter(), language=current_language, task=task):
@@ -1030,7 +1046,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                     inference_session, event, direct_translate, sentences)
                 last_chunk_at = time.monotonic()
                 if sentences.ready:
-                    await translate_pending()
+                    queue_pending()
             except Exception as e:
                 logger.error(f"Error on event {event.id}: {e}", exc_info=True)
                 continue
@@ -1043,12 +1059,14 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                     not inference_session.paused:
                 await flush()
         # Translate and infer on whatever is left when the stream ends
-        await translate_pending()
+        queue_pending()
+        await translations.join()
         await flush()
         await inference_session.wait_for_idle()
         await _ws_send_safe(websocket, {"type": "stopped"})
     finally:
         timer.cancel()
+        worker.cancel()
 
 
 async def _handle_committed(inference_session: InferenceSessionCoordinator,
