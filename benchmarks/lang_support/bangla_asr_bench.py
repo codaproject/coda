@@ -46,10 +46,9 @@ def make_whisper(repo, base_config_repo=None):
     else:
         model = AutoModelForSpeechSeq2Seq.from_pretrained(repo, dtype=torch.float32).to(dev).eval()
 
-    try:
-        forced = proc.get_decoder_prompt_ids(language="bn", task="transcribe")
-    except Exception:
-        forced = None
+    # These checkpoints ship an outdated generation config, so generate()
+    # rejects the language argument and ignores forced_decoder_ids. They are
+    # single-language fine-tunes, so decoding is left to auto-detection.
     model.generation_config.forced_decoder_ids = None
 
     def run(path):
@@ -62,9 +61,8 @@ def make_whisper(repo, base_config_repo=None):
                 continue
             feats = proc(chunk, sampling_rate=16000,
                          return_tensors="pt").input_features.to(dev).to(model.dtype)
-            kw = {"forced_decoder_ids": forced} if forced else {}
             with torch.no_grad():
-                ids = model.generate(feats, max_new_tokens=440, **kw)
+                ids = model.generate(feats, max_new_tokens=440)
             texts.append(proc.batch_decode(ids, skip_special_tokens=True)[0])
         return " ".join(texts)
     return run
@@ -130,11 +128,9 @@ def make_speechmatics(model="enhanced"):
     transcriber = SpeechmaticsTranscriber.create(model=model)
 
     def run(path):
-        audio_float = load_audio(path)  # float32 mono @ 16kHz, via ffmpeg (already resamples)
-
-        # REQUIRED: transcribe_audio expects int16 PCM, not float32 [-1,1].
-        # Casting float32 directly to int16 truncates instead of scaling
-        # (e.g. 0.5 -> 0, not ~16383)
+        audio_float = load_audio(path)
+        # transcribe_audio expects int16 PCM, casting float32 directly would
+        # truncate rather than scale
         pcm = (np.clip(audio_float, -1.0, 1.0) * 32767.0).astype(np.int16)
 
         return asyncio.run(
@@ -149,8 +145,13 @@ ENGINES = {
     "mlx-whisper-small": lambda: make_mlx("mlx-community/whisper-small-mlx"),
     "banglaspeech2text-base": lambda: make_bst("base"),
     "banglaspeech2text-large": lambda: make_bst("large"),
+    # A Hindi fine-tune, kept as a cross-script control. It recognizes Bengali
+    # speech but emits Devanagari, so nearly every word scores as a
+    # substitution. Its own config.json does not match its weights, hence the
+    # replacement config.
     "indic-whisper": lambda: make_whisper(
-        "parthiv11/indic_whisper_nodcil", base_config_repo="openai/whisper-large-v2",), # This checkpoint's own config.json doesn't match its actual weights
+        "parthiv11/indic_whisper_nodcil",
+        base_config_repo="openai/whisper-large-v2"),
     "tugstugi-regional-medium": lambda: make_whisper(
         "bengaliAI/tugstugi_bengaliai-regional-asr_whisper-medium"),
     "tugstugi-medium": lambda: make_whisper(

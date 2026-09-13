@@ -12,6 +12,35 @@ from reporting import hardware
 # Dataset tag to the module holding its normalization and ASR language code
 LANGUAGES = {"bn": "languages.bn", "pt-BR": "languages.pt_br"}
 
+# Engines backed by a rate-limited remote API reject requests intermittently.
+# Retry here rather than inside an engine so each attempt is timed separately.
+ATTEMPTS = 4
+RETRY_WAIT = 5
+
+
+def transcribe_clip(transcribe, path):
+    """Return (text, seconds) for one clip, retrying transient empty results.
+
+    An engine that fails internally returns empty text rather than raising, which
+    would otherwise score as a complete mis-transcription. Only the successful
+    attempt is timed, so a retry never inflates RTF.
+    """
+    last = None
+    for attempt in range(ATTEMPTS):
+        started = time.time()
+        try:
+            text = transcribe(str(path))
+        except Exception as exc:
+            last = exc
+        else:
+            elapsed = time.time() - started
+            if text.strip():
+                return text, elapsed
+            last = RuntimeError("empty transcript")
+        if attempt < ATTEMPTS - 1:
+            time.sleep(RETRY_WAIT * (attempt + 1))
+    raise RuntimeError(f"no transcript after {ATTEMPTS} attempts: {last}")
+
 
 def run(language, registry, engines=None, *, strip_accents=False, **options):
     """Run selected engines and write results under results/<language>."""
@@ -49,14 +78,15 @@ def run(language, registry, engines=None, *, strip_accents=False, **options):
         load_sec = round(time.time() - started, 1)
 
         clips = []
+        failed = []
         for sample in samples:
             duration = durations[sample.case_id]
             try:
-                started = time.time()
-                hypothesis = transcribe(str(sample.audio_path))
-                elapsed = time.time() - started
+                hypothesis, elapsed = transcribe_clip(
+                    transcribe, sample.audio_path)
             except Exception as exc:
-                print(f"  {sample.case_id:<14} ERROR {str(exc)[:90]}", flush=True)
+                failed.append(sample.case_id)
+                print(f"  {sample.case_id:<14} FAILED {str(exc)[:90]}", flush=True)
                 continue
             w, s, d, i, n, accuracy = wer_details(
                 sample.reference, hypothesis, normalize)
@@ -82,14 +112,15 @@ def run(language, registry, engines=None, *, strip_accents=False, **options):
         rtfs = [clip["rtf"] for clip in clips if clip["rtf"] is not None]
         mean_rtf = sum(rtfs) / len(rtfs) if rtfs else None
         tail = f"  mean_RTF={mean_rtf:.2f}" if mean_rtf else ""
+        note = f"  FAILED={len(failed)}" if failed else ""
         print(f"  MEAN WER={mean_wer:.3f}  MEAN CER={mean_cer:.3f}  "
-              f"load={load_sec}s{tail}  (n={len(clips)})", flush=True)
+              f"load={load_sec}s{tail}  (n={len(clips)}){note}", flush=True)
 
         path = output_dir / f"transcripts_{name}.json"
         path.write_text(json.dumps(
             {"engine": name, "language": language, "hardware": host,
              "compute_type": compute_type, "strip_accents": strip_accents,
-             "load_sec": load_sec, "clips": clips},
+             "load_sec": load_sec, "failed": failed, "clips": clips},
             ensure_ascii=False, indent=2) + "\n")
         print(f"  transcripts -> {path}", flush=True)
 

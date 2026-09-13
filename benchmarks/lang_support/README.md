@@ -37,7 +37,15 @@ python benchmarks/lang_support/ptbr_asr_bench.py --help
 python benchmarks/lang_support/plot_engines.py --results_dir benchmarks/lang_support/results/bn
 ```
 
-Old result files are preserved without rescoring. Some Bengali files include an
-unrelated eighth `bangla_test` sample; seven-case comparisons must exclude it.
-The exploratory `bangla_test` files and download scripts remain in
-`benchmarks/banglaspeech2text/` and are not part of these datasets.
+Results under `results/<language>/` were produced in one pass by the current
+pipeline, scoring both languages over the same seven cases. Each file records the
+host hardware, the faster-whisper compute type, and any clips that failed.
+
+Engines that reach a rate-limited API are retried, and a clip that never returns
+text is recorded under `failed` rather than scored as a complete
+mis-transcription. Only the successful attempt is timed, so a retry does not
+inflate RTF.
+
+`indic-whisper` is a Hindi fine-tune kept as a cross-script control. It
+recognizes Bengali speech but writes it in Devanagari, so its word error rate
+exceeds 1.0 by design and should not be read as a broken engine.
