@@ -16,7 +16,6 @@ from gilda import Annotation
 
 from coda.config import settings
 from coda.inference.agent import InferenceAgent
-from coda.inference.champs_finetuned.engine import MedGemmaModel
 from coda.inference.champs_finetuned.prompt import MenuPrompt, build_menu_prompt
 from coda.resources import get_resource_path
 
@@ -41,9 +40,10 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         menu: dict[str, str],
         adapter_path: str,
         *,
-        model: Optional[MedGemmaModel] = None,
+        model=None,
         top_k: int = 3,
         batch_size: int = 8,
+        llm_semaphore: asyncio.Semaphore | None = None,
     ):
         super().__init__()
         self.menu = menu
@@ -52,9 +52,12 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         self.top_k = top_k
         self.batch_size = batch_size
         self._model = model
+        # Serialize access to the single shared model across sessions
+        self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
 
-    def ensure_model(self) -> MedGemmaModel:
+    def ensure_model(self):
         if self._model is None:
+            from coda.inference.champs_finetuned.engine import MedGemmaModel
             logger.info("Loading MedGemma model with adapter %s", self.adapter_path)
             self._model = MedGemmaModel(adapter_path=self.adapter_path)
             logger.info("MedGemma model loaded")
@@ -72,6 +75,16 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
             prompt.messages, candidates, batch_size=self.batch_size
         )
 
+    def create_session_agent(self) -> "ChampsFinetunedInferenceAgent":
+        return ChampsFinetunedInferenceAgent(
+            menu=self.menu,
+            adapter_path=self.adapter_path,
+            model=self._model,
+            top_k=self.top_k,
+            batch_size=self.batch_size,
+            llm_semaphore=self.llm_semaphore,
+        )
+
     async def infer(self, chunk_id: str, text: str,
                     annotations: List[Annotation]) -> dict:
         narrative = self.all_text.strip()
@@ -79,7 +92,8 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
             return {"causes": {}, "reasoning": "No narrative text yet."}
 
         try:
-            scores = await asyncio.to_thread(self.score_menu, narrative)
+            async with self.llm_semaphore:
+                scores = await asyncio.to_thread(self.score_menu, narrative)
         except Exception:
             logger.exception("MedGemma inference failed for chunk %s", chunk_id)
             return {"causes": {}, "reasoning": "MedGemma inference raised an exception."}
@@ -121,6 +135,8 @@ def create_champs_finetuned_agent(
     menu_resource = menu_resource or (cfg and cfg.menu) or "icd_all_labels.json"
     top_k = int((cfg and cfg.get("top_k")) or 3)
     batch_size = int((cfg and cfg.get("batch_size")) or 8)
+    max_concurrency = int(settings.inference.get("max_concurrency", 1) or 1)
+    kwargs.setdefault("llm_semaphore", asyncio.Semaphore(max_concurrency))
 
     return ChampsFinetunedInferenceAgent(
         menu=load_menu(menu_resource),

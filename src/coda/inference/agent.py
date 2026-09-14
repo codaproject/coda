@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import time
+from dataclasses import dataclass
 from typing import List, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -8,6 +10,12 @@ from coda.config import settings
 from coda.metadata import Metadata
 
 logger = logging.getLogger('coda.inference')
+
+
+@dataclass
+class SessionRuntime:
+    agent: "InferenceAgent"
+    lock: asyncio.Lock
 
 
 class InferenceAgent:
@@ -25,6 +33,10 @@ class InferenceAgent:
         self.all_text = ""
         self.metadata = Metadata()
         logger.info("Agent state reset for new interview")
+
+    def create_session_agent(self) -> "InferenceAgent":
+        """Create a fresh agent instance for one session/generation."""
+        return self.__class__()
 
     async def process_chunk(self, chunk_id: str, text: str,
                            annotations: List[Annotation], timestamp: float = None,
@@ -56,7 +68,6 @@ class InferenceAgent:
         """
         # Use current time if no timestamp provided
         if timestamp is None:
-            import time
             timestamp = time.time()
 
         # Carry per-interview metadata forward if provided
@@ -67,13 +78,16 @@ class InferenceAgent:
         self.dialogue_history.append((chunk_id, timestamp, text, annotations))
         self.all_text += " " + text
 
+        infer_start = time.perf_counter()
         # Call subclass inference implementation
         result = await self.infer(chunk_id, text, annotations)
+        infer_s = time.perf_counter() - infer_start
 
         # Ensure required fields and add metadata
         result["chunk_id"] = chunk_id
         result["timestamp"] = timestamp
         result["chunks_processed"] = len(self.dialogue_history)
+        result["timings"] = {"inference_s": round(infer_s, 3)}
 
         # Log top cause for monitoring
         causes = result.get('causes', {})
@@ -81,14 +95,21 @@ class InferenceAgent:
             top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
             top_cause_name = causes[top_curie]['name']
             top_score = causes[top_curie]['score']
-            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, top cause={top_cause_name} ({top_curie}, score={top_score:.2f})")
+            logger.info(
+                "Chunk %s: %d chunks processed in %.2fs, top cause=%s (%s, score=%.2f)",
+                chunk_id, len(self.dialogue_history), infer_s,
+                top_cause_name, top_curie, top_score
+            )
         else:
-            logger.info(f"Chunk {chunk_id}: {len(self.dialogue_history)} chunks processed, no causes")
+            logger.info(
+                "Chunk %s: %d chunks processed in %.2fs, no causes",
+                chunk_id, len(self.dialogue_history), infer_s
+            )
 
         return result
 
     async def infer(self, chunk_id: str, text: str,
-                   annotations: List[Annotation]) -> dict:
+                    annotations: List[Annotation]) -> dict:
         """Perform COD inference based on current chunk and accumulated history.
 
         Subclasses must implement this method. The dialogue history is available
@@ -120,7 +141,7 @@ class CodaToyInferenceAgent(InferenceAgent):
     """Simple rule-based inference agent using accumulated dialogue history."""
 
     async def infer(self, chunk_id: str, text: str,
-                   annotations: List[Annotation]) -> dict:
+                    annotations: List[Annotation]) -> dict:
         """Perform COD inference based on accumulated dialogue history."""
         # Analyze accumulated evidence from all chunks
         all_text_lower = self.all_text.lower()
@@ -128,8 +149,8 @@ class CodaToyInferenceAgent(InferenceAgent):
         # Count symptom mentions across entire dialogue
         fever_mentions = all_text_lower.count("fever") + all_text_lower.count("temperature")
         cardiac_mentions = (all_text_lower.count("chest pain") +
-                          all_text_lower.count("heart") +
-                          all_text_lower.count("cardiac"))
+                            all_text_lower.count("heart") +
+                            all_text_lower.count("cardiac"))
         total_mentions = fever_mentions + cardiac_mentions
 
         # Calculate three probabilities normalized to sum to 1
@@ -162,9 +183,9 @@ class CodaToyInferenceAgent(InferenceAgent):
         }
 
         reasoning = (f"Based on accumulated dialogue, "
-                        f"infectious-related mentions: {fever_mentions}, "
-                        f"cardiac-related mentions: {cardiac_mentions}, "
-                        f"total mentions: {total_mentions}.")
+                     f"infectious-related mentions: {fever_mentions}, "
+                     f"cardiac-related mentions: {cardiac_mentions}, "
+                     f"total mentions: {total_mentions}.")
 
         return {
             "causes": causes,
@@ -180,43 +201,82 @@ class InferenceRequest(BaseModel):
     timestamp: float = None  # Optional timestamp
     # Structured per-interview metadata
     metadata: dict = None
+    session_id: str = "default"
+    session_generation: int = 0
+
+
+class ResetRequest(BaseModel):
+    session_id: Optional[str] = None
+    session_generation: Optional[int] = None
 
 
 class InferenceServer:
     """FastAPI server for inference agent."""
 
     def __init__(
-        self,
-        agent: InferenceAgent,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
+            self,
+            agent: InferenceAgent,
+            host: Optional[str] = None,
+            port: Optional[int] = None,
     ):
         self.agent = agent
         self.host = host or settings.inference.host
         self.port = port if port is not None else settings.inference.port
         self.app = FastAPI(title="CODA Inference Agent")
+        self._session_runtimes: dict[tuple[str, int], SessionRuntime] = {}
+        self._session_runtimes_lock = asyncio.Lock()
+
+        async def get_session_runtime(session_id: str,
+                                      session_generation: int) -> SessionRuntime:
+            key = (session_id, session_generation)
+            async with self._session_runtimes_lock:
+                runtime = self._session_runtimes.get(key)
+                if runtime is None:
+                    runtime = SessionRuntime(
+                        agent=self.agent.create_session_agent(),
+                        lock=asyncio.Lock(),
+                    )
+                    self._session_runtimes[key] = runtime
+                return runtime
 
         @self.app.post("/infer")
         async def infer(request: InferenceRequest):
             """Process dialogue chunk and return inference results."""
+            started = time.perf_counter()
+            runtime = await get_session_runtime(
+                request.session_id,
+                request.session_generation,
+            )
             try:
-                result = await self.agent.process_chunk(
-                    request.chunk_id,
-                    request.text,
-                    request.annotations,
-                    request.timestamp,
-                    request.metadata
-                )
+                async with runtime.lock:
+                    result = await runtime.agent.process_chunk(
+                        request.chunk_id,
+                        request.text,
+                        request.annotations,
+                        request.timestamp,
+                        request.metadata
+                    )
                 causes = result.get('causes', {})
                 if causes:
                     top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
                     top_cause_name = causes[top_curie]['name']
-                    logger.info(f"Processed chunk {request.chunk_id}: top cause={top_cause_name} ({top_curie})")
+                    logger.info(
+                        "Processed chunk %s in %.2fs: top cause=%s (%s)",
+                        request.chunk_id, time.perf_counter() - started,
+                        top_cause_name, top_curie
+                    )
                 else:
-                    logger.info(f"Processed chunk {request.chunk_id}: no causes")
+                    logger.info(
+                        "Processed chunk %s in %.2fs: no causes",
+                        request.chunk_id, time.perf_counter() - started
+                    )
                 return result
             except Exception as e:
-                logger.error(f"Error processing chunk {request.chunk_id}: {e}", exc_info=True)
+                logger.error(
+                    "Error processing chunk %s after %.2fs: %s",
+                    request.chunk_id, time.perf_counter() - started, e,
+                    exc_info=True
+                )
                 raise
 
         @self.app.get("/health")
@@ -225,14 +285,33 @@ class InferenceServer:
             return {"status": "healthy"}
 
         @self.app.post("/reset")
-        async def reset():
-            """Reset agent state for new interview."""
+        async def reset(request: Optional[ResetRequest] = None):
+            """Reset agent state for one session or all sessions."""
+            async with self._session_runtimes_lock:
+                if request and request.session_id is not None:
+                    if request.session_generation is None:
+                        keys = [
+                            key for key in self._session_runtimes
+                            if key[0] == request.session_id
+                        ]
+                    else:
+                        keys = [(request.session_id, request.session_generation)]
+                else:
+                    keys = list(self._session_runtimes.keys())
+                for key in keys:
+                    self._session_runtimes.pop(key, None)
+
+            if request and request.session_id is not None:
+                logger.info(
+                    "Agent session reset via API for session=%s generation=%s",
+                    request.session_id, request.session_generation
+                )
+                return {"status": "reset", "message": "Agent session cleared"}
+
             if hasattr(self.agent, 'reset'):
                 self.agent.reset()
-                logger.info("Agent state reset via API")
-                return {"status": "reset", "message": "Agent state cleared"}
-            else:
-                return {"status": "not_supported", "message": "Agent does not support state reset"}
+            logger.info("Agent state reset via API")
+            return {"status": "reset", "message": "Agent state cleared"}
 
     def run(self):
         """Start the inference server."""
