@@ -43,6 +43,8 @@ inference:
   # Max concurrent in-flight inference calls across all sessions. Keep at 1 for
   # a serial backend like Ollama; raise for a batching server like vLLM.
   max_concurrency: 1
+  # Number of follow-up questions the agent proposes on each inference.
+  num_questions: 3
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
