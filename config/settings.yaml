@@ -111,6 +111,15 @@ grounder:
       # Prompt key into config/prompts/. alternatives: reranker_default
       prompt: reranker_default
 
+translate:
+  # How non-English transcripts reach English:
+  #   whisper_translate = Whisper transcribes straight to English (whisper backend only)
+  #   llm               = translate the transcript with the configured LLM
+  #   ctranslate2       = translate locally with NLLB, no network needed
+  backend: llm
+  # Model for backends that offer a choice; empty uses the backend's default.
+  model: ""
+
 dialogue:
   # App/server speech-to-text backend.
   # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics |
@@ -122,10 +131,6 @@ dialogue:
   transcriber_model: ""
   # Spoken language of the interview.
   language: en
-  # How non-English speech reaches the inference agent in English.
-  # alternatives: llm (transcribe, then translate) | whisper_translate (direct
-  # speech-to-English, supported by the whisper backend only)
-  translation_mode: llm
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:

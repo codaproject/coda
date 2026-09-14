@@ -81,7 +81,7 @@ def test_defaults():
     assert settings.dialogue.transcriber_backend == "whisper-livekit"
     assert settings.dialogue.transcriber_model == ""
     assert settings.dialogue.language == "en"
-    assert settings.dialogue.translation_mode == "llm"
+    assert settings.translate.backend == "llm"
     assert settings.dialogue.speechmatics.url == "wss://us.rt.speechmatics.com/v2/"
     assert settings.dialogue.speechmatics.model == "enhanced"
     assert settings.storage.enabled is False

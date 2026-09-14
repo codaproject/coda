@@ -92,9 +92,9 @@ rag_config = {
     "use_reranker": settings.grounder.rag.reranker.enabled,
     "extractor_type": settings.grounder.rag.extractor.type,
 }
-# "whisper_translate" = use whisper task="translate" (direct speech-to-English)
-# "llm" = transcribe in original language, then translate via LLM
-translation_mode = settings.dialogue.translation_mode
+# How non-English transcripts reach English, see coda.translate for the
+# available backends.
+translation_mode = settings.translate.backend
 # Backend used when the transcriber did not already translate at the source,
 # which also covers whisper_translate paired with a non-whisper transcriber.
 FALLBACK_TEXT_TRANSLATOR = "llm"
@@ -116,8 +116,8 @@ def _default_translation_model_for(backend: str):
         return None
 
 
-current_translation_model = _default_translation_model_for(
-    text_translator_backend())
+current_translation_model = settings.translate.model or \
+    _default_translation_model_for(text_translator_backend())
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
