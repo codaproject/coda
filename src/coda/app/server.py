@@ -1083,7 +1083,6 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     original_transcript = None
     english_text = event.text
     total_start = time.perf_counter()
-    translation_s = 0.0
     grounding_s = 0.0
     save_s = 0.0
     emit_s = 0.0
@@ -1121,8 +1120,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         save_start = time.perf_counter()
         recorder.write_chunk(
             chunk_id, timestamp, english_text, annotations,
-            timings={"translate_s": round(translation_s, 3),
-                     "ground_s": round(grounding_s, 3)},
+            timings={"ground_s": round(grounding_s, 3)},
             original_text=original_transcript,
             original_language=(current_language
                                if original_transcript else None),
@@ -1145,8 +1143,9 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     emit_s = time.perf_counter() - emit_start
     total_s = time.perf_counter() - total_start
     logger.info(
-        "Chunk %s processed in %.2fs (translate=%.2fs ground=%.2fs save=%.2fs emit=%.2fs text_chars=%d annotations=%d)",
-        chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
+        "Chunk %s processed in %.2fs (ground=%.2fs save=%.2fs emit=%.2fs "
+        "text_chars=%d annotations=%d)",
+        chunk_id, total_s, grounding_s, save_s, emit_s,
         len(english_text), len(annotations)
     )
     logger.debug(f"Chunk {chunk_id}: {english_text}")
