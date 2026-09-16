@@ -56,46 +56,51 @@ SYSTEM_PROMPT = read_champs_resource("system_prompt.txt")
 SCHEMA_GUIDANCE = read_champs_resource("schema_guidance.txt")
 DIAGNOSIS_STANDARD = read_champs_resource("diagnosis_standard.txt")
 
-# JSON schema for structured output
-COD_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "reasoning": {
-            "type": "string",
-            "description": "1-2 sentence summary of the key evidence for the top cause.",
-        },
-        "top_causes": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "cause_name": {"type": "string"},
-                    "probability": {
-                        "type": "number", "minimum": 0, "maximum": 1,
-                        "description": "Calibrated probability in [0,1]; the "
-                                       "top_causes probabilities should sum to ~1.",
-                    },
-                },
-                "required": ["cause_name", "probability"],
-                "additionalProperties": False,
+DEFAULT_NUM_QUESTIONS = 3
+
+
+def build_cod_output_schema(num_questions=DEFAULT_NUM_QUESTIONS):
+    """Build the JSON schema for structured output."""
+    return {
+        "type": "object",
+        "properties": {
+            "reasoning": {
+                "type": "string",
+                "description": "1-2 sentence summary of the key evidence for the top cause.",
             },
-            "minItems": 1,
-            "maxItems": 3,
+            "top_causes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "cause_name": {"type": "string"},
+                        "probability": {
+                            "type": "number", "minimum": 0, "maximum": 1,
+                            "description": "Calibrated probability in [0,1]; the "
+                                           "top_causes probabilities should sum to ~1.",
+                        },
+                    },
+                    "required": ["cause_name", "probability"],
+                    "additionalProperties": False,
+                },
+                "minItems": 1,
+                "maxItems": 3,
+            },
+            "questions": {
+                "type": "array",
+                "description": (
+                    f"Exactly {num_questions} follow-up questions that would "
+                    "best differentiate the top causes and increase confidence "
+                    "in the underlying cause."
+                ),
+                "items": {"type": "string"},
+                "minItems": num_questions,
+                "maxItems": num_questions,
+            },
         },
-        "questions": {
-            "type": "array",
-            "description": (
-                "Exactly 3 follow-up questions that would best differentiate "
-                "the top causes and increase confidence in the underlying cause."
-            ),
-            "items": {"type": "string"},
-            "minItems": 3,
-            "maxItems": 3,
-        },
-    },
-    "required": ["reasoning", "top_causes", "questions"],
-    "additionalProperties": False,
-}
+        "required": ["reasoning", "top_causes", "questions"],
+        "additionalProperties": False,
+    }
 
 
 class ChampsPromptedInferenceAgent(InferenceAgent):
@@ -108,7 +113,8 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
 
     def __init__(self, llm_client: LLMClient,
                  use_diagnosis_standard: bool = False,
-                 llm_semaphore: asyncio.Semaphore | None = None):
+                 llm_semaphore: asyncio.Semaphore | None = None,
+                 num_questions=DEFAULT_NUM_QUESTIONS):
         super().__init__()
         self.llm_client = llm_client
         self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
@@ -117,13 +123,16 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
         self.cause_to_icd10 = CHAMPS_GROUP_TO_ICD10
         self.schema_guidance = SCHEMA_GUIDANCE
         self.use_diagnosis_standard = use_diagnosis_standard
+        self.num_questions = num_questions
+        self.output_schema = build_cod_output_schema(num_questions)
 
         # Case-insensitive lookup for recovering labels that differ only in case.
         self._causes_by_lower = {c.lower(): c for c in self.allowed_causes}
 
         allowed_str = ", ".join(self.allowed_causes)
         self.rendered_system_prompt = \
-            SYSTEM_PROMPT.format(allowed_causes=allowed_str) + "\n\n" \
+            SYSTEM_PROMPT.format(allowed_causes=allowed_str,
+                                 num_questions=num_questions) + "\n\n" \
             + self.schema_guidance
 
     async def infer(self, chunk_id: str, text: str,
@@ -147,7 +156,7 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
                     self.llm_client.call_with_schema,
                     system_prompt=self.rendered_system_prompt,
                     user_prompt=user_prompt,
-                    schema=COD_OUTPUT_SCHEMA,
+                    schema=self.output_schema,
                     schema_name="champs_cod_classification",
                     temperature=0,
                 )
@@ -201,6 +210,7 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
             llm_client=self.llm_client,
             use_diagnosis_standard=self.use_diagnosis_standard,
             llm_semaphore=self.llm_semaphore,
+            num_questions=self.num_questions,
         )
 
     def _parse_response(self, response: Dict[str, Any]) -> dict:
@@ -256,9 +266,12 @@ def create_champs_prompted_agent(
     model = model or settings.inference.llm.model
     client = create_llm_client(provider=provider, model=model, **kwargs)
     max_concurrency = int(settings.inference.get("max_concurrency", 1) or 1)
+    num_questions = int(settings.inference.get("num_questions",
+                                               DEFAULT_NUM_QUESTIONS))
     return ChampsPromptedInferenceAgent(
         llm_client=client,
         llm_semaphore=asyncio.Semaphore(max_concurrency),
+        num_questions=num_questions,
     )
 
 

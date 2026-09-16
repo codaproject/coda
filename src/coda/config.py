@@ -56,6 +56,7 @@ settings = Dynaconf(
     validators=[
         # Coerce env-var strings (which always arrive as text) to the right type.
         Validator("app.port", "inference.port", cast=int),
+        Validator("inference.num_questions", cast=int),
         Validator("grounder.rag.retriever.top_k", cast=int),
         Validator("grounder.rag.retriever.min_similarity", cast=float),
         Validator("grounder.rag.reranker.enabled", cast=bool),
