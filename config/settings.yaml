@@ -48,6 +48,10 @@ inference:
   max_concurrency: 1
   # Number of follow-up questions the agent proposes on each inference.
   num_questions: 3
+  # Wording style for those questions: default | simplified. `default` asks for
+  # clinically phrased questions, `simplified` for short, plain-language ones
+  # aimed at a family member with no medical training.
+  question_style: simplified
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
