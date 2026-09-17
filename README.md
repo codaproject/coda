@@ -158,12 +158,23 @@ The Compose path is env-driven. The main runtime variables are:
   `CODA_GROUNDER__RAG__RERANKER__ENABLED`
 - `CODA_DIALOGUE__TRANSCRIBER_BACKEND` selects the **app/server** speech-to-text
   backend (default `whisper-livekit`, a low-latency in-process streaming
-  backend; alternatives `faster-whisper`, `whisper`, `speechmatics`).
-  Transcription uses the `small` model by default, and the app image
-  pre-downloads the faster-whisper `small` model, which `whisper-livekit`
-  reuses. The `coda` CLI is batch-oriented and defaults to `faster-whisper`
-  instead (faster and more accurate for whole files); override with
-  `--transcriber`.
+  backend; alternatives `faster-whisper`, `whisper`, `speechmatics`,
+  `indic-conformer`). Transcription uses the `small` model by default, and the
+  app image pre-downloads the faster-whisper `small` model, which
+  `whisper-livekit` reuses. The `coda` CLI is batch-oriented and defaults to
+  `faster-whisper` instead (faster and more accurate for whole files); override
+  with `--transcriber`.
+- `CODA_DIALOGUE__TRANSCRIBER_MODEL` picks the model the backend loads, unset
+  means the backend's own default. Its meaning is backend-specific: a Whisper
+  size, a Speechmatics operating point, or an IndicConformer decoding strategy
+  (`ctc` or `rnnt`)
+- `CODA_DIALOGUE__LANGUAGE` is the spoken language of the interview and
+  `CODA_APP__UI_LANGUAGE` is the language the interface starts in (a browser
+  that has already chosen one in Settings keeps its own choice)
+- `CODA_DIALOGUE__TRANSLATION_MODE` is how non-English speech reaches the
+  inference agent in English: `llm` transcribes and then translates, while
+  `whisper_translate` uses Whisper's direct speech-to-English task and is
+  available on the `whisper` backend only
 - `CODA_KG__URL` when Neo4j is outside the standard deployment topology
 - `CODA_APP__ONBOARDING_NOTICE__FILE` points at a deployment-specific HTML
   fragment shown on the onboarding page before the consent checkbox (unset
@@ -228,6 +239,19 @@ CODA_INFERENCE__LLM__PROVIDER=openai
 CODA_INFERENCE__LLM__MODEL=mlx-community/Qwen2.5-7B-Instruct-4bit
 OPENAI_BASE_URL=http://localhost:8080/v1
 ```
+
+Bangla with AI4Bharat's IndicConformer, whose dependencies are an extra
+(`pip install "coda[indic-conformer]"`):
+
+```bash
+CODA_DIALOGUE__TRANSCRIBER_BACKEND=indic-conformer
+CODA_DIALOGUE__TRANSCRIBER_MODEL=ctc
+CODA_DIALOGUE__LANGUAGE=bn
+CODA_APP__UI_LANGUAGE=bn
+```
+
+Transcripts stay in the spoken language and are translated to English before
+inference.
 
 The RAG grounder has its own provider and model settings. They default to
 OpenAI with `gpt-4o-mini` and are used only when RAG is selected in the app:

@@ -67,9 +67,12 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         from whisperlivekit import TranscriptionEngine
         from coda.config import settings
         wlk = settings.dialogue.whisper_livekit
+        # The language is fixed when the engine is built, so this backend
+        # transcribes whatever dialogue.language was set to at startup and
+        # ignores the per-stream language argument.
         self._engine = TranscriptionEngine(
             model_size=model_size,
-            lan=wlk.language,
+            lan=settings.dialogue.language,
             backend=wlk.backend,
             backend_policy=wlk.policy,
             pcm_input=True,

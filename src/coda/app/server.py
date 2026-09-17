@@ -58,7 +58,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
 
 # Server-level settings
-current_language = "en"
+current_language = settings.dialogue.language
 save_enabled = False
 save_files: Dict[str, object] = {}  # open file handles keyed by language code
 transcripts_dir = CODA_BASE.join(name="transcripts")
@@ -74,7 +74,8 @@ def _default_model_for(backend: str):
         return None
 
 
-current_transcriber_model = _default_model_for(current_transcriber_backend)
+current_transcriber_model = settings.dialogue.transcriber_model \
+    or _default_model_for(current_transcriber_backend)
 current_llm_provider = settings.inference.llm.provider
 current_llm_model = settings.inference.llm.model
 current_grounder = settings.grounder.type
@@ -88,7 +89,7 @@ rag_config = {
 }
 # "whisper_translate" = use whisper task="translate" (direct speech-to-English)
 # "llm" = transcribe in original language, then translate via LLM
-translation_mode = "llm"
+translation_mode = settings.dialogue.translation_mode
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
@@ -242,6 +243,13 @@ grounder = create_grounder(current_grounder)
 transcriber = create_transcriber(
     current_transcriber_backend, model=current_transcriber_model
 )
+if transcriber.normalize_language(current_language) is None:
+    # A backend that can't do the configured language returns empty text for
+    # every chunk.
+    logger.warning(
+        "Transcriber backend %r does not support language %r",
+        current_transcriber_backend, current_language,
+    )
 
 
 def open_save_files(language: str):
@@ -893,6 +901,9 @@ async def get_index():
         html_content,
         notice_html=notice_html,
         notice_version=settings.app.onboarding_notice.version,
+    )
+    html_content = html_content.replace(
+        "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
     )
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(
