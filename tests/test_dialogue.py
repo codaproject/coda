@@ -15,6 +15,7 @@ from coda.dialogue import (
     TranscriptEvent,
 )
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
+from coda.dialogue.whisper import WhisperTranscriber
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue.whisper_livekit import (
     WhisperLiveKitTranscriber,
@@ -166,6 +167,12 @@ def test_whisper_livekit_runtimes():
     assert "mlx-whisper" in WhisperLiveKitTranscriber.RUNTIMES
     assert WhisperLiveKitTranscriber.default_runtime() == \
         settings.dialogue.whisper_livekit.backend
+
+
+def test_turbo_offered_by_every_whisper_backend():
+    assert "large-v3-turbo" in WhisperTranscriber.MODELS
+    assert "large-v3-turbo" in FasterWhisperTranscriber.MODELS
+    assert "large-v3-turbo" in WhisperLiveKitTranscriber.MODELS
 
 
 def test_backends_without_a_runtime_choice():

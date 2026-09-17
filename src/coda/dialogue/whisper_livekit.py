@@ -55,7 +55,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     `faster-whisper` backend. One engine serves every connection.
     """
     MODELS = ("tiny", "base", "small", "medium",
-              "large", "large-v2", "large-v3")
+              "large", "large-v2", "large-v3", "large-v3-turbo")
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
     # Engines WhisperLiveKit can decode on. A model name is a size, which each
     # engine resolves to its own weights (CTranslate2, MLX, or PyTorch). "auto"

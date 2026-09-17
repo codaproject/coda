@@ -31,8 +31,9 @@ dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "websockets>=12.0",
-    "openai-whisper>=20231117",
-    "faster-whisper>=1.0.0",
+    # Minimums are the first releases that know the large-v3-turbo weights.
+    "openai-whisper>=20240930",
+    "faster-whisper>=1.1.0",
     "whisperlivekit>=0.2,<0.3",
     # <2.5 so a modern numba (transitive dep of openai-whisper/librosa) can be
     # selected; numba caps numpy<2.5, and older numba pins llvmlite 0.36 which

@@ -4285,7 +4285,9 @@
 
       function updateModelWarning() {
         const val = transcriberModelSelect.value || "";
-        modelWarning.style.display = val.startsWith("large") ? "flex" : "none";
+        // Turbo is a distilled decoder, so it escapes the large-model warning.
+        const heavy = val.startsWith("large") && val !== "large-v3-turbo";
+        modelWarning.style.display = heavy ? "flex" : "none";
       }
 
       // Labels for known transcription models; unknown ids show their raw value.
@@ -4297,6 +4299,7 @@
         large: "Whisper large (1.5G)",
         "large-v2": "Whisper large-v2 (1.5G)",
         "large-v3": "Whisper large-v3 (1.5G)",
+        "large-v3-turbo": "Whisper large-v3-turbo (809M)",
       };
 
       function populateModelOptions(models, selected) {
