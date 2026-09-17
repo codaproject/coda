@@ -2862,6 +2862,15 @@
         </div>
       </div>
 
+      <div class="settings-row" id="transcriberRuntimeRow" style="display: none">
+        <label
+          for="transcriberRuntimeSelect"
+          data-i18n="settings.transcriptionRuntime"
+          >Transcription runtime</label
+        >
+        <select id="transcriberRuntimeSelect"></select>
+      </div>
+
       <div class="settings-row" id="transcriberModelRow">
         <label for="transcriberModelSelect" data-i18n="settings.transcriptionModel"
           >Transcription model</label
@@ -3089,6 +3098,7 @@
           "settings.transcriptionModel": "Transcription model",
           "settings.microphone": "Microphone",
           "settings.transcriptionBackend": "Transcription backend",
+          "settings.transcriptionRuntime": "Transcription runtime",
           "settings.grounder": "Grounder",
           "settings.appearance": "Appearance",
           "settings.localStorage": "Local storage",
@@ -3160,6 +3170,7 @@
           "settings.transcriptionModel": "Muundo wa unakili",
           "settings.microphone": "Kipaza sauti",
           "settings.transcriptionBackend": "Injini ya unakili",
+          "settings.transcriptionRuntime": "Mfumo wa utendaji",
           "settings.grounder": "Injini ya ufungamanishaji",
           "settings.appearance": "Mwonekano",
           "settings.localStorage": "Uhifadhi wa ndani",
@@ -3234,6 +3245,7 @@
           "settings.transcriptionModel": "Modèle de transcription",
           "settings.microphone": "Microphone",
           "settings.transcriptionBackend": "Moteur de transcription",
+          "settings.transcriptionRuntime": "Moteur d'exécution",
           "settings.grounder": "Moteur d'ancrage",
           "settings.appearance": "Apparence",
           "settings.localStorage": "Stockage local",
@@ -3305,6 +3317,7 @@
           "settings.transcriptionModel": "نموذج النسخ",
           "settings.microphone": "الميكروفون",
           "settings.transcriptionBackend": "محرك النسخ",
+          "settings.transcriptionRuntime": "محرك التشغيل",
           "settings.grounder": "محرك الربط",
           "settings.appearance": "المظهر",
           "settings.localStorage": "التخزين المحلي",
@@ -3377,6 +3390,7 @@
           "settings.transcriptionModel": "প্রতিলিপি মডেল",
           "settings.microphone": "মাইক্রোফোন",
           "settings.transcriptionBackend": "প্রতিলিপি ইঞ্জিন",
+          "settings.transcriptionRuntime": "রানটাইম ইঞ্জিন",
           "settings.grounder": "গ্রাউন্ডিং ইঞ্জিন",
           "settings.appearance": "চেহারা",
           "settings.localStorage": "স্থানীয় সংরক্ষণ",
@@ -3450,6 +3464,7 @@
           "settings.transcriptionModel": "Modelo de transcripción",
           "settings.microphone": "Micrófono",
           "settings.transcriptionBackend": "Motor de transcripción",
+          "settings.transcriptionRuntime": "Motor de ejecución",
           "settings.grounder": "Motor de anclaje",
           "settings.appearance": "Apariencia",
           "settings.localStorage": "Almacenamiento local",
@@ -4201,6 +4216,12 @@
       );
       const backendWarning = document.getElementById("backendWarning");
       const backendWarningText = document.getElementById("backendWarningText");
+      const transcriberRuntimeRow = document.getElementById(
+        "transcriberRuntimeRow",
+      );
+      const transcriberRuntimeSelect = document.getElementById(
+        "transcriberRuntimeSelect",
+      );
       const transcriberModelRow =
         document.getElementById("transcriberModelRow");
       const transcriberModelSelect = document.getElementById(
@@ -4301,9 +4322,24 @@
         updateModelWarning();
       }
 
-      // Load a backend's model list on demand. Returns false, and shows a
-      // warning, if the backend can't be loaded (e.g. deps not installed).
-      async function loadBackendModels(backend, selected) {
+      function populateRuntimeOptions(runtimes, selected) {
+        transcriberRuntimeSelect.innerHTML = "";
+        runtimes.forEach((r) => {
+          const opt = document.createElement("option");
+          opt.value = r;
+          opt.textContent = r;
+          transcriberRuntimeSelect.appendChild(opt);
+        });
+        if (selected && runtimes.includes(selected)) {
+          transcriberRuntimeSelect.value = selected;
+        }
+        // Only backends that can decode on more than one engine show the row.
+        transcriberRuntimeRow.style.display = runtimes.length ? "flex" : "none";
+      }
+
+      // Load a backend's model and runtime lists on demand. Returns false, and
+      // shows a warning, if the backend can't be loaded (e.g. deps missing).
+      async function loadBackendModels(backend, selected, selectedRuntime) {
         backendWarning.style.display = "none";
         try {
           const resp = await fetch(
@@ -4316,11 +4352,16 @@
             }`;
             backendWarning.style.display = "flex";
             populateModelOptions([], null);
+            populateRuntimeOptions([], null);
             return false;
           }
           populateModelOptions(
             info.models,
             selected != null ? selected : info.default_model,
+          );
+          populateRuntimeOptions(
+            info.runtimes || [],
+            selectedRuntime != null ? selectedRuntime : info.default_runtime,
           );
           return true;
         } catch (e) {
@@ -4328,6 +4369,7 @@
           backendWarningText.textContent = `Could not query backend "${backend}"`;
           backendWarning.style.display = "flex";
           populateModelOptions([], null);
+          populateRuntimeOptions([], null);
           return false;
         }
       }
@@ -4428,6 +4470,7 @@
           await loadBackendModels(
             data.transcriber_backend,
             data.transcriber_model,
+            data.transcriber_runtime,
           );
           llmProviderSelect.value = data.llm_provider;
           llmModelInput.value = data.llm_model;
@@ -4453,7 +4496,8 @@
         serverSettingsLocked = locked;
         const controls = [
           languageSelect, saveToggle, transcriberBackendSelect,
-          transcriberModelSelect, modelApplyBtn, grounderSelect,
+          transcriberRuntimeSelect, transcriberModelSelect,
+          modelApplyBtn, grounderSelect,
           translationModeSelect, llmProviderSelect, llmModelInput,
           ragProviderSelect, ragModelSelect, ragOntologySelect,
           ragRerankerToggle,
@@ -4524,6 +4568,7 @@
         const applied = await updateSettings({
           transcriber_backend: backend,
           transcriber_model: transcriberModelSelect.value || null,
+          transcriber_runtime: transcriberRuntimeSelect.value || null,
         });
         if (!applied) {
           await loadSettings();
@@ -4542,6 +4587,19 @@
         await updateSettings({ language: languageSelect.value });
         updateTranslationVisibility();
         updateLangChip();
+      });
+
+      transcriberRuntimeSelect.addEventListener("change", async () => {
+        const runtime = transcriberRuntimeSelect.value;
+        transcriberRuntimeSelect.disabled = true;
+        showStatus(`Loading runtime "${runtime}"…`, "info");
+        const ok = await updateSettings({ transcriber_runtime: runtime });
+        transcriberRuntimeSelect.disabled = serverSettingsLocked;
+        if (ok) {
+          showStatus(`Runtime "${runtime}" loaded`, "success");
+        } else {
+          await loadSettings();
+        }
       });
 
       transcriberModelSelect.addEventListener("change", () => {
@@ -4708,6 +4766,7 @@
           micSelect.disabled = true;
           languageSelect.disabled = true;
           transcriberBackendSelect.disabled = true;
+          transcriberRuntimeSelect.disabled = true;
           transcriberModelSelect.disabled = true;
           grounderSelect.disabled = true;
           ragProviderSelect.disabled = true;
@@ -4982,6 +5041,7 @@
         micSelect.disabled = false;
         languageSelect.disabled = serverSettingsLocked;
         transcriberBackendSelect.disabled = serverSettingsLocked;
+        transcriberRuntimeSelect.disabled = serverSettingsLocked;
         transcriberModelSelect.disabled = serverSettingsLocked;
         grounderSelect.disabled = serverSettingsLocked;
         ragProviderSelect.disabled = serverSettingsLocked;

@@ -51,29 +51,44 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     Feeds raw PCM (s16le, 16 kHz, what the browser already sends) to a
     per-connection WhisperLiveKit AudioProcessor and turns its incremental
     responses into committed and preview TranscriptEvents. With the default
-    faster-whisper backend it reuses the same faster-whisper model as the
-    `faster-whisper` backend; the engine (model) is loaded once and shared.
+    faster-whisper runtime it reuses the same faster-whisper model as the
+    `faster-whisper` backend. One engine serves every connection.
     """
     MODELS = ("tiny", "base", "small", "medium",
               "large", "large-v2", "large-v3")
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
+    # Engines WhisperLiveKit can decode on. A model name is a size, which each
+    # engine resolves to its own weights (CTranslate2, MLX, or PyTorch). "auto"
+    # picks MLX on Apple Silicon, else faster-whisper. Requesting an engine
+    # whose package is missing raises when the transcriber is built.
+    RUNTIMES = ("auto", "faster-whisper", "mlx-whisper", "whisper")
     LANGUAGES = get_whisper_languages()
 
     @classmethod
-    def create(cls, model=None):
-        return cls(model_size=model or cls.DEFAULT_MODEL)
+    def default_runtime(cls):
+        from coda.config import settings
+        return settings.dialogue.whisper_livekit.backend
 
-    def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
+    @classmethod
+    def create(cls, model=None, runtime=None):
+        return cls(model_size=model or cls.DEFAULT_MODEL, runtime=runtime)
+
+    def __init__(self, model_size: str = DEFAULT_MODEL_SIZE, runtime=None):
         from whisperlivekit import TranscriptionEngine
         from coda.config import settings
         wlk = settings.dialogue.whisper_livekit
+        # TranscriptionEngine is a process-wide singleton whose constructor is a
+        # no-op once one exists, so the previous engine has to be dropped for a
+        # new model or runtime to take effect. Streams already running hold
+        # their own reference and keep decoding on the old engine.
+        TranscriptionEngine.reset()
         # The language is fixed when the engine is built, so this backend
         # transcribes whatever dialogue.language was set to at startup and
         # ignores the per-stream language argument.
         self._engine = TranscriptionEngine(
             model_size=model_size,
             lan=settings.dialogue.language,
-            backend=wlk.backend,
+            backend=runtime or wlk.backend,
             backend_policy=wlk.policy,
             pcm_input=True,
         )

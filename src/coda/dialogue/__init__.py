@@ -55,24 +55,32 @@ def _load_backend_class(backend: str):
     )
 
 
-def create_transcriber(backend: str = None, model: str = None, **kwargs):
+def create_transcriber(backend: str = None, model: str = None,
+                       runtime: str = None):
     """Build a Transcriber for the named backend, optionally with a model.
 
-    Defaults to the dialogue.transcriber_backend config value.
+    Defaults to the dialogue.transcriber_backend config value. `runtime` is
+    passed only to backends that offer a choice of runtimes.
     """
     backend = (backend or settings.dialogue.transcriber_backend).lower()
-    return _load_backend_class(backend).create(model=model)
+    cls = _load_backend_class(backend)
+    if cls.RUNTIMES:
+        return cls.create(model=model, runtime=runtime)
+    return cls.create(model=model)
 
 
 def get_transcriber_models(backend: str) -> dict:
-    """Return the selectable models for one backend, loaded on demand.
+    """Return the selectable models and runtimes for one backend, on demand.
 
-    Each backend class declares its own `MODELS` and `DEFAULT_MODEL`. Importing
-    the backend can fail if its optional dependencies aren't installed; callers
-    should surface that to the user (e.g. as a UI warning).
+    Each backend class declares its own `MODELS`, `DEFAULT_MODEL` and, where it
+    can decode on more than one engine, `RUNTIMES`. Importing the backend can
+    fail if its optional dependencies aren't installed, callers should surface
+    that to the user (e.g. as a UI warning).
     """
     cls = _load_backend_class(backend.lower())
-    return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
+    return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL,
+            "runtimes": list(cls.RUNTIMES),
+            "default_runtime": cls.default_runtime()}
 
 
 def get_transcriber_languages(backend: str) -> dict:
@@ -163,8 +171,16 @@ class Transcriber:
     # Selectable models for this backend, surfaced in the settings UI.
     MODELS = ()
     DEFAULT_MODEL = None
+    # Decoding engines this backend can run the model on, empty when it has
+    # only one. Also surfaced in the settings UI.
+    RUNTIMES = ()
     LANGUAGES = {}
     LANGUAGE_ALIASES = {}
+
+    @classmethod
+    def default_runtime(cls):
+        """The runtime used when none is selected, None if there's no choice."""
+        return None
 
     @classmethod
     def normalize_language(cls, code):

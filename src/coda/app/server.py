@@ -74,8 +74,18 @@ def _default_model_for(backend: str):
         return None
 
 
+def _default_runtime_for(backend: str):
+    """The backend's default runtime, or None if it offers no choice."""
+    try:
+        return get_transcriber_models(backend)["default_runtime"]
+    except Exception as e:
+        logger.warning("Transcriber backend %r unavailable: %s", backend, e)
+        return None
+
+
 current_transcriber_model = settings.dialogue.transcriber_model \
     or _default_model_for(current_transcriber_backend)
+current_transcriber_runtime = _default_runtime_for(current_transcriber_backend)
 current_llm_provider = settings.inference.llm.provider
 current_llm_model = settings.inference.llm.model
 current_grounder = settings.grounder.type
@@ -102,6 +112,7 @@ class SettingsRequest(BaseModel):
     save_enabled: Optional[bool] = None
     transcriber_backend: Optional[str] = None
     transcriber_model: Optional[str] = None
+    transcriber_runtime: Optional[str] = None
     grounder: Optional[str] = None
     rag_provider: Optional[str] = None
     rag_model: Optional[str] = None
@@ -241,7 +252,8 @@ def create_grounder(grounder_name: str):
 
 grounder = create_grounder(current_grounder)
 transcriber = create_transcriber(
-    current_transcriber_backend, model=current_transcriber_model
+    current_transcriber_backend, model=current_transcriber_model,
+    runtime=current_transcriber_runtime
 )
 if transcriber.normalize_language(current_language) is None:
     # A backend that can't do the configured language returns empty text for
@@ -484,6 +496,7 @@ async def get_settings():
         "file_paths": file_paths,
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
+        "transcriber_runtime": current_transcriber_runtime,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
         "rag_model": rag_config["model"],
@@ -536,12 +549,13 @@ async def update_settings(req: SettingsRequest):
         raise HTTPException(status_code=403, detail="Server settings are locked")
     global current_language, save_enabled, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
-    global translation_mode
+    global translation_mode, current_transcriber_runtime
     global current_grounder, current_transcriber_backend
     grounder_changed = False
     transcriber_changed = False
     prev_backend = current_transcriber_backend
     prev_model = current_transcriber_model
+    prev_runtime = current_transcriber_runtime
     if req.language is not None:
         current_language = req.language
         logger.info(f"Language set to: {current_language}")
@@ -588,12 +602,20 @@ async def update_settings(req: SettingsRequest):
             if req.transcriber_model is None:
                 current_transcriber_model = await asyncio.to_thread(
                     _default_model_for, backend)
+            if req.transcriber_runtime is None:
+                current_transcriber_runtime = await asyncio.to_thread(
+                    _default_runtime_for, backend)
             logger.info(f"Transcriber backend set to: {current_transcriber_backend}")
     if (req.transcriber_model is not None
             and req.transcriber_model != current_transcriber_model):
         current_transcriber_model = req.transcriber_model
         transcriber_changed = True
         logger.info(f"Transcriber model set to: {current_transcriber_model}")
+    if (req.transcriber_runtime is not None
+            and req.transcriber_runtime != current_transcriber_runtime):
+        current_transcriber_runtime = req.transcriber_runtime
+        transcriber_changed = True
+        logger.info(f"Transcriber runtime set to: {current_transcriber_runtime}")
     # Transcriber and grounder are independent; rebuild each only if it changed.
     if grounder_changed:
         grounder = await asyncio.to_thread(create_grounder, current_grounder)
@@ -602,18 +624,20 @@ async def update_settings(req: SettingsRequest):
         try:
             transcriber = await asyncio.to_thread(
                 create_transcriber, current_transcriber_backend,
-                current_transcriber_model
+                current_transcriber_model, current_transcriber_runtime
             )
         except Exception as e:
             current_transcriber_backend = prev_backend
             current_transcriber_model = prev_model
+            current_transcriber_runtime = prev_runtime
             logger.error("Failed to load transcriber: %s", e)
             raise HTTPException(
                 status_code=400,
                 detail=f"Could not load transcriber: {e}") from e
         logger.info(
-            "Transcriber reloaded: backend=%s model=%s",
-            current_transcriber_backend, current_transcriber_model
+            "Transcriber reloaded: backend=%s model=%s runtime=%s",
+            current_transcriber_backend, current_transcriber_model,
+            current_transcriber_runtime
         )
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider
@@ -631,6 +655,7 @@ async def update_settings(req: SettingsRequest):
         "file_paths": file_paths,
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
+        "transcriber_runtime": current_transcriber_runtime,
         "grounder": current_grounder,
         "rag_provider": rag_config["provider"],
         "rag_model": rag_config["model"],

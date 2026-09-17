@@ -16,7 +16,11 @@ from coda.dialogue import (
 )
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
-from coda.dialogue.whisper_livekit import _events_from_response
+from coda.dialogue.whisper_livekit import (
+    WhisperLiveKitTranscriber,
+    _events_from_response,
+)
+from coda.config import settings
 
 
 class _FakeTranscriber(ChunkedTranscriber):
@@ -156,6 +160,17 @@ async def test_indic_conformer_does_not_block_the_event_loop():
 
 def test_whisper_livekit_backend_registered():
     assert "whisper-livekit" in TRANSCRIBER_BACKENDS
+
+
+def test_whisper_livekit_runtimes():
+    assert "mlx-whisper" in WhisperLiveKitTranscriber.RUNTIMES
+    assert WhisperLiveKitTranscriber.default_runtime() == \
+        settings.dialogue.whisper_livekit.backend
+
+
+def test_backends_without_a_runtime_choice():
+    assert FasterWhisperTranscriber.RUNTIMES == ()
+    assert FasterWhisperTranscriber.default_runtime() is None
 
 
 def test_whisper_livekit_events_from_response():

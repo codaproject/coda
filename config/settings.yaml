@@ -120,6 +120,9 @@ dialogue:
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:
+    # Engine the streaming backend decodes on, selectable in the settings UI.
+    # alternatives: auto | faster-whisper | mlx-whisper | whisper
+    # auto resolves to mlx-whisper on Apple Silicon, else faster-whisper.
     backend: faster-whisper
     policy: localagreement
   speechmatics:
