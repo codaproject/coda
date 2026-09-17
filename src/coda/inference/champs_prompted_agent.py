@@ -57,10 +57,42 @@ SCHEMA_GUIDANCE = read_champs_resource("schema_guidance.txt")
 DIAGNOSIS_STANDARD = read_champs_resource("diagnosis_standard.txt")
 
 DEFAULT_NUM_QUESTIONS = 3
+DEFAULT_QUESTION_STYLE = "default"
+
+# Schema-level phrasing of the questions field, one entry per question style.
+QUESTION_SCHEMA_DESCRIPTIONS = {
+    "default":
+        "Exactly {num_questions} follow-up questions that would best "
+        "differentiate the top causes and increase confidence in the "
+        "underlying cause.",
+    "simplified":
+        "Exactly {num_questions} follow-up questions that would best "
+        "differentiate the top causes and increase confidence in the "
+        "underlying cause, each short and phrased in plain lay language for "
+        "a family member with no medical training.",
+}
+
+QUESTION_STYLES = tuple(QUESTION_SCHEMA_DESCRIPTIONS)
 
 
-def build_cod_output_schema(num_questions=DEFAULT_NUM_QUESTIONS):
+def _validate_question_style(question_style):
+    """Raise ValueError unless the style is one of QUESTION_STYLES."""
+    if question_style not in QUESTION_STYLES:
+        raise ValueError(f"Unknown question style {question_style!r}, expected "
+                         f"one of: {', '.join(QUESTION_STYLES)}")
+
+
+def load_question_style_guidance(question_style=DEFAULT_QUESTION_STYLE):
+    """Read the Step 5 prompt body for a question style."""
+    _validate_question_style(question_style)
+    return read_champs_resource(f"question_style_{question_style}.txt")
+
+
+def build_cod_output_schema(num_questions=DEFAULT_NUM_QUESTIONS,
+                            question_style=DEFAULT_QUESTION_STYLE):
     """Build the JSON schema for structured output."""
+    _validate_question_style(question_style)
+    questions_description = QUESTION_SCHEMA_DESCRIPTIONS[question_style]
     return {
         "type": "object",
         "properties": {
@@ -88,11 +120,8 @@ def build_cod_output_schema(num_questions=DEFAULT_NUM_QUESTIONS):
             },
             "questions": {
                 "type": "array",
-                "description": (
-                    f"Exactly {num_questions} follow-up questions that would "
-                    "best differentiate the top causes and increase confidence "
-                    "in the underlying cause."
-                ),
+                "description": questions_description.format(
+                    num_questions=num_questions),
                 "items": {"type": "string"},
                 "minItems": num_questions,
                 "maxItems": num_questions,
@@ -114,7 +143,8 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
     def __init__(self, llm_client: LLMClient,
                  use_diagnosis_standard: bool = False,
                  llm_semaphore: asyncio.Semaphore | None = None,
-                 num_questions=DEFAULT_NUM_QUESTIONS):
+                 num_questions=DEFAULT_NUM_QUESTIONS,
+                 question_style=DEFAULT_QUESTION_STYLE):
         super().__init__()
         self.llm_client = llm_client
         self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
@@ -124,14 +154,19 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
         self.schema_guidance = SCHEMA_GUIDANCE
         self.use_diagnosis_standard = use_diagnosis_standard
         self.num_questions = num_questions
-        self.output_schema = build_cod_output_schema(num_questions)
+        self.question_style = question_style
+        self.output_schema = build_cod_output_schema(num_questions,
+                                                     question_style)
 
         # Case-insensitive lookup for recovering labels that differ only in case.
         self._causes_by_lower = {c.lower(): c for c in self.allowed_causes}
 
         allowed_str = ", ".join(self.allowed_causes)
+        # Spliced in before the format pass so its own {num_questions} renders
+        question_guidance = load_question_style_guidance(question_style)
         self.rendered_system_prompt = \
-            SYSTEM_PROMPT.format(allowed_causes=allowed_str,
+            SYSTEM_PROMPT.replace("{question_guidance}", question_guidance) \
+                         .format(allowed_causes=allowed_str,
                                  num_questions=num_questions) + "\n\n" \
             + self.schema_guidance
 
@@ -211,6 +246,7 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
             use_diagnosis_standard=self.use_diagnosis_standard,
             llm_semaphore=self.llm_semaphore,
             num_questions=self.num_questions,
+            question_style=self.question_style,
         )
 
     def _parse_response(self, response: Dict[str, Any]) -> dict:
@@ -268,10 +304,13 @@ def create_champs_prompted_agent(
     max_concurrency = int(settings.inference.get("max_concurrency", 1) or 1)
     num_questions = int(settings.inference.get("num_questions",
                                                DEFAULT_NUM_QUESTIONS))
+    question_style = str(settings.inference.get("question_style",
+                                                DEFAULT_QUESTION_STYLE))
     return ChampsPromptedInferenceAgent(
         llm_client=client,
         llm_semaphore=asyncio.Semaphore(max_concurrency),
         num_questions=num_questions,
+        question_style=question_style,
     )
 
 
