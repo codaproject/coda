@@ -66,6 +66,10 @@ benchmark = [
     "kagglehub",
     "soundfile",
 ]
+indic-conformer = [
+    "transformers",
+    "onnxruntime",
+]
 champs-finetuned = [
     "torch",
     "transformers",

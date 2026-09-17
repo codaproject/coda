@@ -7,6 +7,9 @@
 
     <script>
       const CODA_ONBOARDING_NOTICE_VERSION = __CODA_ONBOARDING_NOTICE_VERSION__;
+      // Server-configured interface language, used when this browser has no
+      // stored choice of its own.
+      const CODA_UI_LANGUAGE = __CODA_UI_LANGUAGE__;
 
       // Set theme + locale + consent before first paint to avoid FOUC.
       (function () {
@@ -15,7 +18,7 @@
           if (v !== "light" && v !== "dark" && v !== "system") v = "system";
           document.documentElement.setAttribute("data-theme", v);
 
-          var locale = localStorage.getItem("codaUiLocale") || "en";
+          var locale = localStorage.getItem("codaUiLocale") || CODA_UI_LANGUAGE;
           document.documentElement.setAttribute("lang", locale);
           document.documentElement.setAttribute(
             "dir",
@@ -3463,7 +3466,7 @@
       };
 
       const UI_LOCALE_KEY = "codaUiLocale";
-      let uiLocale = localStorage.getItem(UI_LOCALE_KEY) || "en";
+      let uiLocale = localStorage.getItem(UI_LOCALE_KEY) || CODA_UI_LANGUAGE;
 
       function t(key) {
         return (
@@ -3473,12 +3476,16 @@
         );
       }
 
-      function applyLocale(locale) {
+      // `persist` records the locale as this browser's own choice, which from
+      // then on takes precedence over the server-configured default.
+      function applyLocale(locale, persist = true) {
         if (!I18N_STRINGS[locale]) locale = "en";
         uiLocale = locale;
-        try {
-          localStorage.setItem(UI_LOCALE_KEY, locale);
-        } catch (_) {}
+        if (persist) {
+          try {
+            localStorage.setItem(UI_LOCALE_KEY, locale);
+          } catch (_) {}
+        }
         document.documentElement.setAttribute("lang", locale);
         document.documentElement.setAttribute(
           "dir",
@@ -5183,12 +5190,12 @@
         const sel = document.getElementById("uiLanguageSelect");
         if (!sel) return;
         // Reflect stored choice into the select, then apply.
-        const stored = localStorage.getItem(UI_LOCALE_KEY) || "en";
+        const stored = localStorage.getItem(UI_LOCALE_KEY) || CODA_UI_LANGUAGE;
         const supported = Array.from(sel.options).some(
           (o) => o.value === stored,
         );
         sel.value = supported ? stored : "en";
-        applyLocale(sel.value);
+        applyLocale(sel.value, false);
         sel.addEventListener("change", () => applyLocale(sel.value));
       })();
 

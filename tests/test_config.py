@@ -10,6 +10,7 @@ from coda.config import PROMPTS, inference_url, reload_settings, settings
 CODA_ENV_VARS = (
     "CODA_APP__HOST",
     "CODA_APP__PORT",
+    "CODA_APP__UI_LANGUAGE",
     "CODA_APP__ONBOARDING_NOTICE__FILE",
     "CODA_APP__ONBOARDING_NOTICE__VERSION",
     "CODA_INFERENCE__HOST",
@@ -26,6 +27,9 @@ CODA_ENV_VARS = (
     "CODA_GROUNDER__RAG__RERANKER__ENABLED",
     "CODA_GROUNDER__RAG__EXTRACTOR__TYPE",
     "CODA_DIALOGUE__TRANSCRIBER_BACKEND",
+    "CODA_DIALOGUE__TRANSCRIBER_MODEL",
+    "CODA_DIALOGUE__LANGUAGE",
+    "CODA_DIALOGUE__TRANSLATION_MODE",
     "CODA_DIALOGUE__SPEECHMATICS__URL",
     "CODA_DIALOGUE__SPEECHMATICS__MODEL",
 )
@@ -51,6 +55,7 @@ def isolate_settings():
 def test_defaults():
     assert settings.app.host == "0.0.0.0"
     assert settings.app.port == 8000
+    assert settings.app.ui_language == "en"
     assert settings.app.onboarding_notice.file == ""
     assert settings.app.onboarding_notice.version == "default"
     assert settings.inference.host == "0.0.0.0"
@@ -69,6 +74,9 @@ def test_defaults():
     assert settings.grounder.rag.reranker.enabled is True
     assert settings.grounder.rag.extractor.type == "hunflair"
     assert settings.dialogue.transcriber_backend == "whisper-livekit"
+    assert settings.dialogue.transcriber_model == ""
+    assert settings.dialogue.language == "en"
+    assert settings.dialogue.translation_mode == "llm"
     assert settings.dialogue.speechmatics.url == "wss://us.rt.speechmatics.com/v2/"
     assert settings.dialogue.speechmatics.model == "enhanced"
 
@@ -110,6 +118,10 @@ def test_env_var_overrides(monkeypatch):
     monkeypatch.setenv(
         "CODA_APP__ONBOARDING_NOTICE__FILE", "/srv/pages/demo_terms.html"
     )
+    monkeypatch.setenv("CODA_DIALOGUE__TRANSCRIBER_BACKEND", "indic-conformer")
+    monkeypatch.setenv("CODA_DIALOGUE__TRANSCRIBER_MODEL", "ctc")
+    monkeypatch.setenv("CODA_DIALOGUE__LANGUAGE", "bn")
+    monkeypatch.setenv("CODA_APP__UI_LANGUAGE", "bn")
     reload_settings()
 
     assert settings.app.port == 9000
@@ -121,6 +133,10 @@ def test_env_var_overrides(monkeypatch):
     # A nested override must not clobber the sibling key in the same block.
     assert settings.app.onboarding_notice.file == "/srv/pages/demo_terms.html"
     assert settings.app.onboarding_notice.version == "default"
+    assert settings.dialogue.transcriber_backend == "indic-conformer"
+    assert settings.dialogue.transcriber_model == "ctc"
+    assert settings.dialogue.language == "bn"
+    assert settings.app.ui_language == "bn"
 
 
 def test_secrets_merge_without_clobbering_settings():

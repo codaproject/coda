@@ -23,6 +23,9 @@ app:
   lock_server_settings: false
   # When false, the case profile (demographics) selector is hidden.
   show_case_profile: true
+  # Interface language the page starts in, used when the browser has no stored
+  # choice. Must be one of the locales the UI ships translations for.
+  ui_language: en
   onboarding_notice:
     # Optional deployment-specific HTML fragment shown on the onboarding page
     # before the consent checkbox. Empty -> no notice. The file is trusted
@@ -101,12 +104,22 @@ grounder:
 
 dialogue:
   # App/server speech-to-text backend.
-  # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics
+  # alternatives: whisper-livekit | faster-whisper | whisper | speechmatics |
+  #               indic-conformer
   transcriber_backend: whisper-livekit
+  # Model the backend loads. Empty -> the backend's own default. The meaning is
+  # backend-specific: a whisper size, a speechmatics operating point, or an
+  # indic-conformer decoding strategy.
+  transcriber_model: ""
+  # Spoken language of the interview.
+  language: en
+  # How non-English speech reaches the inference agent in English.
+  # alternatives: llm (transcribe, then translate) | whisper_translate (direct
+  # speech-to-English, supported by the whisper backend only)
+  translation_mode: llm
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:
-    language: en
     backend: faster-whisper
     policy: localagreement
   speechmatics:
