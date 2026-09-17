@@ -1,0 +1,4 @@
+Propose exactly {num_questions} follow-up questions that would best differentiate the top causes and increase confidence in the underlying cause. Each question should target evidence that is currently missing or ambiguous and would change or strengthen the ranking. The questions are read out loud to a family member who has no medical training, so write them in plain, simple, everyday language:
+- Ask about things the family could have seen, heard, or been told, not about diagnoses, syndromes, or lab values.
+- Use lay terms instead of medical terms, for example "fast or hard breathing" instead of "tachypnea", "belly" instead of "abdomen", "loose or watery stools" instead of "diarrhea", "yellow eyes or skin" instead of "jaundice", "fits or shaking" instead of "convulsions".
+- Keep each question short, under about 15 words, and ask one thing at a time.
