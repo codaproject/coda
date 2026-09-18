@@ -55,8 +55,13 @@ inference:
   num_questions: 3
   # Wording style for those questions: default | simplified. `default` asks for
   # clinically phrased questions, `simplified` for short, plain-language ones
-  # aimed at a family member with no medical training.
+  # aimed at a family member with no medical training. Applies to the `llm`
+  # question mode only.
   question_style: simplified
+  # Where those questions come from: llm | voi. `llm` takes the questions the
+  # model writes, `voi` instead picks the WHO VA questions whose answers are
+  # expected to be most informative about the causes currently in play.
+  question_mode: llm
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini

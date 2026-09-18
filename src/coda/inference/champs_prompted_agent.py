@@ -12,11 +12,14 @@ import difflib
 import logging
 import os
 import time
+from collections import defaultdict
 from typing import Dict, Any, List, Optional
 
 from gilda import Annotation
 
 from coda.inference.agent import InferenceAgent, InferenceServer
+from coda.inference.probbase import load_questions
+from coda.inference.voi import select_questions
 from coda.llm_api.client import LLMClient
 from coda.resources import get_resource_path
 from coda.config import settings
@@ -50,14 +53,32 @@ def load_group_to_icd10() -> Dict[str, str]:
     return mapping
 
 
+def load_group_to_who_va():
+    """Load CHAMPS group-name-to-WHO-VA-cause mapping from TSV resource file."""
+    path = os.path.join(CHAMPS_RESOURCE_DIR, "group_to_who_va.tsv")
+    mapping = {}
+    with open(path, newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            mapping[row["cause_name"]] = row["who_va"]
+    return mapping
+
+
 CHAMPS_GROUP_CAUSES = load_group_causes()
 CHAMPS_GROUP_TO_ICD10 = load_group_to_icd10()
+CHAMPS_GROUP_TO_WHO_VA = load_group_to_who_va()
 SYSTEM_PROMPT = read_champs_resource("system_prompt.txt")
 SCHEMA_GUIDANCE = read_champs_resource("schema_guidance.txt")
 DIAGNOSIS_STANDARD = read_champs_resource("diagnosis_standard.txt")
 
 DEFAULT_NUM_QUESTIONS = 3
 DEFAULT_QUESTION_STYLE = "default"
+DEFAULT_QUESTION_MODE = "llm"
+
+# Where the follow-up questions come from. `llm` takes the ones the model
+# writes, `voi` replaces them with the WHO VA questions whose answers are
+# expected to be most informative about the causes currently in play.
+QUESTION_MODES = ("llm", "voi")
 
 # Schema-level phrasing of the questions field, one entry per question style.
 QUESTION_SCHEMA_DESCRIPTIONS = {
@@ -80,6 +101,13 @@ def _validate_question_style(question_style):
     if question_style not in QUESTION_STYLES:
         raise ValueError(f"Unknown question style {question_style!r}, expected "
                          f"one of: {', '.join(QUESTION_STYLES)}")
+
+
+def _validate_question_mode(question_mode):
+    """Raise ValueError unless the mode is one of QUESTION_MODES."""
+    if question_mode not in QUESTION_MODES:
+        raise ValueError(f"Unknown question mode {question_mode!r}, expected "
+                         f"one of: {', '.join(QUESTION_MODES)}")
 
 
 def load_question_style_guidance(question_style=DEFAULT_QUESTION_STYLE):
@@ -144,8 +172,10 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
                  use_diagnosis_standard: bool = False,
                  llm_semaphore: asyncio.Semaphore | None = None,
                  num_questions=DEFAULT_NUM_QUESTIONS,
-                 question_style=DEFAULT_QUESTION_STYLE):
+                 question_style=DEFAULT_QUESTION_STYLE,
+                 question_mode=DEFAULT_QUESTION_MODE):
         super().__init__()
+        _validate_question_mode(question_mode)
         self.llm_client = llm_client
         self.llm_semaphore = llm_semaphore or asyncio.Semaphore(1)
 
@@ -155,8 +185,13 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
         self.use_diagnosis_standard = use_diagnosis_standard
         self.num_questions = num_questions
         self.question_style = question_style
+        self.question_mode = question_mode
         self.output_schema = build_cod_output_schema(num_questions,
                                                      question_style)
+
+        self.cause_to_who_va = CHAMPS_GROUP_TO_WHO_VA
+        self.question_bank = load_questions() if question_mode == "voi" else []
+        self.asked_questions = set()
 
         # Case-insensitive lookup for recovering labels that differ only in case.
         self._causes_by_lower = {c.lower(): c for c in self.allowed_causes}
@@ -240,6 +275,11 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
             name, self.allowed_causes, n=1, cutoff=self.FUZZY_MATCH_CUTOFF)
         return close[0] if close else None
 
+    def reset(self):
+        """Reset dialogue history and asked questions for a new interview."""
+        super().reset()
+        self.asked_questions = set()
+
     def create_session_agent(self) -> "ChampsPromptedInferenceAgent":
         return ChampsPromptedInferenceAgent(
             llm_client=self.llm_client,
@@ -247,7 +287,35 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
             llm_semaphore=self.llm_semaphore,
             num_questions=self.num_questions,
             question_style=self.question_style,
+            question_mode=self.question_mode,
         )
+
+    def _who_va_posterior(self, causes):
+        """Restate the cause probabilities over the WHO VA causes.
+
+        Causes with no WHO VA counterpart drop out and the rest are
+        renormalized. Counterparts are shared, so two CHAMPS causes that the
+        WHO VA list does not tell apart merge into one.
+        """
+        posterior = defaultdict(float)
+        for cause in causes.values():
+            who_va = self.cause_to_who_va.get(cause["name"])
+            if who_va:
+                posterior[who_va] += cause["score"]
+        total = sum(posterior.values())
+        if not total:
+            return {}
+        return {cause: score / total for cause, score in posterior.items()}
+
+    def _select_questions(self, causes):
+        """Pick the unasked questions that best separate the current causes."""
+        posterior = self._who_va_posterior(causes)
+        if not posterior:
+            return []
+        selected = select_questions(posterior, self.question_bank,
+                                    self.num_questions, self.asked_questions)
+        self.asked_questions.update(question.id for question in selected)
+        return [question.text for question in selected]
 
     def _parse_response(self, response: Dict[str, Any]) -> dict:
         """Convert LLM structured response to CODA cause format."""
@@ -281,7 +349,10 @@ class ChampsPromptedInferenceAgent(InferenceAgent):
                 c["score"] = round(c["score"] / total, 4)
 
         reasoning = response.get("reasoning", "")
-        questions = response.get("questions", [])
+        if self.question_mode == "voi":
+            questions = self._select_questions(causes)
+        else:
+            questions = response.get("questions", [])
 
         return {"causes": causes, "reasoning": reasoning,
                 "questions": questions}
@@ -306,11 +377,14 @@ def create_champs_prompted_agent(
                                                DEFAULT_NUM_QUESTIONS))
     question_style = str(settings.inference.get("question_style",
                                                 DEFAULT_QUESTION_STYLE))
+    question_mode = str(settings.inference.get("question_mode",
+                                               DEFAULT_QUESTION_MODE))
     return ChampsPromptedInferenceAgent(
         llm_client=client,
         llm_semaphore=asyncio.Semaphore(max_concurrency),
         num_questions=num_questions,
         question_style=question_style,
+        question_mode=question_mode,
     )
 
 
