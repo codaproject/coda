@@ -1,0 +1,41 @@
+cause_name	who_va
+Anemias	VAs-03.01
+Cancer	VAs-02.99
+Congenital birth defects	VAs-10.06
+Congenital infection	VAs-10.99
+Diabetes	VAs-03.03
+Diarrheal Diseases	VAs-01.04
+HIV	VAs-01.03
+Heart Diseases	VAs-04.99
+Injury	VAs-12.99
+Kidney Disease	VAs-07.01
+Liver disease	VAs-06.02
+Lower respiratory infections	VAs-01.02
+Malaria	VAs-01.05
+Malnutrition	VAs-03.02
+Measles	VAs-01.06
+Meningitis/Encephalitis	VAs-01.07
+Neonatal encephalopathy	VAs-10.02
+Neonatal preterm birth complications	VAs-10.01
+Neonatal sepsis	VAs-10.04
+Other disorders of fluid, electrolyte and acid-base balance	VAs-98
+Other endocrine, metabolic, blood, and immune disorders	VAs-98
+Other gastrointestinal disease	VAs-98
+Other immunodeficiencies	VAs-98
+Other infections	VAs-01.99
+Other maternal factor	VAs-10.99
+Other neonatal disorders	VAs-10.99
+Other neurological disorders	VAs-98
+Other nutritional deficiencies	VAs-98
+Other nutritional disorders	VAs-98
+Other respiratory disease	VAs-98
+Other skin and subcutaneous diseases	VAs-98
+Paralytic ileus and intestinal obstruction	VAs-06.01
+Perinatal asphyxia/hypoxia	VAs-10.02
+Poisoning	VAs-12.07
+Rabies	VAs-01.99
+Sepsis	VAs-01.01
+Sickle cell disorders	VAs-04.03
+Thalassaemia	VAs-03.01
+Tuberculosis	VAs-01.09
+Upper respiratory infections	VAs-01.02
