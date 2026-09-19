@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "ts_narrative": "N'wana wa mina wa jaha a ri na lembe rin'we. Kwalomu ka vhiki a nga si fa u khomiwe hi mukhuhlwana wo huma marimila hiti nhompfu na ku khohlola ko olova. Endzhaku ka masiku manharhu kumbe mune ku khohlola ku nyanyile swinene kutani a sungula ku hefemula hi ku hatlisa swinene. Loko a hefemula, nhlonge leyi nga ehansi ka timbambu ta yena na le xikarhi ka timbambu ta yena a yi nghena endzeni, naswona tinhompfu ta yena a ti pfuleka ngopfu. A endla mpfumawulo wo fana naku rila  hi ku hefemula kun'wana na kun'wana naswona a va na ku hisa ka miri loku a ku nga yi ehansi. U sungule ku hefemula ngopfu lerova a nga ha koti ku dya naswona milomu yakwe yi hundzuka ya muhlovo wa wasi nyana. A a nga ri na nchuluko naswona a ku nga ri na swirhumbana. Hi vusiku byo hetelela ku hefemula ka yena a ku hatlisa swinene naswona ku ri ehansi, u sungule ku khomiwa hi vurhongo, naswona u lovile ekaya hi nga si fika eka senthara ya rihanyo."
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "ts_narrative": "N'wana wa mina wa nhwanyana a ri na tin'hweti ta tsevu. Hi xitshuketa u sungurile ku hisa ka miri lokukulu kutani a sungula ku khohlola. Ku nga si hela masiku mambirhi ku hefemula ka yena ku sungule ku hatlisa swinene ku tlhela ku va na huwa, naswona a ndzi vona nhlonge yi kokeka ehansi ka timbambu ta yena nkarhi wun'wana na wun'wana loko a hefemula. Nhompfu ya yena a yi pfuleka naswona a endla mimpfumawulo leyintsongo yo rhurhumela. A nga ta teka vele hikuva a hefemula kantsongo. Loko ndzi veka ndleve ya mina exifuveni xa yena andzitwa mpfumawulo wo tlhava.A a nga ri na swirhumbana naswona mahumo yakwe a ma tolovelekile. U sungule ku tsana swinene naswona muhlovo wa yena wu hundzuka wo dzwihala, naswona u lovile hi siku ra vumune ra vuvabyi lebyi."
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "ts_narrative": "N'wana wa mina wa jaha a ri na malembe mambirhi. A khohlola na ku hisa ka miri ku ringana kwalomu ka masiku ya ntlhanu leswi a swi tshamela ku nyanya ematshan'wini yo antswa. U sungurile ku hefemula hi ku hatlisa naswona a vilela leswaku xifuva xa yena xa vava loko a hefemula. U humese xikohlola xo tiya no namarhela loko a khohlola. A nga ri na ku navela swakudya naswona a lava ku etlela ntsena. Ku hefemula ka yena ku hundzuke ko tika na xifuva xa le hansi axi kokeka xi nghena endzeni, na swona a twa ku hisa ngopfu no khomiwa hi vurhongo kumbe nsululwana. A ku nga ri na swirhumbana kumbe nchuluko, naswona nhamu yakwe a yi nga nonon’hwi.U yime ku hi hlamula kutani a lovela etliliniki endzhakunyana ka loko hi fikile."
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "ts_narrative": "N'wana wa mina wa nhwanyana a ri na malembe manharhu. Hi tshama endhawini ya le makaya ekusuhi na nambu laha ku nga na tinsuna to tala naswona vanhu va tala ku khomiwa hi ku hisa ka miri hi nguva ya timpfula. U sungule ku vabya hi ku hisa ka miri swinene loku taka na ku rhurhumela, ivi a tlhela a huma nyuku ngopfu, naswona a swi tshamela ku vuya siku rin'wana na rin'wana kumbe mambirhi. A vilela hi ku pandza ka nhloko na ku vava ka miri kutani a hlanta minkarhi yi nga ri yingani.Endzhaku ka masiku ma nga ri mangani u sungule ku basa swinene, mavoko ni mahlo yakwe a swi languteka swi basa, naswona a ngari na matimba a tlhela a khomiwa hi vurhongo. A nga khohloli kumbe ku huma marimila. Hi siku ra vunharhu u hisile ko hlayanyana, a titivala naswona a nga pfukanga. U hundzile emisaveni hi siku leri landzelaka nimixo."
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "ts_narrative": "N'wana wa mina wa jaha a ri na malembe mambirhi. A ku ri nguva ya timpfula emugangeni wa ka hina naswona a ku ri na tinsuna hinkwako-nkwako. U ve na ku hisa ka miri swinene a tlhela a hlanta minkarhi yo hlaya, kutani a hela matimba swinene. Endzhaku ka masiku mambirhi mahlo ya yena ya hundzuka ya xitshopana naswona mitsakamiso ya yena wu hundzuke wa ntima ku fana na cola (Khola). A a ri wo basa swinene naswona a hefemula hi ku hatlisa, naswona a a ala ku dya kumbe ku nwa. A nga kohloli naswona a nga ri na swirhumbana. Hi siku ra vunharhu u khomiwe hi vuvabyi bya kuwa, miri wa yena wu tsekatseka, kutani a titivala swinene. A nga ha pfukanga nakambe kutani a lova vusiku byebyo."
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "ts_narrative": "N'wana wa mina wa jaha a ri na kwalomu ka lembe na hafu. Swi sungule hi xitshuketa hi mahumo lama nga na mati, minkarhi yo tala hi siku, ku lava ku fana na mati ya rhayisi, kutani a hlanta xin'wana na xin'wana lexi a hi n'wi nyika xona. Leswi swi ye emahlweni ku ringana masiku mambirhi. U sungule ku va na torha swinene eku sunguleni ivi a yima ku nwa. Mahlo ya yena a ya languteka ya nghene endzeni, nomu wa yena a wu omile, naswona loko ndzi cipa/tova nhlonge ya le khwirini ra yena a yi tshama yi ri ehenhla naswona a yi hlwela ku tlhelela ndzeni.U hundzise mitsakamiso yitsongo swinene naswona a rila a nga ri na mihloti. A a ri ni ku hisa ka miri nyana kambe a nga khohloli naswona a nga ri na swirhumbana. U hela matimba, a lava kuwa no khomiwa hi vurhongo, naswona u lovele ekaya."
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "ts_narrative": "N'wana wa mina wa nhwanyana a a ri na tin'hweti ta nhungu. Ku ringana masiku manharhu a tshamela ku va na mahumo lama nga na mati no hlanta. Eku sunguleni a a ri na torha swinene naswona a a nwa hi ku hisekela, kambe endzhaku a ngari na matimba swinene ku nwa. Xivati xo olova enhlokweni ya yena na mahlo ya yena hi vumbirhi bya swona a swi languteka swi dzikile/ku nghena ndzeni, nomu wa yena a wu omile, naswona nhlonge ya yena a yi nonoka ku tlhelela endzhaku loko yi toviwile/ku cipiwa. a nga tsakamisi. A nga khohloli naswona a nga ri na swirhumbana.U sungule ku titimela loko u n'wi khumba emavokweni na milenge, kutani a khomiwa hi vurhongo/nsululwana swinene naswona a wa, kutani a lova."
+  }
+]

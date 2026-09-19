@@ -1,7 +1,8 @@
 # Language support benchmark
 
-Datasets are keyed by `bn` for Bengali and `pt_br` for Brazilian Portuguese.
-Each contains the same seven recorded COD case narratives.
+Datasets are keyed by `bn` for Bengali, `pt_br` for Brazilian Portuguese, and
+`ts` for Tsonga, the language also known as Shangaan. Each contains the same
+seven recorded COD case narratives.
 
 ```
 lang_support/
@@ -13,6 +14,9 @@ lang_support/
       audio/
       references/
       originals/      # original delivery archive; local, ignored by Git
+    ts/
+      audio/
+      references/
   languages/          # adapters for supplied filenames and JSON quirks
   results/
     bn/               # existing results; local, ignored by Git
@@ -32,6 +36,7 @@ The existing runners remain available during consolidation. From the repo root:
 ```bash
 PYTHONPATH="$PYTHONPATH:benchmarks/lang_support" python benchmarks/lang_support/run_benchmark.py --language bn indic-conformer
 PYTHONPATH="$PYTHONPATH:benchmarks/lang_support" python benchmarks/lang_support/run_benchmark.py --language pt_br whisper-small
+PYTHONPATH="$PYTHONPATH:benchmarks/lang_support" python benchmarks/lang_support/run_benchmark.py --language ts mms-1b-all
 PYTHONPATH="$PYTHONPATH:src" python benchmarks/lang_support/bn_asr_bench.py --help
 python benchmarks/lang_support/pt_br_asr_bench.py --help
 python benchmarks/lang_support/plot_engines.py --results_dir benchmarks/lang_support/results/bn
