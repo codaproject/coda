@@ -10,7 +10,8 @@ from metrics import cer, wer_details
 from reporting import hardware
 
 # Dataset tag to the module holding its normalization and ASR language code
-LANGUAGES = {"bn": "languages.bn", "pt_br": "languages.pt_br"}
+LANGUAGES = {"bn": "languages.bn", "pt_br": "languages.pt_br",
+             "ts": "languages.ts"}
 
 # Engines backed by a rate-limited remote API reject requests intermittently.
 # Retry here rather than inside an engine so each attempt is timed separately.
@@ -152,7 +153,8 @@ def main_for(language, build_engines):
                fw_device=args.fw_device, compute_type=args.compute_type)
 
 
-RUNNERS = {"bn": "bn_asr_bench", "pt_br": "pt_br_asr_bench"}
+RUNNERS = {"bn": "bn_asr_bench", "pt_br": "pt_br_asr_bench",
+           "ts": "ts_asr_bench"}
 
 
 def main():

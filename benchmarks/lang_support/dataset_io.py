@@ -5,6 +5,10 @@ import subprocess
 from pathlib import Path
 
 
+# Delivered formats differ per language, and some arrive with upper case suffixes
+AUDIO_SUFFIXES = {".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus"}
+
+
 @dataclass(frozen=True)
 class Sample:
     case_id: str
@@ -33,7 +37,9 @@ def read_references(path, text_keys):
 def match_recordings(audio_dir, references, identify):
     """Require one recording per supplied reference and reject unmatched audio."""
     samples = {}
-    for path in sorted(audio_dir.glob("*.m4a")):
+    for path in sorted(audio_dir.iterdir()):
+        if path.suffix.lower() not in AUDIO_SUFFIXES:
+            continue
         case_id = identify(path)
         if case_id not in references:
             raise ValueError(f"No reference for recording {path}")
@@ -50,9 +56,10 @@ def match_recordings(audio_dir, references, identify):
 
 def load_samples(language, data_dir=None):
     """Load a dataset identified by its BCP 47 language tag."""
-    from languages import bn, pt_br
+    from languages import bn, pt_br, ts
 
-    loaders = {"bn": bn.load_samples, "pt_br": pt_br.load_samples}
+    loaders = {"bn": bn.load_samples, "pt_br": pt_br.load_samples,
+               "ts": ts.load_samples}
     if language not in loaders:
         raise ValueError(f"Unknown dataset language {language!r}; choose {list(loaders)}")
     data_dir = Path(data_dir) if data_dir is not None else Path(__file__).parent / "data"
