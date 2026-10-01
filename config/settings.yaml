@@ -23,6 +23,10 @@ app:
   lock_server_settings: false
   # When false, the case profile (demographics) selector is hidden.
   show_case_profile: true
+  # When false, hides live COD ranking, reasoning, and the probability
+  # evolution chart during the interview; Follow-up questions and
+  # advisory stay visible. After stop, the full result UI is shown.
+  show_cod_result: true
   # Interface language the page starts in, used when the browser has no stored
   # choice. Must be one of the locales the UI ships translations for.
   ui_language: en

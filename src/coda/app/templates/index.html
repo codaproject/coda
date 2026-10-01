@@ -534,6 +534,27 @@
         min-width: 0;
       }
 
+      /* Hide live COD ranking, reasoning, and probability evolution while
+         interviewing; Keep follow-up questions and advisory.
+         After stop (data-state=result), the normal result UI is shown unaltered. */
+      body[data-show-cod-result="false"]:not([data-state="result"])
+        .inference-col
+        > .section-head,
+      body[data-show-cod-result="false"]:not([data-state="result"])
+        .inference-card
+        .cause-row,
+      body[data-show-cod-result="false"]:not([data-state="result"])
+        .inference-card
+        .inference-reasoning,
+      body[data-show-cod-result="false"]:not([data-state="result"])
+        .inference-col
+        > .evolution-block,
+      body[data-show-cod-result="false"]:not([data-state="result"])
+        .inference-col
+        > .divider:has(+ .evolution-block) {
+        display: none;
+      }
+
       .section-head {
         display: flex;
         justify-content: space-between;
@@ -2711,7 +2732,7 @@
           </div>
         </section>
 
-        <aside class="inference-col">
+        <aside class="inference-col" id="inferenceCol">
           <div class="section-head">
             <span class="kicker" data-i18n="record.probableCause"
               >Probable cause</span
