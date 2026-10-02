@@ -815,6 +815,13 @@
       body[data-state="result"] .differentials-section {
         display: flex;
       }
+      body[data-show-cod-result="false"][data-state="result"] .inference-col,
+      body[data-show-cod-result="false"][data-state="result"] .differentials-section {
+        display: none;
+      }
+      body[data-show-cod-result="false"][data-state="result"] .app-body {
+        grid-template-columns: 1fr;
+      }
       /* And in result state the right-rail cause list is redundant */
       body[data-state="result"] .inference-col > .section-head,
       body[data-state="result"] .inference-col > #inference,
@@ -2732,7 +2739,7 @@
           </div>
         </section>
 
-        <aside class="inference-col" id="inferenceCol">
+        <aside class="inference-col">
           <div class="section-head">
             <span class="kicker" data-i18n="record.probableCause"
               >Probable cause</span
