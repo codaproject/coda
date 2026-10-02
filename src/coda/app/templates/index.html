@@ -534,6 +534,22 @@
         min-width: 0;
       }
 
+      /* Hide live COD ranking, reasoning, and probability evolution.
+         After stop, also hide the primary determination and differentials
+         heading. Follow-up questions, transcript, and advisory stay visible. */
+      body[data-show-cod-result="false"] .inference-col > .section-head,
+      body[data-show-cod-result="false"] .inference-card .cause-row,
+      body[data-show-cod-result="false"] .inference-card .inference-reasoning,
+      body[data-show-cod-result="false"] .inference-col > .evolution-block,
+      body[data-show-cod-result="false"]
+        .inference-col
+        > .divider:has(+ .evolution-block),
+      body[data-show-cod-result="false"] .inference-col > .divider:has(+ .advisory),
+      body[data-show-cod-result="false"][data-state="result"] .result-hero,
+      body[data-show-cod-result="false"] .differentials-section > .section-head {
+        display: none;
+      }
+
       .section-head {
         display: flex;
         justify-content: space-between;

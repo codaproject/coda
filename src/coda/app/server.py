@@ -867,6 +867,12 @@ async def get_index():
             '<div class="profile-bar" id="profileBar" data-expanded="false">',
             '<div class="profile-bar" id="profileBar" data-expanded="false" hidden>',
         )
+    if not settings.app.get("show_cod_result", True):
+        html_content = html_content.replace(
+            "<body",
+            '<body data-show-cod-result="false"',
+            1,
+        )
     return HTMLResponse(content=html_content)
 
 
