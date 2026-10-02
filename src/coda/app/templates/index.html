@@ -534,24 +534,19 @@
         min-width: 0;
       }
 
-      /* Hide live COD ranking, reasoning, and probability evolution while
-         interviewing; Keep follow-up questions and advisory.
-         After stop (data-state=result), the normal result UI is shown unaltered. */
-      body[data-show-cod-result="false"]:not([data-state="result"])
+      /* Hide live COD ranking, reasoning, and probability evolution.
+         After stop, also hide the primary determination and differentials
+         heading. Follow-up questions, transcript, and advisory stay visible. */
+      body[data-show-cod-result="false"] .inference-col > .section-head,
+      body[data-show-cod-result="false"] .inference-card .cause-row,
+      body[data-show-cod-result="false"] .inference-card .inference-reasoning,
+      body[data-show-cod-result="false"] .inference-col > .evolution-block,
+      body[data-show-cod-result="false"]
         .inference-col
-        > .section-head,
-      body[data-show-cod-result="false"]:not([data-state="result"])
-        .inference-card
-        .cause-row,
-      body[data-show-cod-result="false"]:not([data-state="result"])
-        .inference-card
-        .inference-reasoning,
-      body[data-show-cod-result="false"]:not([data-state="result"])
-        .inference-col
-        > .evolution-block,
-      body[data-show-cod-result="false"]:not([data-state="result"])
-        .inference-col
-        > .divider:has(+ .evolution-block) {
+        > .divider:has(+ .evolution-block),
+      body[data-show-cod-result="false"] .inference-col > .divider:has(+ .advisory),
+      body[data-show-cod-result="false"][data-state="result"] .result-hero,
+      body[data-show-cod-result="false"] .differentials-section > .section-head {
         display: none;
       }
 
@@ -814,13 +809,6 @@
       }
       body[data-state="result"] .differentials-section {
         display: flex;
-      }
-      body[data-show-cod-result="false"][data-state="result"] .inference-col,
-      body[data-show-cod-result="false"][data-state="result"] .differentials-section {
-        display: none;
-      }
-      body[data-show-cod-result="false"][data-state="result"] .app-body {
-        grid-template-columns: 1fr;
       }
       /* And in result state the right-rail cause list is redundant */
       body[data-state="result"] .inference-col > .section-head,
