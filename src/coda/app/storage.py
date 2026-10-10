@@ -3,24 +3,33 @@
 Each case gets its own folder under ``storage.output_dir`` holding a
 ``manifest.json`` plus one file per enabled ``storage.store`` item. A
 ``CaseRecorder`` is only created when ``storage.enabled`` is true.
+``list_cases`` and ``load_case`` read the folders back for read-only viewing.
 """
 
 import json
+import re
 import time
 import wave
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, TextIO
 
+from gilda.term import get_curie
+
 import coda
 from coda import CODA_BASE
 from coda.config import settings
 
 AUDIO_SAMPLE_RATE = 16000
+CASE_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 
 
 def storage_enabled() -> bool:
     return bool(settings.storage.get("enabled", False))
+
+
+def cases_browsable() -> bool:
+    return bool(settings.storage.get("browse", False))
 
 
 def cases_root() -> Path:
@@ -161,3 +170,161 @@ class CaseRecorder:
         if self.store.get("metadata"):
             self.manifest["metadata"] = metadata
         self._write_manifest()
+
+
+def _read_jsonl(path: Path) -> Optional[list[dict]]:
+    """Records in a JSONL file, or None if it was not stored.
+
+    A line cut short by a server that stopped mid-write is skipped.
+    """
+    if not path.exists():
+        return None
+    records = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                records.append(json.loads(line))
+            except ValueError:
+                continue
+    return records
+
+
+def _case_dir(case_id: str) -> Optional[Path]:
+    if not CASE_ID_PATTERN.fullmatch(case_id):
+        return None
+    case_dir = cases_root() / case_id
+    return case_dir if (case_dir / "manifest.json").is_file() else None
+
+
+def _read_case(case_dir: Path) -> tuple[dict, Optional[list[dict]],
+                                        Optional[list[dict]]]:
+    manifest = json.loads(
+        (case_dir / "manifest.json").read_text(encoding="utf-8"))
+    return (manifest, _read_jsonl(case_dir / "chunks.jsonl"),
+            _read_jsonl(case_dir / "inference.jsonl"))
+
+
+def _has_audio(case_dir: Path) -> bool:
+    """Whether the case has an audio file holding any frames."""
+    try:
+        with wave.open(str(case_dir / "audio.wav")) as wav:
+            return wav.getnframes() > 0
+    except (FileNotFoundError, EOFError, wave.Error):
+        return False
+
+
+def _recording_seconds(manifest: dict, ended: datetime) -> float:
+    """Time from start to ``ended``, less the time spent paused."""
+    paused = sum(
+        ((datetime.fromisoformat(p["resumed_at"]) if p["resumed_at"] else ended)
+         - datetime.fromisoformat(p["paused_at"])).total_seconds()
+        for p in manifest.get("pauses", [])
+    )
+    started = datetime.fromisoformat(manifest["started_at"])
+    return max(0.0, (ended - started).total_seconds() - paused)
+
+
+def _summary(case_dir: Path, manifest: dict, chunks: list[dict],
+             inference: list[dict]) -> dict:
+    ended_at = manifest.get("ended_at")
+    # A case that never closed ends at its last write
+    ended = (datetime.fromisoformat(ended_at) if ended_at else
+             datetime.fromtimestamp(
+                 max(p.stat().st_mtime for p in case_dir.iterdir())))
+    causes = inference[-1].get("causes") if inference else None
+    return {
+        "case_id": case_dir.name,
+        "started_at": manifest["started_at"],
+        "ended_at": ended_at,
+        "duration_s": round(_recording_seconds(manifest, ended)),
+        "language": (manifest.get("run_info") or {}).get("language"),
+        "chunk_count": len(chunks),
+        "inference_count": len(inference),
+        "top_cause": (max(causes.values(), key=lambda c: c["score"])
+                      if causes else None),
+        "has_audio": _has_audio(case_dir),
+    }
+
+
+def _display_annotation(annotation: dict) -> dict:
+    """The fields the UI highlights, from a stored gilda annotation."""
+    term = annotation["matches"][0]["term"]
+    return {
+        "text": annotation["text"],
+        "start": annotation["start"],
+        "end": annotation["end"],
+        "curie": get_curie(term["db"], term["id"]),
+        "name": term["entry_name"],
+    }
+
+
+def _display_chunk(chunk: dict) -> dict:
+    """A stored chunk in the shape of the live ``transcript`` message."""
+    return {
+        "chunk_id": chunk["chunk_id"],
+        "timestamp": chunk["timestamp"],
+        "transcript": chunk["text"],
+        "annotations": [_display_annotation(ann)
+                        for ann in chunk.get("annotations", [])
+                        if ann.get("matches")],
+        "original_transcript": chunk.get("original_text"),
+        "original_language": chunk.get("original_language"),
+    }
+
+
+def list_cases() -> list[dict]:
+    """Summaries of the stored cases that recorded anything, newest first."""
+    root = cases_root()
+    if not root.is_dir():
+        return []
+    cases = []
+    for manifest_path in root.glob("*/manifest.json"):
+        case_dir = manifest_path.parent
+        if not CASE_ID_PATTERN.fullmatch(case_dir.name):
+            continue
+        try:
+            manifest, chunks, inference = _read_case(case_dir)
+        except ValueError:
+            continue
+        if not (chunks or inference or any(case_dir.glob("transcript_*.txt"))):
+            continue
+        cases.append(_summary(case_dir, manifest, chunks or [], inference or []))
+    return sorted(cases, key=lambda c: c["started_at"], reverse=True)
+
+
+def load_case(case_id: str) -> Optional[dict]:
+    """Everything stored for one case, or None if there is no such case.
+
+    ``chunks`` and ``inference`` are None when that item was not stored. The
+    case profile is written when a case closes, so for one that never closed
+    it is taken from the last inference request.
+    """
+    case_dir = _case_dir(case_id)
+    if case_dir is None:
+        return None
+    manifest, chunks, inference = _read_case(case_dir)
+    metadata = manifest.get("metadata")
+    if metadata is None and inference:
+        metadata = inference[-1].get("metadata")
+    return {
+        **_summary(case_dir, manifest, chunks or [], inference or []),
+        "coda_version": manifest.get("coda_version"),
+        "run_info": manifest.get("run_info"),
+        "pauses": manifest.get("pauses", []),
+        "metadata": metadata,
+        "chunks": ([_display_chunk(c) for c in chunks]
+                   if chunks is not None else None),
+        "transcripts": {
+            path.stem.removeprefix("transcript_"):
+                path.read_text(encoding="utf-8")
+            for path in sorted(case_dir.glob("transcript_*.txt"))
+        },
+        "inference": inference,
+    }
+
+
+def case_audio_path(case_id: str) -> Optional[Path]:
+    case_dir = _case_dir(case_id)
+    if case_dir is None or not _has_audio(case_dir):
+        return None
+    return case_dir / "audio.wav"
