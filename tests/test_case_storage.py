@@ -6,13 +6,15 @@ import wave
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 
 from coda.app import server
-from coda.app.storage import CaseRecorder
+from coda.app.storage import CaseRecorder, case_audio_path, list_cases, load_case
 from coda.config import configure_logging, reload_settings
 
 STORAGE_ENV_VARS = (
     "CODA_STORAGE__ENABLED",
+    "CODA_STORAGE__BROWSE",
     "CODA_STORAGE__OUTPUT_DIR",
     "CODA_STORAGE__STORE__AUDIO",
     "CODA_STORAGE__STORE__INFERENCE",
@@ -34,6 +36,14 @@ class FakeAnnotation:
 
     def to_json(self) -> dict:
         return {"text": self.text}
+
+
+class GroundedAnnotation:
+    """Serializes like a gilda Annotation with one match."""
+
+    def to_json(self) -> dict:
+        return {"text": "fever", "start": 0, "end": 5, "matches": [
+            {"term": {"db": "MESH", "id": "D005334", "entry_name": "Fever"}}]}
 
 
 class FakeResponse:
@@ -260,3 +270,136 @@ def test_configure_logging_writes_to_file(monkeypatch, tmp_path):
         root.handlers[:] = previous_handlers
         root.setLevel(previous_level)
     assert "hello storage" in log_file.read_text()
+
+
+MALARIA = {"name": "Malaria", "identifiers": {"icd10": "B54"}, "score": 0.7}
+SEPSIS = {"name": "Sepsis", "identifiers": {"icd10": "A41.9"}, "score": 0.2}
+PROFILE = {"profile": {"age": {"value": 3, "unit": "years"},
+                       "stillbirth": False}}
+
+
+def record_case(session_id: str, close: bool = True) -> CaseRecorder:
+    recorder = CaseRecorder(session_id, 0, {"language": "sw"})
+    recorder.write_chunk("c1", 1.5, "fever for three days",
+                         [GroundedAnnotation()], {},
+                         original_text="homa kwa siku tatu",
+                         original_language="sw")
+    recorder.write_inference(
+        {"chunk_id": "c1", "metadata": PROFILE},
+        {"causes": {"icd10:B54": MALARIA, "icd10:A41.9": SEPSIS},
+         "reasoning": "Fever in a malaria area.", "questions": ["How old?"]},
+        shown_at=100.0,
+    )
+    if close:
+        recorder.close(PROFILE)
+    return recorder
+
+
+def test_load_case_reads_back_recorded_case(storage_dir):
+    recorder = record_case("aaaa0001")
+
+    case = load_case(recorder.case_id)
+    assert case["case_id"] == recorder.case_id
+    assert case["ended_at"] is not None
+    assert case["top_cause"] == MALARIA
+    assert case["metadata"] == PROFILE
+    [chunk] = case["chunks"]
+    assert chunk["transcript"] == "fever for three days"
+    assert chunk["original_transcript"] == "homa kwa siku tatu"
+    assert chunk["annotations"] == [{"text": "fever", "start": 0, "end": 5,
+                                     "curie": "mesh:D005334", "name": "Fever"}]
+    assert case["transcripts"] == {"en": "fever for three days\n",
+                                   "sw": "homa kwa siku tatu\n"}
+    [inference] = case["inference"]
+    assert inference["questions"] == ["How old?"]
+
+
+def test_list_cases_skips_empty_cases_newest_first(storage_dir):
+    older = record_case("aaaa0001")
+    CaseRecorder("bbbb0002", 0, {}).close()
+    newer = record_case("cccc0003")
+
+    cases = list_cases()
+    assert [c["case_id"] for c in cases] == [newer.case_id, older.case_id]
+    assert cases[0]["chunk_count"] == 1
+    assert cases[0]["inference_count"] == 1
+    assert cases[0]["language"] == "sw"
+
+
+def test_audio_without_frames_counts_as_none(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
+    reload_settings()
+    silent = record_case("aaaa0001")
+    spoken = CaseRecorder("bbbb0002", 0, {})
+    spoken.write_audio(b"\x00\x01" * 1600)
+    spoken.close()
+
+    assert load_case(silent.case_id)["has_audio"] is False
+    assert case_audio_path(silent.case_id) is None
+    assert case_audio_path(spoken.case_id) == spoken.case_dir / "audio.wav"
+
+
+def test_unclosed_case_keeps_what_was_written(storage_dir):
+    recorder = record_case("aaaa0001", close=False)
+    with open(recorder.case_dir / "chunks.jsonl", "a") as f:
+        f.write('{"chunk_id": "c2", "text": "cut sh')
+
+    case = load_case(recorder.case_id)
+    recorder.close()
+    assert case["ended_at"] is None
+    assert [c["chunk_id"] for c in case["chunks"]] == ["c1"]
+    assert case["metadata"] == PROFILE
+
+
+def test_items_not_stored_load_as_none(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__STORE__INFERENCE", "false")
+    reload_settings()
+    recorder = record_case("aaaa0001")
+
+    case = load_case(recorder.case_id)
+    assert case["inference"] is None
+    assert case["top_cause"] is None
+    assert len(case["chunks"]) == 1
+
+
+def test_unknown_or_unsafe_case_ids_are_rejected(storage_dir):
+    recorder = record_case("aaaa0001")
+    assert load_case("../" + recorder.case_id) is None
+    assert load_case("no-such-case") is None
+    assert case_audio_path(recorder.case_id) is None
+
+
+def test_case_endpoints_are_off_unless_browsable(storage_dir):
+    record_case("aaaa0001")
+    client = TestClient(server.app)
+    assert client.get("/cases").status_code == 404
+    assert client.get("/settings").json()["cases_browsable"] is False
+
+
+def test_case_endpoints_serve_stored_cases(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__BROWSE", "true")
+    monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
+    reload_settings()
+    closed = CaseRecorder("aaaa0001", 0, {})
+    closed.write_audio(b"\x00\x01" * 1600)
+    closed.write_chunk("c1", 0.0, "fever for three days", [], {})
+    closed.close()
+    recording = CaseRecorder("bbbb0002", 0, {})
+    recording.write_chunk("c1", 0.0, "she had a cough", [], {})
+    monkeypatch.setattr(server, "active_inference_sessions",
+                        [SimpleNamespace(recorder=recording)])
+    client = TestClient(server.app)
+
+    cases = {c["case_id"]: c for c in client.get("/cases").json()}
+    assert cases[closed.case_id]["in_progress"] is False
+    assert cases[recording.case_id]["in_progress"] is True
+
+    case = client.get(f"/cases/{closed.case_id}").json()
+    assert case["chunks"][0]["transcript"] == "fever for three days"
+    assert client.get("/cases/no-such-case").status_code == 404
+
+    audio = client.get(f"/cases/{closed.case_id}/audio")
+    assert audio.status_code == 200
+    assert audio.headers["content-type"] == "audio/wav"
+    assert client.get(f"/cases/{recording.case_id}/audio").status_code == 404
+    recording.close()

@@ -231,3 +231,5 @@ data/
 
 # UV lock file
 uv.lock
+
+docs/

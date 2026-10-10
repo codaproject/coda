@@ -18,10 +18,17 @@ from typing import Optional
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
-from coda.app.storage import CaseRecorder, storage_enabled
+from coda.app.storage import (
+    CaseRecorder,
+    case_audio_path,
+    cases_browsable,
+    list_cases,
+    load_case,
+    storage_enabled,
+)
 from coda.app.onboarding_notice import (
     load_onboarding_notice_html,
     render_onboarding_notice,
@@ -455,6 +462,7 @@ async def get_settings():
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
+        "cases_browsable": cases_browsable(),
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
@@ -592,6 +600,7 @@ async def update_settings(req: SettingsRequest):
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
+        "cases_browsable": cases_browsable(),
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
@@ -887,6 +896,46 @@ async def reset_session(req: Optional[ResetRequest] = None):
         except Exception as e:
             logger.warning(f"Could not reset inference agent: {e}")
     return {"status": "reset"}
+
+
+def _require_cases_browsable() -> None:
+    if not cases_browsable():
+        raise HTTPException(status_code=404, detail="Case browsing is disabled")
+
+
+def _recording_case_ids() -> set[str]:
+    return {session.recorder.case_id for session in active_inference_sessions
+            if session.recorder is not None}
+
+
+@app.get("/cases")
+async def get_cases() -> list[dict]:
+    """List stored cases, newest first, for the read-only case view."""
+    _require_cases_browsable()
+    cases = await asyncio.to_thread(list_cases)
+    recording = _recording_case_ids()
+    return [{**case, "in_progress": case["case_id"] in recording}
+            for case in cases]
+
+
+@app.get("/cases/{case_id}")
+async def get_case(case_id: str) -> dict:
+    """Return everything stored for one case."""
+    _require_cases_browsable()
+    case = await asyncio.to_thread(load_case, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Unknown case")
+    return {**case, "in_progress": case_id in _recording_case_ids()}
+
+
+@app.get("/cases/{case_id}/audio")
+async def get_case_audio(case_id: str) -> FileResponse:
+    """Serve a case's recorded audio, if it was stored."""
+    _require_cases_browsable()
+    path = case_audio_path(case_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No audio for this case")
+    return FileResponse(path, media_type="audio/wav")
 
 
 @app.get("/")

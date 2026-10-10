@@ -2059,6 +2059,108 @@
         color: var(--ink-muted);
         font-size: 14px;
       }
+      .history-flag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: var(--record-red-soft);
+        color: var(--record-red);
+        white-space: nowrap;
+      }
+      .history-flag--live {
+        background: var(--accent-sage-soft);
+        color: var(--accent-sage);
+      }
+
+      /* Stored case: the result view of a case read back from the server,
+         with a banner describing it and every inference it showed */
+      .case-banner {
+        display: none;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 14px 32px;
+        background: var(--paper-elevated);
+        border-bottom: 1px solid var(--border-warm);
+      }
+      body.viewing-case .case-banner {
+        display: flex;
+      }
+      .case-banner-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .case-banner-meta {
+        font-size: 13px;
+        color: var(--ink-soft);
+      }
+      .case-banner-id {
+        font-size: 11px;
+        color: var(--ink-muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        overflow-wrap: anywhere;
+      }
+      .case-banner-note {
+        font-size: 12px;
+        color: var(--warning);
+      }
+      .case-banner-note:empty {
+        display: none;
+      }
+      body.viewing-case .profile-bar,
+      body.viewing-case .lang-chip,
+      body.viewing-case #resetBtn,
+      body.viewing-case #historyBtn {
+        display: none;
+      }
+      .kicker-timeline {
+        display: none;
+      }
+      body.viewing-case .kicker-timeline {
+        display: inline;
+      }
+      body.viewing-case[data-state="result"] .inference-col > .section-head {
+        display: flex;
+      }
+      body.viewing-case[data-state="result"]
+        .inference-col
+        > .divider:first-of-type {
+        display: block;
+      }
+      body.viewing-case[data-state="result"] .inference-col > #inference {
+        display: flex;
+        gap: 22px;
+      }
+      body.viewing-case #inference .inference-card {
+        display: flex;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--border-warm);
+      }
+      body.viewing-case #inference .inference-card:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      body.viewing-case[data-state="result"]:not([data-show-cod-result="false"])
+        #inference
+        .cause-row--top {
+        display: flex;
+      }
+      .inference-when {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .case-empty {
+        color: var(--ink-muted);
+        font-style: italic;
+        font-size: 13px;
+      }
 
       /* Recent block inside idle view */
       .idle-recent {
@@ -2305,6 +2407,10 @@
 
         .history-view {
           padding: 28px 16px 48px;
+        }
+        .case-banner {
+          padding: 12px 16px;
+          gap: 12px;
         }
         .history-head {
           flex-direction: column;
@@ -2608,6 +2714,21 @@
         </div>
       </div>
 
+      <section class="case-banner" aria-labelledby="caseBannerKicker">
+        <button id="caseBackBtn" class="btn btn-ghost" title="Back">
+          <i class="bi bi-arrow-left"></i
+          ><span data-i18n="common.back">Back</span>
+        </button>
+        <div class="case-banner-body">
+          <span class="kicker" id="caseBannerKicker" data-i18n="case.kicker"
+            >Stored case · Read-only</span
+          >
+          <div class="case-banner-meta" id="caseMeta"></div>
+          <div class="case-banner-id" id="caseIdLabel"></div>
+          <div class="case-banner-note" id="caseNote"></div>
+        </div>
+      </section>
+
       <div class="waveform" aria-hidden="true">
         <span class="wf-bar" style="height: 8px"></span>
         <span class="wf-bar" style="height: 14px"></span>
@@ -2707,9 +2828,12 @@
           <div>
             <span class="kicker" data-i18n="common.history">History</span>
             <h1 id="historyHeading" data-i18n="history.title">Past sessions</h1>
-            <p data-i18n="history.subtitle">
+            <p id="historyLocalSubtitle" data-i18n="history.subtitle">
               Everything is stored locally on this device. Nothing is synced or
               uploaded.
+            </p>
+            <p id="historyServerSubtitle" data-i18n="history.serverSubtitle" hidden>
+              Cases stored on this CODA server. Opening one shows it read-only.
             </p>
           </div>
           <div class="history-head-actions">
@@ -2791,8 +2915,11 @@
 
         <aside class="inference-col">
           <div class="section-head">
-            <span class="kicker" data-i18n="record.probableCause"
+            <span class="kicker kicker-probable-cause" data-i18n="record.probableCause"
               >Probable cause</span
+            >
+            <span class="kicker kicker-timeline" data-i18n="case.timeline"
+              >Inference timeline</span
             >
             <span
               id="updatingPill"
@@ -3163,6 +3290,8 @@
           "result.confidence": "confidence",
           "chart.evolution": "How probabilities evolved",
           "chart.paused": "CHART PAUSED",
+          "chart.now": "now",
+          "chart.empty": "No inferences yet",
           "advisory.short": "Advisory only — final determination is yours",
           "settings.title": "Settings",
           "settings.interfaceLang": "Interface language",
@@ -3185,6 +3314,22 @@
           "history.title": "Past sessions",
           "history.subtitle":
             "Everything is stored locally on this device. Nothing is synced or uploaded.",
+          "history.serverSubtitle":
+            "Cases stored on this CODA server. Opening one shows it read-only.",
+          "case.kicker": "Stored case · Read-only",
+          "case.timeline": "Inference timeline",
+          "case.noInference": "No inference",
+          "case.untitled": "Interview",
+          "case.noneStored": "No stored cases yet.",
+          "case.loadFailed": "Could not load the case",
+          "case.noTranscript": "No transcript was stored for this case.",
+          "case.noInferenceStored": "No inference results were stored for this case.",
+          "case.flagIncomplete": "Incomplete",
+          "case.flagInProgress": "In progress",
+          "case.incompleteNote":
+            "This case did not close normally, most likely because the server stopped during the interview. Everything saved up to that point is shown.",
+          "case.inProgressNote":
+            "This case is still being recorded. You are seeing what has been saved so far.",
         },
         sw: {
           "profile.title": "Wasifu wa kesi",
@@ -3703,6 +3848,7 @@
       let audioChunks = [];
       let audioBlob = null;
       let audioUrl = null;
+      let audioFilename = null;
       let serverSettingsLocked = false;
 
       const body = document.body;
@@ -3749,11 +3895,16 @@
       }
 
       function renderResultHero() {
-        if (!latestCauses) return;
-        const sorted = Object.entries(latestCauses).sort(
+        const sorted = Object.entries(latestCauses || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
-        if (!sorted.length) return;
+        if (!sorted.length) {
+          resultTitle.textContent = "No inference this session";
+          resultConfidence.textContent = "—";
+          resultIcd.textContent = "—";
+          resultBarFill.style.width = "0%";
+          return;
+        }
         const [, top] = sorted[0];
         resultTitle.textContent = top.name;
         resultConfidence.textContent = top.score.toFixed(2);
@@ -3764,13 +3915,23 @@
       }
 
       // Render a cause list (ranked, with confidence bars + deltas vs. a
-      // previous snapshot). Used for both the live inference panel and the
-      // Session Result differentials.
-      function renderCauseList(causes, previousCauses, reasoning, questions) {
+      // previous snapshot). Used for the live inference panel, the Session
+      // Result differentials, and a stored case's inference timeline, whose
+      // cards are headed by the time they were shown.
+      function renderCauseList(
+        causes,
+        previousCauses,
+        reasoning,
+        questions,
+        heading,
+      ) {
         const sorted = Object.entries(causes || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
         let html = '<div class="inference-card">';
+        if (heading) {
+          html += `<div class="inference-when">${escapeHtml(heading)}</div>`;
+        }
 
         sorted.forEach(([curie, causeObj], idx) => {
           const score =
@@ -3863,7 +4024,8 @@
       }
 
       function finalizeSessionIfSaving() {
-        if (!storageEnabled) return;
+        // Browsable server cases replace the copy kept on this device
+        if (!storageEnabled || casesBrowsable) return;
         if (!latestCauses || !Object.keys(latestCauses).length) return;
         const sorted = Object.entries(latestCauses).sort(
           (a, b) => b[1].score - a[1].score,
@@ -3924,30 +4086,86 @@
         return `${m} min ${r} s`;
       }
 
+      // --- History entries ---------------------------------------------
+      // The History list and the idle "Recent" block show the server's stored
+      // cases when it serves them, else the sessions kept on this device.
+      async function loadHistoryEntries() {
+        if (!casesBrowsable) {
+          return loadHistory().map((s) => ({
+            id: s.id,
+            startedAt: s.startedAt,
+            durationSeconds: s.durationSeconds,
+            topCause: {
+              name: s.topCause.name,
+              code: s.topCause.code || s.topCause.icd10 || "",
+              score: s.topCause.score,
+            },
+            open: () => openSessionFromHistory(s.id),
+          }));
+        }
+        let cases = [];
+        try {
+          const resp = await fetch("/cases");
+          if (resp.ok) cases = await resp.json();
+        } catch (_) {}
+        return cases.map((c) => ({
+          id: c.case_id,
+          startedAt: c.started_at,
+          durationSeconds: c.duration_s,
+          topCause: c.top_cause && {
+            name: c.top_cause.name,
+            code: causeCode(c.top_cause.identifiers),
+            score: c.top_cause.score,
+          },
+          flag: c.in_progress ? "inProgress" : c.ended_at ? null : "incomplete",
+          open: () => openStoredCase(c.case_id),
+        }));
+      }
+
+      // Row labels; where COD results are hidden, rows carry none
+      function entryLabels(entry) {
+        const codHidden = body.dataset.showCodResult === "false";
+        const cause = codHidden ? null : entry.topCause;
+        if (!cause) {
+          return {
+            title: t(codHidden ? "case.untitled" : "case.noInference"),
+            code: "",
+            score: "",
+          };
+        }
+        return {
+          title: cause.name,
+          code: cause.code,
+          score: cause.score.toFixed(2),
+        };
+      }
+
       // --- Idle-view "Recent" block ------------------------------------
       const idleRecentBlock = document.getElementById("idleRecentBlock");
       const idleRecentList = document.getElementById("idleRecentList");
       const idleRecentSeeAll = document.getElementById("idleRecentSeeAll");
 
-      function renderIdleRecent() {
-        const history = loadHistory();
-        if (!history.length) {
+      async function renderIdleRecent() {
+        const entries = await loadHistoryEntries();
+        if (!entries.length) {
           idleRecentBlock.style.display = "none";
           return;
         }
         idleRecentBlock.style.display = "flex";
         idleRecentList.innerHTML = "";
-        history.slice(0, 3).forEach((s) => {
+        entries.slice(0, 3).forEach((entry) => {
+          const { title, code, score } = entryLabels(entry);
+          const date = formatShortDate(entry.startedAt);
           const row = document.createElement("div");
           row.className = "idle-recent-row";
           row.innerHTML = `
                     <div class="idle-recent-row-body">
-                        <strong>${escapeHtml(s.topCause.name)}</strong>
-                        <small>${s.topCause.score.toFixed(2)} · ${escapeHtml(s.topCause.code || s.topCause.icd10 || "—")} · ${escapeHtml(formatShortDate(s.startedAt))}</small>
+                        <strong>${escapeHtml(title)}</strong>
+                        <small>${escapeHtml(score ? `${score} · ${code || "—"} · ${date}` : date)}</small>
                     </div>
                     <i class="bi bi-chevron-right" style="color: var(--ink-faint);"></i>
                 `;
-          row.addEventListener("click", () => openSessionFromHistory(s.id));
+          row.addEventListener("click", entry.open);
           idleRecentList.appendChild(row);
         });
       }
@@ -3958,17 +4176,18 @@
       const historyBackBtn = document.getElementById("historyBackBtn");
       const historyClearBtn = document.getElementById("historyClearBtn");
 
-      function renderHistoryView() {
-        const history = loadHistory();
+      async function renderHistoryView() {
+        const entries = await loadHistoryEntries();
         historyList.innerHTML = "";
-        if (!history.length) {
-          historyList.innerHTML =
-            '<div class="history-empty">No sessions saved yet. Press <strong>New</strong> to record one.</div>';
+        if (!entries.length) {
+          historyList.innerHTML = casesBrowsable
+            ? `<div class="history-empty">${escapeHtml(t("case.noneStored"))}</div>`
+            : '<div class="history-empty">No sessions saved yet. Press <strong>New</strong> to record one.</div>';
           return;
         }
         let lastGroup = null;
-        history.forEach((s) => {
-          const group = formatHistoryGroup(s.startedAt);
+        entries.forEach((entry) => {
+          const group = formatHistoryGroup(entry.startedAt);
           if (group !== lastGroup) {
             const g = document.createElement("div");
             g.className = "history-group";
@@ -3976,29 +4195,37 @@
             historyList.appendChild(g);
             lastGroup = group;
           }
+          const { title, code, score } = entryLabels(entry);
+          let flag = "";
+          if (entry.flag === "inProgress") {
+            flag = `<span class="history-flag history-flag--live">${escapeHtml(t("case.flagInProgress"))}</span>`;
+          } else if (entry.flag === "incomplete") {
+            flag = `<span class="history-flag">${escapeHtml(t("case.flagIncomplete"))}</span>`;
+          }
           const row = document.createElement("div");
           row.className = "history-item";
           row.innerHTML = `
                     <div class="history-item-body">
                         <div class="history-item-title">
-                            <strong>${escapeHtml(s.topCause.name)}</strong>
-                            <span class="code">${escapeHtml(s.topCause.code || s.topCause.icd10 || "")}</span>
+                            <strong>${escapeHtml(title)}</strong>
+                            <span class="code">${escapeHtml(code)}</span>
+                            ${flag}
                         </div>
-                        <div class="history-item-meta">${escapeHtml(formatShortDate(s.startedAt))} · ${escapeHtml(formatDuration(s.durationSeconds))}</div>
+                        <div class="history-item-meta">${escapeHtml(formatShortDate(entry.startedAt))} · ${escapeHtml(formatDuration(entry.durationSeconds))}</div>
                     </div>
-                    <div class="history-item-conf">${s.topCause.score.toFixed(2)}</div>
-                    <button class="history-item-delete" aria-label="Delete session"><i class="bi bi-trash"></i></button>
+                    <div class="history-item-conf">${escapeHtml(score)}</div>
+                    ${casesBrowsable ? "" : '<button class="history-item-delete" aria-label="Delete session"><i class="bi bi-trash"></i></button>'}
                     <i class="bi bi-chevron-right history-chev"></i>
                 `;
           row.addEventListener("click", (e) => {
             if (e.target.closest(".history-item-delete")) return;
-            openSessionFromHistory(s.id);
+            entry.open();
           });
           row
             .querySelector(".history-item-delete")
-            .addEventListener("click", (e) => {
+            ?.addEventListener("click", (e) => {
               e.stopPropagation();
-              deleteSession(s.id);
+              deleteSession(entry.id);
             });
           historyList.appendChild(row);
         });
@@ -4054,6 +4281,130 @@
         renderResultHero();
         setSessionState("result");
       }
+
+      // --- Stored case view (read-only) --------------------------------
+      const caseMeta = document.getElementById("caseMeta");
+      const caseIdLabel = document.getElementById("caseIdLabel");
+      const caseNote = document.getElementById("caseNote");
+
+      async function openStoredCase(caseId) {
+        let c;
+        try {
+          const resp = await fetch(`/cases/${encodeURIComponent(caseId)}`);
+          if (!resp.ok) throw new Error(resp.statusText);
+          c = await resp.json();
+        } catch (_) {
+          showStatus(t("case.loadFailed"), "danger");
+          return;
+        }
+        clearSessionView();
+
+        // Transcript as shown live, else the plain stored text
+        if (c.chunks && c.chunks.length) {
+          transcript.innerHTML = "";
+          c.chunks.forEach(appendTranscriptChunk);
+        } else if (c.transcripts.en) {
+          transcriptText = c.transcripts.en;
+          transcript.innerHTML = `<span class="chunk">${escapeHtml(transcriptText)}</span>`;
+        } else {
+          transcript.innerHTML = `<span class="placeholder">${escapeHtml(t("case.noTranscript"))}</span>`;
+        }
+        updateWordCount();
+
+        // Every inference shown, stacked newest first as in the live panel.
+        // Follow-up questions are left out of the stored view.
+        const records = c.inference || [];
+        records.forEach((rec, i) => {
+          const shownAt = new Date(rec.shown_at * 1000).toLocaleTimeString(
+            [],
+            { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+          );
+          const previous = i > 0 ? records[i - 1].causes : null;
+          inference.insertAdjacentHTML(
+            "afterbegin",
+            renderCauseList(
+              rec.causes,
+              previous,
+              rec.reasoning,
+              null,
+              shownAt,
+            ),
+          );
+          updateCausesChart(rec.causes || {});
+        });
+        const diffEl = document.getElementById("differentialsList");
+        const last = records[records.length - 1];
+        if (last) {
+          const beforeLast = records[records.length - 2];
+          diffEl.innerHTML = renderCauseList(
+            last.causes,
+            beforeLast ? beforeLast.causes : null,
+            last.reasoning,
+          );
+        } else {
+          const empty = t(c.inference ? "case.noInference" : "case.noInferenceStored");
+          inference.innerHTML = diffEl.innerHTML =
+            `<div class="case-empty">${escapeHtml(empty)}</div>`;
+        }
+        latestCauses = last ? last.causes : null;
+        renderResultHero();
+
+        if (c.has_audio) {
+          attachAudio(
+            `/cases/${encodeURIComponent(caseId)}/audio`,
+            `${caseId}.wav`,
+          );
+        }
+        renderCaseBanner(c);
+        body.classList.add("viewing-case");
+        setSessionState("result");
+      }
+
+      function renderCaseBanner(c) {
+        const run = c.run_info || {};
+        const inferenceInfo = run.inference || {};
+        let language = run.language;
+        try {
+          language = new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+            run.language,
+          );
+        } catch (_) {}
+        const profile = c.metadata && c.metadata.profile;
+        let profileText = "";
+        if (profile && profile.stillbirth) {
+          profileText = t("profile.stillbirth");
+        } else if (profile && profile.age) {
+          profileText = `${t("profile.age")} ${profile.age.value} ${profile.age.unit}`;
+        }
+        caseMeta.textContent = [
+          new Date(c.started_at).toLocaleString([], {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+          formatDuration(c.duration_s),
+          language,
+          [run.transcriber_backend, run.transcriber_model]
+            .filter(Boolean)
+            .join(" "),
+          [inferenceInfo.agent, inferenceInfo.model].filter(Boolean).join(" "),
+          profileText,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        caseIdLabel.textContent = c.coda_version
+          ? `${c.case_id} · CODA ${c.coda_version}`
+          : c.case_id;
+        if (c.in_progress) {
+          caseNote.textContent = t("case.inProgressNote");
+        } else {
+          caseNote.textContent = c.ended_at ? "" : t("case.incompleteNote");
+        }
+      }
+
+      document.getElementById("caseBackBtn").addEventListener("click", () => {
+        clearSessionView();
+        openHistory();
+      });
 
       historyBtn.addEventListener("click", openHistory);
       historyBackBtn.addEventListener("click", closeHistory);
@@ -4157,10 +4508,7 @@
         if (!audioUrl) return;
         const a = document.createElement("a");
         a.href = audioUrl;
-        a.download =
-          "coda-session-" +
-          new Date().toISOString().replace(/[:.]/g, "-") +
-          ".webm";
+        a.download = audioFilename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -4244,10 +4592,10 @@
       });
       ieSettingsBtn.addEventListener("click", openSettings);
 
-      function attachRecordedAudio(blob) {
-        audioBlob = blob;
-        audioUrl = URL.createObjectURL(blob);
-        audioEl.src = audioUrl;
+      function attachAudio(url, filename) {
+        audioUrl = url;
+        audioFilename = filename;
+        audioEl.src = url;
         audioEl.load();
         audioBarEl.classList.add("has-audio");
         audioPlayBtn.disabled = false;
@@ -4389,6 +4737,8 @@
       const storageOn = document.getElementById("storageOn");
       const storageOff = document.getElementById("storageOff");
       let storageEnabled = false;
+      // Whether History lists the server's stored cases instead of local ones
+      let casesBrowsable = false;
       const transcriberBackendSelect = document.getElementById(
         "transcriberBackendSelect",
       );
@@ -4623,6 +4973,12 @@
           storageEnabled = data.storage_enabled === true;
           storageOn.hidden = !storageEnabled;
           storageOff.hidden = storageEnabled;
+          casesBrowsable = data.cases_browsable === true;
+          historyBtn.style.display = casesBrowsable ? "" : "none";
+          historyClearBtn.style.display = casesBrowsable ? "none" : "";
+          document.getElementById("historyLocalSubtitle").hidden = casesBrowsable;
+          document.getElementById("historyServerSubtitle").hidden = !casesBrowsable;
+          if (casesBrowsable) renderIdleRecent();
           transcriberBackendSelect.value = data.transcriber_backend;
           await loadBackendModels(
             data.transcriber_backend,
@@ -4893,6 +5249,40 @@
         wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
       }
 
+      // Append a committed chunk with its grounded terms marked, preceded by
+      // its original-language text when it was translated
+      function appendTranscriptChunk(data) {
+        const text = data.transcript;
+        transcriptText += text + " ";
+
+        const anns = (data.annotations || [])
+          .slice()
+          .sort((a, b) => a.start - b.start);
+
+        let chunkHtml = "";
+        let pos = 0;
+        for (const ann of anns) {
+          if (ann.start > pos) {
+            chunkHtml += escapeHtml(text.slice(pos, ann.start));
+          }
+          chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+          pos = ann.end;
+        }
+        if (pos < text.length) {
+          chunkHtml += escapeHtml(text.slice(pos));
+        }
+
+        chunkCount++;
+        const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
+
+        if (data.original_transcript) {
+          const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
+          transcript.insertAdjacentHTML("beforeend", origSpan);
+        }
+
+        transcript.insertAdjacentHTML("beforeend", chunkSpan);
+      }
+
       async function startRecording() {
         try {
           micSelect.disabled = true;
@@ -4936,35 +5326,7 @@
               const prevLine = document.getElementById("preview-line");
               if (prevLine) prevLine.remove();
 
-              const text = data.transcript;
-              transcriptText += text + " ";
-
-              const anns = (data.annotations || [])
-                .slice()
-                .sort((a, b) => a.start - b.start);
-
-              let chunkHtml = "";
-              let pos = 0;
-              for (const ann of anns) {
-                if (ann.start > pos) {
-                  chunkHtml += escapeHtml(text.slice(pos, ann.start));
-                }
-                chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
-                pos = ann.end;
-              }
-              if (pos < text.length) {
-                chunkHtml += escapeHtml(text.slice(pos));
-              }
-
-              chunkCount++;
-              const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
-
-              if (data.original_transcript) {
-                const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
-                transcript.insertAdjacentHTML("beforeend", origSpan);
-              }
-
-              transcript.insertAdjacentHTML("beforeend", chunkSpan);
+              appendTranscriptChunk(data);
               transcript.scrollTop = transcript.scrollHeight;
               updateWordCount();
             } else if (data.type === "preview") {
@@ -5082,8 +5444,13 @@
             mediaRecorder.onstop = () => {
               if (!audioChunks.length) return;
               const mime = mediaRecorder.mimeType || "audio/webm";
-              const blob = new Blob(audioChunks, { type: mime });
-              attachRecordedAudio(blob);
+              audioBlob = new Blob(audioChunks, { type: mime });
+              attachAudio(
+                URL.createObjectURL(audioBlob),
+                "coda-session-" +
+                  new Date().toISOString().replace(/[:.]/g, "-") +
+                  ".webm",
+              );
             };
             mediaRecorder.start(1000);
           } catch (err) {
@@ -5280,16 +5647,8 @@
           latestCauses && Object.keys(latestCauses).length > 0;
         const hasTranscript = transcriptText.trim().length > 0;
         if (hasInference || hasTranscript) {
-          if (hasInference) {
-            finalizeSessionIfSaving();
-            renderResultHero();
-          } else {
-            // Inference never fired — show a minimal hero acknowledging that.
-            resultTitle.textContent = "No inference this session";
-            resultConfidence.textContent = "—";
-            resultIcd.textContent = "—";
-            resultBarFill.style.width = "0%";
-          }
+          if (hasInference) finalizeSessionIfSaving();
+          renderResultHero();
           setSessionState("result");
         } else {
           renderIdleRecent();
@@ -5405,6 +5764,27 @@
       ageUnitSelect.addEventListener("change", pushMetadata);
       stillbirthToggle.addEventListener("change", pushMetadata);
 
+      // Empty the transcript, inference, chart, and playback of the last
+      // session or stored case
+      function clearSessionView() {
+        body.classList.remove("viewing-case");
+        transcriptText = "";
+        chunkCount = 0;
+        transcript.innerHTML =
+          '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
+        inference.innerHTML = "";
+        const diffElReset = document.getElementById("differentialsList");
+        if (diffElReset) diffElReset.innerHTML = "";
+        clearChart();
+        timerEl.textContent = "00:00";
+        updateWordCount();
+        latestCauses = null;
+        lastDuration = 0;
+        evolution = [];
+        resetAudio();
+        exitInferenceOffline();
+      }
+
       document
         .getElementById("resetBtn")
         .addEventListener("click", async () => {
@@ -5412,21 +5792,7 @@
             stopRecording();
           }
           clearProfileInputs();
-          transcriptText = "";
-          chunkCount = 0;
-          transcript.innerHTML =
-            '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
-          inference.innerHTML = "";
-          const diffElReset = document.getElementById("differentialsList");
-          if (diffElReset) diffElReset.innerHTML = "";
-          clearChart();
-          timerEl.textContent = "00:00";
-          updateWordCount();
-          latestCauses = null;
-          lastDuration = 0;
-          evolution = [];
-          resetAudio();
-          exitInferenceOffline();
+          clearSessionView();
           renderIdleRecent();
           setSessionState("idle");
           try {

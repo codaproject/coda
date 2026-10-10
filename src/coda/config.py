@@ -63,6 +63,7 @@ settings = Dynaconf(
         Validator("grounder.rag.reranker.enabled", cast=bool),
         Validator(
             "storage.enabled",
+            "storage.browse",
             "storage.store.audio",
             "storage.store.transcripts",
             "storage.store.annotations",
