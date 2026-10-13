@@ -1,20 +1,16 @@
 """The configurations the ticket asks to compare, and how to run them.
 
 A configuration is a name plus the dialogue.whisper_livekit overrides it
-changes from the shipped settings.yaml. A row is one configuration on one
-variant and one language, i.e. seven recordings run one after another in one
-process (WhisperLiveKit's engine is a process-wide singleton, so a process
-holds one configuration). Rows are numbered so a cluster job array can pick
-one by index.
+changes from the shipped settings.yaml. Each configuration is run on every
+variant and language selected, seven recordings each, one after another, and
+the summary table is printed at the end.
 
-    python compare_configurations.py --list                      show every row with its index
-    python compare_configurations.py --row 12                    run one row here
-    python compare_configurations.py --config-index 3            run every row of one configuration
-    python compare_configurations.py --languages en --configs baseline vac_off   run a subset here
-    python compare_configurations.py --table                     summarize every scored result
+    python compare_configurations.py --languages en
+    python compare_configurations.py --configs baseline vac_off --variants controlled
+    python compare_configurations.py --table      reprint the summary without running
 
-Results land in results/<config>/<variant>/<language>/<case>.json (run.py)
-with <case>.score.json beside them (score.py).
+Results land in results/<feed>/<config>/<variant>/<language>/<case>.json
+(run.py) with <case>.score.json beside them (score.py).
 """
 import argparse
 import json
@@ -72,9 +68,8 @@ def run_row(row, model="small", realtime=False):
         out = (runner.RESULTS_DIR / ("realtime" if realtime else "lockstep")
                / row["config"] / row["variant"] / row["language"]
                / composite.with_suffix(".json").name)
-        if out.exists() and json.loads(out.read_text()).get("complete"):
-            result = json.loads(out.read_text())
-        else:
+        result = json.loads(out.read_text()) if out.exists() else None
+        if not (result and result.get("complete")):
             result = runner.run(composite, model, overrides, realtime, out)
         _, s = scorer.score_file(out)
         print(scorer.summary_line(result, s), flush=True)
@@ -108,7 +103,7 @@ def table():
                  *[f"{mean([s['non_speech'].get(n, {}).get('words_per_min') for s in ss]):.1f}"
                    for n in noises],
                  f"{mean([s['speech']['wer'] for s in ss]):.3f}",
-                 f"{mean([s['keep_up'] for s in ss]):.2f}",
+                 f"{mean([s['slowdown'] for s in ss]):.2f}",
                  str(sum(not s["complete"] for s in ss))]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
@@ -116,11 +111,6 @@ def table():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--list", action="store_true", help="print the rows")
-    parser.add_argument("--row", type=int, default=None, help="run one row by index")
-    parser.add_argument("--config-index", type=int, default=None,
-                        help="run every row of the Nth configuration (one "
-                             "cluster job per configuration)")
     parser.add_argument("--configs", nargs="+", choices=list(CONFIGS), default=None)
     parser.add_argument("--variants", nargs="+", choices=VARIANTS, default=None)
     parser.add_argument("--languages", nargs="+", choices=LANGUAGES, default=None)
@@ -128,27 +118,14 @@ def main():
     parser.add_argument("--realtime", action="store_true",
                         help="feed at real time (see run.py); default is lock-step")
     parser.add_argument("--table", action="store_true",
-                        help="print the summary table of all scored results")
+                        help="reprint the summary table without running anything")
     args = parser.parse_args()
 
-    if args.table:
-        print(table())
-        return
-    all_rows = rows()
-    if args.list:
-        for i, r in enumerate(all_rows):
-            print(f"{i:3d}  {r['config']:14s} {r['variant']:10s} {r['language']}")
-        print(f"{len(all_rows)} rows")
-        return
-    if args.row is not None:
-        selected = [all_rows[args.row]]
-    elif args.config_index is not None:
-        selected = rows([list(CONFIGS)[args.config_index]])
-    else:
-        selected = rows(args.configs, args.variants, args.languages)
-    for r in selected:
-        print(f"== {r['config']} / {r['variant']} / {r['language']} ==", flush=True)
-        run_row(r, args.model, args.realtime)
+    if not args.table:
+        for r in rows(args.configs, args.variants, args.languages):
+            print(f"== {r['config']} / {r['variant']} / {r['language']} ==", flush=True)
+            run_row(r, args.model, args.realtime)
+    print(table())
 
 
 if __name__ == "__main__":

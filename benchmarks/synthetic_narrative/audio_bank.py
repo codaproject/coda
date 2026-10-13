@@ -9,7 +9,7 @@ One engine for every language, so differences between languages are not
 differences between voices: Meta's MMS-TTS (facebook/mms-tts-<iso3>) through
 transformers, offline after a ~150 MB download per language, CPU is enough.
 
-    python benchmarks/hallucination/audio_bank.py --languages en pt_br bn ts
+    python benchmarks/synthetic_narrative/audio_bank.py --languages en pt_br bn ts
 """
 import argparse
 import json

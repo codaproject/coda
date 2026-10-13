@@ -27,19 +27,18 @@ of its speech and noise regions. The result is identical for the same seed.
 ## 2. Run the configurations
 
 ```bash
-python benchmarks/synthetic_narrative/compare_configurations.py --list
 python benchmarks/synthetic_narrative/compare_configurations.py --languages en
-python benchmarks/synthetic_narrative/compare_configurations.py --table
 ```
 
-The second command runs every configuration in the table at the top of
-`compare_configurations.py` on the English recordings, one after another, and
+This runs every configuration in the table at the top of
+`compare_configurations.py` on the English recordings, one after another,
 writes `results/lockstep/<config>/<variant>/<language>/<case>.json` with a
-`.score.json` beside it. Narrow it with `--configs`, `--variants` and
-`--languages`; a recording that already has a complete result is skipped, so
-a stopped run resumes. The third prints one row per configuration, variant
-and language: gap words per minute of non-speech, per noise clip and in
-total, speech WER, and clock time over audio time.
+`.score.json` beside it, and prints the summary when done: one row per
+configuration, variant and language with gap words per minute of non-speech,
+per noise clip and in total, speech WER, and clock time over audio time.
+Narrow it with `--configs`, `--variants` and `--languages`. A recording that
+already has a complete result is skipped, so a stopped run resumes.
+`--table` reprints the summary without running anything.
 
 By default audio is fed in lock-step, each piece after the previous one is
 processed, so the result does not depend on the machine's speed. Add

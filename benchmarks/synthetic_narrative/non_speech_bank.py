@@ -16,8 +16,7 @@ manifest.json describing every clip. Two kinds:
 Every clip except silence is normalized to the same RMS level so the splicer
 can set a signal-to-noise ratio against speech by scaling alone.
 
-    python benchmarks/hallucination/non_speech_bank.py
-    python benchmarks/hallucination/non_speech_bank.py --skip-download
+    python benchmarks/synthetic_narrative/non_speech_bank.py
 """
 import argparse
 import json
@@ -131,7 +130,7 @@ def download_demand(env, dest_dir):
     return pcm
 
 
-def build(skip_download=False, force=False):
+def build(force=False):
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     manifest = {"seconds": SECONDS, "rms_dbfs": RMS_DBFS, "sample_rate": SAMPLE_RATE,
                 "clips": {}}
@@ -148,9 +147,6 @@ def build(skip_download=False, force=False):
     for name, env in RECORDED.items():
         path = OUT_DIR / f"{name}.wav"
         if force or not path.exists():
-            if skip_download:
-                print(f"  {name:22s} skipped (no download)", flush=True)
-                continue
             pcm = download_demand(env, OUT_DIR / "_download")
             start = int(DEMAND_SKIP_S * SAMPLE_RATE)
             audio.write_wav(path, normalize(pcm[start:start + n]))
@@ -160,7 +156,8 @@ def build(skip_download=False, force=False):
             "source": DEMAND_URL.format(env=env), "license": "CC BY-SA 3.0"}
         print(f"  {name:22s} recorded   DEMAND {env}", flush=True)
 
-    (OUT_DIR / "_download").rmdir() if (OUT_DIR / "_download").exists() else None
+    if (OUT_DIR / "_download").exists():
+        (OUT_DIR / "_download").rmdir()
     (OUT_DIR / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     return manifest
@@ -168,11 +165,9 @@ def build(skip_download=False, force=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--skip-download", action="store_true",
-                        help="build only the synthetic clips")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
-    build(skip_download=args.skip_download, force=args.force)
+    build(force=args.force)
 
 
 if __name__ == "__main__":

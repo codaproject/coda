@@ -22,7 +22,7 @@ For one reading:
   5. Write that as the controlled variant, then add the bed and write the
      ambient variant.
 
-    python benchmarks/hallucination/splice.py --languages en bn --seed 0
+    python benchmarks/synthetic_narrative/splice.py --languages en bn --seed 0
 """
 import argparse
 import json
@@ -121,10 +121,9 @@ def plan_gaps(rng, clips, n_slots):
     return gaps
 
 
-def build_case(language, case_id, text, clips, seed):
+def build_case(language, case_index, case_id, text, clips, seed):
     """Write both variants of one case; returns {variant: region map}."""
-    rng = np.random.default_rng([seed, LANGUAGES.index(language),
-                                 sorted_case_index(language, case_id)])
+    rng = np.random.default_rng([seed, LANGUAGES.index(language), case_index])
     speech = audio.read_wav(SPEECH_DIR / language / f"{case_id}.wav")
     level = speech_level(speech)
     cuts = sentence_cuts(speech, level)
@@ -195,16 +194,6 @@ def build_case(language, case_id, text, clips, seed):
     return infos
 
 
-_case_order = {}
-
-
-def sorted_case_index(language, case_id):
-    if language not in _case_order:
-        manifest = json.loads((SPEECH_DIR / language / "manifest.json").read_text())
-        _case_order[language] = sorted(manifest["cases"])
-    return _case_order[language].index(case_id)
-
-
 def load_clips():
     manifest = json.loads((NON_SPEECH_DIR / "manifest.json").read_text())
     return {name: audio.read_wav(NON_SPEECH_DIR / info["file"])
@@ -214,25 +203,14 @@ def load_clips():
 def build(language, seed=0):
     clips = load_clips()
     manifest = json.loads((SPEECH_DIR / language / "manifest.json").read_text())
-    cases = {}
-    for case_id in sorted(manifest["cases"]):
-        infos = build_case(language, case_id, manifest["cases"][case_id]["text"],
-                           clips, seed)
-        info = infos["controlled"]
-        cases[case_id] = {"total_seconds": info["total_seconds"],
-                          "speech_seconds": info["speech_seconds"],
-                          "sentence_cuts": info["sentence_cuts"]}
+    for index, case_id in enumerate(sorted(manifest["cases"])):
+        info = build_case(language, index, case_id,
+                          manifest["cases"][case_id]["text"], clips, seed)["controlled"]
         ns = sum(info["non_speech_seconds"].values())
         print(f"  {language}/{case_id:10s} {info['total_seconds']:6.1f}s total  "
               f"{info['speech_seconds']:5.1f}s speech in {info['sentence_cuts'] + 1} "
               f"parts  {ns:5.1f}s non-speech in {len(clips)} gaps  "
               f"x{len(VARIANTS)} variants", flush=True)
-    for variant in VARIANTS:
-        (OUT_DIR / variant / language / "manifest.json").write_text(json.dumps(
-            {"language": language, "variant": variant, "seed": seed,
-             "gap_seconds": GAP_SECONDS, "gap_level_db": LEVEL_DB,
-             "bed": {"name": BED, "level_db": BED_DB} if variant == "ambient"
-             else None, "cases": cases}, ensure_ascii=False, indent=2) + "\n")
 
 
 def main():

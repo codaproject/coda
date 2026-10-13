@@ -1,4 +1,4 @@
-"""Shared paths for the hallucination benchmark.
+"""Shared paths for the synthetic narrative benchmark.
 
 Importing this module puts benchmarks/lang_support on sys.path, so its
 reference loaders can be reused when running a script here from the repo root.

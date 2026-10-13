@@ -1,7 +1,7 @@
 """Runner: stream one benchmark composite through CODA's transcriber.
 
-Feeds the composite to CODA's whisper-livekit transcriber the way the browser
-does, 16 kHz PCM in real time, and writes one JSON with every committed word
+Feeds the composite to CODA's whisper-livekit transcriber as 16 kHz PCM in
+the pieces the browser sends, and writes one JSON with every committed word
 and its audio time, the text CODA would have emitted, and the configuration
 that was active. The scorer reads that JSON together with the composite's
 region map.
@@ -19,8 +19,8 @@ caught up with, so on a slow machine fed at speaking speed it drops words,
 which is a property of the machine, not of the model. The default here is
 lock-step: the next chunk is fed only once everything before it has been
 processed, so the transcriber keeps up by construction and the result is the
-same on any hardware. --realtime feeds at speaking speed instead, to measure
-keep-up on a given machine.
+same on any hardware. --realtime feeds at live speed instead, to measure
+whether a given machine keeps pace.
 
     python benchmarks/synthetic_narrative/run.py \\
         benchmarks/synthetic_narrative/data/benchmark/controlled/en/lri_1.wav \\
@@ -191,8 +191,8 @@ def main():
                              "@none disables a threshold")
     parser.add_argument("--model", default="small", help="the app default")
     parser.add_argument("--realtime", action="store_true",
-                        help="feed at speaking speed to measure keep-up on this "
-                             "machine, instead of lock-step with processing")
+                        help="feed at live speed to measure whether this machine "
+                             "keeps pace, instead of lock-step with processing")
     parser.add_argument("--out", default=None, help="result JSON path")
     args = parser.parse_args()
 

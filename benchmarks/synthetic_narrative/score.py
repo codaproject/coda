@@ -13,11 +13,11 @@ write them next to it as <case>.score.json:
               lang_support normalizer.
 
 A "word" is one timed piece from the transcriber (faster-whisper's word
-timestamps), which is also what CODA emits. keep_up is clock time divided by
-audio time: above 1.0 the transcriber fell behind speaking speed.
+timestamps), which is also what CODA emits. slowdown is clock time divided by
+audio time: above 1.0 the transcriber took longer than the recording.
 
-    python benchmarks/synthetic_narrative/score.py results/baseline
-    python benchmarks/synthetic_narrative/score.py results/baseline/controlled/en/lri_1.json
+    python benchmarks/synthetic_narrative/score.py results/lockstep/baseline
+    python benchmarks/synthetic_narrative/score.py results/lockstep/baseline/controlled/en/lri_1.json
 """
 import argparse
 import importlib
@@ -96,7 +96,7 @@ def score(result, splice_map):
         "edge_words": len(edge_words), "edge_text": edge_words,
         "speech": {"seconds": splice_map["speech_seconds"], "wer": round(wer, 4),
                    "S": s, "D": d, "I": i, "N": n, "hyp": hyp},
-        "keep_up": round(result["wall_seconds"] / result["audio_seconds"], 3),
+        "slowdown": round(result["wall_seconds"] / result["audio_seconds"], 3),
         "complete": result.get("complete", True),
     }
 
@@ -115,7 +115,7 @@ def summary_line(result, scored):
     return (f"{result['variant']}/{result['language']}/{Path(result['composite']).stem:10s}"
             f"  gap words {ns['total']['words']:3d} ({ns['total']['words_per_min']:5.1f}/min)"
             f"  edge {scored['edge_words']:2d}  WER {scored['speech']['wer']:.3f}"
-            f"  keep-up {scored['keep_up']:.2f}"
+            f"  slowdown {scored['slowdown']:.2f}"
             + ("" if scored["complete"] else "  INCOMPLETE"))
 
 
