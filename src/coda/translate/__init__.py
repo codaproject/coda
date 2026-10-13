@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 # Selectable translation backends, chosen via the app's translation_mode
 # setting. whisper_translate is carried out by the transcriber itself, llm
 # and ctranslate2 translate the finished transcript as a second step.
-TRANSLATOR_BACKENDS = ("whisper_translate", "llm", "ctranslate2")
+TRANSLATOR_BACKENDS = ("whisper_translate", "llm", "ctranslate2", "madlad", "hy_mt2")
 
 
 def _load_backend_class(backend: str):
@@ -26,6 +26,12 @@ def _load_backend_class(backend: str):
     if backend == "ctranslate2":
         from .ct2 import CTranslate2Translator
         return CTranslate2Translator
+    if backend == "madlad":
+        from .madlad import MadladTranslator
+        return MadladTranslator
+    if backend == "hy_mt2":
+        from .hy_mt2 import HyMT2Translator
+        return HyMT2Translator
     raise ValueError(
         f"Unknown translator backend {backend!r}; "
         f"choose from {TRANSLATOR_BACKENDS}"
