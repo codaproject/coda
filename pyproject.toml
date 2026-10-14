@@ -49,6 +49,7 @@ dependencies = [
     "flair>=0.15.1",
     "wtpsplit-lite",
     "dynaconf>=3.3.3",
+    "cryptography",
 ]
 
 [project.optional-dependencies]
