@@ -19,6 +19,17 @@
 app:
   host: 0.0.0.0
   port: 8000
+  # When true, serve the interview UI over HTTPS with a local certificate
+  # authority, and serve a plain-HTTP setup page on setup_port. startup.sh
+  # and Docker Compose turn this on. python -m coda.app leaves it off unless
+  # CODA_APP__TLS is set, so an image health check can stay on plain HTTP.
+  tls: false
+  # Directory for ca.pem, ca-key.pem, cert.pem, and key.pem. Relative paths
+  # are resolved from the working directory.
+  tls_dir: certs
+  # Plain HTTP port that only offers the authority certificate and the steps
+  # to install it.
+  setup_port: 8001
   # When true, the server rejects changes to server-global settings.
   lock_server_settings: false
   # When false, the case profile (demographics) selector is hidden.
