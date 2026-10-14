@@ -50,6 +50,7 @@ dependencies = [
     "wtpsplit-lite",
     "dynaconf>=3.3.3",
     "pypdf",
+    "cryptography",
 ]
 
 [project.optional-dependencies]
