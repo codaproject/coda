@@ -126,15 +126,19 @@ The files should be reported as gzip-compressed data, not ASCII text.
 
 Both Compose paths publish these endpoints by default:
 
-- CODA web UI at `http://localhost:8000`
-- CODA app health check at `http://localhost:8000/health`
+- CODA web UI at `http://localhost:8000` (`https` with TLS enabled)
+- phone or tablet TLS certificate setup at `http://<laptop-ip>:8001` (with TLS
+  enabled)
+- CODA app health check at `http://localhost:8000/health` (`https` with TLS
+  enabled)
 - inference API documentation at `http://localhost:5123/docs`
 - inference health check at `http://localhost:5123/health`
 - Neo4j browser at `http://localhost:7474`
 - Neo4j Bolt at `bolt://localhost:7687`
 
-If you change `CODA_APP__PORT`, `CODA_INFERENCE__PORT`, `NEO4J_HTTP_PORT`, or
-`NEO4J_BOLT_PORT`, replace the corresponding port in these URLs.
+If you change `CODA_APP__PORT`, `CODA_APP__SETUP_PORT`, `CODA_INFERENCE__PORT`,
+`NEO4J_HTTP_PORT`, or `NEO4J_BOLT_PORT`, replace the corresponding port in
+these URLs.
 
 All configuration lives in `config/settings.yaml` (one namespace per module).
 Any value can be overridden with a `CODA_`-prefixed environment variable, using
@@ -149,6 +153,8 @@ values to change) or set the corresponding `CODA_`-prefixed vars.
 The Compose path is env-driven. The main runtime variables are:
 
 - `CODA_APP__HOST`, `CODA_APP__PORT`
+- `CODA_APP__TLS`, `CODA_APP__TLS_DIR`, `CODA_APP__SETUP_PORT` for phone/tablet
+  HTTPS. Compose turns TLS on and keeps the certificate authority in `./certs`
 - `CODA_INFERENCE__HOST`, `CODA_INFERENCE__PORT`
 - `CODA_INFERENCE__LLM__PROVIDER`, `CODA_INFERENCE__LLM__MODEL`
 - `OPENAI_API_KEY`
@@ -352,8 +358,10 @@ cp .env.example .env
 
 `startup.sh` uses the same runtime env contract as Docker Compose and launches
 the inference service and web app together. With the default ports, open the
-web UI at `http://localhost:8000`; the inference health endpoint is
-`http://localhost:5123/health`.
+web UI at `https://localhost:8000` (`http` if TLS is disabled). If on https,
+there may be a certificate warning that the laptop browser can continue past.
+The inference health endpoint is `http://localhost:5123/health`. The script also
+prints a phone setup address on port 8001 when TLS is enabled.
 
 Alternatively, you can start the services individually. Start the inference
 agent after exporting the values from `.env`:
@@ -390,7 +398,57 @@ python -m coda.app
 This uses `CODA_APP__HOST`, `CODA_APP__PORT`, and `CODA_INFERENCE__URL` from the
 exported environment. The optional RAG grounder also reads the
 `CODA_GROUNDER__RAG__*` settings and `CODA_KG__URL`. With the default ports,
-open `http://localhost:8000`.
+open `http://localhost:8000`. This command leaves TLS off unless
+`CODA_APP__TLS=true`.
+
+Phone or tablet on the same network
+-----------------------------------
+
+Because a phone or tablet browser will only allow microphone access for an
+address that is `localhost` or served over HTTPS, TLS needs to be setup to use
+the CODA app on another device on the same network. `startup.sh` and Docker
+Compose serve the interview UI with TLS turned on by default, so the app can be
+accessed over HTTPS on port 8000, using a certificate authority created on the
+laptop. The first time the app is run with TLS, the certificate authority is
+saved locally to the device running the app. The certificate authority is reused
+when the app is restarted later, so a phone or tablet that already trusts the
+authority does not need to install it again.
+
+If TLS is not needed, set `CODA_APP__TLS=false` to keep the web app on HTTP.
+
+### Step for first setup, with no certificate on the phone
+
+1. Start CODA on the laptop with either `docker compose` or `./startup.sh`.
+   Either will start with TLS on by default.
+2. Connect the phone to the same network as the laptop. This could be on the
+   same WiFi by connecting the phone to the laptop's WiFi hotspot.
+3. Open the phone setup page at `http://<laptop-ip>:8001`. The laptop IP will be
+   printed in the logs when the app is started. The page has detailed
+   installation instructions and has a download button for downloading the
+   certificate to your phone.
+4. Install the certificate on your phone
+   - Android:
+     - Navigate to Settings > Security (or Biometrics and security) >
+       (Other security settings >) Install from device storage
+   - iOS:
+     - Follow the on-screen instructions to install the profile
+     - Turn on full trust under Settings > General > About > Certificate Trust
+       Settings
+     - Under "Enable Full Trust for Root Certificates," locate the installed CA
+       and toggle the switch to `On`.
+5. Once installed, open the interview page by clicking the link at the bottom of
+   the setup page, or copy the URL from the app startup log which will show the
+   same URL. Or simply go to `https://<laptop-ip>:8000`.
+6. Once on the interview page, ensure that microphone access is allowed.
+   Installing the certificate does not automatically grant microphone access. If
+   the microphone button does nothing, set Microphone to Allow in the browser's
+   site settings.
+
+### Returning after CODA has been shut down
+
+The phone or tablet already trusts the certificate authority at this point,
+which means steps 3 and 4 above can be skipped, and you can go straight to the
+app at `https://<laptop-ip>:8000` once the app has started.
 
 Remote deployment notes
 -----------------------
