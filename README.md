@@ -454,19 +454,24 @@ Remote deployment notes
 -----------------------
 
 The browser UI uses microphone access via `getUserMedia`. Browsers generally
-allow this on `localhost` and on secure origins served over HTTPS.
+allow this on `localhost` and on secure origins served over HTTPS. The local
+TLS setup is only intended for use when the phone or tablet share the same
+network with the host machine running the app and will not work for internet
+access.
 
-For remote deployments:
+For deployments over the internet:
 
+- set `CODA_APP__TLS=false` to ensure the app is served over HTTP
 - run the app behind a reverse proxy that terminates TLS
-- expose the app over HTTPS
+- expose the app over HTTPS. Do not publish the phone/tablet setup port (`8001`
+  by default)
 - keep `CODA_INFERENCE__URL` pointed at the internal inference service
 - restrict the inference and Neo4j ports with host firewall rules or private
   networking
 
-The provided Compose stack runs the services over plain HTTP inside the Docker
-network. That is suitable behind a reverse proxy, but not as the final
-internet-facing setup by itself. Compose also publishes ports `5123`, `7474`,
-and `7687` on the Docker host by default, and the current KG image has Neo4j
-authentication disabled. Do not expose those ports directly to an untrusted
-network.
+If `CODA_APP__TLS` is set to `false`, the provided Compose stack runs the
+services over plain HTTP inside the Docker network. That is suitable behind a
+reverse proxy, but not as the final internet-facing setup by itself. Compose
+also publishes ports `5123`, `7474`, and `7687` on the Docker host by default,
+and the current KG image has Neo4j authentication disabled. Do not expose those
+ports directly to an untrusted network.
