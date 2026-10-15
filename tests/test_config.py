@@ -10,6 +10,9 @@ from coda.config import PROMPTS, inference_url, reload_settings, settings
 CODA_ENV_VARS = (
     "CODA_APP__HOST",
     "CODA_APP__PORT",
+    "CODA_APP__TLS",
+    "CODA_APP__TLS_DIR",
+    "CODA_APP__SETUP_PORT",
     "CODA_APP__UI_LANGUAGE",
     "CODA_APP__ONBOARDING_NOTICE__FILE",
     "CODA_APP__ONBOARDING_NOTICE__VERSION",
@@ -60,6 +63,9 @@ def isolate_settings():
 def test_defaults():
     assert settings.app.host == "0.0.0.0"
     assert settings.app.port == 8000
+    assert settings.app.tls is False
+    assert settings.app.tls_dir == "certs"
+    assert settings.app.setup_port == 8001
     assert settings.app.ui_language == "en"
     assert settings.app.onboarding_notice.file == ""
     assert settings.app.onboarding_notice.version == "default"
@@ -94,6 +100,8 @@ def test_defaults():
 
 def test_types_are_coerced():
     assert isinstance(settings.app.port, int)
+    assert isinstance(settings.app.setup_port, int)
+    assert isinstance(settings.app.tls, bool)
     assert isinstance(settings.inference.port, int)
     assert isinstance(settings.grounder.rag.retriever.top_k, int)
     assert isinstance(settings.grounder.rag.retriever.min_similarity, float)
@@ -108,6 +116,20 @@ def test_onboarding_notice_version_stays_a_string(monkeypatch):
     reload_settings()
     assert settings.app.onboarding_notice.version == "2026-08-06"
     assert isinstance(settings.app.onboarding_notice.version, str)
+
+
+def test_tls_settings_follow_env(monkeypatch):
+    monkeypatch.setenv("CODA_APP__TLS", "true")
+    monkeypatch.setenv("CODA_APP__SETUP_PORT", "9001")
+    # A numeric directory must stay text, or the path would be an int.
+    monkeypatch.setenv("CODA_APP__TLS_DIR", "8001")
+    reload_settings()
+
+    assert settings.app.tls is True
+    assert settings.app.setup_port == 9001
+    assert isinstance(settings.app.setup_port, int)
+    assert settings.app.tls_dir == "8001"
+    assert isinstance(settings.app.tls_dir, str)
 
 
 def test_inference_url_derived_from_host_port():

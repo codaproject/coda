@@ -9,6 +9,8 @@ STARTUP_SH = ROOT / "startup.sh"
 RUNTIME_ENV_VARS = (
     "CODA_APP__HOST",
     "CODA_APP__PORT",
+    "CODA_APP__TLS",
+    "CODA_APP__SETUP_PORT",
     "CODA_INFERENCE__HOST",
     "CODA_INFERENCE__PORT",
     "CODA_INFERENCE__URL",
@@ -142,8 +144,10 @@ def test_startup_script_uses_env_contract_and_derived_health_urls(tmp_path):
     )
 
     assert "curl|http://127.0.0.3:6123/health" in curl_lines
-    assert "curl|http://127.0.0.2:8100/health" in curl_lines
-    assert "CODA is running at http://localhost:8100" in result.stdout
+    assert "curl|https://127.0.0.2:8100/health" in curl_lines
+    assert "CODA is running at https://localhost:8100" in result.stdout
+    assert "Phone setup: http://" in result.stdout
+    assert result.stdout.rstrip().endswith(":8001")
 
 
 def test_startup_script_allows_shell_env_to_override_dotenv(tmp_path):
@@ -175,8 +179,29 @@ def test_startup_script_allows_shell_env_to_override_dotenv(tmp_path):
         "INFERENCE_URL=http://127.0.0.1:7123"
     )
     assert "curl|http://127.0.0.1:7123/health" in curl_lines
-    assert "curl|http://127.0.0.1:9100/health" in curl_lines
-    assert "CODA is running at http://localhost:9100" in result.stdout
+    assert "curl|https://127.0.0.1:9100/health" in curl_lines
+    assert "CODA is running at https://localhost:9100" in result.stdout
+    assert "Phone setup: http://" in result.stdout
+
+
+def test_startup_script_can_stay_on_plain_http(tmp_path):
+    result, lines = _run_startup_script(
+        tmp_path,
+        "\n".join(
+            [
+                "CODA_APP__PORT=8000",
+                "CODA_INFERENCE__PORT=5123",
+                "",
+            ]
+        ),
+        extra_env={"CODA_APP__TLS": "false"},
+    )
+
+    curl_lines = [line for line in lines if line.startswith("curl|")]
+    assert "curl|http://127.0.0.1:5123/health" in curl_lines
+    assert "curl|http://127.0.0.1:8000/health" in curl_lines
+    assert "CODA is running at http://localhost:8000" in result.stdout
+    assert "Phone setup:" not in result.stdout
 
 
 def test_startup_script_passes_app_runtime_env_from_dotenv(tmp_path):
