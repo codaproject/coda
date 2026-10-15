@@ -229,6 +229,9 @@ data/
 # Temporary spec/job queue folders (never commit)
 /job-queue
 
+# Local HTTPS certificate authority and leaf (generated on the laptop)
+certs/
+
 # UV lock file
 uv.lock
 
