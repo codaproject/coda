@@ -435,9 +435,9 @@ If TLS is not needed, set `CODA_APP__TLS=false` to keep the web app on HTTP.
 2. Connect the phone to the same network as the laptop. This could be on the
    same WiFi by connecting the phone to the laptop's WiFi hotspot.
 3. Open the phone setup page at `http://<laptop-ip>:8001`. The laptop IP will be
-   printed in the logs when the app is started. The page has detailed
-   installation instructions and has a download button for downloading the
-   certificate to your phone.
+   printed in the logs when the app is started. The page has the same
+   installation instructions as step 4 below. It also has a download button
+   for downloading the certificate to your phone.
 4. Install the certificate on your phone
    - Android:
      - Navigate to Settings > Security (or Biometrics and security) >
@@ -449,8 +449,7 @@ If TLS is not needed, set `CODA_APP__TLS=false` to keep the web app on HTTP.
      - Under "Enable Full Trust for Root Certificates," locate the installed CA
        and toggle the switch to `On`.
 5. Once installed, open the interview page by clicking the link at the bottom of
-   the setup page, or copy the URL from the app startup log which will show the
-   same URL. Or simply go to `https://<laptop-ip>:8000`.
+   the setup page, or go to `https://<laptop-ip>:8000`.
 6. Once on the interview page, ensure that microphone access is allowed.
    Installing the certificate does not automatically grant microphone access. If
    the microphone button does nothing, set Microphone to Allow in the browser's
