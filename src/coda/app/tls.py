@@ -496,16 +496,15 @@ def _setup_html(interview_url: str) -> str:
   <p><a class="button" href="/ca.pem">Install the CODA certificate</a></p>
   <h2>Android</h2>
   <ol>
-    <li>Tap <strong>Install the CODA certificate</strong>.</li>
-    <li>Open the downloaded file if it does not open on its own.</li>
-    <li>Install it as a CA certificate. The phone may ask you to set a screen lock.</li>
+    <li>Tap <strong>Install the CODA certificate</strong> to download the file.</li>
+    <li>Navigate to Settings &gt; Security (or Biometrics and security) &gt; (Other security settings &gt;) Install from device storage, and install the downloaded file as a CA certificate. The phone may ask you to set a screen lock.</li>
   </ol>
   <h2>iPhone or iPad</h2>
   <ol>
     <li>Tap <strong>Install the CODA certificate</strong> and allow the profile download.</li>
     <li>Open Settings and install the downloaded profile.</li>
-    <li>Go to Settings, General, About, Certificate Trust Settings.</li>
-    <li>Turn on full trust for the CODA certificate. Both the profile and full trust are required.</li>
+    <li>Turn on full trust under Settings &gt; General &gt; About &gt; Certificate Trust Settings.</li>
+    <li>Under "Enable Full Trust for Root Certificates," locate the installed CA and toggle the switch to On.</li>
   </ol>
   <h2>Open the interview</h2>
   <p>When the certificate is installed, open CODA:</p>
