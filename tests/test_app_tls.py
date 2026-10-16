@@ -144,8 +144,11 @@ def test_setup_page_serves_the_authority_and_not_the_key(tmp_path):
 
     assert page.status_code == 200
     assert "https://192.168.1.20:8000" in page.text
+    assert "Install from device storage" in page.text
     assert "Certificate Trust Settings" in page.text
+    assert "Enable Full Trust for Root Certificates" in page.text
     assert "CA certificate" in page.text
+    assert "screen lock" in page.text
     assert "set Microphone to Allow" in page.text
     assert key_text not in page.text
     assert downloaded.status_code == 200
