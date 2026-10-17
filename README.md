@@ -189,6 +189,13 @@ The Compose path is env-driven. The main runtime variables are:
   questions shown and when (`inference.jsonl`), and timings (`timing.jsonl`).
   `CODA_STORAGE__STORE__AUDIO=true` also keeps the raw audio as `audio.wav`.
   Each item can be switched off under `storage.store` in `settings.yaml`.
+- `CODA_STORAGE__BROWSE=true` lists the stored cases in History, where they
+  open read-only with their recording when audio was kept. Anyone who can reach
+  the server can then read every case, so enable it only where access is
+  restricted. Separately, each browser can save its own sessions (transcript
+  and results, no audio) with "Save sessions on this device" in Settings.
+  History shows both, and marks each row as kept on the server, on this
+  device, or both. Settings shows which of these are on.
 - `CODA_LOGGING__LEVEL` and `CODA_LOGGING__FILE` set the application log level
   and an optional log file (logs always go to stderr as well)
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`

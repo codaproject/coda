@@ -685,6 +685,16 @@
         margin-top: 8px;
         margin-bottom: 2px;
       }
+      /* Where a continued session picked up again */
+      .segment-divider {
+        margin: 18px 0 4px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--border-warm-strong);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
       /* Interim, not-yet-committed transcription text (streaming backends) */
       .preview-line {
         color: var(--ink-muted);
@@ -1165,6 +1175,51 @@
         opacity: 0.5;
       }
 
+      /* Read-only status of the server's storage */
+      .storage-group {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-sm);
+        background: var(--paper-elevated);
+      }
+      .storage-group strong {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+        display: block;
+      }
+      .storage-group small {
+        font-size: 11px;
+        color: var(--ink-muted);
+        display: block;
+        margin-top: 2px;
+      }
+      .storage-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .storage-status {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: var(--border-warm);
+        color: var(--ink-muted);
+        white-space: nowrap;
+      }
+      .storage-status.on {
+        background: var(--accent-sage-soft);
+        color: var(--accent-sage);
+      }
+
       /* Theme switch segmented control */
       .theme-switch {
         display: flex;
@@ -1535,6 +1590,16 @@
       body[data-state="result"] #resetBtn:hover {
         background: #000;
       }
+      #continueBtn {
+        display: none;
+      }
+      body[data-state="result"] #continueBtn {
+        display: inline-flex;
+      }
+      #continueBtn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       body[data-state="result"] .updating-pill {
         display: none !important;
       }
@@ -1798,6 +1863,54 @@
       body[data-state="result"] .audio-bar.has-audio {
         display: flex;
       }
+      /* A past session without a recording says so in place of the player */
+      .audio-bar-missing {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--ink-muted);
+      }
+      body.viewing-case[data-state="result"] .audio-bar:not(.has-audio) {
+        display: flex;
+        height: auto;
+      }
+      body.viewing-case[data-state="result"]
+        .audio-bar:not(.has-audio)
+        > :not(.audio-bar-missing) {
+        display: none;
+      }
+      body.viewing-case[data-state="result"]
+        .audio-bar:not(.has-audio)
+        .audio-bar-missing {
+        display: inline-flex;
+      }
+
+      /* One recording per part of a continued session */
+      .audio-bar-parts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .audio-bar-parts:empty {
+        display: none;
+      }
+      .audio-bar-part {
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border-warm-strong);
+        background: none;
+        color: var(--ink-soft);
+        cursor: pointer;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .audio-bar-part[aria-pressed="true"] {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--paper);
+      }
 
       .audio-bar-play {
         width: 44px;
@@ -2003,7 +2116,8 @@
       }
       .history-item-title {
         display: flex;
-        gap: 10px;
+        flex-wrap: wrap;
+        gap: 4px 10px;
         align-items: baseline;
         margin-bottom: 3px;
       }
@@ -2058,6 +2172,119 @@
         padding: 60px 40px;
         color: var(--ink-muted);
         font-size: 14px;
+      }
+      .history-flag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: var(--record-red-soft);
+        color: var(--record-red);
+        white-space: nowrap;
+      }
+      .history-flag--live {
+        background: var(--accent-sage-soft);
+        color: var(--accent-sage);
+      }
+      /* Where the session is kept */
+      .history-flag--store {
+        background: var(--border-warm);
+        color: var(--ink-soft);
+      }
+      .history-item-recording {
+        white-space: nowrap;
+      }
+      .history-item-recording.has-audio {
+        color: var(--ink-soft);
+      }
+
+      /* Stored case: the result view of a case read back from the server,
+         with a banner describing it and every inference it showed */
+      .case-banner {
+        display: none;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 14px 32px;
+        background: var(--paper-elevated);
+        border-bottom: 1px solid var(--border-warm);
+      }
+      body.viewing-case .case-banner {
+        display: flex;
+      }
+      .case-banner-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .case-banner-meta {
+        font-size: 13px;
+        color: var(--ink-soft);
+      }
+      .case-banner-id {
+        font-size: 11px;
+        color: var(--ink-muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        overflow-wrap: anywhere;
+      }
+      .case-banner-note {
+        font-size: 12px;
+        color: var(--warning);
+      }
+      .case-banner-note:empty {
+        display: none;
+      }
+      body.viewing-case .profile-bar,
+      body.viewing-case .lang-chip,
+      body.viewing-case #resetBtn,
+      body.viewing-case #historyBtn {
+        display: none;
+      }
+      .kicker-timeline {
+        display: none;
+      }
+      body.viewing-case .kicker-timeline {
+        display: inline;
+      }
+      body.viewing-case[data-state="result"] .inference-col > .section-head {
+        display: flex;
+      }
+      body.viewing-case[data-state="result"]
+        .inference-col
+        > .divider:first-of-type {
+        display: block;
+      }
+      body.viewing-case[data-state="result"] .inference-col > #inference {
+        display: flex;
+        gap: 22px;
+      }
+      body.viewing-case #inference .inference-card {
+        display: flex;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--border-warm);
+      }
+      body.viewing-case #inference .inference-card:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      body.viewing-case[data-state="result"]:not([data-show-cod-result="false"])
+        #inference
+        .cause-row--top {
+        display: flex;
+      }
+      .inference-when {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .case-empty {
+        color: var(--ink-muted);
+        font-style: italic;
+        font-size: 13px;
       }
 
       /* Recent block inside idle view */
@@ -2305,6 +2532,10 @@
 
         .history-view {
           padding: 28px 16px 48px;
+        }
+        .case-banner {
+          padding: 12px 16px;
+          gap: 12px;
         }
         .history-head {
           flex-direction: column;
@@ -2559,10 +2790,17 @@
             id="historyBtn"
             class="btn btn-ghost"
             title="History"
-            style="display: none"
           >
             <i class="bi bi-clock-history"></i>
             <span data-i18n="common.history">History</span>
+          </button>
+          <button
+            id="continueBtn"
+            class="btn btn-ghost"
+            title="Continue recording this session"
+          >
+            <i class="bi bi-mic-fill"></i>
+            <span data-i18n="common.continue">Continue</span>
           </button>
           <button id="resetBtn" class="btn btn-ghost" title="New session">
             <i class="bi bi-arrow-counterclockwise"></i>
@@ -2608,6 +2846,21 @@
         </div>
       </div>
 
+      <section class="case-banner" aria-labelledby="caseBannerKicker">
+        <button id="caseBackBtn" class="btn btn-ghost" title="Back">
+          <i class="bi bi-arrow-left"></i
+          ><span data-i18n="common.back">Back</span>
+        </button>
+        <div class="case-banner-body">
+          <span class="kicker" id="caseBannerKicker" data-i18n="case.kicker"
+            >Stored case</span
+          >
+          <div class="case-banner-meta" id="caseMeta"></div>
+          <div class="case-banner-id" id="caseIdLabel"></div>
+          <div class="case-banner-note" id="caseNote"></div>
+        </div>
+      </section>
+
       <div class="waveform" aria-hidden="true">
         <span class="wf-bar" style="height: 8px"></span>
         <span class="wf-bar" style="height: 14px"></span>
@@ -2642,6 +2895,12 @@
           <span id="audioTotal" class="total">00:00</span>
         </div>
         <div id="audioWave" class="audio-bar-wave" aria-hidden="true"></div>
+        <div
+          id="audioParts"
+          class="audio-bar-parts"
+          role="group"
+          aria-label="Recording parts"
+        ></div>
         <button
           id="audioSpeedBtn"
           class="audio-bar-speed"
@@ -2661,6 +2920,10 @@
         >
           <i class="bi bi-download"></i>
         </button>
+        <span class="audio-bar-missing">
+          <i class="bi bi-mic-mute"></i>
+          <span data-i18n="case.noRecording">Recording not available</span>
+        </span>
         <audio id="audioEl" preload="metadata"></audio>
       </div>
 
@@ -2707,9 +2970,9 @@
           <div>
             <span class="kicker" data-i18n="common.history">History</span>
             <h1 id="historyHeading" data-i18n="history.title">Past sessions</h1>
-            <p data-i18n="history.subtitle">
-              Everything is stored locally on this device. Nothing is synced or
-              uploaded.
+            <p data-i18n="history.where">
+              Sessions saved on this device and cases stored on this server.
+              Each one shows where it is kept.
             </p>
           </div>
           <div class="history-head-actions">
@@ -2791,8 +3054,11 @@
 
         <aside class="inference-col">
           <div class="section-head">
-            <span class="kicker" data-i18n="record.probableCause"
+            <span class="kicker kicker-probable-cause" data-i18n="record.probableCause"
               >Probable cause</span
+            >
+            <span class="kicker kicker-timeline" data-i18n="case.timeline"
+              >Inference timeline</span
             >
             <span
               id="updatingPill"
@@ -3075,25 +3341,60 @@
           data-i18n="settings.localStorage"
           >Storage</label
         >
+        <div class="storage-group">
+          <strong data-i18n="settings.storageServer">On this server</strong>
+          <small data-i18n="settings.storageServerNote"
+            >Set by the server's administrator.</small
+          >
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerSaves"
+              >Saves each case</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerSaves"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerBrowse"
+              >Lists its cases in History</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerBrowse"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerAudio"
+              >Keeps the recording</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerAudio"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+        </div>
         <div class="switch-row">
-          <div class="switch-body" id="storageOn" hidden>
-            <strong data-i18n="settings.storageOnTitle"
-              >Case data is saved</strong
+          <div class="switch-body">
+            <strong data-i18n="settings.storageDevice"
+              >Save sessions on this device</strong
             >
-            <small data-i18n="settings.storageOnBody"
-              >This server keeps a record of each session as configured by its
-              administrator. Past sessions are also kept on this device.</small
-            >
-          </div>
-          <div class="switch-body" id="storageOff">
-            <strong data-i18n="settings.storageOffTitle"
-              >Case data is not saved</strong
-            >
-            <small data-i18n="settings.storageOffBody"
-              >Nothing from your sessions is stored on the server or on this
-              device.</small
+            <small data-i18n="settings.storageDeviceNote"
+              >Keeps each session's transcript and results in this browser.
+              Recordings are not kept.</small
             >
           </div>
+          <label class="switch">
+            <input type="checkbox" id="saveOnDeviceToggle" />
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+          </label>
         </div>
       </div>
     </aside>
@@ -3163,6 +3464,8 @@
           "result.confidence": "confidence",
           "chart.evolution": "How probabilities evolved",
           "chart.paused": "CHART PAUSED",
+          "chart.now": "now",
+          "chart.empty": "No inferences yet",
           "advisory.short": "Advisory only — final determination is yours",
           "settings.title": "Settings",
           "settings.interfaceLang": "Interface language",
@@ -3176,15 +3479,55 @@
           "settings.themeLight": "Light",
           "settings.themeDark": "Dark",
           "settings.themeSystem": "System",
-          "settings.storageOnTitle": "Case data is saved",
-          "settings.storageOnBody":
-            "This server keeps a record of each session as configured by its administrator. Past sessions are also kept on this device.",
-          "settings.storageOffTitle": "Case data is not saved",
-          "settings.storageOffBody":
-            "Nothing from your sessions is stored on the server or on this device.",
+          "settings.on": "On",
+          "settings.off": "Off",
+          "settings.storageServer": "On this server",
+          "settings.storageServerNote": "Set by the server's administrator.",
+          "settings.storageServerSaves": "Saves each case",
+          "settings.storageServerBrowse": "Lists its cases in History",
+          "settings.storageServerAudio": "Keeps the recording",
+          "settings.storageDevice": "Save sessions on this device",
+          "settings.storageDeviceNote":
+            "Keeps each session's transcript and results in this browser. Recordings are not kept.",
           "history.title": "Past sessions",
-          "history.subtitle":
-            "Everything is stored locally on this device. Nothing is synced or uploaded.",
+          "history.where":
+            "Sessions saved on this device and cases stored on this server. Each one shows where it is kept.",
+          "history.empty":
+            "No saved sessions yet. To keep your sessions, turn on saving on this device in Settings.",
+          "history.storedServer": "Server",
+          "history.storedDevice": "This device",
+          "history.storedBoth": "Server + device",
+          "history.recording": "Recording",
+          "history.noRecording": "No recording",
+          "history.deleteDevice": "Delete the copy on this device",
+          "history.clearConfirm":
+            "Delete every session saved on this device? Cases on the server are not affected. This cannot be undone.",
+          "case.kicker": "Stored case",
+          "case.kickerDevice": "Saved on this device",
+          "case.continued": "Continued",
+          "case.parts": "parts",
+          "audio.part": "Part",
+          "common.continue": "Continue",
+          "continue.settingsChanged":
+            "Settings have changed since this session was recorded:",
+          "continue.confirm": "Continue with the current settings?",
+          "continue.language": "Language",
+          "continue.transcriber": "Transcriber",
+          "continue.inference": "Inference",
+          "continue.inUse": "This session is being recorded elsewhere",
+          "case.noRecording": "Recording not available",
+          "case.timeline": "Inference timeline",
+          "case.noInference": "No inference",
+          "case.untitled": "Interview",
+          "case.loadFailed": "Could not load the case",
+          "case.noTranscript": "No transcript was stored for this case.",
+          "case.noInferenceStored": "No inference results were stored for this case.",
+          "case.flagIncomplete": "Incomplete",
+          "case.flagInProgress": "In progress",
+          "case.incompleteNote":
+            "This case did not close normally, most likely because the server stopped during the interview. Everything saved up to that point is shown.",
+          "case.inProgressNote":
+            "This case is still being recorded. You are seeing what has been saved so far.",
         },
         sw: {
           "profile.title": "Wasifu wa kesi",
@@ -3251,15 +3594,7 @@
           "settings.themeLight": "Mwangaza",
           "settings.themeDark": "Giza",
           "settings.themeSystem": "Mfumo",
-          "settings.storageOnTitle": "Data ya kesi inahifadhiwa",
-          "settings.storageOnBody":
-            "Seva hii inaweka kumbukumbu ya kila kikao kama ilivyowekwa na msimamizi wake. Vikao vilivyopita pia vinahifadhiwa kwenye kifaa hiki.",
-          "settings.storageOffTitle": "Data ya kesi haihifadhiwi",
-          "settings.storageOffBody":
-            "Hakuna chochote kutoka kwa vikao vyako kinachohifadhiwa kwenye seva au kwenye kifaa hiki.",
           "history.title": "Vikao vilivyopita",
-          "history.subtitle":
-            "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
         },
         fr: {
           "profile.title": "Profil du cas",
@@ -3329,15 +3664,7 @@
           "settings.themeLight": "Clair",
           "settings.themeDark": "Sombre",
           "settings.themeSystem": "Système",
-          "settings.storageOnTitle": "Les données des cas sont enregistrées",
-          "settings.storageOnBody":
-            "Ce serveur conserve un enregistrement de chaque session selon la configuration de son administrateur. Les sessions passées sont aussi conservées sur cet appareil.",
-          "settings.storageOffTitle": "Les données des cas ne sont pas enregistrées",
-          "settings.storageOffBody":
-            "Rien de vos sessions n'est conservé sur le serveur ni sur cet appareil.",
           "history.title": "Sessions précédentes",
-          "history.subtitle":
-            "Tout est stocké localement sur cet appareil. Rien n'est synchronisé ni téléchargé.",
         },
         ar: {
           "common.new": "جديد",
@@ -3403,15 +3730,7 @@
           "settings.themeLight": "فاتح",
           "settings.themeDark": "داكن",
           "settings.themeSystem": "النظام",
-          "settings.storageOnTitle": "يتم حفظ بيانات الحالة",
-          "settings.storageOnBody":
-            "يحتفظ هذا الخادم بسجل لكل جلسة وفقًا لإعدادات المسؤول. كما يتم الاحتفاظ بالجلسات السابقة على هذا الجهاز.",
-          "settings.storageOffTitle": "لا يتم حفظ بيانات الحالة",
-          "settings.storageOffBody":
-            "لا يتم تخزين أي شيء من جلساتك على الخادم أو على هذا الجهاز.",
           "history.title": "الجلسات السابقة",
-          "history.subtitle":
-            "يتم تخزين كل شيء محلياً على هذا الجهاز. لا شيء متزامن أو مرفوع.",
         },
         bn: {
           "common.new": "নতুন",
@@ -3479,15 +3798,7 @@
           "settings.themeLight": "আলো",
           "settings.themeDark": "অন্ধকার",
           "settings.themeSystem": "সিস্টেম",
-          "settings.storageOnTitle": "কেসের তথ্য সংরক্ষিত হয়",
-          "settings.storageOnBody":
-            "প্রশাসকের কনফিগারেশন অনুযায়ী এই সার্ভার প্রতিটি সেশনের রেকর্ড রাখে। অতীত সেশনগুলোও এই ডিভাইসে রাখা হয়।",
-          "settings.storageOffTitle": "কেসের তথ্য সংরক্ষিত হয় না",
-          "settings.storageOffBody":
-            "আপনার সেশনের কিছুই সার্ভারে বা এই ডিভাইসে সংরক্ষিত হয় না।",
           "history.title": "পূর্ববর্তী সেশন",
-          "history.subtitle":
-            "সবকিছু স্থানীয়ভাবে এই ডিভাইসে সংরক্ষিত। কিছুই সিঙ্ক বা আপলোড করা হয় না।",
         },
         es: {
           "common.new": "Nuevo",
@@ -3556,15 +3867,7 @@
           "settings.themeLight": "Claro",
           "settings.themeDark": "Oscuro",
           "settings.themeSystem": "Sistema",
-          "settings.storageOnTitle": "Los datos del caso se guardan",
-          "settings.storageOnBody":
-            "Este servidor guarda un registro de cada sesión según la configuración de su administrador. Las sesiones anteriores también se guardan en este dispositivo.",
-          "settings.storageOffTitle": "Los datos del caso no se guardan",
-          "settings.storageOffBody":
-            "Nada de sus sesiones se guarda en el servidor ni en este dispositivo.",
           "history.title": "Sesiones anteriores",
-          "history.subtitle":
-            "Todo se almacena localmente en este dispositivo. Nada se sincroniza ni sube.",
         },
         ts: {
           "common.new": "Leyintshwa",
@@ -3635,15 +3938,7 @@
           "settings.themeLight": "Ku vonakala",
           "settings.themeDark": "Munyama",
           "settings.themeSystem": "Sisiteme",
-          "settings.storageOnTitle": "Vuxokoxoko bya mhaka bya hlayisiwa",
-          "settings.storageOnBody":
-            "Sevha leyi yi hlayisa rhekhodo ya ntshamo wun'wana ni wun'wana hi ku landza swiyimiso leswi vekiweke hi mulawuri wa yona. Mitshamo leyi hundzeke na yona yi hlayisiwa eka xitirhisiwa lexi.",
-          "settings.storageOffTitle": "Vuxokoxoko bya mhaka a byi hlayisiwi",
-          "settings.storageOffBody":
-            "A ku na vuxokoxoko bya mitshamo ya wena leswi hlayisiwaka eka sevha kumbe eka xitirhisiwa lexi.",
           "history.title": "Mitshamo leyi hundzeke",
-          "history.subtitle":
-            "Vuxokoxoko hinkwabyo byi hlayisiwa eka xitirhisiwa lexi. A byi fambelanisiwi ni switirhisiwa swin'wana naswona a byi rhumeriwi eka sevha.",
         },
       };
 
@@ -3681,7 +3976,6 @@
       }
 
       let ws = null;
-      let mediaRecorder = null;
       let audioContext = null;
       let analyser = null;
       let meterAnimFrame = null;
@@ -3692,7 +3986,6 @@
       let micSource = null;
       let micConstraints = null;
       let audioProcessor = null;
-      let recordDest = null;
       // Paused time so far this session, excluded from the timer and duration
       let pausedMs = 0;
       let pausedAt = 0;
@@ -3700,12 +3993,14 @@
       let chunkCount = 0;
       let timerInterval = null;
       let timerStart = 0;
-      let audioChunks = [];
-      let audioBlob = null;
+      // PCM frames of the part being recorded, kept for playback after Stop
+      let pcmFrames = [];
       let audioUrl = null;
+      let audioFilename = null;
       let serverSettingsLocked = false;
 
       const body = document.body;
+      const continueBtn = document.getElementById("continueBtn");
       const recordBtn = document.getElementById("recordBtn");
       const pauseBtn = document.getElementById("pauseBtn");
       const heroMicBtn = document.getElementById("heroMicBtn");
@@ -3749,11 +4044,16 @@
       }
 
       function renderResultHero() {
-        if (!latestCauses) return;
-        const sorted = Object.entries(latestCauses).sort(
+        const sorted = Object.entries(latestCauses || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
-        if (!sorted.length) return;
+        if (!sorted.length) {
+          resultTitle.textContent = "No inference this session";
+          resultConfidence.textContent = "—";
+          resultIcd.textContent = "—";
+          resultBarFill.style.width = "0%";
+          return;
+        }
         const [, top] = sorted[0];
         resultTitle.textContent = top.name;
         resultConfidence.textContent = top.score.toFixed(2);
@@ -3764,13 +4064,23 @@
       }
 
       // Render a cause list (ranked, with confidence bars + deltas vs. a
-      // previous snapshot). Used for both the live inference panel and the
-      // Session Result differentials.
-      function renderCauseList(causes, previousCauses, reasoning, questions) {
+      // previous snapshot). Used for the live inference panel, the Session
+      // Result differentials, and a stored case's inference timeline, whose
+      // cards are headed by the time they were shown.
+      function renderCauseList(
+        causes,
+        previousCauses,
+        reasoning,
+        questions,
+        heading,
+      ) {
         const sorted = Object.entries(causes || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
         let html = '<div class="inference-card">';
+        if (heading) {
+          html += `<div class="inference-when">${escapeHtml(heading)}</div>`;
+        }
 
         sorted.forEach(([curie, causeObj], idx) => {
           const score =
@@ -3841,7 +4151,9 @@
       // --- History persistence -----------------------------------------
       const HISTORY_KEY = "codaHistory";
       const HISTORY_CAP = 100;
-      let evolution = []; // [{ t, causes }] captured during the active session
+      const SAVE_ON_DEVICE_KEY = "codaSaveOnDevice";
+      // [{ t, causes, reasoning }] captured during the active session
+      let evolution = [];
 
       function loadHistory() {
         try {
@@ -3862,20 +4174,44 @@
         } catch (_) {}
       }
 
+      // Saving on this device is the viewer's choice. Browsers that already
+      // kept sessions before it was a choice keep doing so.
+      const saveOnDeviceToggle = document.getElementById("saveOnDeviceToggle");
+      let saveOnDevice = loadHistory().length > 0;
+      try {
+        const stored = localStorage.getItem(SAVE_ON_DEVICE_KEY);
+        if (stored !== null) saveOnDevice = stored === "true";
+      } catch (_) {}
+      saveOnDeviceToggle.checked = saveOnDevice;
+      saveOnDeviceToggle.addEventListener("change", () => {
+        saveOnDevice = saveOnDeviceToggle.checked;
+        try {
+          localStorage.setItem(SAVE_ON_DEVICE_KEY, String(saveOnDevice));
+        } catch (_) {}
+      });
+
       function finalizeSessionIfSaving() {
-        if (!storageEnabled) return;
+        if (!saveOnDevice) return;
         if (!latestCauses || !Object.keys(latestCauses).length) return;
         const sorted = Object.entries(latestCauses).sort(
           (a, b) => b[1].score - a[1].score,
         );
         const [, top] = sorted[0];
+        const history = loadHistory();
+        // A continued session replaces its earlier copy
+        const previous = history.findIndex((s) => s.id === currentLocalId);
+        if (previous >= 0) history.splice(previous, 1);
         const session = {
           id:
-            crypto && crypto.randomUUID
-              ? crypto.randomUUID()
-              : Date.now().toString(36) +
-                Math.random().toString(36).slice(2, 8),
-          startedAt: new Date(timerStart).toISOString(),
+            previous >= 0
+              ? currentLocalId
+              : crypto && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) +
+                  Math.random().toString(36).slice(2, 8),
+          // The server's copy of this session, when it kept one
+          caseId: currentCaseId,
+          startedAt: sessionStartedAt,
           endedAt: new Date().toISOString(),
           durationSeconds: lastDuration,
           transcript: transcriptText.trim(),
@@ -3886,10 +4222,13 @@
           },
           causes: latestCauses,
           evolution: evolution.slice(),
+          metadata: { profile: readProfileInputs() },
+          runInfo: sessionRunInfo,
+          parts: sessionPartCount,
         };
-        const history = loadHistory();
         history.unshift(session);
         saveHistoryArr(history);
+        currentLocalId = session.id;
       }
 
       // --- Date formatting helpers -------------------------------------
@@ -3924,30 +4263,123 @@
         return `${m} min ${r} s`;
       }
 
+      // --- History entries ---------------------------------------------
+      // The History list and the idle "Recent" block merge the server's stored
+      // cases, when it serves them, with the sessions saved on this device. A
+      // device copy of a listed server case shares that case's row.
+      async function loadHistoryEntries() {
+        const local = loadHistory();
+        let cases = [];
+        if (casesBrowsable) {
+          try {
+            const resp = await fetch("/cases");
+            if (resp.ok) cases = await resp.json();
+          } catch (_) {}
+        }
+        const localByCase = new Map(
+          local.filter((s) => s.caseId).map((s) => [s.caseId, s]),
+        );
+        const entries = cases.map((c) => {
+          const localId = localByCase.get(c.case_id)?.id || null;
+          return {
+            startedAt: c.started_at,
+            durationSeconds: c.duration_s,
+            topCause: c.top_cause && {
+              name: c.top_cause.name,
+              code: causeCode(c.top_cause.identifiers),
+              score: c.top_cause.score,
+            },
+            flag: c.in_progress
+              ? "inProgress"
+              : c.ended_at
+                ? null
+                : "incomplete",
+            stores: localId ? "both" : "server",
+            hasAudio: c.has_audio,
+            localId,
+            open: () => openStoredCase(c.case_id, localId),
+          };
+        });
+        const listed = new Set(cases.map((c) => c.case_id));
+        local
+          .filter((s) => !listed.has(s.caseId))
+          .forEach((s) =>
+            entries.push({
+              startedAt: s.startedAt,
+              durationSeconds: s.durationSeconds,
+              topCause: {
+                name: s.topCause.name,
+                code: s.topCause.code || s.topCause.icd10 || "",
+                score: s.topCause.score,
+              },
+              stores: "device",
+              hasAudio: false,
+              localId: s.id,
+              open: () => openSessionFromHistory(s.id),
+            }),
+          );
+        // Server times carry their UTC offset and device times are UTC
+        return entries.sort(
+          (a, b) => new Date(b.startedAt) - new Date(a.startedAt),
+        );
+      }
+
+      const STORED_IN = {
+        server: { icon: "bi-hdd-network", label: "history.storedServer" },
+        device: { icon: "bi-laptop", label: "history.storedDevice" },
+        both: { icon: "bi-hdd-stack", label: "history.storedBoth" },
+      };
+
+      // Row labels; where COD results are hidden, rows carry none
+      function entryLabels(entry) {
+        const codHidden = body.dataset.showCodResult === "false";
+        const cause = codHidden ? null : entry.topCause;
+        if (!cause) {
+          return {
+            title: t(codHidden ? "case.untitled" : "case.noInference"),
+            code: "",
+            score: "",
+          };
+        }
+        return {
+          title: cause.name,
+          code: cause.code,
+          score: cause.score.toFixed(2),
+        };
+      }
+
       // --- Idle-view "Recent" block ------------------------------------
       const idleRecentBlock = document.getElementById("idleRecentBlock");
       const idleRecentList = document.getElementById("idleRecentList");
       const idleRecentSeeAll = document.getElementById("idleRecentSeeAll");
 
-      function renderIdleRecent() {
-        const history = loadHistory();
-        if (!history.length) {
+      // Renders await the case list; only the latest one may draw
+      let idleRecentRender = 0;
+      let historyRender = 0;
+
+      async function renderIdleRecent() {
+        const render = ++idleRecentRender;
+        const entries = await loadHistoryEntries();
+        if (render !== idleRecentRender) return;
+        if (!entries.length) {
           idleRecentBlock.style.display = "none";
           return;
         }
         idleRecentBlock.style.display = "flex";
         idleRecentList.innerHTML = "";
-        history.slice(0, 3).forEach((s) => {
+        entries.slice(0, 3).forEach((entry) => {
+          const { title, code, score } = entryLabels(entry);
+          const date = formatShortDate(entry.startedAt);
           const row = document.createElement("div");
           row.className = "idle-recent-row";
           row.innerHTML = `
                     <div class="idle-recent-row-body">
-                        <strong>${escapeHtml(s.topCause.name)}</strong>
-                        <small>${s.topCause.score.toFixed(2)} · ${escapeHtml(s.topCause.code || s.topCause.icd10 || "—")} · ${escapeHtml(formatShortDate(s.startedAt))}</small>
+                        <strong>${escapeHtml(title)}</strong>
+                        <small>${escapeHtml(score ? `${score} · ${code || "—"} · ${date}` : date)}</small>
                     </div>
                     <i class="bi bi-chevron-right" style="color: var(--ink-faint);"></i>
                 `;
-          row.addEventListener("click", () => openSessionFromHistory(s.id));
+          row.addEventListener("click", entry.open);
           idleRecentList.appendChild(row);
         });
       }
@@ -3958,17 +4390,21 @@
       const historyBackBtn = document.getElementById("historyBackBtn");
       const historyClearBtn = document.getElementById("historyClearBtn");
 
-      function renderHistoryView() {
-        const history = loadHistory();
+      async function renderHistoryView() {
+        const render = ++historyRender;
+        const entries = await loadHistoryEntries();
+        if (render !== historyRender) return;
         historyList.innerHTML = "";
-        if (!history.length) {
-          historyList.innerHTML =
-            '<div class="history-empty">No sessions saved yet. Press <strong>New</strong> to record one.</div>';
+        historyClearBtn.style.display = entries.some((e) => e.localId)
+          ? ""
+          : "none";
+        if (!entries.length) {
+          historyList.innerHTML = `<div class="history-empty">${escapeHtml(t("history.empty"))}</div>`;
           return;
         }
         let lastGroup = null;
-        history.forEach((s) => {
-          const group = formatHistoryGroup(s.startedAt);
+        entries.forEach((entry) => {
+          const group = formatHistoryGroup(entry.startedAt);
           if (group !== lastGroup) {
             const g = document.createElement("div");
             g.className = "history-group";
@@ -3976,29 +4412,43 @@
             historyList.appendChild(g);
             lastGroup = group;
           }
+          const { title, code, score } = entryLabels(entry);
+          let flag = "";
+          if (entry.flag === "inProgress") {
+            flag = `<span class="history-flag history-flag--live">${escapeHtml(t("case.flagInProgress"))}</span>`;
+          } else if (entry.flag === "incomplete") {
+            flag = `<span class="history-flag">${escapeHtml(t("case.flagIncomplete"))}</span>`;
+          }
+          const stored = STORED_IN[entry.stores];
+          const recording = entry.hasAudio
+            ? `<span class="history-item-recording has-audio"><i class="bi bi-mic-fill"></i> ${escapeHtml(t("history.recording"))}</span>`
+            : `<span class="history-item-recording"><i class="bi bi-mic-mute"></i> ${escapeHtml(t("history.noRecording"))}</span>`;
+          const deleteLabel = escapeHtml(t("history.deleteDevice"));
           const row = document.createElement("div");
           row.className = "history-item";
           row.innerHTML = `
                     <div class="history-item-body">
                         <div class="history-item-title">
-                            <strong>${escapeHtml(s.topCause.name)}</strong>
-                            <span class="code">${escapeHtml(s.topCause.code || s.topCause.icd10 || "")}</span>
+                            <strong>${escapeHtml(title)}</strong>
+                            <span class="code">${escapeHtml(code)}</span>
+                            <span class="history-flag history-flag--store"><i class="bi ${stored.icon}"></i> ${escapeHtml(t(stored.label))}</span>
+                            ${flag}
                         </div>
-                        <div class="history-item-meta">${escapeHtml(formatShortDate(s.startedAt))} · ${escapeHtml(formatDuration(s.durationSeconds))}</div>
+                        <div class="history-item-meta">${escapeHtml(formatShortDate(entry.startedAt))} · ${escapeHtml(formatDuration(entry.durationSeconds))} · ${recording}</div>
                     </div>
-                    <div class="history-item-conf">${s.topCause.score.toFixed(2)}</div>
-                    <button class="history-item-delete" aria-label="Delete session"><i class="bi bi-trash"></i></button>
+                    <div class="history-item-conf">${escapeHtml(score)}</div>
+                    ${entry.localId ? `<button class="history-item-delete" aria-label="${deleteLabel}" title="${deleteLabel}"><i class="bi bi-trash"></i></button>` : ""}
                     <i class="bi bi-chevron-right history-chev"></i>
                 `;
           row.addEventListener("click", (e) => {
             if (e.target.closest(".history-item-delete")) return;
-            openSessionFromHistory(s.id);
+            entry.open();
           });
           row
             .querySelector(".history-item-delete")
-            .addEventListener("click", (e) => {
+            ?.addEventListener("click", (e) => {
               e.stopPropagation();
-              deleteSession(s.id);
+              deleteSession(entry.localId);
             });
           historyList.appendChild(row);
         });
@@ -4017,50 +4467,236 @@
         renderHistoryView();
       }
 
+      // --- Past session view (read-only) --------------------------------
+      // Server cases and device copies open in the same read-only view
+      const caseKicker = document.getElementById("caseBannerKicker");
+      const caseMeta = document.getElementById("caseMeta");
+      const caseIdLabel = document.getElementById("caseIdLabel");
+      const caseNote = document.getElementById("caseNote");
+
+      function clockTime(ms) {
+        return new Date(ms).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      // Every inference shown, stacked newest first as in the live panel, with
+      // the chart and differentials. Records are { t, causes, reasoning,
+      // heading }, and become the evolution a continued session adds to.
+      function renderInferenceTimeline(records, emptyText) {
+        evolution = records.map((rec) => ({
+          t: rec.t,
+          causes: rec.causes,
+          reasoning: rec.reasoning,
+        }));
+        records.forEach((rec, i) => {
+          const previous = i > 0 ? records[i - 1].causes : null;
+          inference.insertAdjacentHTML(
+            "afterbegin",
+            renderCauseList(
+              rec.causes,
+              previous,
+              rec.reasoning,
+              null,
+              rec.heading,
+            ),
+          );
+          updateCausesChart(rec.causes || {});
+        });
+        const diffEl = document.getElementById("differentialsList");
+        const last = records[records.length - 1];
+        if (last) {
+          const beforeLast = records[records.length - 2];
+          diffEl.innerHTML = renderCauseList(
+            last.causes,
+            beforeLast ? beforeLast.causes : null,
+            last.reasoning,
+          );
+        } else {
+          inference.innerHTML = diffEl.innerHTML =
+            `<div class="case-empty">${escapeHtml(emptyText)}</div>`;
+        }
+        latestCauses = last ? last.causes : null;
+        renderResultHero();
+      }
+
       function openSessionFromHistory(id) {
         const session = loadHistory().find((s) => s.id === id);
         if (!session) return;
+        clearSessionView();
+        currentCaseId = session.caseId || null;
+        currentLocalId = session.id;
+        sessionStartedAt = session.startedAt;
+        lastDuration = session.durationSeconds || 0;
+        caseRunInfo = session.runInfo || null;
+        caseProfile = (session.metadata && session.metadata.profile) || null;
+        sessionPartCount = session.parts || 1;
 
-        // Populate transcript
         transcriptText = session.transcript || "";
         transcript.innerHTML = transcriptText
           ? `<span class="chunk">${escapeHtml(transcriptText)}</span>`
-          : '<span class="placeholder">Transcript unavailable.</span>';
+          : `<span class="placeholder">${escapeHtml(t("case.noTranscript"))}</span>`;
         updateWordCount();
 
-        // Rebuild inference list using the shared renderer (confidence bars,
-        // ranks; top row will be hidden by CSS when data-state="result").
-        const replayHtml = renderCauseList(session.causes || {}, null, null);
-        inference.innerHTML = replayHtml;
-        const diffElReplay = document.getElementById("differentialsList");
-        if (diffElReplay) diffElReplay.innerHTML = replayHtml;
-
-        // Rebuild evolution chart
-        clearChart();
-        const snaps =
+        // Sessions saved before snapshots were kept have only their last causes
+        const snapshots =
           session.evolution && session.evolution.length
             ? session.evolution
             : [{ causes: session.causes }];
-        snaps.forEach((snap) => updateCausesChart(snap.causes || {}));
+        renderInferenceTimeline(
+          snapshots.map((snap) => ({
+            t: snap.t || null,
+            causes: snap.causes,
+            reasoning: snap.reasoning || null,
+            heading: snap.t ? clockTime(snap.t) : null,
+          })),
+          t("case.noInference"),
+        );
 
-        // Timer display shows total duration even though it's hidden in result state
-        const sec = Math.max(0, Math.floor(session.durationSeconds || 0));
-        timerEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
-
-        latestCauses = session.causes;
-        // Archived sessions have no audio blob — hide the playback bar
-        // rather than showing a broken player.
-        resetAudio();
-        renderResultHero();
+        renderCaseBanner(
+          {
+            case_id: session.caseId || "",
+            started_at: session.startedAt,
+            ended_at: session.endedAt,
+            duration_s: session.durationSeconds,
+          },
+          "case.kickerDevice",
+        );
+        body.classList.add("viewing-case");
         setSessionState("result");
       }
+
+      // A row kept on both sides falls back to the device copy when the
+      // server's cannot be loaded
+      async function openStoredCase(caseId, localId = null) {
+        let c;
+        try {
+          const resp = await fetch(`/cases/${encodeURIComponent(caseId)}`);
+          if (!resp.ok) throw new Error(resp.statusText);
+          c = await resp.json();
+        } catch (_) {
+          if (localId) {
+            openSessionFromHistory(localId);
+          } else {
+            showStatus(t("case.loadFailed"), "danger");
+          }
+          return;
+        }
+        clearSessionView();
+        const parts = c.segments || [];
+        currentCaseId = caseId;
+        currentLocalId = localId;
+        sessionStartedAt = c.started_at;
+        lastDuration = c.duration_s || 0;
+        caseRunInfo = parts.length ? parts[parts.length - 1].run_info : c.run_info;
+        caseProfile = (c.metadata && c.metadata.profile) || null;
+        caseInProgress = !!c.in_progress;
+        continueBtn.disabled = caseInProgress;
+        sessionPartCount = parts.length;
+
+        // Transcript as shown live, else the plain stored text
+        if (c.chunks && c.chunks.length) {
+          transcript.innerHTML = "";
+          c.chunks.forEach((chunk, i) => {
+            const part = parts[chunk.segment];
+            if (i > 0 && chunk.segment !== c.chunks[i - 1].segment) {
+              appendSegmentDivider(part ? Date.parse(part.started_at) : null);
+            }
+            appendTranscriptChunk(chunk);
+          });
+        } else if (c.transcripts.en) {
+          transcriptText = c.transcripts.en;
+          transcript.innerHTML = `<span class="chunk">${escapeHtml(transcriptText)}</span>`;
+        } else {
+          transcript.innerHTML = `<span class="placeholder">${escapeHtml(t("case.noTranscript"))}</span>`;
+        }
+        updateWordCount();
+
+        // Follow-up questions are left out of the stored view
+        renderInferenceTimeline(
+          (c.inference || []).map((rec) => ({
+            t: rec.shown_at * 1000,
+            causes: rec.causes,
+            reasoning: rec.reasoning,
+            heading: clockTime(rec.shown_at * 1000),
+          })),
+          t(c.inference ? "case.noInference" : "case.noInferenceStored"),
+        );
+
+        const recorded = parts.filter((part) => part.audio_s);
+        sessionAudioParts = recorded.map((part) => ({
+          number: part.part + 1,
+          url: `/cases/${encodeURIComponent(caseId)}/audio?part=${part.part}`,
+          filename:
+            recorded.length > 1
+              ? `${caseId}_part${part.part + 1}.wav`
+              : `${caseId}.wav`,
+          seconds: part.audio_s,
+        }));
+        showAudioParts();
+        renderCaseBanner(c);
+        body.classList.add("viewing-case");
+        setSessionState("result");
+      }
+
+      function renderCaseBanner(c, kickerKey = "case.kicker") {
+        caseKicker.dataset.i18n = kickerKey;
+        caseKicker.textContent = t(kickerKey);
+        const run = c.run_info || {};
+        const inferenceInfo = run.inference || {};
+        let language = run.language;
+        try {
+          language = new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+            run.language,
+          );
+        } catch (_) {}
+        const profile = c.metadata && c.metadata.profile;
+        let profileText = "";
+        if (profile && profile.stillbirth) {
+          profileText = t("profile.stillbirth");
+        } else if (profile && profile.age) {
+          profileText = `${t("profile.age")} ${profile.age.value} ${profile.age.unit}`;
+        }
+        caseMeta.textContent = [
+          new Date(c.started_at).toLocaleString([], {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+          formatDuration(c.duration_s),
+          c.segments && c.segments.length > 1
+            ? `${c.segments.length} ${t("case.parts")}`
+            : "",
+          language,
+          [run.transcriber_backend, run.transcriber_model]
+            .filter(Boolean)
+            .join(" "),
+          [inferenceInfo.agent, inferenceInfo.model].filter(Boolean).join(" "),
+          profileText,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        caseIdLabel.textContent = c.coda_version
+          ? `${c.case_id} · CODA ${c.coda_version}`
+          : c.case_id;
+        if (c.in_progress) {
+          caseNote.textContent = t("case.inProgressNote");
+        } else {
+          caseNote.textContent = c.ended_at ? "" : t("case.incompleteNote");
+        }
+      }
+
+      document.getElementById("caseBackBtn").addEventListener("click", () => {
+        clearSessionView();
+        openHistory();
+      });
 
       historyBtn.addEventListener("click", openHistory);
       historyBackBtn.addEventListener("click", closeHistory);
       idleRecentSeeAll.addEventListener("click", openHistory);
       historyClearBtn.addEventListener("click", () => {
-        if (!confirm("Delete all local sessions? This cannot be undone."))
-          return;
+        if (!confirm(t("history.clearConfirm"))) return;
         saveHistoryArr([]);
         renderHistoryView();
       });
@@ -4078,6 +4714,11 @@
       const audioSpeedBtn = document.getElementById("audioSpeedBtn");
       const audioSpeedLabel = document.getElementById("audioSpeedLabel");
       const audioDownloadBtn = document.getElementById("audioDownloadBtn");
+      const audioParts = document.getElementById("audioParts");
+      // Recordings of the session on screen, one per part: those the server
+      // kept, then those recorded on this page. Parts are { number, url,
+      // filename, seconds }.
+      let sessionAudioParts = [];
 
       function buildAudioWave() {
         audioWave.innerHTML = "";
@@ -4130,6 +4771,13 @@
         audioPlayBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
         audioPlayBtn.setAttribute("aria-label", "Play");
       });
+      // A recording that cannot be played counts as not available
+      audioEl.addEventListener("error", () => {
+        if (!audioEl.getAttribute("src")) return;
+        audioBarEl.classList.remove("has-audio");
+        audioPlayBtn.disabled = true;
+        audioDownloadBtn.disabled = true;
+      });
 
       audioPlayBtn.addEventListener("click", () => {
         if (audioEl.paused) audioEl.play();
@@ -4157,10 +4805,7 @@
         if (!audioUrl) return;
         const a = document.createElement("a");
         a.href = audioUrl;
-        a.download =
-          "coda-session-" +
-          new Date().toISOString().replace(/[:.]/g, "-") +
-          ".webm";
+        a.download = audioFilename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -4170,12 +4815,7 @@
         try {
           audioEl.pause();
         } catch (_) {}
-        if (audioUrl) {
-          URL.revokeObjectURL(audioUrl);
-          audioUrl = null;
-        }
-        audioBlob = null;
-        audioChunks = [];
+        audioUrl = null;
         audioEl.removeAttribute("src");
         audioEl.load();
         audioBarEl.classList.remove("has-audio");
@@ -4187,6 +4827,65 @@
         playbackSpeedIdx = 0;
         audioEl.playbackRate = 1;
         audioSpeedLabel.textContent = "1×";
+        audioParts.innerHTML = "";
+      }
+
+      // A WAV file of 16-bit mono PCM frames, which unlike a MediaRecorder
+      // recording states its own duration, so it plays and seeks at once
+      function pcmToWav(frames, sampleRate) {
+        const dataBytes = frames.reduce((n, frame) => n + frame.byteLength, 0);
+        const header = new DataView(new ArrayBuffer(44));
+        const writeText = (offset, text) => {
+          for (let i = 0; i < text.length; i++) {
+            header.setUint8(offset + i, text.charCodeAt(i));
+          }
+        };
+        writeText(0, "RIFF");
+        header.setUint32(4, 36 + dataBytes, true);
+        writeText(8, "WAVE");
+        writeText(12, "fmt ");
+        header.setUint32(16, 16, true); // fmt chunk size
+        header.setUint16(20, 1, true); // PCM
+        header.setUint16(22, 1, true); // mono
+        header.setUint32(24, sampleRate, true);
+        header.setUint32(28, sampleRate * 2, true); // bytes per second
+        header.setUint16(32, 2, true); // bytes per sample
+        header.setUint16(34, 16, true); // bits per sample
+        writeText(36, "data");
+        header.setUint32(40, dataBytes, true);
+        return new Blob([header, ...frames], { type: "audio/wav" });
+      }
+
+      function discardAudioParts() {
+        sessionAudioParts.forEach((part) => {
+          if (part.url.startsWith("blob:")) URL.revokeObjectURL(part.url);
+        });
+        sessionAudioParts = [];
+      }
+
+      // A continued session has one recording per part, played one at a time
+      function showAudioParts(selected = 0) {
+        const parts = sessionAudioParts;
+        if (!parts.length) return;
+        const play = (i) => {
+          attachAudio(parts[i].url, parts[i].filename);
+          audioParts.querySelectorAll("button").forEach((btn, j) => {
+            btn.setAttribute("aria-pressed", String(i === j));
+          });
+        };
+        audioParts.innerHTML =
+          parts.length > 1
+            ? parts
+                .map(
+                  (part) =>
+                    `<button type="button" class="audio-bar-part" aria-pressed="false">${escapeHtml(t("audio.part"))} ${part.number} · ${formatMSS(part.seconds)}</button>`,
+                )
+                .join("")
+            : "";
+        audioParts.querySelectorAll("button").forEach((btn, i) => {
+          btn.addEventListener("click", () => play(i));
+        });
+        play(selected);
       }
 
       // --- Inference-offline state ------------------------------------
@@ -4198,6 +4897,21 @@
       let lastInferenceErrorAt = null;
       let currentInferenceSessionId = null;
       let currentInferenceSessionGeneration = null;
+      let currentCaseId = null;
+      // What Continue needs about the session on screen: its copy on this
+      // device, when it started, its recording time so far, the settings its
+      // last part was recorded with, its profile, and whether it is being
+      // recorded elsewhere
+      let currentLocalId = null;
+      let sessionStartedAt = null;
+      let priorActiveMs = 0;
+      // How many parts the session on screen has been recorded in
+      let sessionPartCount = 0;
+      let caseRunInfo = null;
+      let caseProfile = null;
+      let caseInProgress = false;
+      // Settings in effect for the recording in progress
+      let sessionRunInfo = null;
 
       function enterInferenceOffline(errMsg) {
         inferenceOffline = true;
@@ -4244,10 +4958,10 @@
       });
       ieSettingsBtn.addEventListener("click", openSettings);
 
-      function attachRecordedAudio(blob) {
-        audioBlob = blob;
-        audioUrl = URL.createObjectURL(blob);
-        audioEl.src = audioUrl;
+      function attachAudio(url, filename) {
+        audioUrl = url;
+        audioFilename = filename;
+        audioEl.src = url;
         audioEl.load();
         audioBarEl.classList.add("has-audio");
         audioPlayBtn.disabled = false;
@@ -4386,9 +5100,8 @@
       const statusMessage = document.getElementById("statusMessage");
       const micSelect = document.getElementById("micSelect");
       const languageSelect = document.getElementById("languageSelect");
-      const storageOn = document.getElementById("storageOn");
-      const storageOff = document.getElementById("storageOff");
-      let storageEnabled = false;
+      // Whether History also lists the server's stored cases
+      let casesBrowsable = false;
       const transcriberBackendSelect = document.getElementById(
         "transcriberBackendSelect",
       );
@@ -4620,9 +5333,18 @@
           if (language !== data.language) {
             await updateSettings({ language });
           }
-          storageEnabled = data.storage_enabled === true;
-          storageOn.hidden = !storageEnabled;
-          storageOff.hidden = storageEnabled;
+          casesBrowsable = data.cases_browsable === true;
+          [
+            ["storageServerSaves", data.storage_enabled],
+            ["storageServerBrowse", casesBrowsable],
+            ["storageServerAudio", data.storage_audio],
+          ].forEach(([id, on]) => {
+            const status = document.getElementById(id);
+            status.classList.toggle("on", on === true);
+            status.dataset.i18n = on === true ? "settings.on" : "settings.off";
+            status.textContent = t(status.dataset.i18n);
+          });
+          if (casesBrowsable) renderIdleRecent();
           transcriberBackendSelect.value = data.transcriber_backend;
           await loadBackendModels(
             data.transcriber_backend,
@@ -4863,10 +5585,11 @@
         }, 3000);
       }
 
-      // Recording time so far, excluding pauses
+      // Recording time so far, excluding pauses, including the earlier parts
+      // of a continued session
       function activeMs() {
         const pausing = isPaused ? Date.now() - pausedAt : 0;
-        return Date.now() - timerStart - pausedMs - pausing;
+        return priorActiveMs + Date.now() - timerStart - pausedMs - pausing;
       }
 
       // Timer: show mm:ss of recording time, frozen while paused
@@ -4893,7 +5616,58 @@
         wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
       }
 
-      async function startRecording() {
+      // Append a committed chunk with its grounded terms marked, preceded by
+      // its original-language text when it was translated
+      function appendTranscriptChunk(data) {
+        const text = data.transcript;
+        transcriptText += text + " ";
+
+        const anns = (data.annotations || [])
+          .slice()
+          .sort((a, b) => a.start - b.start);
+
+        let chunkHtml = "";
+        let pos = 0;
+        for (const ann of anns) {
+          if (ann.start > pos) {
+            chunkHtml += escapeHtml(text.slice(pos, ann.start));
+          }
+          chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
+          pos = ann.end;
+        }
+        if (pos < text.length) {
+          chunkHtml += escapeHtml(text.slice(pos));
+        }
+
+        chunkCount++;
+        const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
+
+        if (data.original_transcript) {
+          const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
+          transcript.insertAdjacentHTML("beforeend", origSpan);
+        }
+
+        transcript.insertAdjacentHTML("beforeend", chunkSpan);
+      }
+
+      function appendSegmentDivider(ms) {
+        const when = ms ? ` · ${clockTime(ms)}` : "";
+        transcript.insertAdjacentHTML(
+          "beforeend",
+          `<div class="segment-divider">${escapeHtml(t("case.continued") + when)}</div>`,
+        );
+      }
+
+      function fetchRunInfo() {
+        return fetch("/run_info")
+          .then((resp) => (resp.ok ? resp.json() : null))
+          .catch(() => null);
+      }
+
+      // Continuing keeps the session on screen and adds to it: the server
+      // appends to the stored case, and the transcript so far is sent ahead of
+      // the audio so inference picks up the whole interview.
+      async function startRecording({ continuing = false } = {}) {
         try {
           micSelect.disabled = true;
           languageSelect.disabled = true;
@@ -4904,19 +5678,39 @@
           ragModelSelect.disabled = true;
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
-          evolution = [];
-          latestCauses = null;
+          if (!continuing) {
+            evolution = [];
+            latestCauses = null;
+            currentCaseId = null;
+            currentLocalId = null;
+            sessionStartedAt = new Date().toISOString();
+            sessionPartCount = 0;
+            discardAudioParts();
+          }
+          priorActiveMs = continuing ? lastDuration * 1000 : 0;
+          sessionRunInfo = null;
+          fetchRunInfo().then((info) => {
+            sessionRunInfo = info;
+          });
           resetAudio();
           exitInferenceOffline();
 
           const wsProtocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
+          const wsQuery =
+            continuing && currentCaseId
+              ? `?case_id=${encodeURIComponent(currentCaseId)}`
+              : "";
+          const seed = continuing ? transcriptText.trim() : "";
           ws = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws`,
+            `${wsProtocol}//${window.location.host}/ws${wsQuery}`,
           );
 
-          ws.onopen = () => {
+          ws.onopen = (event) => {
             console.log("WebSocket connected");
+            if (seed) {
+              event.target.send(JSON.stringify({ type: "seed", text: seed }));
+            }
             showStatus("Connected to server", "success");
           };
 
@@ -4927,8 +5721,9 @@
               currentInferenceSessionId = data.session_id || null;
               currentInferenceSessionGeneration =
                 data.session_generation ?? null;
+              currentCaseId = data.case_id || null;
             } else if (data.type === "transcript") {
-              if (chunkCount === 0) {
+              if (transcript.querySelector(".placeholder")) {
                 transcript.innerHTML = "";
               }
 
@@ -4936,35 +5731,7 @@
               const prevLine = document.getElementById("preview-line");
               if (prevLine) prevLine.remove();
 
-              const text = data.transcript;
-              transcriptText += text + " ";
-
-              const anns = (data.annotations || [])
-                .slice()
-                .sort((a, b) => a.start - b.start);
-
-              let chunkHtml = "";
-              let pos = 0;
-              for (const ann of anns) {
-                if (ann.start > pos) {
-                  chunkHtml += escapeHtml(text.slice(pos, ann.start));
-                }
-                chunkHtml += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
-                pos = ann.end;
-              }
-              if (pos < text.length) {
-                chunkHtml += escapeHtml(text.slice(pos));
-              }
-
-              chunkCount++;
-              const chunkSpan = `<span class="chunk" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
-
-              if (data.original_transcript) {
-                const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
-                transcript.insertAdjacentHTML("beforeend", origSpan);
-              }
-
-              transcript.insertAdjacentHTML("beforeend", chunkSpan);
+              appendTranscriptChunk(data);
               transcript.scrollTop = transcript.scrollHeight;
               updateWordCount();
             } else if (data.type === "preview") {
@@ -4972,7 +5739,7 @@
               // Shown muted at the end until it firms into a chunk.
               let prevLine = document.getElementById("preview-line");
               if (!prevLine) {
-                if (chunkCount === 0) {
+                if (transcript.querySelector(".placeholder")) {
                   transcript.innerHTML = "";
                 }
                 prevLine = document.createElement("span");
@@ -4989,7 +5756,11 @@
 
               const previous = latestCauses;
               latestCauses = data.causes || {};
-              evolution.push({ t: Date.now(), causes: latestCauses });
+              evolution.push({
+                t: Date.now(),
+                causes: latestCauses,
+                reasoning: data.reasoning || null,
+              });
 
               const html = renderCauseList(
                 latestCauses,
@@ -5009,10 +5780,16 @@
             } else if (data.type === "warning") {
               showStatus(data.message, "warning");
             } else if (data.type === "error") {
-              // Errors scoped to an inference chunk (backend sets chunk_id)
-              // flip the UI into the offline state rather than a fleeting
-              // toast. Other errors stay as toasts.
-              if (data.chunk_id) {
+              // A fatal error means the server refused to continue the
+              // session, which another connection is recording. Its close
+              // code can be lost while audio is in flight, so this is the
+              // signal to rely on. Errors scoped to an inference chunk
+              // (backend sets chunk_id) flip the UI into the offline state
+              // rather than a fleeting toast. Other errors stay as toasts.
+              if (data.fatal) {
+                showStatus(t("continue.inUse"), "warning");
+                stopRecording({ save: false });
+              } else if (data.chunk_id) {
                 enterInferenceOffline(data.error);
               } else {
                 showStatus(`Error: ${data.error}`, "danger");
@@ -5048,51 +5825,14 @@
             audio: audioConstraints,
           });
           micConstraints = audioConstraints;
+          sessionPartCount += 1;
 
           audioContext = new AudioContext({ sampleRate: 16000 });
           const processor = audioContext.createScriptProcessor(4096, 1, 1);
           processor.connect(audioContext.destination);
           audioProcessor = processor;
-          // MediaRecorder records this node rather than the mic stream, so the
-          // recording carries on when a pause releases and reacquires the mic
-          recordDest = audioContext.createMediaStreamDestination();
           connectMic(stream);
-
-          // Simultaneously capture the mic stream as a compressed Blob
-          // for playback in the result state. Independent of the
-          // PCM-over-WS pipeline above.
-          audioChunks = [];
-          try {
-            const recorderOpts = {};
-            if (
-              typeof MediaRecorder !== "undefined" &&
-              MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ) {
-              recorderOpts.mimeType = "audio/webm;codecs=opus";
-            } else if (
-              typeof MediaRecorder !== "undefined" &&
-              MediaRecorder.isTypeSupported("audio/webm")
-            ) {
-              recorderOpts.mimeType = "audio/webm";
-            }
-            mediaRecorder = new MediaRecorder(recordDest.stream, recorderOpts);
-            mediaRecorder.ondataavailable = (e) => {
-              if (e.data && e.data.size) audioChunks.push(e.data);
-            };
-            mediaRecorder.onstop = () => {
-              if (!audioChunks.length) return;
-              const mime = mediaRecorder.mimeType || "audio/webm";
-              const blob = new Blob(audioChunks, { type: mime });
-              attachRecordedAudio(blob);
-            };
-            mediaRecorder.start(1000);
-          } catch (err) {
-            console.warn(
-              "MediaRecorder unavailable — playback will be disabled.",
-              err,
-            );
-            mediaRecorder = null;
-          }
+          pcmFrames = [];
 
           const audioMeterFill = document.getElementById("audioMeterFill");
 
@@ -5112,10 +5852,20 @@
             const pct = Math.min(100, rms * 600);
             audioMeterFill.style.width = pct + "%";
 
+            // Kept for playback after Stop
+            pcmFrames.push(pcmData);
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(pcmData.buffer);
             }
           };
+
+          if (continuing) {
+            body.classList.remove("viewing-case");
+            inference
+              .querySelectorAll(".case-empty")
+              .forEach((el) => el.remove());
+            if (transcriptText.trim()) appendSegmentDivider(Date.now());
+          }
 
           isRecording = true;
           recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
@@ -5128,6 +5878,10 @@
           startTimer();
         } catch (error) {
           console.error("Error starting recording:", error);
+          if (ws) {
+            ws.close();
+            ws = null;
+          }
           showStatus(
             "Failed to start recording. Please check microphone permissions.",
             "danger",
@@ -5139,7 +5893,6 @@
         micStream = stream;
         micSource = audioContext.createMediaStreamSource(stream);
         micSource.connect(audioProcessor);
-        micSource.connect(recordDest);
       }
 
       // Stopping the tracks releases the device, which turns off the browser
@@ -5156,15 +5909,12 @@
       }
 
       // Release the mic and hold the session open. No audio reaches the
-      // server and MediaRecorder skips the paused stretch.
+      // server or the recording kept for playback.
       function pauseRecording() {
         if (!isRecording || isPaused) return;
         isPaused = true;
         pausedAt = Date.now();
         releaseMic();
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.pause();
-        }
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "pause" }));
         }
@@ -5201,9 +5951,6 @@
         connectMic(stream);
         isPaused = false;
         pausedMs += Date.now() - pausedAt;
-        if (mediaRecorder && mediaRecorder.state === "paused") {
-          mediaRecorder.resume();
-        }
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "resume" }));
         }
@@ -5217,7 +5964,10 @@
         pauseBtn.title = "Pause recording";
       }
 
-      function stopRecording() {
+      // Without `save` the session on screen is kept as it was before this
+      // recording, as when continuing it was refused.
+      function stopRecording({ save = true } = {}) {
+        const started = isRecording;
         if (isPaused) {
           pausedMs += Date.now() - pausedAt;
           isPaused = false;
@@ -5237,12 +5987,22 @@
           ws = null;
         }
 
-        // Stop the MediaRecorder (blob will be assembled in onstop handler)
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          try {
-            mediaRecorder.stop();
-          } catch (_) {}
+        // This part's recording joins the session's earlier parts, selected
+        if (started && save && pcmFrames.length) {
+          const sampleRate = audioContext.sampleRate;
+          const wav = pcmToWav(pcmFrames, sampleRate);
+          sessionAudioParts.push({
+            number: sessionPartCount,
+            url: URL.createObjectURL(wav),
+            filename:
+              "coda-session-" +
+              new Date().toISOString().replace(/[:.]/g, "-") +
+              ".wav",
+            seconds: (wav.size - 44) / 2 / sampleRate,
+          });
+          showAudioParts(sessionAudioParts.length - 1);
         }
+        pcmFrames = [];
 
         if (audioContext) {
           audioContext.close();
@@ -5275,21 +6035,19 @@
 
         // Transition to result state if we captured anything worth reviewing
         // (transcript OR inference). Only revert to idle on a truly empty session.
-        lastDuration = Math.floor((Date.now() - timerStart - pausedMs) / 1000);
+        const saving = started && save;
+        if (saving) {
+          lastDuration = Math.floor(activeMs() / 1000);
+          caseRunInfo = sessionRunInfo;
+        } else if (started) {
+          sessionPartCount -= 1;
+        }
         const hasInference =
           latestCauses && Object.keys(latestCauses).length > 0;
         const hasTranscript = transcriptText.trim().length > 0;
         if (hasInference || hasTranscript) {
-          if (hasInference) {
-            finalizeSessionIfSaving();
-            renderResultHero();
-          } else {
-            // Inference never fired — show a minimal hero acknowledging that.
-            resultTitle.textContent = "No inference this session";
-            resultConfidence.textContent = "—";
-            resultIcd.textContent = "—";
-            resultBarFill.style.width = "0%";
-          }
+          if (hasInference && saving) finalizeSessionIfSaving();
+          renderResultHero();
           setSessionState("result");
         } else {
           renderIdleRecent();
@@ -5371,18 +6129,22 @@
         );
       });
 
-      async function pushMetadata() {
-        applyStillbirthState();
-        updateProfileSummary();
+      function readProfileInputs() {
         const ageValue =
           ageValueInput.value === "" ? null : Number(ageValueInput.value);
-        const profile = {
+        return {
           age:
             ageValue === null
               ? null
               : { value: ageValue, unit: ageUnitSelect.value },
           stillbirth: stillbirthToggle.checked,
         };
+      }
+
+      async function pushMetadata() {
+        applyStillbirthState();
+        updateProfileSummary();
+        const profile = readProfileInputs();
         try {
           await fetch("/metadata", {
             method: "POST",
@@ -5390,6 +6152,12 @@
             body: JSON.stringify({ profile }),
           });
         } catch (e) {}
+      }
+
+      function fillProfileInputs(profile) {
+        ageValueInput.value = profile.age ? profile.age.value : "";
+        ageUnitSelect.value = profile.age ? profile.age.unit : "months";
+        stillbirthToggle.checked = !!profile.stillbirth;
       }
 
       function clearProfileInputs() {
@@ -5405,6 +6173,90 @@
       ageUnitSelect.addEventListener("change", pushMetadata);
       stillbirthToggle.addEventListener("change", pushMetadata);
 
+      // Empty the transcript, inference, chart, and playback of the last
+      // session or stored case
+      function clearSessionView() {
+        body.classList.remove("viewing-case");
+        transcriptText = "";
+        chunkCount = 0;
+        transcript.innerHTML =
+          '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
+        inference.innerHTML = "";
+        const diffElReset = document.getElementById("differentialsList");
+        if (diffElReset) diffElReset.innerHTML = "";
+        clearChart();
+        timerEl.textContent = "00:00";
+        updateWordCount();
+        latestCauses = null;
+        lastDuration = 0;
+        evolution = [];
+        currentCaseId = null;
+        currentLocalId = null;
+        sessionStartedAt = null;
+        priorActiveMs = 0;
+        sessionPartCount = 0;
+        discardAudioParts();
+        caseRunInfo = null;
+        caseProfile = null;
+        caseInProgress = false;
+        continueBtn.disabled = false;
+        resetAudio();
+        exitInferenceOffline();
+      }
+
+      // The settings that change how a session is transcribed and inferred
+      function describeRunInfo(info) {
+        const inferenceInfo = info.inference || {};
+        return {
+          [t("continue.language")]: info.language,
+          [t("continue.transcriber")]: [
+            info.transcriber_backend,
+            info.transcriber_model,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          [t("continue.inference")]: [inferenceInfo.agent, inferenceInfo.model]
+            .filter(Boolean)
+            .join(" "),
+        };
+      }
+
+      // Record more of the session on screen, warning first when the settings
+      // it was recorded with have changed
+      async function continueSession() {
+        if (isRecording || caseInProgress) return;
+        if (caseRunInfo) {
+          const current = await fetchRunInfo();
+          if (current) {
+            const before = describeRunInfo(caseRunInfo);
+            const now = describeRunInfo(current);
+            const changes = Object.keys(before)
+              .filter((key) => before[key] && now[key] && before[key] !== now[key])
+              .map((key) => `${key}: ${before[key]} → ${now[key]}`);
+            if (
+              changes.length &&
+              !confirm(
+                [
+                  t("continue.settingsChanged"),
+                  ...changes,
+                  "",
+                  t("continue.confirm"),
+                ].join("\n"),
+              )
+            ) {
+              return;
+            }
+          }
+        }
+        if (caseProfile) {
+          fillProfileInputs(caseProfile);
+          await pushMetadata();
+        }
+        startRecording({ continuing: true });
+      }
+
+      continueBtn.addEventListener("click", continueSession);
+
       document
         .getElementById("resetBtn")
         .addEventListener("click", async () => {
@@ -5412,21 +6264,10 @@
             stopRecording();
           }
           clearProfileInputs();
-          transcriptText = "";
-          chunkCount = 0;
-          transcript.innerHTML =
-            '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
-          inference.innerHTML = "";
-          const diffElReset = document.getElementById("differentialsList");
-          if (diffElReset) diffElReset.innerHTML = "";
-          clearChart();
-          timerEl.textContent = "00:00";
-          updateWordCount();
-          latestCauses = null;
-          lastDuration = 0;
-          evolution = [];
-          resetAudio();
-          exitInferenceOffline();
+          // A profile restored to continue a session would otherwise carry
+          // over to the next one
+          pushMetadata();
+          clearSessionView();
           renderIdleRecent();
           setSessionState("idle");
           try {
@@ -5482,7 +6323,12 @@
         );
         sel.value = supported ? stored : "en";
         applyLocale(sel.value, false);
-        sel.addEventListener("change", () => applyLocale(sel.value));
+        sel.addEventListener("change", () => {
+          applyLocale(sel.value);
+          // History rows are built in the language active when drawn
+          renderIdleRecent();
+          if (body.dataset.state === "history") renderHistoryView();
+        });
       })();
 
       // --- Onboarding consent gate -------------------------------------
