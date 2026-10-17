@@ -1,8 +1,10 @@
 """Tests for per-case storage (coda.app.storage) and its server wiring."""
 
+import asyncio
 import json
 import logging
 import wave
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -324,6 +326,9 @@ def test_list_cases_skips_empty_cases_newest_first(storage_dir):
     assert cases[0]["chunk_count"] == 1
     assert cases[0]["inference_count"] == 1
     assert cases[0]["language"] == "sw"
+    started = datetime.fromisoformat(cases[0]["started_at"])
+    assert started.utcoffset() is not None
+    assert started == datetime.fromisoformat(newer.manifest["started_at"]).astimezone()
 
 
 def test_audio_without_frames_counts_as_none(storage_dir, monkeypatch):
@@ -403,3 +408,75 @@ def test_case_endpoints_serve_stored_cases(storage_dir, monkeypatch):
     assert audio.headers["content-type"] == "audio/wav"
     assert client.get(f"/cases/{recording.case_id}/audio").status_code == 404
     recording.close()
+
+
+def test_settings_report_storage_methods(storage_dir, monkeypatch):
+    client = TestClient(server.app)
+    reported = client.get("/settings").json()
+    assert reported["storage_enabled"] is True
+    assert reported["cases_browsable"] is False
+    assert reported["storage_audio"] is False
+
+    monkeypatch.setenv("CODA_STORAGE__BROWSE", "true")
+    monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
+    reload_settings()
+    reported = client.get("/settings").json()
+    assert reported["cases_browsable"] is True
+    assert reported["storage_audio"] is True
+
+    monkeypatch.setenv("CODA_STORAGE__ENABLED", "false")
+    reload_settings()
+    assert client.get("/settings").json()["storage_audio"] is False
+
+
+class ClosingWebSocket(DummyWebSocket):
+    """Accepts, then disconnects on the first receive."""
+
+    async def accept(self):
+        pass
+
+    async def receive(self) -> dict:
+        return {"type": "websocket.disconnect", "code": 1000}
+
+
+@pytest.fixture
+def idle_transcription(offline_server, monkeypatch):
+    async def wait_forever(websocket, queue, inference_session):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(server, "consume_transcripts", wait_forever)
+
+
+async def test_session_message_carries_case_id(storage_dir, idle_transcription):
+    websocket = ClosingWebSocket()
+    await server.websocket_endpoint(websocket)
+
+    [case_dir] = case_dirs(storage_dir)
+    assert websocket.messages[0]["type"] == "session"
+    assert websocket.messages[0]["case_id"] == case_dir.name
+    manifest = json.loads((case_dir / "manifest.json").read_text())
+    assert manifest["ended_at"] is not None
+
+
+async def test_session_message_has_no_case_id_without_storage(idle_transcription):
+    websocket = ClosingWebSocket()
+    await server.websocket_endpoint(websocket)
+    assert websocket.messages[0]["case_id"] is None
+
+
+async def test_reset_tells_the_client_its_new_case(storage_dir, offline_server):
+    websocket = DummyWebSocket()
+    session = server.InferenceSessionCoordinator(websocket, "session-a")
+    await session.start_case()
+    first_case = session.recorder.case_id
+
+    await session.invalidate("reset")
+
+    assert websocket.messages[-1] == {
+        "type": "session",
+        "session_id": "session-a",
+        "session_generation": 1,
+        "case_id": session.recorder.case_id,
+    }
+    assert session.recorder.case_id != first_case
+    session.end_case()

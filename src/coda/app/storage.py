@@ -12,7 +12,7 @@ import time
 import wave
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, TextIO
+from typing import Any, TextIO
 
 from gilda.term import get_curie
 
@@ -32,6 +32,10 @@ def cases_browsable() -> bool:
     return bool(settings.storage.get("browse", False))
 
 
+def storage_keeps_audio() -> bool:
+    return storage_enabled() and bool(settings.storage.store.get("audio", False))
+
+
 def cases_root() -> Path:
     output_dir = settings.storage.get("output_dir", "")
     if output_dir:
@@ -43,11 +47,11 @@ class CaseRecorder:
     """Writes everything recorded for one case into its own folder."""
 
     def __init__(self, session_id: str, generation: int, run_info: dict):
-        self.store = {key: bool(value)
-                      for key, value in settings.storage.store.items()}
+        self.store = {key: bool(value) for key, value in settings.storage.store.items()}
         started = datetime.now()
-        self.case_id = (f"{started.strftime('%Y-%m-%d_%H%M%S')}"
-                        f"_{session_id[:8]}_g{generation}")
+        self.case_id = (
+            f"{started.strftime('%Y-%m-%d_%H%M%S')}_{session_id[:8]}_g{generation}"
+        )
         self.case_dir = cases_root() / self.case_id
         self.case_dir.mkdir(parents=True, exist_ok=True)
 
@@ -67,14 +71,14 @@ class CaseRecorder:
         self._chunks = self._open("chunks.jsonl", "annotations")
         self._inference = self._open("inference.jsonl", "inference")
         self._timing = self._open("timing.jsonl", "timing")
-        self._audio: Optional[wave.Wave_write] = None
+        self._audio: wave.Wave_write | None = None
         if self.store.get("audio"):
             self._audio = wave.open(str(self.case_dir / "audio.wav"), "wb")
             self._audio.setnchannels(1)
             self._audio.setsampwidth(2)
             self._audio.setframerate(AUDIO_SAMPLE_RATE)
 
-    def _open(self, filename: str, store_key: str) -> Optional[TextIO]:
+    def _open(self, filename: str, store_key: str) -> TextIO | None:
         if not self.store.get(store_key):
             return None
         return open(self.case_dir / filename, "a", encoding="utf-8")
@@ -84,7 +88,7 @@ class CaseRecorder:
             json.dump(self.manifest, f, indent=2, default=str)
 
     @staticmethod
-    def _append_json(f: Optional[TextIO], record: dict):
+    def _append_json(f: TextIO | None, record: dict):
         if f is None:
             return
         f.write(json.dumps(record, default=str) + "\n")
@@ -93,8 +97,9 @@ class CaseRecorder:
     def _append_transcript(self, text: str, lang_code: str):
         f = self._transcripts.get(lang_code)
         if f is None:
-            f = open(self.case_dir / f"transcript_{lang_code}.txt", "a",
-                     encoding="utf-8")
+            f = open(
+                self.case_dir / f"transcript_{lang_code}.txt", "a", encoding="utf-8"
+            )
             self._transcripts[lang_code] = f
         f.write(text + "\n")
         f.flush()
@@ -105,7 +110,8 @@ class CaseRecorder:
 
     def write_pause(self):
         self.manifest["pauses"].append(
-            {"paused_at": datetime.now().isoformat(), "resumed_at": None})
+            {"paused_at": datetime.now().isoformat(), "resumed_at": None}
+        )
         self._write_manifest()
 
     def write_resume(self):
@@ -114,10 +120,16 @@ class CaseRecorder:
             pauses[-1]["resumed_at"] = datetime.now().isoformat()
             self._write_manifest()
 
-    def write_chunk(self, chunk_id: str, timestamp: float, english_text: str,
-                    annotations: list, timings: dict,
-                    original_text: Optional[str] = None,
-                    original_language: Optional[str] = None):
+    def write_chunk(
+        self,
+        chunk_id: str,
+        timestamp: float,
+        english_text: str,
+        annotations: list,
+        timings: dict,
+        original_text: str | None = None,
+        original_language: str | None = None,
+    ):
         received_at = time.time()
         if self.store.get("transcripts"):
             self._append_transcript(english_text, "en")
@@ -135,9 +147,15 @@ class CaseRecorder:
             record["original_text"] = original_text
             record["original_language"] = original_language
         self._append_json(self._chunks, record)
-        self._append_json(self._timing, {
-            "kind": "chunk", "chunk_id": chunk_id, "at": received_at, **timings,
-        })
+        self._append_json(
+            self._timing,
+            {
+                "kind": "chunk",
+                "chunk_id": chunk_id,
+                "at": received_at,
+                **timings,
+            },
+        )
 
     def write_inference(self, request: dict, result: dict, shown_at: float):
         record = {
@@ -152,14 +170,23 @@ class CaseRecorder:
         if self.store.get("metadata"):
             record["metadata"] = request.get("metadata")
         self._append_json(self._inference, record)
-        self._append_json(self._timing, {
-            "kind": "inference", "chunk_id": record["chunk_id"],
-            "at": shown_at, **(result.get("timings") or {}),
-        })
+        self._append_json(
+            self._timing,
+            {
+                "kind": "inference",
+                "chunk_id": record["chunk_id"],
+                "at": shown_at,
+                **(result.get("timings") or {}),
+            },
+        )
 
-    def close(self, metadata: Optional[dict] = None):
-        for f in [*self._transcripts.values(), self._chunks, self._inference,
-                  self._timing]:
+    def close(self, metadata: dict | None = None):
+        for f in [
+            *self._transcripts.values(),
+            self._chunks,
+            self._inference,
+            self._timing,
+        ]:
             if f is not None:
                 f.close()
         self._transcripts.clear()
@@ -172,7 +199,7 @@ class CaseRecorder:
         self._write_manifest()
 
 
-def _read_jsonl(path: Path) -> Optional[list[dict]]:
+def _read_jsonl(path: Path) -> list[dict] | None:
     """Records in a JSONL file, or None if it was not stored.
 
     A line cut short by a server that stopped mid-write is skipped.
@@ -189,19 +216,20 @@ def _read_jsonl(path: Path) -> Optional[list[dict]]:
     return records
 
 
-def _case_dir(case_id: str) -> Optional[Path]:
+def _case_dir(case_id: str) -> Path | None:
     if not CASE_ID_PATTERN.fullmatch(case_id):
         return None
     case_dir = cases_root() / case_id
     return case_dir if (case_dir / "manifest.json").is_file() else None
 
 
-def _read_case(case_dir: Path) -> tuple[dict, Optional[list[dict]],
-                                        Optional[list[dict]]]:
-    manifest = json.loads(
-        (case_dir / "manifest.json").read_text(encoding="utf-8"))
-    return (manifest, _read_jsonl(case_dir / "chunks.jsonl"),
-            _read_jsonl(case_dir / "inference.jsonl"))
+def _read_case(case_dir: Path) -> tuple[dict, list[dict] | None, list[dict] | None]:
+    manifest = json.loads((case_dir / "manifest.json").read_text(encoding="utf-8"))
+    return (
+        manifest,
+        _read_jsonl(case_dir / "chunks.jsonl"),
+        _read_jsonl(case_dir / "inference.jsonl"),
+    )
 
 
 def _has_audio(case_dir: Path) -> bool:
@@ -216,32 +244,47 @@ def _has_audio(case_dir: Path) -> bool:
 def _recording_seconds(manifest: dict, ended: datetime) -> float:
     """Time from start to ``ended``, less the time spent paused."""
     paused = sum(
-        ((datetime.fromisoformat(p["resumed_at"]) if p["resumed_at"] else ended)
-         - datetime.fromisoformat(p["paused_at"])).total_seconds()
+        (
+            (datetime.fromisoformat(p["resumed_at"]) if p["resumed_at"] else ended)
+            - datetime.fromisoformat(p["paused_at"])
+        ).total_seconds()
         for p in manifest.get("pauses", [])
     )
     started = datetime.fromisoformat(manifest["started_at"])
     return max(0.0, (ended - started).total_seconds() - paused)
 
 
-def _summary(case_dir: Path, manifest: dict, chunks: list[dict],
-             inference: list[dict]) -> dict:
+def _with_utc_offset(timestamp: str) -> str:
+    """A manifest time, written in server-local time, with its UTC offset.
+
+    Without the offset a browser in another time zone would read it as its own
+    local time.
+    """
+    return datetime.fromisoformat(timestamp).astimezone().isoformat()
+
+
+def _summary(
+    case_dir: Path, manifest: dict, chunks: list[dict], inference: list[dict]
+) -> dict:
     ended_at = manifest.get("ended_at")
     # A case that never closed ends at its last write
-    ended = (datetime.fromisoformat(ended_at) if ended_at else
-             datetime.fromtimestamp(
-                 max(p.stat().st_mtime for p in case_dir.iterdir())))
+    ended = (
+        datetime.fromisoformat(ended_at)
+        if ended_at
+        else datetime.fromtimestamp(max(p.stat().st_mtime for p in case_dir.iterdir()))
+    )
     causes = inference[-1].get("causes") if inference else None
     return {
         "case_id": case_dir.name,
-        "started_at": manifest["started_at"],
-        "ended_at": ended_at,
+        "started_at": _with_utc_offset(manifest["started_at"]),
+        "ended_at": _with_utc_offset(ended_at) if ended_at else None,
         "duration_s": round(_recording_seconds(manifest, ended)),
         "language": (manifest.get("run_info") or {}).get("language"),
         "chunk_count": len(chunks),
         "inference_count": len(inference),
-        "top_cause": (max(causes.values(), key=lambda c: c["score"])
-                      if causes else None),
+        "top_cause": (
+            max(causes.values(), key=lambda c: c["score"]) if causes else None
+        ),
         "has_audio": _has_audio(case_dir),
     }
 
@@ -264,9 +307,11 @@ def _display_chunk(chunk: dict) -> dict:
         "chunk_id": chunk["chunk_id"],
         "timestamp": chunk["timestamp"],
         "transcript": chunk["text"],
-        "annotations": [_display_annotation(ann)
-                        for ann in chunk.get("annotations", [])
-                        if ann.get("matches")],
+        "annotations": [
+            _display_annotation(ann)
+            for ann in chunk.get("annotations", [])
+            if ann.get("matches")
+        ],
         "original_transcript": chunk.get("original_text"),
         "original_language": chunk.get("original_language"),
     }
@@ -289,10 +334,12 @@ def list_cases() -> list[dict]:
         if not (chunks or inference or any(case_dir.glob("transcript_*.txt"))):
             continue
         cases.append(_summary(case_dir, manifest, chunks or [], inference or []))
-    return sorted(cases, key=lambda c: c["started_at"], reverse=True)
+    return sorted(
+        cases, key=lambda c: datetime.fromisoformat(c["started_at"]), reverse=True
+    )
 
 
-def load_case(case_id: str) -> Optional[dict]:
+def load_case(case_id: str) -> dict | None:
     """Everything stored for one case, or None if there is no such case.
 
     ``chunks`` and ``inference`` are None when that item was not stored. The
@@ -312,18 +359,16 @@ def load_case(case_id: str) -> Optional[dict]:
         "run_info": manifest.get("run_info"),
         "pauses": manifest.get("pauses", []),
         "metadata": metadata,
-        "chunks": ([_display_chunk(c) for c in chunks]
-                   if chunks is not None else None),
+        "chunks": ([_display_chunk(c) for c in chunks] if chunks is not None else None),
         "transcripts": {
-            path.stem.removeprefix("transcript_"):
-                path.read_text(encoding="utf-8")
+            path.stem.removeprefix("transcript_"): path.read_text(encoding="utf-8")
             for path in sorted(case_dir.glob("transcript_*.txt"))
         },
         "inference": inference,
     }
 
 
-def case_audio_path(case_id: str) -> Optional[Path]:
+def case_audio_path(case_id: str) -> Path | None:
     case_dir = _case_dir(case_id)
     if case_dir is None or not _has_audio(case_dir):
         return None

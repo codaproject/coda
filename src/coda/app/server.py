@@ -14,13 +14,16 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
+from coda.app.onboarding_notice import (
+    load_onboarding_notice_html,
+    render_onboarding_notice,
+)
 from coda.app.storage import (
     CaseRecorder,
     case_audio_path,
@@ -28,28 +31,25 @@ from coda.app.storage import (
     list_cases,
     load_case,
     storage_enabled,
+    storage_keeps_audio,
 )
-from coda.app.onboarding_notice import (
-    load_onboarding_notice_html,
-    render_onboarding_notice,
-)
+from coda.config import inference_url, settings
 from coda.dialogue import (
-    Transcriber,
-    StreamingTranscriber,
     TRANSCRIBER_BACKENDS,
+    StreamingTranscriber,
+    Transcriber,
     create_transcriber,
-    get_transcriber_models,
     get_transcriber_languages,
+    get_transcriber_models,
 )
+from coda.grounding.gilda_grounder import GildaGrounder
+from coda.grounding.rag_grounder import RagGrounder
 from coda.inference.streaming import (
     INFERENCE_MAX_WAIT_S,
     INFERENCE_MIN_WORDS,
     StreamingInferenceBuffer,
 )
-from coda.grounding.gilda_grounder import GildaGrounder
-from coda.grounding.rag_grounder import RagGrounder
 from coda.llm_api import create_llm_client
-from coda.config import settings, inference_url
 from coda.metadata import Metadata
 
 app = FastAPI()
@@ -81,8 +81,9 @@ def _default_model_for(backend: str):
         return None
 
 
-current_transcriber_model = settings.dialogue.transcriber_model \
-    or _default_model_for(current_transcriber_backend)
+current_transcriber_model = settings.dialogue.transcriber_model or _default_model_for(
+    current_transcriber_backend
+)
 current_llm_provider = settings.inference.llm.provider
 current_llm_model = settings.inference.llm.model
 current_grounder = settings.grounder.type
@@ -105,17 +106,17 @@ active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
 
 class SettingsRequest(BaseModel):
-    language: Optional[str] = None
-    transcriber_backend: Optional[str] = None
-    transcriber_model: Optional[str] = None
-    grounder: Optional[str] = None
-    rag_provider: Optional[str] = None
-    rag_model: Optional[str] = None
-    rag_ontology: Optional[str] = None
-    rag_use_reranker: Optional[bool] = None
-    llm_provider: Optional[str] = None
-    llm_model: Optional[str] = None
-    translation_mode: Optional[str] = None
+    language: str | None = None
+    transcriber_backend: str | None = None
+    transcriber_model: str | None = None
+    grounder: str | None = None
+    rag_provider: str | None = None
+    rag_model: str | None = None
+    rag_ontology: str | None = None
+    rag_use_reranker: bool | None = None
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    translation_mode: str | None = None
 
 
 @dataclass
@@ -140,7 +141,7 @@ class CoalescedInferenceBatch:
 class InferenceSessionCoordinator:
     """Per-WebSocket inference scheduler with request coalescing."""
 
-    def __init__(self, websocket: WebSocket, session_id: Optional[str] = None):
+    def __init__(self, websocket: WebSocket, session_id: str | None = None):
         self.websocket = websocket
         self.session_id = session_id or str(uuid.uuid4())
         self.generation = 0
@@ -155,12 +156,10 @@ class InferenceSessionCoordinator:
         """Begin recording a new case for the current generation, if enabled."""
         if not storage_enabled():
             return
-        recorder = CaseRecorder(self.session_id, self.generation,
-                                await _run_info())
+        recorder = CaseRecorder(self.session_id, self.generation, await _run_info())
         self.end_case()
         self.recorder = recorder
-        logger.info("Recording case %s to %s", recorder.case_id,
-                    recorder.case_dir)
+        logger.info("Recording case %s to %s", recorder.case_id, recorder.case_dir)
 
     def end_case(self):
         if self.recorder is not None:
@@ -168,17 +167,20 @@ class InferenceSessionCoordinator:
             logger.info("Closed case %s", self.recorder.case_id)
             self.recorder = None
 
-    async def enqueue(self, chunk_id: str, timestamp: float, text: str,
-                      annotations: list):
+    async def enqueue(
+        self, chunk_id: str, timestamp: float, text: str, annotations: list
+    ):
         if not text:
             return
         async with self._lock:
-            self._pending.append(PendingInferenceChunk(
-                chunk_id=chunk_id,
-                timestamp=timestamp,
-                text=text,
-                annotations=list(annotations),
-            ))
+            self._pending.append(
+                PendingInferenceChunk(
+                    chunk_id=chunk_id,
+                    timestamp=timestamp,
+                    text=text,
+                    annotations=list(annotations),
+                )
+            )
             if self._drain_task is None or self._drain_task.done():
                 self._drain_task = asyncio.create_task(self._drain_loop())
 
@@ -190,13 +192,26 @@ class InferenceSessionCoordinator:
             self._pending.clear()
         logger.info(
             "Invalidated inference session %s generation %d (%s, cleared %d buffered chunk(s))",
-            self.session_id, old_generation, reason, dropped
+            self.session_id,
+            old_generation,
+            reason,
+            dropped,
         )
         await _reset_inference_session(self.session_id, old_generation)
         if reason == "disconnect":
             self.end_case()
         else:
             await self.start_case()
+            await _ws_send_safe(self.websocket, self.session_message())
+
+    def session_message(self) -> dict:
+        """Tells the client which session, generation and case it is on."""
+        return {
+            "type": "session",
+            "session_id": self.session_id,
+            "session_generation": self.generation,
+            "case_id": self.recorder.case_id if self.recorder is not None else None,
+        }
 
     async def wait_for_idle(self):
         task = None
@@ -216,8 +231,12 @@ class InferenceSessionCoordinator:
             buffer_wait_s = time.perf_counter() - batch.queued_at
             logger.info(
                 "Dispatching inference batch for session %s generation %d: chunks=%d text_chars=%d buffer_wait=%.2fs latest_chunk=%s",
-                self.session_id, request_generation, batch.chunk_count,
-                len(batch.text), buffer_wait_s, batch.chunk_id
+                self.session_id,
+                request_generation,
+                batch.chunk_count,
+                len(batch.text),
+                buffer_wait_s,
+                batch.chunk_id,
             )
             await process_inference(
                 self,
@@ -233,11 +252,7 @@ class InferenceSessionCoordinator:
         self._pending = []
         newest = chunks[-1]
         text = " ".join(chunk.text for chunk in chunks)
-        annotations = [
-            ann
-            for chunk in chunks
-            for ann in chunk.annotations
-        ]
+        annotations = [ann for chunk in chunks for ann in chunk.annotations]
         return CoalescedInferenceBatch(
             chunk_id=newest.chunk_id,
             timestamp=newest.timestamp,
@@ -253,8 +268,8 @@ class InferenceSessionCoordinator:
 
 
 class ResetRequest(BaseModel):
-    session_id: Optional[str] = None
-    session_generation: Optional[int] = None
+    session_id: str | None = None
+    session_generation: int | None = None
 
 
 def get_language_name(code: str) -> str:
@@ -278,18 +293,20 @@ if transcriber.normalize_language(current_language) is None:
     # every chunk.
     logger.warning(
         "Transcriber backend %r does not support language %r",
-        current_transcriber_backend, current_language,
+        current_transcriber_backend,
+        current_language,
     )
 
 
 async def translate_text(text: str, source_language: str) -> str:
     """Translate text to English using the LLM API."""
     lang_name = get_language_name(source_language)
-    prompt = (f"Translate the following {lang_name} text to English. "
-              f"Return only the translation, nothing else.\n\n{text}")
+    prompt = (
+        f"Translate the following {lang_name} text to English. "
+        f"Return only the translation, nothing else.\n\n{text}"
+    )
     try:
-        llm = create_llm_client(provider=current_llm_provider,
-                                model=current_llm_model)
+        llm = create_llm_client(provider=current_llm_provider, model=current_llm_model)
         translation = await asyncio.to_thread(llm.call, prompt)
         return translation.strip()
     except Exception as e:
@@ -322,19 +339,23 @@ async def _ws_send_safe(websocket: WebSocket, data: dict):
 
 async def _reset_inference_session(session_id: str, generation: int):
     try:
-        resp = await inference_client.post("/reset", json={
-            "session_id": session_id,
-            "session_generation": generation,
-        })
+        resp = await inference_client.post(
+            "/reset",
+            json={
+                "session_id": session_id,
+                "session_generation": generation,
+            },
+        )
         resp.raise_for_status()
         logger.info(
-            "Inference agent reset for session %s generation %d",
-            session_id, generation
+            "Inference agent reset for session %s generation %d", session_id, generation
         )
     except Exception as e:
         logger.warning(
             "Could not reset inference session %s generation %d: %s",
-            session_id, generation, e
+            session_id,
+            generation,
+            e,
         )
 
 
@@ -354,16 +375,20 @@ async def _run_info() -> dict:
         "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
         "rag": rag_config if current_grounder == "rag" else None,
-        "translation_llm": {"provider": current_llm_provider,
-                            "model": current_llm_model},
+        "translation_llm": {
+            "provider": current_llm_provider,
+            "model": current_llm_model,
+        },
         "inference": inference_info,
     }
 
 
-async def process_inference(session: InferenceSessionCoordinator,
-                            request_generation: int,
-                            batch: CoalescedInferenceBatch,
-                            buffer_wait_s: float):
+async def process_inference(
+    session: InferenceSessionCoordinator,
+    request_generation: int,
+    batch: CoalescedInferenceBatch,
+    buffer_wait_s: float,
+):
     """Process inference in background and send results via HTTP."""
     started = time.perf_counter()
     try:
@@ -390,57 +415,86 @@ async def process_inference(session: InferenceSessionCoordinator,
         if not await session.is_current_generation(request_generation):
             logger.info(
                 "Discarded stale inference result for session %s generation %d after %.2fs",
-                session.session_id, request_generation, infer_s
+                session.session_id,
+                request_generation,
+                infer_s,
             )
             return
 
         if session.recorder is not None:
-            session.recorder.write_inference(request, result,
-                                             shown_at=time.time())
+            session.recorder.write_inference(request, result, shown_at=time.time())
         # Send inference result to client
         await _ws_send_safe(session.websocket, {"type": "inference", **result})
         # Log top cause
-        causes = result.get('causes', {})
+        causes = result.get("causes", {})
         if causes:
-            top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
-            top_cause_name = causes[top_curie]['name']
-            top_score = causes[top_curie]['score']
+            top_curie = max(causes.items(), key=lambda x: x[1]["score"])[0]
+            top_cause_name = causes[top_curie]["name"]
+            top_score = causes[top_curie]["score"]
             logger.info(
                 "Inference result for %s in %.2fs: %s (%s, score=%.2f, chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, top_cause_name, top_curie, top_score,
-                batch.chunk_count, len(batch.text), buffer_wait_s
+                batch.chunk_id,
+                infer_s,
+                top_cause_name,
+                top_curie,
+                top_score,
+                batch.chunk_count,
+                len(batch.text),
+                buffer_wait_s,
             )
         else:
             logger.info(
                 "Inference result for %s in %.2fs: no causes (chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, batch.chunk_count, len(batch.text),
-                buffer_wait_s
+                batch.chunk_id,
+                infer_s,
+                batch.chunk_count,
+                len(batch.text),
+                buffer_wait_s,
             )
 
     except httpx.TimeoutException:
-        logger.error("Inference timeout for chunk %s after %.2fs",
-                     batch.chunk_id, time.perf_counter() - started)
+        logger.error(
+            "Inference timeout for chunk %s after %.2fs",
+            batch.chunk_id,
+            time.perf_counter() - started,
+        )
         if await session.is_current_generation(request_generation):
-            await _ws_send_safe(session.websocket, {
-                "type": "error", "chunk_id": batch.chunk_id,
-                "error": "Inference timeout"
-            })
+            await _ws_send_safe(
+                session.websocket,
+                {
+                    "type": "error",
+                    "chunk_id": batch.chunk_id,
+                    "error": "Inference timeout",
+                },
+            )
     except httpx.ConnectError:
-        logger.error("Cannot connect to inference agent for chunk %s after %.2fs",
-                     batch.chunk_id, time.perf_counter() - started)
+        logger.error(
+            "Cannot connect to inference agent for chunk %s after %.2fs",
+            batch.chunk_id,
+            time.perf_counter() - started,
+        )
         if await session.is_current_generation(request_generation):
-            await _ws_send_safe(session.websocket, {
-                "type": "error", "chunk_id": batch.chunk_id,
-                "error": "Inference agent unavailable"
-            })
+            await _ws_send_safe(
+                session.websocket,
+                {
+                    "type": "error",
+                    "chunk_id": batch.chunk_id,
+                    "error": "Inference agent unavailable",
+                },
+            )
     except Exception as e:
-        logger.error("Inference error for chunk %s after %.2fs: %s",
-                     batch.chunk_id, time.perf_counter() - started, e, exc_info=True)
+        logger.error(
+            "Inference error for chunk %s after %.2fs: %s",
+            batch.chunk_id,
+            time.perf_counter() - started,
+            e,
+            exc_info=True,
+        )
         if await session.is_current_generation(request_generation):
-            await _ws_send_safe(session.websocket, {
-                "type": "error", "chunk_id": batch.chunk_id,
-                "error": str(e)
-            })
+            await _ws_send_safe(
+                session.websocket,
+                {"type": "error", "chunk_id": batch.chunk_id, "error": str(e)},
+            )
 
 
 @app.get("/languages")
@@ -448,11 +502,14 @@ async def get_languages():
     """Get supported languages for the active transcription backend."""
     names = get_transcriber_languages(current_transcriber_backend)
     # Return sorted by name, with English first
-    langs = [{"code": code, "name": name}
-             for code, name in sorted(names.items(), key=lambda x: x[1])]
+    langs = [
+        {"code": code, "name": name}
+        for code, name in sorted(names.items(), key=lambda x: x[1])
+    ]
     # Move English to front
-    langs = ([l for l in langs if l["code"] == "en"]
-             + [l for l in langs if l["code"] != "en"])
+    langs = [l for l in langs if l["code"] == "en"] + [
+        l for l in langs if l["code"] != "en"
+    ]
     return langs
 
 
@@ -463,6 +520,7 @@ async def get_settings():
         "language": current_language,
         "storage_enabled": storage_enabled(),
         "cases_browsable": cases_browsable(),
+        "storage_audio": storage_keeps_audio(),
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
@@ -500,8 +558,7 @@ async def get_transcriber_backend_models(backend: str):
     response reports it as unavailable so the UI can warn instead of failing.
     """
     if backend not in TRANSCRIBER_BACKENDS:
-        raise HTTPException(status_code=404,
-                            detail=f"Unknown backend {backend!r}")
+        raise HTTPException(status_code=404, detail=f"Unknown backend {backend!r}")
     try:
         info = await asyncio.to_thread(get_transcriber_models, backend)
     except Exception as e:
@@ -560,10 +617,13 @@ async def update_settings(req: SettingsRequest):
             transcriber_changed = True
             if req.transcriber_model is None:
                 current_transcriber_model = await asyncio.to_thread(
-                    _default_model_for, backend)
+                    _default_model_for, backend
+                )
             logger.info(f"Transcriber backend set to: {current_transcriber_backend}")
-    if (req.transcriber_model is not None
-            and req.transcriber_model != current_transcriber_model):
+    if (
+        req.transcriber_model is not None
+        and req.transcriber_model != current_transcriber_model
+    ):
         current_transcriber_model = req.transcriber_model
         transcriber_changed = True
         logger.info(f"Transcriber model set to: {current_transcriber_model}")
@@ -574,19 +634,21 @@ async def update_settings(req: SettingsRequest):
     if transcriber_changed:
         try:
             transcriber = await asyncio.to_thread(
-                create_transcriber, current_transcriber_backend,
-                current_transcriber_model
+                create_transcriber,
+                current_transcriber_backend,
+                current_transcriber_model,
             )
         except Exception as e:
             current_transcriber_backend = prev_backend
             current_transcriber_model = prev_model
             logger.error("Failed to load transcriber: %s", e)
             raise HTTPException(
-                status_code=400,
-                detail=f"Could not load transcriber: {e}") from e
+                status_code=400, detail=f"Could not load transcriber: {e}"
+            ) from e
         logger.info(
             "Transcriber reloaded: backend=%s model=%s",
-            current_transcriber_backend, current_transcriber_model
+            current_transcriber_backend,
+            current_transcriber_model,
         )
     if req.llm_provider is not None:
         current_llm_provider = req.llm_provider
@@ -601,6 +663,7 @@ async def update_settings(req: SettingsRequest):
         "language": current_language,
         "storage_enabled": storage_enabled(),
         "cases_browsable": cases_browsable(),
+        "storage_audio": storage_keeps_audio(),
         "transcriber_backend": current_transcriber_backend,
         "transcriber_model": current_transcriber_model,
         "grounder": current_grounder,
@@ -627,14 +690,11 @@ async def websocket_endpoint(websocket: WebSocket):
     inference_session = InferenceSessionCoordinator(websocket)
     active_inference_sessions.add(inference_session)
     await inference_session.start_case()
-    await _ws_send_safe(websocket, {
-        "type": "session",
-        "session_id": inference_session.session_id,
-        "session_generation": inference_session.generation,
-    })
+    await _ws_send_safe(websocket, inference_session.session_message())
     audio_queue: asyncio.Queue = asyncio.Queue()
     capture = asyncio.create_task(
-        capture_audio(websocket, audio_queue, inference_session))
+        capture_audio(websocket, audio_queue, inference_session)
+    )
     consume = asyncio.create_task(
         consume_transcripts(websocket, audio_queue, inference_session)
     )
@@ -653,8 +713,11 @@ async def websocket_endpoint(websocket: WebSocket):
         active_inference_sessions.discard(inference_session)
 
 
-async def capture_audio(websocket: WebSocket, queue: asyncio.Queue,
-                        inference_session: InferenceSessionCoordinator):
+async def capture_audio(
+    websocket: WebSocket,
+    queue: asyncio.Queue,
+    inference_session: InferenceSessionCoordinator,
+):
     """Capture: drain the socket into the queue. Never blocks transcription.
 
     Binary frames are audio. Text frames are JSON control messages, `pause` and
@@ -685,14 +748,16 @@ async def capture_audio(websocket: WebSocket, queue: asyncio.Queue,
                     if inference_session.recorder is not None:
                         inference_session.recorder.write_resume()
                 elif control not in ("pause", "resume"):
-                    logger.warning("Ignoring control message %r",
-                                   message["text"][:100])
+                    logger.warning("Ignoring control message %r", message["text"][:100])
     finally:
         queue.put_nowait(None)
 
 
-async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
-                              inference_session: InferenceSessionCoordinator):
+async def consume_transcripts(
+    websocket: WebSocket,
+    queue: asyncio.Queue,
+    inference_session: InferenceSessionCoordinator,
+):
     """Process: consume transcript events from the active transcriber and, for
     each committed event, translate, ground, save, and display it. Inference
     runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
@@ -719,16 +784,17 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
     # Direct speech-to-English translation is a Whisper capability; for other
     # backends, non-English transcribes then translates via the LLM. Captured at
     # connection start (settings changes apply on the next connection).
-    direct_translate = (current_language != "en"
-                        and translation_mode == "whisper_translate"
-                        and current_transcriber_backend == "whisper")
+    direct_translate = (
+        current_language != "en"
+        and translation_mode == "whisper_translate"
+        and current_transcriber_backend == "whisper"
+    )
     task = "translate" if direct_translate else "transcribe"
 
     # Committed text accumulates until enough has arrived to infer on. Streaming
     # backends use INFERENCE_MIN_WORDS; chunked backends emit whole chunks and
     # infer per chunk (min_words=0).
-    buf = StreamingInferenceBuffer(
-        min_words=INFERENCE_MIN_WORDS if streaming else 0)
+    buf = StreamingInferenceBuffer(min_words=INFERENCE_MIN_WORDS if streaming else 0)
     last_infer = time.monotonic()
 
     async def flush():
@@ -748,22 +814,25 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             await asyncio.sleep(1.0)
             if inference_session.paused:
                 continue
-            if buf.ready or (buf.has_pending and time.monotonic() - last_infer
-                             >= INFERENCE_MAX_WAIT_S):
+            if buf.ready or (
+                buf.has_pending
+                and time.monotonic() - last_infer >= INFERENCE_MAX_WAIT_S
+            ):
                 await flush()
 
     timer = asyncio.create_task(idle_flush())
     try:
         async for event in transcriber.stream(
-                audio_iter(), language=current_language, task=task):
+            audio_iter(), language=current_language, task=task
+        ):
             if not event.committed:
-                await _ws_send_safe(websocket,
-                                    {"type": "preview", "text": event.text})
+                await _ws_send_safe(websocket, {"type": "preview", "text": event.text})
                 continue
             # One bad event shouldn't kill the session.
             try:
                 committed = await _handle_committed(
-                    inference_session, event, direct_translate)
+                    inference_session, event, direct_translate
+                )
             except Exception as e:
                 logger.error(f"Error on event {event.id}: {e}", exc_info=True)
                 continue
@@ -778,8 +847,9 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
         timer.cancel()
 
 
-async def _handle_committed(inference_session: InferenceSessionCoordinator,
-                            event, direct_translate: bool):
+async def _handle_committed(
+    inference_session: InferenceSessionCoordinator, event, direct_translate: bool
+):
     """Translate, ground, save, and display one committed transcript event.
 
     Returns (chunk_id, timestamp, english_text, annotations) for the caller to
@@ -797,8 +867,11 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
 
     # If non-English and not already translated to English, translate via LLM
     # (skip if transcript is too short to be real speech).
-    if (not direct_translate and current_language != "en"
-            and len(event.text.split()) > 1):
+    if (
+        not direct_translate
+        and current_language != "en"
+        and len(event.text.split()) > 1
+    ):
         original_transcript = event.text
         translation_start = time.perf_counter()
         english_text = await translate_text(event.text, current_language)
@@ -818,26 +891,34 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     if recorder is not None:
         save_start = time.perf_counter()
         recorder.write_chunk(
-            chunk_id, timestamp, english_text, annotations,
-            timings={"translate_s": round(translation_s, 3),
-                     "ground_s": round(grounding_s, 3)},
+            chunk_id,
+            timestamp,
+            english_text,
+            annotations,
+            timings={
+                "translate_s": round(translation_s, 3),
+                "ground_s": round(grounding_s, 3),
+            },
             original_text=original_transcript,
-            original_language=(current_language
-                               if original_transcript else None),
+            original_language=(current_language if original_transcript else None),
         )
         save_s = time.perf_counter() - save_start
 
     # Build structured annotations for inline display
-    structured_annotations = [
-        {
-            "text": ann.text,
-            "start": ann.start,
-            "end": ann.end,
-            "curie": ann.matches[0].term.get_curie(),
-            "name": ann.matches[0].term.entry_name,
-        }
-        for ann in annotations
-    ] if annotations else []
+    structured_annotations = (
+        [
+            {
+                "text": ann.text,
+                "start": ann.start,
+                "end": ann.end,
+                "curie": ann.matches[0].term.get_curie(),
+                "name": ann.matches[0].term.entry_name,
+            }
+            for ann in annotations
+        ]
+        if annotations
+        else []
+    )
 
     # Send transcript to client
     msg = {
@@ -856,23 +937,33 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     total_s = time.perf_counter() - total_start
     logger.info(
         "Chunk %s processed in %.2fs (translate=%.2fs ground=%.2fs save=%.2fs emit=%.2fs text_chars=%d annotations=%d)",
-        chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
-        len(english_text), len(annotations)
+        chunk_id,
+        total_s,
+        translation_s,
+        grounding_s,
+        save_s,
+        emit_s,
+        len(english_text),
+        len(annotations),
     )
     logger.info(f"Chunk {chunk_id}: {english_text}")
 
     return chunk_id, timestamp, english_text, annotations
 
 
-async def _start_inference(inference_session: InferenceSessionCoordinator,
-                           chunk_id: str, timestamp: float,
-                           text: str, annotations: list):
+async def _start_inference(
+    inference_session: InferenceSessionCoordinator,
+    chunk_id: str,
+    timestamp: float,
+    text: str,
+    annotations: list,
+):
     """Queue a chunk for coalesced inference dispatch."""
     await inference_session.enqueue(chunk_id, timestamp, text, annotations)
 
 
 @app.post("/reset")
-async def reset_session(req: Optional[ResetRequest] = None):
+async def reset_session(req: ResetRequest | None = None):
     """Reset session state: start a new case and reset the inference agent."""
     global current_metadata
     targeted_reset = req is not None and req.session_id is not None
@@ -881,7 +972,8 @@ async def reset_session(req: Optional[ResetRequest] = None):
     target_sessions = list(active_inference_sessions)
     if targeted_reset:
         target_sessions = [
-            session for session in target_sessions
+            session
+            for session in target_sessions
             if session.session_id == req.session_id
         ]
     await asyncio.gather(
@@ -890,7 +982,9 @@ async def reset_session(req: Optional[ResetRequest] = None):
     )
     if not target_sessions:
         try:
-            resp = await inference_client.post("/reset", json=req.model_dump() if req else {})
+            resp = await inference_client.post(
+                "/reset", json=req.model_dump() if req else {}
+            )
             resp.raise_for_status()
             logger.info("Inference agent reset")
         except Exception as e:
@@ -904,8 +998,11 @@ def _require_cases_browsable() -> None:
 
 
 def _recording_case_ids() -> set[str]:
-    return {session.recorder.case_id for session in active_inference_sessions
-            if session.recorder is not None}
+    return {
+        session.recorder.case_id
+        for session in active_inference_sessions
+        if session.recorder is not None
+    }
 
 
 @app.get("/cases")
@@ -914,8 +1011,7 @@ async def get_cases() -> list[dict]:
     _require_cases_browsable()
     cases = await asyncio.to_thread(list_cases)
     recording = _recording_case_ids()
-    return [{**case, "in_progress": case["case_id"] in recording}
-            for case in cases]
+    return [{**case, "in_progress": case["case_id"] in recording} for case in cases]
 
 
 @app.get("/cases/{case_id}")
@@ -952,7 +1048,8 @@ async def get_index():
         notice_version=settings.app.onboarding_notice.version,
     )
     html_content = html_content.replace(
-        "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
+        "__CODA_UI_LANGUAGE__",
+        json.dumps(settings.app.ui_language),
     )
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(

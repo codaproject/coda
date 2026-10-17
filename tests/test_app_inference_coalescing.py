@@ -1,5 +1,4 @@
 import asyncio
-import threading
 
 import pytest
 
@@ -140,7 +139,9 @@ async def test_reset_clears_buffered_work_and_suppresses_stale_results(monkeypat
         infer_started.set()
         await infer_release.wait()
         if await session.is_current_generation(request_generation):
-            await session.websocket.send_json({"type": "inference", "chunk_id": batch.chunk_id})
+            await session.websocket.send_json(
+                {"type": "inference", "chunk_id": batch.chunk_id}
+            )
 
     async def fake_reset(session_id, generation):
         reset_calls.append({"session_id": session_id, "session_generation": generation})
@@ -156,7 +157,7 @@ async def test_reset_clears_buffered_work_and_suppresses_stale_results(monkeypat
     await coordinator.wait_for_idle()
 
     assert infer_calls == [(0, "alpha")]
-    assert websocket.messages == []
+    assert [m["type"] for m in websocket.messages] == ["session"]
     assert reset_calls == [{"session_id": "session-a", "session_generation": 0}]
 
 

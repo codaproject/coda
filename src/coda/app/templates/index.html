@@ -1165,6 +1165,51 @@
         opacity: 0.5;
       }
 
+      /* Read-only status of the server's storage */
+      .storage-group {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-sm);
+        background: var(--paper-elevated);
+      }
+      .storage-group strong {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+        display: block;
+      }
+      .storage-group small {
+        font-size: 11px;
+        color: var(--ink-muted);
+        display: block;
+        margin-top: 2px;
+      }
+      .storage-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .storage-status {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: var(--border-warm);
+        color: var(--ink-muted);
+        white-space: nowrap;
+      }
+      .storage-status.on {
+        background: var(--accent-sage-soft);
+        color: var(--accent-sage);
+      }
+
       /* Theme switch segmented control */
       .theme-switch {
         display: flex;
@@ -1798,6 +1843,28 @@
       body[data-state="result"] .audio-bar.has-audio {
         display: flex;
       }
+      /* A past session without a recording says so in place of the player */
+      .audio-bar-missing {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--ink-muted);
+      }
+      body.viewing-case[data-state="result"] .audio-bar:not(.has-audio) {
+        display: flex;
+        height: auto;
+      }
+      body.viewing-case[data-state="result"]
+        .audio-bar:not(.has-audio)
+        > :not(.audio-bar-missing) {
+        display: none;
+      }
+      body.viewing-case[data-state="result"]
+        .audio-bar:not(.has-audio)
+        .audio-bar-missing {
+        display: inline-flex;
+      }
 
       .audio-bar-play {
         width: 44px;
@@ -2003,7 +2070,8 @@
       }
       .history-item-title {
         display: flex;
-        gap: 10px;
+        flex-wrap: wrap;
+        gap: 4px 10px;
         align-items: baseline;
         margin-bottom: 3px;
       }
@@ -2073,6 +2141,17 @@
       .history-flag--live {
         background: var(--accent-sage-soft);
         color: var(--accent-sage);
+      }
+      /* Where the session is kept */
+      .history-flag--store {
+        background: var(--border-warm);
+        color: var(--ink-soft);
+      }
+      .history-item-recording {
+        white-space: nowrap;
+      }
+      .history-item-recording.has-audio {
+        color: var(--ink-soft);
       }
 
       /* Stored case: the result view of a case read back from the server,
@@ -2665,7 +2744,6 @@
             id="historyBtn"
             class="btn btn-ghost"
             title="History"
-            style="display: none"
           >
             <i class="bi bi-clock-history"></i>
             <span data-i18n="common.history">History</span>
@@ -2782,6 +2860,10 @@
         >
           <i class="bi bi-download"></i>
         </button>
+        <span class="audio-bar-missing">
+          <i class="bi bi-mic-mute"></i>
+          <span data-i18n="case.noRecording">Recording not available</span>
+        </span>
         <audio id="audioEl" preload="metadata"></audio>
       </div>
 
@@ -2828,12 +2910,9 @@
           <div>
             <span class="kicker" data-i18n="common.history">History</span>
             <h1 id="historyHeading" data-i18n="history.title">Past sessions</h1>
-            <p id="historyLocalSubtitle" data-i18n="history.subtitle">
-              Everything is stored locally on this device. Nothing is synced or
-              uploaded.
-            </p>
-            <p id="historyServerSubtitle" data-i18n="history.serverSubtitle" hidden>
-              Cases stored on this CODA server. Opening one shows it read-only.
+            <p data-i18n="history.where">
+              Sessions saved on this device and cases stored on this server.
+              Each one shows where it is kept.
             </p>
           </div>
           <div class="history-head-actions">
@@ -3202,25 +3281,60 @@
           data-i18n="settings.localStorage"
           >Storage</label
         >
+        <div class="storage-group">
+          <strong data-i18n="settings.storageServer">On this server</strong>
+          <small data-i18n="settings.storageServerNote"
+            >Set by the server's administrator.</small
+          >
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerSaves"
+              >Saves each case</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerSaves"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerBrowse"
+              >Lists its cases in History</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerBrowse"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+          <div class="storage-status-row">
+            <span data-i18n="settings.storageServerAudio"
+              >Keeps the recording</span
+            >
+            <span
+              class="storage-status"
+              id="storageServerAudio"
+              data-i18n="settings.off"
+              >Off</span
+            >
+          </div>
+        </div>
         <div class="switch-row">
-          <div class="switch-body" id="storageOn" hidden>
-            <strong data-i18n="settings.storageOnTitle"
-              >Case data is saved</strong
+          <div class="switch-body">
+            <strong data-i18n="settings.storageDevice"
+              >Save sessions on this device</strong
             >
-            <small data-i18n="settings.storageOnBody"
-              >This server keeps a record of each session as configured by its
-              administrator. Past sessions are also kept on this device.</small
-            >
-          </div>
-          <div class="switch-body" id="storageOff">
-            <strong data-i18n="settings.storageOffTitle"
-              >Case data is not saved</strong
-            >
-            <small data-i18n="settings.storageOffBody"
-              >Nothing from your sessions is stored on the server or on this
-              device.</small
+            <small data-i18n="settings.storageDeviceNote"
+              >Keeps each session's transcript and results in this browser.
+              Recordings are not kept.</small
             >
           </div>
+          <label class="switch">
+            <input type="checkbox" id="saveOnDeviceToggle" />
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+          </label>
         </div>
       </div>
     </aside>
@@ -3305,22 +3419,35 @@
           "settings.themeLight": "Light",
           "settings.themeDark": "Dark",
           "settings.themeSystem": "System",
-          "settings.storageOnTitle": "Case data is saved",
-          "settings.storageOnBody":
-            "This server keeps a record of each session as configured by its administrator. Past sessions are also kept on this device.",
-          "settings.storageOffTitle": "Case data is not saved",
-          "settings.storageOffBody":
-            "Nothing from your sessions is stored on the server or on this device.",
+          "settings.on": "On",
+          "settings.off": "Off",
+          "settings.storageServer": "On this server",
+          "settings.storageServerNote": "Set by the server's administrator.",
+          "settings.storageServerSaves": "Saves each case",
+          "settings.storageServerBrowse": "Lists its cases in History",
+          "settings.storageServerAudio": "Keeps the recording",
+          "settings.storageDevice": "Save sessions on this device",
+          "settings.storageDeviceNote":
+            "Keeps each session's transcript and results in this browser. Recordings are not kept.",
           "history.title": "Past sessions",
-          "history.subtitle":
-            "Everything is stored locally on this device. Nothing is synced or uploaded.",
-          "history.serverSubtitle":
-            "Cases stored on this CODA server. Opening one shows it read-only.",
+          "history.where":
+            "Sessions saved on this device and cases stored on this server. Each one shows where it is kept.",
+          "history.empty":
+            "No saved sessions yet. To keep your sessions, turn on saving on this device in Settings.",
+          "history.storedServer": "Server",
+          "history.storedDevice": "This device",
+          "history.storedBoth": "Server + device",
+          "history.recording": "Recording",
+          "history.noRecording": "No recording",
+          "history.deleteDevice": "Delete the copy on this device",
+          "history.clearConfirm":
+            "Delete every session saved on this device? Cases on the server are not affected. This cannot be undone.",
           "case.kicker": "Stored case · Read-only",
+          "case.kickerDevice": "Saved on this device · Read-only",
+          "case.noRecording": "Recording not available",
           "case.timeline": "Inference timeline",
           "case.noInference": "No inference",
           "case.untitled": "Interview",
-          "case.noneStored": "No stored cases yet.",
           "case.loadFailed": "Could not load the case",
           "case.noTranscript": "No transcript was stored for this case.",
           "case.noInferenceStored": "No inference results were stored for this case.",
@@ -3396,15 +3523,7 @@
           "settings.themeLight": "Mwangaza",
           "settings.themeDark": "Giza",
           "settings.themeSystem": "Mfumo",
-          "settings.storageOnTitle": "Data ya kesi inahifadhiwa",
-          "settings.storageOnBody":
-            "Seva hii inaweka kumbukumbu ya kila kikao kama ilivyowekwa na msimamizi wake. Vikao vilivyopita pia vinahifadhiwa kwenye kifaa hiki.",
-          "settings.storageOffTitle": "Data ya kesi haihifadhiwi",
-          "settings.storageOffBody":
-            "Hakuna chochote kutoka kwa vikao vyako kinachohifadhiwa kwenye seva au kwenye kifaa hiki.",
           "history.title": "Vikao vilivyopita",
-          "history.subtitle":
-            "Kila kitu kinahifadhiwa ndani ya kifaa hiki. Hakuna kinachosawazishwa au kupakiwa.",
         },
         fr: {
           "profile.title": "Profil du cas",
@@ -3474,15 +3593,7 @@
           "settings.themeLight": "Clair",
           "settings.themeDark": "Sombre",
           "settings.themeSystem": "Système",
-          "settings.storageOnTitle": "Les données des cas sont enregistrées",
-          "settings.storageOnBody":
-            "Ce serveur conserve un enregistrement de chaque session selon la configuration de son administrateur. Les sessions passées sont aussi conservées sur cet appareil.",
-          "settings.storageOffTitle": "Les données des cas ne sont pas enregistrées",
-          "settings.storageOffBody":
-            "Rien de vos sessions n'est conservé sur le serveur ni sur cet appareil.",
           "history.title": "Sessions précédentes",
-          "history.subtitle":
-            "Tout est stocké localement sur cet appareil. Rien n'est synchronisé ni téléchargé.",
         },
         ar: {
           "common.new": "جديد",
@@ -3548,15 +3659,7 @@
           "settings.themeLight": "فاتح",
           "settings.themeDark": "داكن",
           "settings.themeSystem": "النظام",
-          "settings.storageOnTitle": "يتم حفظ بيانات الحالة",
-          "settings.storageOnBody":
-            "يحتفظ هذا الخادم بسجل لكل جلسة وفقًا لإعدادات المسؤول. كما يتم الاحتفاظ بالجلسات السابقة على هذا الجهاز.",
-          "settings.storageOffTitle": "لا يتم حفظ بيانات الحالة",
-          "settings.storageOffBody":
-            "لا يتم تخزين أي شيء من جلساتك على الخادم أو على هذا الجهاز.",
           "history.title": "الجلسات السابقة",
-          "history.subtitle":
-            "يتم تخزين كل شيء محلياً على هذا الجهاز. لا شيء متزامن أو مرفوع.",
         },
         bn: {
           "common.new": "নতুন",
@@ -3624,15 +3727,7 @@
           "settings.themeLight": "আলো",
           "settings.themeDark": "অন্ধকার",
           "settings.themeSystem": "সিস্টেম",
-          "settings.storageOnTitle": "কেসের তথ্য সংরক্ষিত হয়",
-          "settings.storageOnBody":
-            "প্রশাসকের কনফিগারেশন অনুযায়ী এই সার্ভার প্রতিটি সেশনের রেকর্ড রাখে। অতীত সেশনগুলোও এই ডিভাইসে রাখা হয়।",
-          "settings.storageOffTitle": "কেসের তথ্য সংরক্ষিত হয় না",
-          "settings.storageOffBody":
-            "আপনার সেশনের কিছুই সার্ভারে বা এই ডিভাইসে সংরক্ষিত হয় না।",
           "history.title": "পূর্ববর্তী সেশন",
-          "history.subtitle":
-            "সবকিছু স্থানীয়ভাবে এই ডিভাইসে সংরক্ষিত। কিছুই সিঙ্ক বা আপলোড করা হয় না।",
         },
         es: {
           "common.new": "Nuevo",
@@ -3701,15 +3796,7 @@
           "settings.themeLight": "Claro",
           "settings.themeDark": "Oscuro",
           "settings.themeSystem": "Sistema",
-          "settings.storageOnTitle": "Los datos del caso se guardan",
-          "settings.storageOnBody":
-            "Este servidor guarda un registro de cada sesión según la configuración de su administrador. Las sesiones anteriores también se guardan en este dispositivo.",
-          "settings.storageOffTitle": "Los datos del caso no se guardan",
-          "settings.storageOffBody":
-            "Nada de sus sesiones se guarda en el servidor ni en este dispositivo.",
           "history.title": "Sesiones anteriores",
-          "history.subtitle":
-            "Todo se almacena localmente en este dispositivo. Nada se sincroniza ni sube.",
         },
         ts: {
           "common.new": "Leyintshwa",
@@ -3780,15 +3867,7 @@
           "settings.themeLight": "Ku vonakala",
           "settings.themeDark": "Munyama",
           "settings.themeSystem": "Sisiteme",
-          "settings.storageOnTitle": "Vuxokoxoko bya mhaka bya hlayisiwa",
-          "settings.storageOnBody":
-            "Sevha leyi yi hlayisa rhekhodo ya ntshamo wun'wana ni wun'wana hi ku landza swiyimiso leswi vekiweke hi mulawuri wa yona. Mitshamo leyi hundzeke na yona yi hlayisiwa eka xitirhisiwa lexi.",
-          "settings.storageOffTitle": "Vuxokoxoko bya mhaka a byi hlayisiwi",
-          "settings.storageOffBody":
-            "A ku na vuxokoxoko bya mitshamo ya wena leswi hlayisiwaka eka sevha kumbe eka xitirhisiwa lexi.",
           "history.title": "Mitshamo leyi hundzeke",
-          "history.subtitle":
-            "Vuxokoxoko hinkwabyo byi hlayisiwa eka xitirhisiwa lexi. A byi fambelanisiwi ni switirhisiwa swin'wana naswona a byi rhumeriwi eka sevha.",
         },
       };
 
@@ -4002,7 +4081,9 @@
       // --- History persistence -----------------------------------------
       const HISTORY_KEY = "codaHistory";
       const HISTORY_CAP = 100;
-      let evolution = []; // [{ t, causes }] captured during the active session
+      const SAVE_ON_DEVICE_KEY = "codaSaveOnDevice";
+      // [{ t, causes, reasoning }] captured during the active session
+      let evolution = [];
 
       function loadHistory() {
         try {
@@ -4023,9 +4104,24 @@
         } catch (_) {}
       }
 
+      // Saving on this device is the viewer's choice. Browsers that already
+      // kept sessions before it was a choice keep doing so.
+      const saveOnDeviceToggle = document.getElementById("saveOnDeviceToggle");
+      let saveOnDevice = loadHistory().length > 0;
+      try {
+        const stored = localStorage.getItem(SAVE_ON_DEVICE_KEY);
+        if (stored !== null) saveOnDevice = stored === "true";
+      } catch (_) {}
+      saveOnDeviceToggle.checked = saveOnDevice;
+      saveOnDeviceToggle.addEventListener("change", () => {
+        saveOnDevice = saveOnDeviceToggle.checked;
+        try {
+          localStorage.setItem(SAVE_ON_DEVICE_KEY, String(saveOnDevice));
+        } catch (_) {}
+      });
+
       function finalizeSessionIfSaving() {
-        // Browsable server cases replace the copy kept on this device
-        if (!storageEnabled || casesBrowsable) return;
+        if (!saveOnDevice) return;
         if (!latestCauses || !Object.keys(latestCauses).length) return;
         const sorted = Object.entries(latestCauses).sort(
           (a, b) => b[1].score - a[1].score,
@@ -4037,6 +4133,8 @@
               ? crypto.randomUUID()
               : Date.now().toString(36) +
                 Math.random().toString(36).slice(2, 8),
+          // The server's copy of this session, when it kept one
+          caseId: currentCaseId,
           startedAt: new Date(timerStart).toISOString(),
           endedAt: new Date().toISOString(),
           durationSeconds: lastDuration,
@@ -4087,40 +4185,71 @@
       }
 
       // --- History entries ---------------------------------------------
-      // The History list and the idle "Recent" block show the server's stored
-      // cases when it serves them, else the sessions kept on this device.
+      // The History list and the idle "Recent" block merge the server's stored
+      // cases, when it serves them, with the sessions saved on this device. A
+      // device copy of a listed server case shares that case's row.
       async function loadHistoryEntries() {
-        if (!casesBrowsable) {
-          return loadHistory().map((s) => ({
-            id: s.id,
-            startedAt: s.startedAt,
-            durationSeconds: s.durationSeconds,
-            topCause: {
-              name: s.topCause.name,
-              code: s.topCause.code || s.topCause.icd10 || "",
-              score: s.topCause.score,
-            },
-            open: () => openSessionFromHistory(s.id),
-          }));
-        }
+        const local = loadHistory();
         let cases = [];
-        try {
-          const resp = await fetch("/cases");
-          if (resp.ok) cases = await resp.json();
-        } catch (_) {}
-        return cases.map((c) => ({
-          id: c.case_id,
-          startedAt: c.started_at,
-          durationSeconds: c.duration_s,
-          topCause: c.top_cause && {
-            name: c.top_cause.name,
-            code: causeCode(c.top_cause.identifiers),
-            score: c.top_cause.score,
-          },
-          flag: c.in_progress ? "inProgress" : c.ended_at ? null : "incomplete",
-          open: () => openStoredCase(c.case_id),
-        }));
+        if (casesBrowsable) {
+          try {
+            const resp = await fetch("/cases");
+            if (resp.ok) cases = await resp.json();
+          } catch (_) {}
+        }
+        const localByCase = new Map(
+          local.filter((s) => s.caseId).map((s) => [s.caseId, s]),
+        );
+        const entries = cases.map((c) => {
+          const localId = localByCase.get(c.case_id)?.id || null;
+          return {
+            startedAt: c.started_at,
+            durationSeconds: c.duration_s,
+            topCause: c.top_cause && {
+              name: c.top_cause.name,
+              code: causeCode(c.top_cause.identifiers),
+              score: c.top_cause.score,
+            },
+            flag: c.in_progress
+              ? "inProgress"
+              : c.ended_at
+                ? null
+                : "incomplete",
+            stores: localId ? "both" : "server",
+            hasAudio: c.has_audio,
+            localId,
+            open: () => openStoredCase(c.case_id, localId),
+          };
+        });
+        const listed = new Set(cases.map((c) => c.case_id));
+        local
+          .filter((s) => !listed.has(s.caseId))
+          .forEach((s) =>
+            entries.push({
+              startedAt: s.startedAt,
+              durationSeconds: s.durationSeconds,
+              topCause: {
+                name: s.topCause.name,
+                code: s.topCause.code || s.topCause.icd10 || "",
+                score: s.topCause.score,
+              },
+              stores: "device",
+              hasAudio: false,
+              localId: s.id,
+              open: () => openSessionFromHistory(s.id),
+            }),
+          );
+        // Server times carry their UTC offset and device times are UTC
+        return entries.sort(
+          (a, b) => new Date(b.startedAt) - new Date(a.startedAt),
+        );
       }
+
+      const STORED_IN = {
+        server: { icon: "bi-hdd-network", label: "history.storedServer" },
+        device: { icon: "bi-laptop", label: "history.storedDevice" },
+        both: { icon: "bi-hdd-stack", label: "history.storedBoth" },
+      };
 
       // Row labels; where COD results are hidden, rows carry none
       function entryLabels(entry) {
@@ -4145,8 +4274,14 @@
       const idleRecentList = document.getElementById("idleRecentList");
       const idleRecentSeeAll = document.getElementById("idleRecentSeeAll");
 
+      // Renders await the case list; only the latest one may draw
+      let idleRecentRender = 0;
+      let historyRender = 0;
+
       async function renderIdleRecent() {
+        const render = ++idleRecentRender;
         const entries = await loadHistoryEntries();
+        if (render !== idleRecentRender) return;
         if (!entries.length) {
           idleRecentBlock.style.display = "none";
           return;
@@ -4177,12 +4312,15 @@
       const historyClearBtn = document.getElementById("historyClearBtn");
 
       async function renderHistoryView() {
+        const render = ++historyRender;
         const entries = await loadHistoryEntries();
+        if (render !== historyRender) return;
         historyList.innerHTML = "";
+        historyClearBtn.style.display = entries.some((e) => e.localId)
+          ? ""
+          : "none";
         if (!entries.length) {
-          historyList.innerHTML = casesBrowsable
-            ? `<div class="history-empty">${escapeHtml(t("case.noneStored"))}</div>`
-            : '<div class="history-empty">No sessions saved yet. Press <strong>New</strong> to record one.</div>';
+          historyList.innerHTML = `<div class="history-empty">${escapeHtml(t("history.empty"))}</div>`;
           return;
         }
         let lastGroup = null;
@@ -4202,6 +4340,11 @@
           } else if (entry.flag === "incomplete") {
             flag = `<span class="history-flag">${escapeHtml(t("case.flagIncomplete"))}</span>`;
           }
+          const stored = STORED_IN[entry.stores];
+          const recording = entry.hasAudio
+            ? `<span class="history-item-recording has-audio"><i class="bi bi-mic-fill"></i> ${escapeHtml(t("history.recording"))}</span>`
+            : `<span class="history-item-recording"><i class="bi bi-mic-mute"></i> ${escapeHtml(t("history.noRecording"))}</span>`;
+          const deleteLabel = escapeHtml(t("history.deleteDevice"));
           const row = document.createElement("div");
           row.className = "history-item";
           row.innerHTML = `
@@ -4209,12 +4352,13 @@
                         <div class="history-item-title">
                             <strong>${escapeHtml(title)}</strong>
                             <span class="code">${escapeHtml(code)}</span>
+                            <span class="history-flag history-flag--store"><i class="bi ${stored.icon}"></i> ${escapeHtml(t(stored.label))}</span>
                             ${flag}
                         </div>
-                        <div class="history-item-meta">${escapeHtml(formatShortDate(entry.startedAt))} · ${escapeHtml(formatDuration(entry.durationSeconds))}</div>
+                        <div class="history-item-meta">${escapeHtml(formatShortDate(entry.startedAt))} · ${escapeHtml(formatDuration(entry.durationSeconds))} · ${recording}</div>
                     </div>
                     <div class="history-item-conf">${escapeHtml(score)}</div>
-                    ${casesBrowsable ? "" : '<button class="history-item-delete" aria-label="Delete session"><i class="bi bi-trash"></i></button>'}
+                    ${entry.localId ? `<button class="history-item-delete" aria-label="${deleteLabel}" title="${deleteLabel}"><i class="bi bi-trash"></i></button>` : ""}
                     <i class="bi bi-chevron-right history-chev"></i>
                 `;
           row.addEventListener("click", (e) => {
@@ -4225,7 +4369,7 @@
             .querySelector(".history-item-delete")
             ?.addEventListener("click", (e) => {
               e.stopPropagation();
-              deleteSession(entry.id);
+              deleteSession(entry.localId);
             });
           historyList.appendChild(row);
         });
@@ -4244,57 +4388,107 @@
         renderHistoryView();
       }
 
-      function openSessionFromHistory(id) {
-        const session = loadHistory().find((s) => s.id === id);
-        if (!session) return;
-
-        // Populate transcript
-        transcriptText = session.transcript || "";
-        transcript.innerHTML = transcriptText
-          ? `<span class="chunk">${escapeHtml(transcriptText)}</span>`
-          : '<span class="placeholder">Transcript unavailable.</span>';
-        updateWordCount();
-
-        // Rebuild inference list using the shared renderer (confidence bars,
-        // ranks; top row will be hidden by CSS when data-state="result").
-        const replayHtml = renderCauseList(session.causes || {}, null, null);
-        inference.innerHTML = replayHtml;
-        const diffElReplay = document.getElementById("differentialsList");
-        if (diffElReplay) diffElReplay.innerHTML = replayHtml;
-
-        // Rebuild evolution chart
-        clearChart();
-        const snaps =
-          session.evolution && session.evolution.length
-            ? session.evolution
-            : [{ causes: session.causes }];
-        snaps.forEach((snap) => updateCausesChart(snap.causes || {}));
-
-        // Timer display shows total duration even though it's hidden in result state
-        const sec = Math.max(0, Math.floor(session.durationSeconds || 0));
-        timerEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
-
-        latestCauses = session.causes;
-        // Archived sessions have no audio blob — hide the playback bar
-        // rather than showing a broken player.
-        resetAudio();
-        renderResultHero();
-        setSessionState("result");
-      }
-
-      // --- Stored case view (read-only) --------------------------------
+      // --- Past session view (read-only) --------------------------------
+      // Server cases and device copies open in the same read-only view
+      const caseKicker = document.getElementById("caseBannerKicker");
       const caseMeta = document.getElementById("caseMeta");
       const caseIdLabel = document.getElementById("caseIdLabel");
       const caseNote = document.getElementById("caseNote");
 
-      async function openStoredCase(caseId) {
+      function clockTime(ms) {
+        return new Date(ms).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+
+      // Every inference shown, stacked newest first as in the live panel, with
+      // the chart and differentials. Records are { causes, reasoning, heading }.
+      function renderInferenceTimeline(records, emptyText) {
+        records.forEach((rec, i) => {
+          const previous = i > 0 ? records[i - 1].causes : null;
+          inference.insertAdjacentHTML(
+            "afterbegin",
+            renderCauseList(
+              rec.causes,
+              previous,
+              rec.reasoning,
+              null,
+              rec.heading,
+            ),
+          );
+          updateCausesChart(rec.causes || {});
+        });
+        const diffEl = document.getElementById("differentialsList");
+        const last = records[records.length - 1];
+        if (last) {
+          const beforeLast = records[records.length - 2];
+          diffEl.innerHTML = renderCauseList(
+            last.causes,
+            beforeLast ? beforeLast.causes : null,
+            last.reasoning,
+          );
+        } else {
+          inference.innerHTML = diffEl.innerHTML =
+            `<div class="case-empty">${escapeHtml(emptyText)}</div>`;
+        }
+        latestCauses = last ? last.causes : null;
+        renderResultHero();
+      }
+
+      function openSessionFromHistory(id) {
+        const session = loadHistory().find((s) => s.id === id);
+        if (!session) return;
+        clearSessionView();
+
+        transcriptText = session.transcript || "";
+        transcript.innerHTML = transcriptText
+          ? `<span class="chunk">${escapeHtml(transcriptText)}</span>`
+          : `<span class="placeholder">${escapeHtml(t("case.noTranscript"))}</span>`;
+        updateWordCount();
+
+        // Sessions saved before snapshots were kept have only their last causes
+        const snapshots =
+          session.evolution && session.evolution.length
+            ? session.evolution
+            : [{ causes: session.causes }];
+        renderInferenceTimeline(
+          snapshots.map((snap) => ({
+            causes: snap.causes,
+            reasoning: snap.reasoning || null,
+            heading: snap.t ? clockTime(snap.t) : null,
+          })),
+          t("case.noInference"),
+        );
+
+        renderCaseBanner(
+          {
+            case_id: session.caseId || "",
+            started_at: session.startedAt,
+            ended_at: session.endedAt,
+            duration_s: session.durationSeconds,
+          },
+          "case.kickerDevice",
+        );
+        body.classList.add("viewing-case");
+        setSessionState("result");
+      }
+
+      // A row kept on both sides falls back to the device copy when the
+      // server's cannot be loaded
+      async function openStoredCase(caseId, localId = null) {
         let c;
         try {
           const resp = await fetch(`/cases/${encodeURIComponent(caseId)}`);
           if (!resp.ok) throw new Error(resp.statusText);
           c = await resp.json();
         } catch (_) {
-          showStatus(t("case.loadFailed"), "danger");
+          if (localId) {
+            openSessionFromHistory(localId);
+          } else {
+            showStatus(t("case.loadFailed"), "danger");
+          }
           return;
         }
         clearSessionView();
@@ -4311,43 +4505,15 @@
         }
         updateWordCount();
 
-        // Every inference shown, stacked newest first as in the live panel.
-        // Follow-up questions are left out of the stored view.
-        const records = c.inference || [];
-        records.forEach((rec, i) => {
-          const shownAt = new Date(rec.shown_at * 1000).toLocaleTimeString(
-            [],
-            { hour: "2-digit", minute: "2-digit", second: "2-digit" },
-          );
-          const previous = i > 0 ? records[i - 1].causes : null;
-          inference.insertAdjacentHTML(
-            "afterbegin",
-            renderCauseList(
-              rec.causes,
-              previous,
-              rec.reasoning,
-              null,
-              shownAt,
-            ),
-          );
-          updateCausesChart(rec.causes || {});
-        });
-        const diffEl = document.getElementById("differentialsList");
-        const last = records[records.length - 1];
-        if (last) {
-          const beforeLast = records[records.length - 2];
-          diffEl.innerHTML = renderCauseList(
-            last.causes,
-            beforeLast ? beforeLast.causes : null,
-            last.reasoning,
-          );
-        } else {
-          const empty = t(c.inference ? "case.noInference" : "case.noInferenceStored");
-          inference.innerHTML = diffEl.innerHTML =
-            `<div class="case-empty">${escapeHtml(empty)}</div>`;
-        }
-        latestCauses = last ? last.causes : null;
-        renderResultHero();
+        // Follow-up questions are left out of the stored view
+        renderInferenceTimeline(
+          (c.inference || []).map((rec) => ({
+            causes: rec.causes,
+            reasoning: rec.reasoning,
+            heading: clockTime(rec.shown_at * 1000),
+          })),
+          t(c.inference ? "case.noInference" : "case.noInferenceStored"),
+        );
 
         if (c.has_audio) {
           attachAudio(
@@ -4360,7 +4526,9 @@
         setSessionState("result");
       }
 
-      function renderCaseBanner(c) {
+      function renderCaseBanner(c, kickerKey = "case.kicker") {
+        caseKicker.dataset.i18n = kickerKey;
+        caseKicker.textContent = t(kickerKey);
         const run = c.run_info || {};
         const inferenceInfo = run.inference || {};
         let language = run.language;
@@ -4410,8 +4578,7 @@
       historyBackBtn.addEventListener("click", closeHistory);
       idleRecentSeeAll.addEventListener("click", openHistory);
       historyClearBtn.addEventListener("click", () => {
-        if (!confirm("Delete all local sessions? This cannot be undone."))
-          return;
+        if (!confirm(t("history.clearConfirm"))) return;
         saveHistoryArr([]);
         renderHistoryView();
       });
@@ -4481,6 +4648,13 @@
         audioPlayBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
         audioPlayBtn.setAttribute("aria-label", "Play");
       });
+      // A recording that cannot be played counts as not available
+      audioEl.addEventListener("error", () => {
+        if (!audioEl.getAttribute("src")) return;
+        audioBarEl.classList.remove("has-audio");
+        audioPlayBtn.disabled = true;
+        audioDownloadBtn.disabled = true;
+      });
 
       audioPlayBtn.addEventListener("click", () => {
         if (audioEl.paused) audioEl.play();
@@ -4546,6 +4720,7 @@
       let lastInferenceErrorAt = null;
       let currentInferenceSessionId = null;
       let currentInferenceSessionGeneration = null;
+      let currentCaseId = null;
 
       function enterInferenceOffline(errMsg) {
         inferenceOffline = true;
@@ -4734,10 +4909,7 @@
       const statusMessage = document.getElementById("statusMessage");
       const micSelect = document.getElementById("micSelect");
       const languageSelect = document.getElementById("languageSelect");
-      const storageOn = document.getElementById("storageOn");
-      const storageOff = document.getElementById("storageOff");
-      let storageEnabled = false;
-      // Whether History lists the server's stored cases instead of local ones
+      // Whether History also lists the server's stored cases
       let casesBrowsable = false;
       const transcriberBackendSelect = document.getElementById(
         "transcriberBackendSelect",
@@ -4970,14 +5142,17 @@
           if (language !== data.language) {
             await updateSettings({ language });
           }
-          storageEnabled = data.storage_enabled === true;
-          storageOn.hidden = !storageEnabled;
-          storageOff.hidden = storageEnabled;
           casesBrowsable = data.cases_browsable === true;
-          historyBtn.style.display = casesBrowsable ? "" : "none";
-          historyClearBtn.style.display = casesBrowsable ? "none" : "";
-          document.getElementById("historyLocalSubtitle").hidden = casesBrowsable;
-          document.getElementById("historyServerSubtitle").hidden = !casesBrowsable;
+          [
+            ["storageServerSaves", data.storage_enabled],
+            ["storageServerBrowse", casesBrowsable],
+            ["storageServerAudio", data.storage_audio],
+          ].forEach(([id, on]) => {
+            const status = document.getElementById(id);
+            status.classList.toggle("on", on === true);
+            status.dataset.i18n = on === true ? "settings.on" : "settings.off";
+            status.textContent = t(status.dataset.i18n);
+          });
           if (casesBrowsable) renderIdleRecent();
           transcriberBackendSelect.value = data.transcriber_backend;
           await loadBackendModels(
@@ -5296,6 +5471,7 @@
           ragRerankerToggle.disabled = true;
           evolution = [];
           latestCauses = null;
+          currentCaseId = null;
           resetAudio();
           exitInferenceOffline();
 
@@ -5317,6 +5493,7 @@
               currentInferenceSessionId = data.session_id || null;
               currentInferenceSessionGeneration =
                 data.session_generation ?? null;
+              currentCaseId = data.case_id || null;
             } else if (data.type === "transcript") {
               if (chunkCount === 0) {
                 transcript.innerHTML = "";
@@ -5351,7 +5528,11 @@
 
               const previous = latestCauses;
               latestCauses = data.causes || {};
-              evolution.push({ t: Date.now(), causes: latestCauses });
+              evolution.push({
+                t: Date.now(),
+                causes: latestCauses,
+                reasoning: data.reasoning || null,
+              });
 
               const html = renderCauseList(
                 latestCauses,
@@ -5848,7 +6029,12 @@
         );
         sel.value = supported ? stored : "en";
         applyLocale(sel.value, false);
-        sel.addEventListener("change", () => applyLocale(sel.value));
+        sel.addEventListener("change", () => {
+          applyLocale(sel.value);
+          // History rows are built in the language active when drawn
+          renderIdleRecent();
+          if (body.dataset.state === "history") renderHistoryView();
+        });
       })();
 
       // --- Onboarding consent gate -------------------------------------
