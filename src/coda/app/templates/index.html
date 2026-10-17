@@ -4627,13 +4627,27 @@
         bars.forEach((bar, i) => bar.classList.toggle("played", i < idx));
       }
 
+      // MediaRecorder WebM carries no duration, so the element reports
+      // Infinity until it has read to the end. Seeking far past the end makes
+      // it do so, after which playback returns to the start.
+      let probingDuration = false;
+
       audioEl.addEventListener("timeupdate", () => {
+        if (probingDuration) return;
         audioElapsed.textContent = formatMSS(audioEl.currentTime);
         if (audioEl.duration) {
           setAudioProgressRatio(audioEl.currentTime / audioEl.duration);
         }
       });
       audioEl.addEventListener("loadedmetadata", () => {
+        probingDuration = !isFinite(audioEl.duration);
+        if (probingDuration) audioEl.currentTime = 1e101;
+        else audioTotal.textContent = formatMSS(audioEl.duration);
+      });
+      audioEl.addEventListener("durationchange", () => {
+        if (!probingDuration || !isFinite(audioEl.duration)) return;
+        probingDuration = false;
+        audioEl.currentTime = 0;
         audioTotal.textContent = formatMSS(audioEl.duration);
       });
       audioEl.addEventListener("play", () => {
@@ -4669,7 +4683,7 @@
       });
 
       audioWave.addEventListener("click", (e) => {
-        if (!audioEl.duration) return;
+        if (!audioEl.duration || !isFinite(audioEl.duration)) return;
         const rect = audioWave.getBoundingClientRect();
         const ratio = Math.min(
           1,
