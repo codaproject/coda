@@ -22,10 +22,7 @@ import score as scorer
 
 BENCHMARK_DIR = HERE / "data" / "benchmark"
 VARIANTS = ("controlled", "ambient")
-# Tsonga is not one of Whisper's languages: the whisper-livekit path refuses
-# to start with it ('tso' is not a valid language code), so its recordings
-# exist in data/benchmark but cannot be run through this path.
-LANGUAGES = ("en", "pt_br", "bn")
+LANGUAGES = ("en", "pt_br", "bn", "ts")  # ts runs on its fine-tune, see run.py
 
 # The ticket's comparison rows. baseline is the shipped settings.yaml:
 # WhisperLiveKit's voice gate on, faster-whisper's own thresholds. Repeats of

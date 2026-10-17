@@ -135,6 +135,10 @@ dialogue:
     # voice-activity gate in front of the model: audio it rejects never
     # reaches Whisper. `decode_options` are faster-whisper's own thresholds on
     # what the model decodes (its defaults; faster-whisper backend only).
+    # These values were kept after benchmarks/synthetic_narrative compared
+    # them with the gate off and other thresholds (coda-internal#21): no
+    # change reduced text emitted during non-speech beyond run-to-run
+    # variation, and the gate off or the compression check off was worse.
     vac: true
     decode_options:
       no_speech_threshold: 0.6

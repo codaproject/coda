@@ -46,10 +46,17 @@ CHUNK_SAMPLES = 4096
 MAX_RUN_S = 6 * 3600.0  # safety limit on one run; lock-step on CPU can be very slow
 
 
+# Languages CODA's transcriber names differently from the lang_support
+# adapters, and the model a language needs when the stock ones cannot do it:
+# stock Whisper has no Tsonga, so it runs on the fine-tune CODA ships.
+LANGUAGE_CODES = {"en": "en", "ts": "ts"}
+MODEL_BY_LANGUAGE = {"ts": "anv-tso-turbo"}
+
+
 def asr_language(language):
-    """Whisper language code, as the lang_support adapters define it."""
-    if language == "en":
-        return "en"
+    """Language code to run the transcriber with."""
+    if language in LANGUAGE_CODES:
+        return LANGUAGE_CODES[language]
     return importlib.import_module(f"languages.{language}").ASR_LANGUAGE
 
 
@@ -138,6 +145,7 @@ async def stream(engine, pcm, realtime):
 def run(composite, model, overrides, realtime, out):
     composite = Path(composite)
     variant, language = composite.parent.parent.name, composite.parent.name
+    model = MODEL_BY_LANGUAGE.get(language, model)
     os.environ["CODA_DIALOGUE__TRANSCRIBER_BACKEND"] = "whisper-livekit"
     os.environ["CODA_DIALOGUE__LANGUAGE"] = asr_language(language)
     for key, value in overrides.items():

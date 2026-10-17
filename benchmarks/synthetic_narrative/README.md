@@ -45,5 +45,5 @@ processed, so the result does not depend on the machine's speed. Add
 `--realtime` to feed at live speed instead and measure whether this machine
 keeps up; run that with the machine otherwise idle.
 
-Tsonga recordings are generated but cannot be run with the stock Whisper
-models, which have no Tsonga.
+Tsonga runs with the fine-tuned `anv-tso-turbo` model CODA ships for it,
+since stock Whisper has no Tsonga; `--model` applies to the other languages.
