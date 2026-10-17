@@ -28,6 +28,7 @@ from coda.app.storage import (
     CaseRecorder,
     case_audio_path,
     cases_browsable,
+    find_case,
     list_cases,
     load_case,
     storage_enabled,
@@ -63,6 +64,12 @@ logger = logging.getLogger(__name__)
 # One second of 16 kHz s16le silence, fed to a streaming transcriber at pause so
 # it commits the words still in its buffer instead of holding them until resume
 PAUSE_SILENCE_BYTES = 32000
+
+# How long a connection asking to continue a case waits for the connection that
+# last recorded it to finish closing it
+CASE_RELEASE_WAIT_S = 5.0
+# WebSocket close code sent when the case asked for is still being recorded
+CASE_IN_USE_CLOSE_CODE = 4409
 
 here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
@@ -136,6 +143,7 @@ class CoalescedInferenceBatch:
     annotations: list
     queued_at: float
     chunk_count: int
+    seed: str | None = None
 
 
 class InferenceSessionCoordinator:
@@ -151,12 +159,41 @@ class InferenceSessionCoordinator:
         self.recorder: CaseRecorder | None = None
         # While the client has paused recording, no new inference starts
         self.paused = False
+        # Transcript recorded before this connection, sent ahead of the first
+        # inference so the agent starts from the whole interview
+        self.seed: str | None = None
 
     async def start_case(self):
         """Begin recording a new case for the current generation, if enabled."""
+        if storage_enabled():
+            self._record_to(
+                CaseRecorder(self.session_id, self.generation, await _run_info())
+            )
+
+    async def continue_case(self, case_id: str) -> bool:
+        """Record into a stored case, or a new case if there is no such case.
+
+        Returns False if the case is still being recorded by another connection.
+        """
         if not storage_enabled():
-            return
-        recorder = CaseRecorder(self.session_id, self.generation, await _run_info())
+            return True
+        run_info = await _run_info()
+        # A connection that just stopped may still be closing the case
+        deadline = time.monotonic() + CASE_RELEASE_WAIT_S
+        while case_id in _recording_case_ids() and time.monotonic() < deadline:
+            await asyncio.sleep(0.1)
+        # No await from here on, so no other connection can take the case meanwhile
+        if case_id in _recording_case_ids():
+            return False
+        if find_case(case_id) is None:
+            logger.warning("No stored case %s to continue, starting a new one", case_id)
+            case_id = None
+        self._record_to(
+            CaseRecorder(self.session_id, self.generation, run_info, case_id=case_id)
+        )
+        return True
+
+    def _record_to(self, recorder: CaseRecorder):
         self.end_case()
         self.recorder = recorder
         logger.info("Recording case %s to %s", recorder.case_id, recorder.case_dir)
@@ -190,6 +227,7 @@ class InferenceSessionCoordinator:
             old_generation = self.generation
             self.generation += 1
             self._pending.clear()
+            self.seed = None
         logger.info(
             "Invalidated inference session %s generation %d (%s, cleared %d buffered chunk(s))",
             self.session_id,
@@ -197,10 +235,12 @@ class InferenceSessionCoordinator:
             reason,
             dropped,
         )
-        await _reset_inference_session(self.session_id, old_generation)
         if reason == "disconnect":
+            # Release the case before the reset round trip, so that it can be
+            # continued straight away
             self.end_case()
-        else:
+        await _reset_inference_session(self.session_id, old_generation)
+        if reason != "disconnect":
             await self.start_case()
             await _ws_send_safe(self.websocket, self.session_message())
 
@@ -251,16 +291,27 @@ class InferenceSessionCoordinator:
         chunks = self._pending
         self._pending = []
         newest = chunks[-1]
-        text = " ".join(chunk.text for chunk in chunks)
+        seed, self.seed = self.seed, None
+        texts = [chunk.text for chunk in chunks]
+        if seed:
+            texts.insert(0, seed)
         annotations = [ann for chunk in chunks for ann in chunk.annotations]
         return CoalescedInferenceBatch(
             chunk_id=newest.chunk_id,
             timestamp=newest.timestamp,
-            text=text,
+            text=" ".join(texts),
             annotations=annotations,
             queued_at=chunks[0].queued_at,
             chunk_count=len(chunks),
+            seed=seed,
         )
+
+    async def restore_seed(self, generation: int, seed: str):
+        """Send the seed with the next batch, as the request carrying it never
+        reached the inference agent."""
+        async with self._lock:
+            if self.generation == generation and self.seed is None:
+                self.seed = seed
 
     async def is_current_generation(self, generation: int) -> bool:
         async with self._lock:
@@ -473,6 +524,8 @@ async def process_inference(
             batch.chunk_id,
             time.perf_counter() - started,
         )
+        if batch.seed:
+            await session.restore_seed(request_generation, batch.seed)
         if await session.is_current_generation(request_generation):
             await _ws_send_safe(
                 session.websocket,
@@ -511,6 +564,12 @@ async def get_languages():
         l for l in langs if l["code"] != "en"
     ]
     return langs
+
+
+@app.get("/run_info")
+async def get_run_info() -> dict:
+    """Settings and model versions a recording started now would use."""
+    return await _run_info()
 
 
 @app.get("/settings")
@@ -679,17 +738,37 @@ async def update_settings(req: SettingsRequest):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None):
     """Capture and processing are decoupled into two tasks: one only drains the
     socket into an in-memory queue (so it is always drained and never
     overflows/disconnects), the other transcribes + grounds it at its own pace.
+
+    Each connection records one segment of a case. With ``case_id`` it
+    continues that stored case instead of starting a new one.
     """
     await websocket.accept()
     logger.info("WebSocket connection established")
 
     inference_session = InferenceSessionCoordinator(websocket)
     active_inference_sessions.add(inference_session)
-    await inference_session.start_case()
+    if case_id is None:
+        await inference_session.start_case()
+    elif not await inference_session.continue_case(case_id):
+        logger.warning("Case %s is still being recorded, not continuing it", case_id)
+        active_inference_sessions.discard(inference_session)
+        await _ws_send_safe(
+            websocket,
+            {
+                "type": "error",
+                "error": "This case is being recorded elsewhere",
+                "fatal": True,
+            },
+        )
+        try:
+            await websocket.close(code=CASE_IN_USE_CLOSE_CODE)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        return
     await _ws_send_safe(websocket, inference_session.session_message())
     audio_queue: asyncio.Queue = asyncio.Queue()
     capture = asyncio.create_task(
@@ -720,25 +799,41 @@ async def capture_audio(
 ):
     """Capture: drain the socket into the queue. Never blocks transcription.
 
-    Binary frames are audio. Text frames are JSON control messages, `pause` and
-    `resume`, which take effect on arrival even when transcription lags behind
-    the audio. A pause also queues a marker after the audio sent before it.
+    Binary frames are audio. Text frames are JSON control messages. `pause` and
+    `resume` take effect on arrival even when transcription lags behind the
+    audio; a pause also queues a marker after the audio sent before it. `seed`,
+    accepted once and only before any audio, carries the transcript recorded
+    before this connection when it continues a session.
     Surfaces WebSocketDisconnect to the gather; the sentinel lets the consumer's
     audio iterator (and thus the transcriber stream) end cleanly.
     """
+    audio_received = False
     try:
         while True:
             message = await websocket.receive()
             if message["type"] == "websocket.disconnect":
                 raise WebSocketDisconnect(message.get("code", 1000))
             if message.get("bytes") is not None:
+                audio_received = True
                 queue.put_nowait(message["bytes"])
             elif message.get("text") is not None:
                 try:
-                    control = json.loads(message["text"]).get("type")
+                    payload = json.loads(message["text"])
+                    control = payload.get("type")
                 except (ValueError, AttributeError):
-                    control = None
-                if control == "pause" and not inference_session.paused:
+                    payload, control = None, None
+                if control == "seed":
+                    seed = str(payload.get("text") or "").strip()
+                    if audio_received or inference_session.seed is not None or not seed:
+                        logger.warning("Ignoring a late, repeated or empty seed")
+                        continue
+                    inference_session.seed = seed
+                    recorder = inference_session.recorder
+                    # A new case keeps the earlier transcript too, so that it
+                    # holds the whole interview
+                    if recorder is not None and not recorder.reopened:
+                        recorder.write_imported(seed)
+                elif control == "pause" and not inference_session.paused:
                     inference_session.paused = True
                     if inference_session.recorder is not None:
                         inference_session.recorder.write_pause()
@@ -1025,10 +1120,10 @@ async def get_case(case_id: str) -> dict:
 
 
 @app.get("/cases/{case_id}/audio")
-async def get_case_audio(case_id: str) -> FileResponse:
-    """Serve a case's recorded audio, if it was stored."""
+async def get_case_audio(case_id: str, part: int = 0) -> FileResponse:
+    """Serve the audio recorded in one part of a case, if it was stored."""
     _require_cases_browsable()
-    path = case_audio_path(case_id)
+    path = case_audio_path(case_id, part)
     if path is None:
         raise HTTPException(status_code=404, detail="No audio for this case")
     return FileResponse(path, media_type="audio/wav")

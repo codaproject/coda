@@ -1,5 +1,7 @@
 import asyncio
+from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from coda.app import server
@@ -185,3 +187,60 @@ async def test_independent_sessions_keep_buffers_separate(monkeypatch):
 
     release.set()
     await asyncio.gather(session_a.wait_for_idle(), session_b.wait_for_idle())
+
+
+@pytest.mark.asyncio
+async def test_seed_goes_ahead_of_the_first_batch_only(monkeypatch):
+    coordinator = server.InferenceSessionCoordinator(DummyWebSocket(), session_id="session-a")
+    coordinator.seed = "fever for three days"
+    batches = []
+
+    async def fake_process_inference(session, request_generation, batch, buffer_wait_s):
+        batches.append(batch)
+
+    monkeypatch.setattr(server, "process_inference", fake_process_inference)
+
+    await coordinator.enqueue("chunk-1", 1.0, "then a cough", [])
+    await coordinator.wait_for_idle()
+    await coordinator.enqueue("chunk-2", 2.0, "and vomiting", [])
+    await coordinator.wait_for_idle()
+
+    assert [batch.text for batch in batches] == [
+        "fever for three days then a cough",
+        "and vomiting",
+    ]
+    assert [batch.seed for batch in batches] == ["fever for three days", None]
+
+
+@pytest.mark.asyncio
+async def test_reset_drops_the_seed(monkeypatch):
+    async def fake_reset(session_id, generation):
+        return None
+
+    monkeypatch.setattr(server, "_reset_inference_session", fake_reset)
+    monkeypatch.setattr(server, "storage_enabled", lambda: False)
+    coordinator = server.InferenceSessionCoordinator(DummyWebSocket(), session_id="session-a")
+    coordinator.seed = "fever for three days"
+
+    await coordinator.invalidate("reset")
+
+    assert coordinator.seed is None
+
+
+@pytest.mark.asyncio
+async def test_seed_is_sent_again_when_inference_was_unreachable(monkeypatch):
+    async def unreachable(path, json):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(server, "inference_client", SimpleNamespace(post=unreachable))
+    coordinator = server.InferenceSessionCoordinator(DummyWebSocket(), session_id="session-a")
+    batch = server.CoalescedInferenceBatch(
+        chunk_id="chunk-1", timestamp=1.0, text="fever for three days then a cough",
+        annotations=[], queued_at=0.0, chunk_count=1, seed="fever for three days")
+
+    await server.process_inference(coordinator, 0, batch, buffer_wait_s=0.0)
+    assert coordinator.seed == "fever for three days"
+
+    coordinator.seed = None
+    await server.process_inference(coordinator, 7, batch, buffer_wait_s=0.0)
+    assert coordinator.seed is None

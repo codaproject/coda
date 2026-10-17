@@ -685,6 +685,16 @@
         margin-top: 8px;
         margin-bottom: 2px;
       }
+      /* Where a continued session picked up again */
+      .segment-divider {
+        margin: 18px 0 4px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--border-warm-strong);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
       /* Interim, not-yet-committed transcription text (streaming backends) */
       .preview-line {
         color: var(--ink-muted);
@@ -1580,6 +1590,16 @@
       body[data-state="result"] #resetBtn:hover {
         background: #000;
       }
+      #continueBtn {
+        display: none;
+      }
+      body[data-state="result"] #continueBtn {
+        display: inline-flex;
+      }
+      #continueBtn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       body[data-state="result"] .updating-pill {
         display: none !important;
       }
@@ -1864,6 +1884,32 @@
         .audio-bar:not(.has-audio)
         .audio-bar-missing {
         display: inline-flex;
+      }
+
+      /* One recording per part of a continued session */
+      .audio-bar-parts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .audio-bar-parts:empty {
+        display: none;
+      }
+      .audio-bar-part {
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border-warm-strong);
+        background: none;
+        color: var(--ink-soft);
+        cursor: pointer;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .audio-bar-part[aria-pressed="true"] {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--paper);
       }
 
       .audio-bar-play {
@@ -2748,6 +2794,14 @@
             <i class="bi bi-clock-history"></i>
             <span data-i18n="common.history">History</span>
           </button>
+          <button
+            id="continueBtn"
+            class="btn btn-ghost"
+            title="Continue recording this session"
+          >
+            <i class="bi bi-mic-fill"></i>
+            <span data-i18n="common.continue">Continue</span>
+          </button>
           <button id="resetBtn" class="btn btn-ghost" title="New session">
             <i class="bi bi-arrow-counterclockwise"></i>
             <span data-i18n="common.new">New</span>
@@ -2799,7 +2853,7 @@
         </button>
         <div class="case-banner-body">
           <span class="kicker" id="caseBannerKicker" data-i18n="case.kicker"
-            >Stored case · Read-only</span
+            >Stored case</span
           >
           <div class="case-banner-meta" id="caseMeta"></div>
           <div class="case-banner-id" id="caseIdLabel"></div>
@@ -2841,6 +2895,12 @@
           <span id="audioTotal" class="total">00:00</span>
         </div>
         <div id="audioWave" class="audio-bar-wave" aria-hidden="true"></div>
+        <div
+          id="audioParts"
+          class="audio-bar-parts"
+          role="group"
+          aria-label="Recording parts"
+        ></div>
         <button
           id="audioSpeedBtn"
           class="audio-bar-speed"
@@ -3442,8 +3502,19 @@
           "history.deleteDevice": "Delete the copy on this device",
           "history.clearConfirm":
             "Delete every session saved on this device? Cases on the server are not affected. This cannot be undone.",
-          "case.kicker": "Stored case · Read-only",
-          "case.kickerDevice": "Saved on this device · Read-only",
+          "case.kicker": "Stored case",
+          "case.kickerDevice": "Saved on this device",
+          "case.continued": "Continued",
+          "case.parts": "parts",
+          "audio.part": "Part",
+          "common.continue": "Continue",
+          "continue.settingsChanged":
+            "Settings have changed since this session was recorded:",
+          "continue.confirm": "Continue with the current settings?",
+          "continue.language": "Language",
+          "continue.transcriber": "Transcriber",
+          "continue.inference": "Inference",
+          "continue.inUse": "This session is being recorded elsewhere",
           "case.noRecording": "Recording not available",
           "case.timeline": "Inference timeline",
           "case.noInference": "No inference",
@@ -3905,7 +3976,6 @@
       }
 
       let ws = null;
-      let mediaRecorder = null;
       let audioContext = null;
       let analyser = null;
       let meterAnimFrame = null;
@@ -3916,7 +3986,6 @@
       let micSource = null;
       let micConstraints = null;
       let audioProcessor = null;
-      let recordDest = null;
       // Paused time so far this session, excluded from the timer and duration
       let pausedMs = 0;
       let pausedAt = 0;
@@ -3924,13 +3993,14 @@
       let chunkCount = 0;
       let timerInterval = null;
       let timerStart = 0;
-      let audioChunks = [];
-      let audioBlob = null;
+      // PCM frames of the part being recorded, kept for playback after Stop
+      let pcmFrames = [];
       let audioUrl = null;
       let audioFilename = null;
       let serverSettingsLocked = false;
 
       const body = document.body;
+      const continueBtn = document.getElementById("continueBtn");
       const recordBtn = document.getElementById("recordBtn");
       const pauseBtn = document.getElementById("pauseBtn");
       const heroMicBtn = document.getElementById("heroMicBtn");
@@ -4127,15 +4197,21 @@
           (a, b) => b[1].score - a[1].score,
         );
         const [, top] = sorted[0];
+        const history = loadHistory();
+        // A continued session replaces its earlier copy
+        const previous = history.findIndex((s) => s.id === currentLocalId);
+        if (previous >= 0) history.splice(previous, 1);
         const session = {
           id:
-            crypto && crypto.randomUUID
-              ? crypto.randomUUID()
-              : Date.now().toString(36) +
-                Math.random().toString(36).slice(2, 8),
+            previous >= 0
+              ? currentLocalId
+              : crypto && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) +
+                  Math.random().toString(36).slice(2, 8),
           // The server's copy of this session, when it kept one
           caseId: currentCaseId,
-          startedAt: new Date(timerStart).toISOString(),
+          startedAt: sessionStartedAt,
           endedAt: new Date().toISOString(),
           durationSeconds: lastDuration,
           transcript: transcriptText.trim(),
@@ -4146,10 +4222,13 @@
           },
           causes: latestCauses,
           evolution: evolution.slice(),
+          metadata: { profile: readProfileInputs() },
+          runInfo: sessionRunInfo,
+          parts: sessionPartCount,
         };
-        const history = loadHistory();
         history.unshift(session);
         saveHistoryArr(history);
+        currentLocalId = session.id;
       }
 
       // --- Date formatting helpers -------------------------------------
@@ -4404,8 +4483,14 @@
       }
 
       // Every inference shown, stacked newest first as in the live panel, with
-      // the chart and differentials. Records are { causes, reasoning, heading }.
+      // the chart and differentials. Records are { t, causes, reasoning,
+      // heading }, and become the evolution a continued session adds to.
       function renderInferenceTimeline(records, emptyText) {
+        evolution = records.map((rec) => ({
+          t: rec.t,
+          causes: rec.causes,
+          reasoning: rec.reasoning,
+        }));
         records.forEach((rec, i) => {
           const previous = i > 0 ? records[i - 1].causes : null;
           inference.insertAdjacentHTML(
@@ -4441,6 +4526,13 @@
         const session = loadHistory().find((s) => s.id === id);
         if (!session) return;
         clearSessionView();
+        currentCaseId = session.caseId || null;
+        currentLocalId = session.id;
+        sessionStartedAt = session.startedAt;
+        lastDuration = session.durationSeconds || 0;
+        caseRunInfo = session.runInfo || null;
+        caseProfile = (session.metadata && session.metadata.profile) || null;
+        sessionPartCount = session.parts || 1;
 
         transcriptText = session.transcript || "";
         transcript.innerHTML = transcriptText
@@ -4455,6 +4547,7 @@
             : [{ causes: session.causes }];
         renderInferenceTimeline(
           snapshots.map((snap) => ({
+            t: snap.t || null,
             causes: snap.causes,
             reasoning: snap.reasoning || null,
             heading: snap.t ? clockTime(snap.t) : null,
@@ -4492,11 +4585,27 @@
           return;
         }
         clearSessionView();
+        const parts = c.segments || [];
+        currentCaseId = caseId;
+        currentLocalId = localId;
+        sessionStartedAt = c.started_at;
+        lastDuration = c.duration_s || 0;
+        caseRunInfo = parts.length ? parts[parts.length - 1].run_info : c.run_info;
+        caseProfile = (c.metadata && c.metadata.profile) || null;
+        caseInProgress = !!c.in_progress;
+        continueBtn.disabled = caseInProgress;
+        sessionPartCount = parts.length;
 
         // Transcript as shown live, else the plain stored text
         if (c.chunks && c.chunks.length) {
           transcript.innerHTML = "";
-          c.chunks.forEach(appendTranscriptChunk);
+          c.chunks.forEach((chunk, i) => {
+            const part = parts[chunk.segment];
+            if (i > 0 && chunk.segment !== c.chunks[i - 1].segment) {
+              appendSegmentDivider(part ? Date.parse(part.started_at) : null);
+            }
+            appendTranscriptChunk(chunk);
+          });
         } else if (c.transcripts.en) {
           transcriptText = c.transcripts.en;
           transcript.innerHTML = `<span class="chunk">${escapeHtml(transcriptText)}</span>`;
@@ -4508,6 +4617,7 @@
         // Follow-up questions are left out of the stored view
         renderInferenceTimeline(
           (c.inference || []).map((rec) => ({
+            t: rec.shown_at * 1000,
             causes: rec.causes,
             reasoning: rec.reasoning,
             heading: clockTime(rec.shown_at * 1000),
@@ -4515,12 +4625,17 @@
           t(c.inference ? "case.noInference" : "case.noInferenceStored"),
         );
 
-        if (c.has_audio) {
-          attachAudio(
-            `/cases/${encodeURIComponent(caseId)}/audio`,
-            `${caseId}.wav`,
-          );
-        }
+        const recorded = parts.filter((part) => part.audio_s);
+        sessionAudioParts = recorded.map((part) => ({
+          number: part.part + 1,
+          url: `/cases/${encodeURIComponent(caseId)}/audio?part=${part.part}`,
+          filename:
+            recorded.length > 1
+              ? `${caseId}_part${part.part + 1}.wav`
+              : `${caseId}.wav`,
+          seconds: part.audio_s,
+        }));
+        showAudioParts();
         renderCaseBanner(c);
         body.classList.add("viewing-case");
         setSessionState("result");
@@ -4550,6 +4665,9 @@
             timeStyle: "short",
           }),
           formatDuration(c.duration_s),
+          c.segments && c.segments.length > 1
+            ? `${c.segments.length} ${t("case.parts")}`
+            : "",
           language,
           [run.transcriber_backend, run.transcriber_model]
             .filter(Boolean)
@@ -4596,6 +4714,11 @@
       const audioSpeedBtn = document.getElementById("audioSpeedBtn");
       const audioSpeedLabel = document.getElementById("audioSpeedLabel");
       const audioDownloadBtn = document.getElementById("audioDownloadBtn");
+      const audioParts = document.getElementById("audioParts");
+      // Recordings of the session on screen, one per part: those the server
+      // kept, then those recorded on this page. Parts are { number, url,
+      // filename, seconds }.
+      let sessionAudioParts = [];
 
       function buildAudioWave() {
         audioWave.innerHTML = "";
@@ -4627,27 +4750,13 @@
         bars.forEach((bar, i) => bar.classList.toggle("played", i < idx));
       }
 
-      // MediaRecorder WebM carries no duration, so the element reports
-      // Infinity until it has read to the end. Seeking far past the end makes
-      // it do so, after which playback returns to the start.
-      let probingDuration = false;
-
       audioEl.addEventListener("timeupdate", () => {
-        if (probingDuration) return;
         audioElapsed.textContent = formatMSS(audioEl.currentTime);
         if (audioEl.duration) {
           setAudioProgressRatio(audioEl.currentTime / audioEl.duration);
         }
       });
       audioEl.addEventListener("loadedmetadata", () => {
-        probingDuration = !isFinite(audioEl.duration);
-        if (probingDuration) audioEl.currentTime = 1e101;
-        else audioTotal.textContent = formatMSS(audioEl.duration);
-      });
-      audioEl.addEventListener("durationchange", () => {
-        if (!probingDuration || !isFinite(audioEl.duration)) return;
-        probingDuration = false;
-        audioEl.currentTime = 0;
         audioTotal.textContent = formatMSS(audioEl.duration);
       });
       audioEl.addEventListener("play", () => {
@@ -4683,7 +4792,7 @@
       });
 
       audioWave.addEventListener("click", (e) => {
-        if (!audioEl.duration || !isFinite(audioEl.duration)) return;
+        if (!audioEl.duration) return;
         const rect = audioWave.getBoundingClientRect();
         const ratio = Math.min(
           1,
@@ -4706,12 +4815,7 @@
         try {
           audioEl.pause();
         } catch (_) {}
-        if (audioUrl) {
-          URL.revokeObjectURL(audioUrl);
-          audioUrl = null;
-        }
-        audioBlob = null;
-        audioChunks = [];
+        audioUrl = null;
         audioEl.removeAttribute("src");
         audioEl.load();
         audioBarEl.classList.remove("has-audio");
@@ -4723,6 +4827,65 @@
         playbackSpeedIdx = 0;
         audioEl.playbackRate = 1;
         audioSpeedLabel.textContent = "1×";
+        audioParts.innerHTML = "";
+      }
+
+      // A WAV file of 16-bit mono PCM frames, which unlike a MediaRecorder
+      // recording states its own duration, so it plays and seeks at once
+      function pcmToWav(frames, sampleRate) {
+        const dataBytes = frames.reduce((n, frame) => n + frame.byteLength, 0);
+        const header = new DataView(new ArrayBuffer(44));
+        const writeText = (offset, text) => {
+          for (let i = 0; i < text.length; i++) {
+            header.setUint8(offset + i, text.charCodeAt(i));
+          }
+        };
+        writeText(0, "RIFF");
+        header.setUint32(4, 36 + dataBytes, true);
+        writeText(8, "WAVE");
+        writeText(12, "fmt ");
+        header.setUint32(16, 16, true); // fmt chunk size
+        header.setUint16(20, 1, true); // PCM
+        header.setUint16(22, 1, true); // mono
+        header.setUint32(24, sampleRate, true);
+        header.setUint32(28, sampleRate * 2, true); // bytes per second
+        header.setUint16(32, 2, true); // bytes per sample
+        header.setUint16(34, 16, true); // bits per sample
+        writeText(36, "data");
+        header.setUint32(40, dataBytes, true);
+        return new Blob([header, ...frames], { type: "audio/wav" });
+      }
+
+      function discardAudioParts() {
+        sessionAudioParts.forEach((part) => {
+          if (part.url.startsWith("blob:")) URL.revokeObjectURL(part.url);
+        });
+        sessionAudioParts = [];
+      }
+
+      // A continued session has one recording per part, played one at a time
+      function showAudioParts(selected = 0) {
+        const parts = sessionAudioParts;
+        if (!parts.length) return;
+        const play = (i) => {
+          attachAudio(parts[i].url, parts[i].filename);
+          audioParts.querySelectorAll("button").forEach((btn, j) => {
+            btn.setAttribute("aria-pressed", String(i === j));
+          });
+        };
+        audioParts.innerHTML =
+          parts.length > 1
+            ? parts
+                .map(
+                  (part) =>
+                    `<button type="button" class="audio-bar-part" aria-pressed="false">${escapeHtml(t("audio.part"))} ${part.number} · ${formatMSS(part.seconds)}</button>`,
+                )
+                .join("")
+            : "";
+        audioParts.querySelectorAll("button").forEach((btn, i) => {
+          btn.addEventListener("click", () => play(i));
+        });
+        play(selected);
       }
 
       // --- Inference-offline state ------------------------------------
@@ -4735,6 +4898,20 @@
       let currentInferenceSessionId = null;
       let currentInferenceSessionGeneration = null;
       let currentCaseId = null;
+      // What Continue needs about the session on screen: its copy on this
+      // device, when it started, its recording time so far, the settings its
+      // last part was recorded with, its profile, and whether it is being
+      // recorded elsewhere
+      let currentLocalId = null;
+      let sessionStartedAt = null;
+      let priorActiveMs = 0;
+      // How many parts the session on screen has been recorded in
+      let sessionPartCount = 0;
+      let caseRunInfo = null;
+      let caseProfile = null;
+      let caseInProgress = false;
+      // Settings in effect for the recording in progress
+      let sessionRunInfo = null;
 
       function enterInferenceOffline(errMsg) {
         inferenceOffline = true;
@@ -5408,10 +5585,11 @@
         }, 3000);
       }
 
-      // Recording time so far, excluding pauses
+      // Recording time so far, excluding pauses, including the earlier parts
+      // of a continued session
       function activeMs() {
         const pausing = isPaused ? Date.now() - pausedAt : 0;
-        return Date.now() - timerStart - pausedMs - pausing;
+        return priorActiveMs + Date.now() - timerStart - pausedMs - pausing;
       }
 
       // Timer: show mm:ss of recording time, frozen while paused
@@ -5472,7 +5650,24 @@
         transcript.insertAdjacentHTML("beforeend", chunkSpan);
       }
 
-      async function startRecording() {
+      function appendSegmentDivider(ms) {
+        const when = ms ? ` · ${clockTime(ms)}` : "";
+        transcript.insertAdjacentHTML(
+          "beforeend",
+          `<div class="segment-divider">${escapeHtml(t("case.continued") + when)}</div>`,
+        );
+      }
+
+      function fetchRunInfo() {
+        return fetch("/run_info")
+          .then((resp) => (resp.ok ? resp.json() : null))
+          .catch(() => null);
+      }
+
+      // Continuing keeps the session on screen and adds to it: the server
+      // appends to the stored case, and the transcript so far is sent ahead of
+      // the audio so inference picks up the whole interview.
+      async function startRecording({ continuing = false } = {}) {
         try {
           micSelect.disabled = true;
           languageSelect.disabled = true;
@@ -5483,20 +5678,39 @@
           ragModelSelect.disabled = true;
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
-          evolution = [];
-          latestCauses = null;
-          currentCaseId = null;
+          if (!continuing) {
+            evolution = [];
+            latestCauses = null;
+            currentCaseId = null;
+            currentLocalId = null;
+            sessionStartedAt = new Date().toISOString();
+            sessionPartCount = 0;
+            discardAudioParts();
+          }
+          priorActiveMs = continuing ? lastDuration * 1000 : 0;
+          sessionRunInfo = null;
+          fetchRunInfo().then((info) => {
+            sessionRunInfo = info;
+          });
           resetAudio();
           exitInferenceOffline();
 
           const wsProtocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
+          const wsQuery =
+            continuing && currentCaseId
+              ? `?case_id=${encodeURIComponent(currentCaseId)}`
+              : "";
+          const seed = continuing ? transcriptText.trim() : "";
           ws = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws`,
+            `${wsProtocol}//${window.location.host}/ws${wsQuery}`,
           );
 
-          ws.onopen = () => {
+          ws.onopen = (event) => {
             console.log("WebSocket connected");
+            if (seed) {
+              event.target.send(JSON.stringify({ type: "seed", text: seed }));
+            }
             showStatus("Connected to server", "success");
           };
 
@@ -5509,7 +5723,7 @@
                 data.session_generation ?? null;
               currentCaseId = data.case_id || null;
             } else if (data.type === "transcript") {
-              if (chunkCount === 0) {
+              if (transcript.querySelector(".placeholder")) {
                 transcript.innerHTML = "";
               }
 
@@ -5525,7 +5739,7 @@
               // Shown muted at the end until it firms into a chunk.
               let prevLine = document.getElementById("preview-line");
               if (!prevLine) {
-                if (chunkCount === 0) {
+                if (transcript.querySelector(".placeholder")) {
                   transcript.innerHTML = "";
                 }
                 prevLine = document.createElement("span");
@@ -5566,10 +5780,16 @@
             } else if (data.type === "warning") {
               showStatus(data.message, "warning");
             } else if (data.type === "error") {
-              // Errors scoped to an inference chunk (backend sets chunk_id)
-              // flip the UI into the offline state rather than a fleeting
-              // toast. Other errors stay as toasts.
-              if (data.chunk_id) {
+              // A fatal error means the server refused to continue the
+              // session, which another connection is recording. Its close
+              // code can be lost while audio is in flight, so this is the
+              // signal to rely on. Errors scoped to an inference chunk
+              // (backend sets chunk_id) flip the UI into the offline state
+              // rather than a fleeting toast. Other errors stay as toasts.
+              if (data.fatal) {
+                showStatus(t("continue.inUse"), "warning");
+                stopRecording({ save: false });
+              } else if (data.chunk_id) {
                 enterInferenceOffline(data.error);
               } else {
                 showStatus(`Error: ${data.error}`, "danger");
@@ -5605,56 +5825,14 @@
             audio: audioConstraints,
           });
           micConstraints = audioConstraints;
+          sessionPartCount += 1;
 
           audioContext = new AudioContext({ sampleRate: 16000 });
           const processor = audioContext.createScriptProcessor(4096, 1, 1);
           processor.connect(audioContext.destination);
           audioProcessor = processor;
-          // MediaRecorder records this node rather than the mic stream, so the
-          // recording carries on when a pause releases and reacquires the mic
-          recordDest = audioContext.createMediaStreamDestination();
           connectMic(stream);
-
-          // Simultaneously capture the mic stream as a compressed Blob
-          // for playback in the result state. Independent of the
-          // PCM-over-WS pipeline above.
-          audioChunks = [];
-          try {
-            const recorderOpts = {};
-            if (
-              typeof MediaRecorder !== "undefined" &&
-              MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ) {
-              recorderOpts.mimeType = "audio/webm;codecs=opus";
-            } else if (
-              typeof MediaRecorder !== "undefined" &&
-              MediaRecorder.isTypeSupported("audio/webm")
-            ) {
-              recorderOpts.mimeType = "audio/webm";
-            }
-            mediaRecorder = new MediaRecorder(recordDest.stream, recorderOpts);
-            mediaRecorder.ondataavailable = (e) => {
-              if (e.data && e.data.size) audioChunks.push(e.data);
-            };
-            mediaRecorder.onstop = () => {
-              if (!audioChunks.length) return;
-              const mime = mediaRecorder.mimeType || "audio/webm";
-              audioBlob = new Blob(audioChunks, { type: mime });
-              attachAudio(
-                URL.createObjectURL(audioBlob),
-                "coda-session-" +
-                  new Date().toISOString().replace(/[:.]/g, "-") +
-                  ".webm",
-              );
-            };
-            mediaRecorder.start(1000);
-          } catch (err) {
-            console.warn(
-              "MediaRecorder unavailable — playback will be disabled.",
-              err,
-            );
-            mediaRecorder = null;
-          }
+          pcmFrames = [];
 
           const audioMeterFill = document.getElementById("audioMeterFill");
 
@@ -5674,10 +5852,20 @@
             const pct = Math.min(100, rms * 600);
             audioMeterFill.style.width = pct + "%";
 
+            // Kept for playback after Stop
+            pcmFrames.push(pcmData);
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(pcmData.buffer);
             }
           };
+
+          if (continuing) {
+            body.classList.remove("viewing-case");
+            inference
+              .querySelectorAll(".case-empty")
+              .forEach((el) => el.remove());
+            if (transcriptText.trim()) appendSegmentDivider(Date.now());
+          }
 
           isRecording = true;
           recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
@@ -5690,6 +5878,10 @@
           startTimer();
         } catch (error) {
           console.error("Error starting recording:", error);
+          if (ws) {
+            ws.close();
+            ws = null;
+          }
           showStatus(
             "Failed to start recording. Please check microphone permissions.",
             "danger",
@@ -5701,7 +5893,6 @@
         micStream = stream;
         micSource = audioContext.createMediaStreamSource(stream);
         micSource.connect(audioProcessor);
-        micSource.connect(recordDest);
       }
 
       // Stopping the tracks releases the device, which turns off the browser
@@ -5718,15 +5909,12 @@
       }
 
       // Release the mic and hold the session open. No audio reaches the
-      // server and MediaRecorder skips the paused stretch.
+      // server or the recording kept for playback.
       function pauseRecording() {
         if (!isRecording || isPaused) return;
         isPaused = true;
         pausedAt = Date.now();
         releaseMic();
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.pause();
-        }
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "pause" }));
         }
@@ -5763,9 +5951,6 @@
         connectMic(stream);
         isPaused = false;
         pausedMs += Date.now() - pausedAt;
-        if (mediaRecorder && mediaRecorder.state === "paused") {
-          mediaRecorder.resume();
-        }
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "resume" }));
         }
@@ -5779,7 +5964,10 @@
         pauseBtn.title = "Pause recording";
       }
 
-      function stopRecording() {
+      // Without `save` the session on screen is kept as it was before this
+      // recording, as when continuing it was refused.
+      function stopRecording({ save = true } = {}) {
+        const started = isRecording;
         if (isPaused) {
           pausedMs += Date.now() - pausedAt;
           isPaused = false;
@@ -5799,12 +5987,22 @@
           ws = null;
         }
 
-        // Stop the MediaRecorder (blob will be assembled in onstop handler)
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          try {
-            mediaRecorder.stop();
-          } catch (_) {}
+        // This part's recording joins the session's earlier parts, selected
+        if (started && save && pcmFrames.length) {
+          const sampleRate = audioContext.sampleRate;
+          const wav = pcmToWav(pcmFrames, sampleRate);
+          sessionAudioParts.push({
+            number: sessionPartCount,
+            url: URL.createObjectURL(wav),
+            filename:
+              "coda-session-" +
+              new Date().toISOString().replace(/[:.]/g, "-") +
+              ".wav",
+            seconds: (wav.size - 44) / 2 / sampleRate,
+          });
+          showAudioParts(sessionAudioParts.length - 1);
         }
+        pcmFrames = [];
 
         if (audioContext) {
           audioContext.close();
@@ -5837,12 +6035,18 @@
 
         // Transition to result state if we captured anything worth reviewing
         // (transcript OR inference). Only revert to idle on a truly empty session.
-        lastDuration = Math.floor((Date.now() - timerStart - pausedMs) / 1000);
+        const saving = started && save;
+        if (saving) {
+          lastDuration = Math.floor(activeMs() / 1000);
+          caseRunInfo = sessionRunInfo;
+        } else if (started) {
+          sessionPartCount -= 1;
+        }
         const hasInference =
           latestCauses && Object.keys(latestCauses).length > 0;
         const hasTranscript = transcriptText.trim().length > 0;
         if (hasInference || hasTranscript) {
-          if (hasInference) finalizeSessionIfSaving();
+          if (hasInference && saving) finalizeSessionIfSaving();
           renderResultHero();
           setSessionState("result");
         } else {
@@ -5925,18 +6129,22 @@
         );
       });
 
-      async function pushMetadata() {
-        applyStillbirthState();
-        updateProfileSummary();
+      function readProfileInputs() {
         const ageValue =
           ageValueInput.value === "" ? null : Number(ageValueInput.value);
-        const profile = {
+        return {
           age:
             ageValue === null
               ? null
               : { value: ageValue, unit: ageUnitSelect.value },
           stillbirth: stillbirthToggle.checked,
         };
+      }
+
+      async function pushMetadata() {
+        applyStillbirthState();
+        updateProfileSummary();
+        const profile = readProfileInputs();
         try {
           await fetch("/metadata", {
             method: "POST",
@@ -5944,6 +6152,12 @@
             body: JSON.stringify({ profile }),
           });
         } catch (e) {}
+      }
+
+      function fillProfileInputs(profile) {
+        ageValueInput.value = profile.age ? profile.age.value : "";
+        ageUnitSelect.value = profile.age ? profile.age.unit : "months";
+        stillbirthToggle.checked = !!profile.stillbirth;
       }
 
       function clearProfileInputs() {
@@ -5976,9 +6190,72 @@
         latestCauses = null;
         lastDuration = 0;
         evolution = [];
+        currentCaseId = null;
+        currentLocalId = null;
+        sessionStartedAt = null;
+        priorActiveMs = 0;
+        sessionPartCount = 0;
+        discardAudioParts();
+        caseRunInfo = null;
+        caseProfile = null;
+        caseInProgress = false;
+        continueBtn.disabled = false;
         resetAudio();
         exitInferenceOffline();
       }
+
+      // The settings that change how a session is transcribed and inferred
+      function describeRunInfo(info) {
+        const inferenceInfo = info.inference || {};
+        return {
+          [t("continue.language")]: info.language,
+          [t("continue.transcriber")]: [
+            info.transcriber_backend,
+            info.transcriber_model,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          [t("continue.inference")]: [inferenceInfo.agent, inferenceInfo.model]
+            .filter(Boolean)
+            .join(" "),
+        };
+      }
+
+      // Record more of the session on screen, warning first when the settings
+      // it was recorded with have changed
+      async function continueSession() {
+        if (isRecording || caseInProgress) return;
+        if (caseRunInfo) {
+          const current = await fetchRunInfo();
+          if (current) {
+            const before = describeRunInfo(caseRunInfo);
+            const now = describeRunInfo(current);
+            const changes = Object.keys(before)
+              .filter((key) => before[key] && now[key] && before[key] !== now[key])
+              .map((key) => `${key}: ${before[key]} → ${now[key]}`);
+            if (
+              changes.length &&
+              !confirm(
+                [
+                  t("continue.settingsChanged"),
+                  ...changes,
+                  "",
+                  t("continue.confirm"),
+                ].join("\n"),
+              )
+            ) {
+              return;
+            }
+          }
+        }
+        if (caseProfile) {
+          fillProfileInputs(caseProfile);
+          await pushMetadata();
+        }
+        startRecording({ continuing: true });
+      }
+
+      continueBtn.addEventListener("click", continueSession);
 
       document
         .getElementById("resetBtn")
@@ -5987,6 +6264,9 @@
             stopRecording();
           }
           clearProfileInputs();
+          // A profile restored to continue a session would otherwise carry
+          // over to the next one
+          pushMetadata();
           clearSessionView();
           renderIdleRecent();
           setSessionState("idle");

@@ -1,12 +1,15 @@
 """Per-case storage of interview data.
 
 Each case gets its own folder under ``storage.output_dir`` holding a
-``manifest.json`` plus one file per enabled ``storage.store`` item. A
+``manifest.json`` plus one file per enabled ``storage.store`` item. A case is
+recorded in one or more segments, one per connection: continuing a case
+appends to its files and records the new segment's audio in its own WAV. A
 ``CaseRecorder`` is only created when ``storage.enabled`` is true.
-``list_cases`` and ``load_case`` read the folders back for read-only viewing.
+``list_cases`` and ``load_case`` read the folders back for viewing.
 """
 
 import json
+import os
 import re
 import time
 import wave
@@ -44,27 +47,57 @@ def cases_root() -> Path:
 
 
 class CaseRecorder:
-    """Writes everything recorded for one case into its own folder."""
+    """Writes everything recorded for one case into its own folder.
 
-    def __init__(self, session_id: str, generation: int, run_info: dict):
+    With ``case_id`` the existing case is reopened and a new segment appended
+    to it. The time between the two segments is recorded as a pause.
+    """
+
+    def __init__(
+        self,
+        session_id: str,
+        generation: int,
+        run_info: dict,
+        case_id: str | None = None,
+    ):
         self.store = {key: bool(value) for key, value in settings.storage.store.items()}
         started = datetime.now()
-        self.case_id = (
-            f"{started.strftime('%Y-%m-%d_%H%M%S')}_{session_id[:8]}_g{generation}"
-        )
-        self.case_dir = cases_root() / self.case_id
-        self.case_dir.mkdir(parents=True, exist_ok=True)
+        self.reopened = case_id is not None
+        self._heard = False
+        if case_id is None:
+            self.case_id = (
+                f"{started.strftime('%Y-%m-%d_%H%M%S')}_{session_id[:8]}_g{generation}"
+            )
+            self.case_dir = cases_root() / self.case_id
+            self.case_dir.mkdir(parents=True, exist_ok=True)
+            self.manifest = {
+                "case_id": self.case_id,
+                "session_id": session_id,
+                "generation": generation,
+                "started_at": started.isoformat(),
+                "ended_at": None,
+                "pauses": [],
+                "coda_version": coda.__version__,
+                "run_info": run_info,
+                "segments": [],
+            }
+        else:
+            self.case_id = case_id
+            self.case_dir = cases_root() / case_id
+            self.manifest = self._reopened_manifest(started)
 
-        self.manifest = {
-            "case_id": self.case_id,
-            "session_id": session_id,
-            "generation": generation,
-            "started_at": started.isoformat(),
-            "ended_at": None,
-            "pauses": [],
-            "coda_version": coda.__version__,
-            "run_info": run_info,
-        }
+        self.segment = len(self.manifest["segments"])
+        audio_file = "audio.wav" if self.segment == 0 else f"audio_{self.segment}.wav"
+        self.manifest["segments"].append(
+            {
+                "session_id": session_id,
+                "started_at": started.isoformat(),
+                "ended_at": None,
+                "coda_version": coda.__version__,
+                "run_info": run_info,
+                "audio": audio_file if self.store.get("audio") else None,
+            }
+        )
         self._write_manifest()
 
         self._transcripts: dict[str, TextIO] = {}
@@ -73,15 +106,37 @@ class CaseRecorder:
         self._timing = self._open("timing.jsonl", "timing")
         self._audio: wave.Wave_write | None = None
         if self.store.get("audio"):
-            self._audio = wave.open(str(self.case_dir / "audio.wav"), "wb")
+            self._audio = wave.open(str(self.case_dir / audio_file), "wb")
             self._audio.setnchannels(1)
             self._audio.setsampwidth(2)
             self._audio.setframerate(AUDIO_SAMPLE_RATE)
 
+    def _reopened_manifest(self, resumed: datetime) -> dict:
+        """The stored manifest, closed if a crash left it open, with the gap
+        until ``resumed`` added as a pause."""
+        last_write = _last_write(self.case_dir).isoformat()
+        manifest = _read_manifest(self.case_dir)
+        manifest["segments"] = _segments(manifest, self.case_dir)
+        ended = manifest.get("ended_at") or last_write
+        if manifest["segments"][-1]["ended_at"] is None:
+            manifest["segments"][-1]["ended_at"] = ended
+        for pause in manifest.setdefault("pauses", []):
+            if pause["resumed_at"] is None:
+                pause["resumed_at"] = ended
+        self._gap_index = len(manifest["pauses"])
+        manifest["pauses"].append(
+            {"paused_at": ended, "resumed_at": resumed.isoformat(), "gap": True}
+        )
+        manifest["ended_at"] = None
+        return manifest
+
     def _open(self, filename: str, store_key: str) -> TextIO | None:
         if not self.store.get(store_key):
             return None
-        return open(self.case_dir / filename, "a", encoding="utf-8")
+        path = self.case_dir / filename
+        if self.reopened:
+            _end_last_line(path)
+        return open(path, "a", encoding="utf-8")
 
     def _write_manifest(self):
         with open(self.case_dir / "manifest.json", "w", encoding="utf-8") as f:
@@ -105,6 +160,7 @@ class CaseRecorder:
         f.flush()
 
     def write_audio(self, data: bytes):
+        self._heard = True
         if self._audio is not None:
             self._audio.writeframes(data)
 
@@ -138,6 +194,7 @@ class CaseRecorder:
 
         record: dict[str, Any] = {
             "chunk_id": chunk_id,
+            "segment": self.segment,
             "timestamp": timestamp,
             "received_at": received_at,
             "text": english_text,
@@ -154,6 +211,24 @@ class CaseRecorder:
                 "chunk_id": chunk_id,
                 "at": received_at,
                 **timings,
+            },
+        )
+
+    def write_imported(self, text: str):
+        """Write a transcript recorded elsewhere as one chunk of this case."""
+        if self.store.get("transcripts"):
+            self._append_transcript(text, "en")
+        now = time.time()
+        self._append_json(
+            self._chunks,
+            {
+                "chunk_id": "imported",
+                "segment": self.segment,
+                "timestamp": now,
+                "received_at": now,
+                "text": text,
+                "annotations": [],
+                "imported": True,
             },
         )
 
@@ -193,9 +268,23 @@ class CaseRecorder:
         if self._audio is not None:
             self._audio.close()
             self._audio = None
-        self.manifest["ended_at"] = datetime.now().isoformat()
+        if self.reopened and not self._heard:
+            self._drop_segment()
+            return
+        ended = datetime.now().isoformat()
+        self.manifest["ended_at"] = ended
+        self.manifest["segments"][-1]["ended_at"] = ended
         if self.store.get("metadata"):
             self.manifest["metadata"] = metadata
+        self._write_manifest()
+
+    def _drop_segment(self):
+        """Leave the case as it was, as this segment received no audio."""
+        segment = self.manifest["segments"].pop()
+        if segment["audio"]:
+            (self.case_dir / segment["audio"]).unlink(missing_ok=True)
+        del self.manifest["pauses"][self._gap_index :]
+        self.manifest["ended_at"] = self.manifest["segments"][-1]["ended_at"]
         self._write_manifest()
 
 
@@ -216,29 +305,87 @@ def _read_jsonl(path: Path) -> list[dict] | None:
     return records
 
 
-def _case_dir(case_id: str) -> Path | None:
+def _end_last_line(path: Path):
+    """End a line cut short by a crash, so the next record starts afresh."""
+    if not path.exists() or path.stat().st_size == 0:
+        return
+    with open(path, "rb") as f:
+        f.seek(-1, os.SEEK_END)
+        cut_short = f.read(1) != b"\n"
+    if cut_short:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write("\n")
+
+
+def _last_write(case_dir: Path) -> datetime:
+    return datetime.fromtimestamp(max(p.stat().st_mtime for p in case_dir.iterdir()))
+
+
+def find_case(case_id: str) -> Path | None:
+    """The folder of a stored case, or None if there is no such case."""
     if not CASE_ID_PATTERN.fullmatch(case_id):
         return None
     case_dir = cases_root() / case_id
     return case_dir if (case_dir / "manifest.json").is_file() else None
 
 
+def _read_manifest(case_dir: Path) -> dict:
+    return json.loads((case_dir / "manifest.json").read_text(encoding="utf-8"))
+
+
+def _segments(manifest: dict, case_dir: Path) -> list[dict]:
+    """The segments a case was recorded in. Cases recorded before segments
+    were kept have one, described by the manifest itself."""
+    if "segments" in manifest:
+        return manifest["segments"]
+    return [
+        {
+            "session_id": manifest.get("session_id"),
+            "started_at": manifest["started_at"],
+            "ended_at": manifest.get("ended_at"),
+            "coda_version": manifest.get("coda_version"),
+            "run_info": manifest.get("run_info"),
+            "audio": "audio.wav" if (case_dir / "audio.wav").exists() else None,
+        }
+    ]
+
+
 def _read_case(case_dir: Path) -> tuple[dict, list[dict] | None, list[dict] | None]:
-    manifest = json.loads((case_dir / "manifest.json").read_text(encoding="utf-8"))
     return (
-        manifest,
+        _read_manifest(case_dir),
         _read_jsonl(case_dir / "chunks.jsonl"),
         _read_jsonl(case_dir / "inference.jsonl"),
     )
 
 
-def _has_audio(case_dir: Path) -> bool:
-    """Whether the case has an audio file holding any frames."""
+def _audio_seconds(path: Path) -> float | None:
+    """Length of a WAV file, or None if it is missing or holds no frames."""
     try:
-        with wave.open(str(case_dir / "audio.wav")) as wav:
-            return wav.getnframes() > 0
+        with wave.open(str(path)) as wav:
+            frames = wav.getnframes()
     except (FileNotFoundError, EOFError, wave.Error):
-        return False
+        return None
+    return round(frames / AUDIO_SAMPLE_RATE, 1) if frames else None
+
+
+def _parts(case_dir: Path, manifest: dict) -> list[dict]:
+    """Each segment's times, settings and length of audio, if any."""
+    return [
+        {
+            "part": i,
+            "started_at": _with_utc_offset(segment["started_at"]),
+            "ended_at": (
+                _with_utc_offset(segment["ended_at"]) if segment["ended_at"] else None
+            ),
+            "run_info": segment.get("run_info"),
+            "audio_s": (
+                _audio_seconds(case_dir / segment["audio"])
+                if segment.get("audio")
+                else None
+            ),
+        }
+        for i, segment in enumerate(_segments(manifest, case_dir))
+    ]
 
 
 def _recording_seconds(manifest: dict, ended: datetime) -> float:
@@ -268,11 +415,7 @@ def _summary(
 ) -> dict:
     ended_at = manifest.get("ended_at")
     # A case that never closed ends at its last write
-    ended = (
-        datetime.fromisoformat(ended_at)
-        if ended_at
-        else datetime.fromtimestamp(max(p.stat().st_mtime for p in case_dir.iterdir()))
-    )
+    ended = datetime.fromisoformat(ended_at) if ended_at else _last_write(case_dir)
     causes = inference[-1].get("causes") if inference else None
     return {
         "case_id": case_dir.name,
@@ -285,7 +428,7 @@ def _summary(
         "top_cause": (
             max(causes.values(), key=lambda c: c["score"]) if causes else None
         ),
-        "has_audio": _has_audio(case_dir),
+        "has_audio": any(part["audio_s"] for part in _parts(case_dir, manifest)),
     }
 
 
@@ -314,6 +457,8 @@ def _display_chunk(chunk: dict) -> dict:
         ],
         "original_transcript": chunk.get("original_text"),
         "original_language": chunk.get("original_language"),
+        "segment": chunk.get("segment", 0),
+        "imported": chunk.get("imported", False),
     }
 
 
@@ -346,7 +491,7 @@ def load_case(case_id: str) -> dict | None:
     case profile is written when a case closes, so for one that never closed
     it is taken from the last inference request.
     """
-    case_dir = _case_dir(case_id)
+    case_dir = find_case(case_id)
     if case_dir is None:
         return None
     manifest, chunks, inference = _read_case(case_dir)
@@ -358,6 +503,7 @@ def load_case(case_id: str) -> dict | None:
         "coda_version": manifest.get("coda_version"),
         "run_info": manifest.get("run_info"),
         "pauses": manifest.get("pauses", []),
+        "segments": _parts(case_dir, manifest),
         "metadata": metadata,
         "chunks": ([_display_chunk(c) for c in chunks] if chunks is not None else None),
         "transcripts": {
@@ -368,8 +514,13 @@ def load_case(case_id: str) -> dict | None:
     }
 
 
-def case_audio_path(case_id: str) -> Path | None:
-    case_dir = _case_dir(case_id)
-    if case_dir is None or not _has_audio(case_dir):
+def case_audio_path(case_id: str, part: int = 0) -> Path | None:
+    """The WAV recorded in one segment of a case, if it holds any audio."""
+    case_dir = find_case(case_id)
+    if case_dir is None:
         return None
-    return case_dir / "audio.wav"
+    segments = _segments(_read_manifest(case_dir), case_dir)
+    if not 0 <= part < len(segments) or not segments[part].get("audio"):
+        return None
+    path = case_dir / segments[part]["audio"]
+    return path if _audio_seconds(path) else None

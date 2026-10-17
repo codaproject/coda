@@ -137,12 +137,13 @@ dialogue:
 
 storage:
   # Per-case storage of interview data. When false, the app writes no case data
-  # to disk. Each case (one session, restarted by Reset) gets its own folder.
+  # to disk. Each case (one session, restarted by Reset) gets its own folder,
+  # and continuing a session appends to it.
   enabled: false
   # Root directory for case folders. Empty -> ~/.data/coda/cases (pystow).
   output_dir: ""
   # When true, the History view lists the case folders under output_dir and
-  # opens them read-only. Anyone who can reach the server can then read every
+  # opens them. Anyone who can reach the server can then read every
   # stored case, so enable it only where access to the server is restricted.
   browse: false
   # What each case folder keeps.

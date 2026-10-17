@@ -1,13 +1,15 @@
 """Tests for per-case storage (coda.app.storage) and its server wiring."""
 
 import asyncio
+import io
 import json
 import logging
 import wave
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from fastapi import WebSocketDisconnect
 from fastapi.testclient import TestClient
 
 from coda.app import server
@@ -480,3 +482,264 @@ async def test_reset_tells_the_client_its_new_case(storage_dir, offline_server):
     }
     assert session.recorder.case_id != first_case
     session.end_case()
+
+
+def edit_manifest(case_dir, **changes):
+    path = case_dir / "manifest.json"
+    manifest = json.loads(path.read_text())
+    manifest.update(changes)
+    path.write_text(json.dumps(manifest))
+    return manifest
+
+
+def test_reopened_case_appends_a_segment(storage_dir):
+    first = record_case("aaaa0001")
+    second = CaseRecorder("bbbb0002", 0, {"language": "en"}, case_id=first.case_id)
+    second.write_audio(b"\x00\x01")
+    second.write_chunk("c2", 2.0, "then a cough", [], {})
+    second.write_inference({"chunk_id": "c2"}, {"causes": {"icd10:B54": MALARIA}},
+                           shown_at=200.0)
+    second.close(PROFILE)
+
+    case_dir = first.case_dir
+    assert second.case_dir == case_dir
+    assert second.segment == 1
+    chunks = read_jsonl(case_dir / "chunks.jsonl")
+    assert [(c["chunk_id"], c["segment"]) for c in chunks] == [("c1", 0), ("c2", 1)]
+    assert (case_dir / "transcript_en.txt").read_text() == \
+        "fever for three days\nthen a cough\n"
+    assert len(read_jsonl(case_dir / "inference.jsonl")) == 2
+    assert [t["kind"] for t in read_jsonl(case_dir / "timing.jsonl")] == \
+        ["chunk", "inference", "chunk", "inference"]
+
+    manifest = json.loads((case_dir / "manifest.json").read_text())
+    first_segment, second_segment = manifest["segments"]
+    assert first_segment["session_id"] == "aaaa0001"
+    assert second_segment["session_id"] == "bbbb0002"
+    assert second_segment["run_info"] == {"language": "en"}
+    assert manifest["run_info"] == {"language": "sw"}
+    assert manifest["pauses"] == [{"paused_at": first_segment["ended_at"],
+                                   "resumed_at": second_segment["started_at"],
+                                   "gap": True}]
+    assert manifest["ended_at"] == second_segment["ended_at"]
+    assert [p["part"] for p in load_case(first.case_id)["segments"]] == [0, 1]
+
+
+def test_duration_leaves_out_the_time_between_segments(storage_dir):
+    first = record_case("aaaa0001")
+    started = datetime.now() - timedelta(hours=1)
+    ended = (started + timedelta(seconds=30)).isoformat()
+    segment = json.loads((first.case_dir / "manifest.json").read_text())["segments"][0]
+    edit_manifest(first.case_dir, started_at=started.isoformat(), ended_at=ended,
+                  segments=[{**segment, "started_at": started.isoformat(),
+                             "ended_at": ended}])
+    second = CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id)
+    second.write_audio(b"\x00\x01")
+    second.close()
+
+    assert load_case(first.case_id)["duration_s"] == 30
+
+
+def test_case_recorded_before_segments_reopens_as_its_second(storage_dir):
+    first = record_case("aaaa0001")
+    manifest = json.loads((first.case_dir / "manifest.json").read_text())
+    del manifest["segments"]
+    (first.case_dir / "manifest.json").write_text(json.dumps(manifest))
+    assert [p["part"] for p in load_case(first.case_id)["segments"]] == [0]
+
+    second = CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id)
+    second.write_audio(b"\x00\x01")
+    second.close()
+
+    reopened = json.loads((first.case_dir / "manifest.json").read_text())
+    assert [s["session_id"] for s in reopened["segments"]] == ["aaaa0001", "bbbb0002"]
+    assert reopened["segments"][0]["ended_at"] == manifest["ended_at"]
+
+
+def test_reopening_a_crashed_case_closes_it_at_its_last_write(storage_dir):
+    crashed = record_case("aaaa0001")
+    paused_at = datetime.now().isoformat()
+    segment = json.loads((crashed.case_dir / "manifest.json").read_text())["segments"][0]
+    edit_manifest(crashed.case_dir, ended_at=None,
+                  pauses=[{"paused_at": paused_at, "resumed_at": None}],
+                  segments=[{**segment, "ended_at": None}])
+    with open(crashed.case_dir / "chunks.jsonl", "a") as f:
+        f.write('{"chunk_id": "c2", "text": "cut sh')
+    last_write = datetime.fromtimestamp(
+        max(p.stat().st_mtime for p in crashed.case_dir.iterdir())).isoformat()
+
+    reopened = CaseRecorder("bbbb0002", 0, {}, case_id=crashed.case_id)
+    reopened.write_audio(b"\x00\x01")
+    reopened.write_chunk("c3", 3.0, "she had a cough", [], {})
+    reopened.close()
+
+    manifest = json.loads((crashed.case_dir / "manifest.json").read_text())
+    assert manifest["segments"][0]["ended_at"] == last_write
+    pause, gap = manifest["pauses"]
+    assert pause == {"paused_at": paused_at, "resumed_at": last_write}
+    assert gap["paused_at"] == last_write
+    assert [c["chunk_id"] for c in load_case(crashed.case_id)["chunks"]] == ["c1", "c3"]
+
+
+def test_segment_that_received_no_audio_is_dropped(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
+    reload_settings()
+    first = record_case("aaaa0001")
+    before = json.loads((first.case_dir / "manifest.json").read_text())
+
+    CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id).close()
+
+    after = json.loads((first.case_dir / "manifest.json").read_text())
+    assert after["segments"] == before["segments"]
+    assert after["pauses"] == before["pauses"] == []
+    assert after["ended_at"] == before["ended_at"]
+    assert not (first.case_dir / "audio_1.wav").exists()
+
+
+def test_case_audio_is_kept_and_served_per_part(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__BROWSE", "true")
+    monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
+    reload_settings()
+    first = CaseRecorder("aaaa0001", 0, {})
+    first.write_audio(b"\x00\x01" * 1600)
+    first.write_chunk("c1", 0.0, "fever for three days", [], {})
+    first.close()
+    second = CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id)
+    second.write_audio(b"\x00\x01" * 3200)
+    second.close()
+    client = TestClient(server.app)
+
+    case = client.get(f"/cases/{first.case_id}").json()
+    assert [p["audio_s"] for p in case["segments"]] == [0.1, 0.2]
+    assert case_audio_path(first.case_id) == first.case_dir / "audio.wav"
+    assert case_audio_path(first.case_id, 1) == first.case_dir / "audio_1.wav"
+    response = client.get(f"/cases/{first.case_id}/audio?part=1")
+    assert response.status_code == 200
+    with wave.open(io.BytesIO(response.content)) as wav:
+        assert wav.getnframes() == 3200
+    assert client.get(f"/cases/{first.case_id}/audio?part=2").status_code == 404
+
+
+class RefusedWebSocket(ClosingWebSocket):
+    def __init__(self):
+        super().__init__()
+        self.close_code = None
+
+    async def close(self, code: int = 1000):
+        self.close_code = code
+
+
+class ScriptedWebSocket(DummyWebSocket):
+    def __init__(self, messages: list[dict]):
+        super().__init__()
+        self.incoming = list(messages)
+
+    async def receive(self) -> dict:
+        return self.incoming.pop(0)
+
+
+async def test_connection_continues_a_stored_case(storage_dir, offline_server,
+                                                  monkeypatch):
+    async def hear_audio(websocket, queue, inference_session):
+        inference_session.recorder.write_audio(b"\x00\x01")
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(server, "consume_transcripts", hear_audio)
+    first = record_case("aaaa0001")
+    websocket = ClosingWebSocket()
+    await server.websocket_endpoint(websocket, case_id=first.case_id)
+
+    assert case_dirs(storage_dir) == [first.case_dir]
+    assert websocket.messages[0]["case_id"] == first.case_id
+    manifest = json.loads((first.case_dir / "manifest.json").read_text())
+    assert len(manifest["segments"]) == 2
+    assert manifest["ended_at"] is not None
+
+
+async def test_continuing_an_unknown_case_starts_a_new_one(storage_dir,
+                                                           idle_transcription):
+    websocket = ClosingWebSocket()
+    await server.websocket_endpoint(websocket, case_id="no-such-case")
+
+    [case_dir] = case_dirs(storage_dir)
+    assert websocket.messages[0]["case_id"] == case_dir.name
+
+
+async def test_case_being_recorded_is_not_continued(storage_dir, idle_transcription,
+                                                    monkeypatch):
+    monkeypatch.setattr(server, "CASE_RELEASE_WAIT_S", 0.2)
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket, case_id=live.recorder.case_id)
+
+    assert websocket.close_code == server.CASE_IN_USE_CLOSE_CODE
+    [error] = websocket.messages
+    assert error["type"] == "error" and error["fatal"] is True
+    assert server.active_inference_sessions == {live}
+    live.end_case()
+
+
+async def test_case_released_while_waiting_is_continued(storage_dir,
+                                                        idle_transcription,
+                                                        monkeypatch):
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    case_id = live.recorder.case_id
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    async def stop_shortly():
+        await asyncio.sleep(0.3)
+        await live.invalidate("disconnect")
+
+    stopping = asyncio.create_task(stop_shortly())
+    websocket = ClosingWebSocket()
+    await server.websocket_endpoint(websocket, case_id=case_id)
+    await stopping
+
+    assert websocket.messages[0]["case_id"] == case_id
+    assert case_dirs(storage_dir) == [storage_dir / case_id]
+
+
+async def test_disconnect_releases_the_case_before_resetting_inference(
+        storage_dir, offline_server, monkeypatch):
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {session})
+    recording_during_reset = []
+
+    async def fake_reset(session_id, generation):
+        recording_during_reset.append(server._recording_case_ids())
+
+    monkeypatch.setattr(server, "_reset_inference_session", fake_reset)
+    await session.invalidate("disconnect")
+
+    assert recording_during_reset == [set()]
+
+
+async def test_seed_is_kept_by_a_new_case_only(storage_dir, offline_server):
+    seed = {"type": "websocket.receive",
+            "text": json.dumps({"type": "seed", "text": "fever for three days"})}
+    disconnect = {"type": "websocket.disconnect", "code": 1000}
+
+    new = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await new.start_case()
+    with pytest.raises(WebSocketDisconnect):
+        await server.capture_audio(ScriptedWebSocket([seed, disconnect]),
+                                   asyncio.Queue(), new)
+    case_id = new.recorder.case_id
+    new.end_case()
+
+    reopened = server.InferenceSessionCoordinator(DummyWebSocket(), "bbbb0002")
+    assert await reopened.continue_case(case_id)
+    with pytest.raises(WebSocketDisconnect):
+        await server.capture_audio(ScriptedWebSocket([seed, disconnect]),
+                                   asyncio.Queue(), reopened)
+    reopened.end_case()
+
+    assert new.seed == reopened.seed == "fever for three days"
+    [chunk] = load_case(case_id)["chunks"]
+    assert chunk["imported"] is True
+    assert chunk["transcript"] == "fever for three days"

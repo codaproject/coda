@@ -94,3 +94,26 @@ async def test_no_inference_while_paused(monkeypatch):
 
     assert log == ["silence", "commit fever for days", "infer fever for days",
                    "commit then cough", "infer then cough"]
+
+
+@pytest.mark.asyncio
+async def test_capture_takes_one_seed_before_any_audio():
+    def seed(text):
+        return {"type": "websocket.receive",
+                "text": json.dumps({"type": "seed", "text": text})}
+
+    disconnect = {"type": "websocket.disconnect", "code": 1000}
+    session = server.InferenceSessionCoordinator(None, session_id="s")
+    with pytest.raises(WebSocketDisconnect):
+        await server.capture_audio(
+            FakeReceiveWebSocket([seed("fever for days"), seed("again"), disconnect]),
+            asyncio.Queue(), session)
+    assert session.seed == "fever for days"
+
+    late = server.InferenceSessionCoordinator(None, session_id="s")
+    with pytest.raises(WebSocketDisconnect):
+        await server.capture_audio(
+            FakeReceiveWebSocket([{"type": "websocket.receive", "bytes": b"a"},
+                                  seed("fever for days"), disconnect]),
+            asyncio.Queue(), late)
+    assert late.seed is None
