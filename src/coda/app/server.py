@@ -22,6 +22,7 @@ import httpx
 from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, \
     WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pypdf import PdfReader
 
@@ -76,6 +77,7 @@ CASE_REFUSALS = {
 
 here = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(here, "templates")
+static_dir = os.path.join(here, "static")
 
 # Server-level settings
 current_language = settings.dialogue.language
@@ -1246,3 +1248,7 @@ async def get_index():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# Served after API routes so /static never shadows application endpoints.
+app.mount("/static", StaticFiles(directory=static_dir), name="static")

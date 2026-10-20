@@ -91,7 +91,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-"coda.app" = ["templates/*.html"]
+"coda.app" = [
+    "templates/*.html",
+    "static/**/*.css",
+    "static/**/*.txt",
+    "static/**/*.woff",
+    "static/**/*.woff2",
+]
 "coda.grounding.rag_grounder" = ["grounder_config/*.yaml", "prompt_configs/*.yaml"]
 "coda.inference.champs_prompted" = ["prompts/*.txt", "prompts/icd10/*.txt",
                                      "prompts/icd11/*.txt",

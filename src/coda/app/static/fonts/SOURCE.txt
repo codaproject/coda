@@ -1,0 +1,15 @@
+Vendored web fonts for offline UI use.
+
+Families (same set previously loaded from Google Fonts CSS API):
+  - Inter (400, 500, 600, 700)
+  - Inter Tight (600, 700)
+  - Noto Sans Arabic (400, 500, 600, 700)
+  - Noto Sans Bengali (400, 500, 600, 700)
+
+Source CSS:
+  https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap
+
+Binary files under files/ were downloaded from fonts.gstatic.com and
+fonts.css was rewritten to use relative ./files/ URLs.
+
+Licenses: SIL Open Font License 1.1 (see each family upstream).
