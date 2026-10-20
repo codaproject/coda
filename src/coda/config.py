@@ -56,7 +56,8 @@ settings = Dynaconf(
     load_dotenv=True,
     validators=[
         # Coerce env-var strings (which always arrive as text) to the right type.
-        Validator("app.port", "inference.port", cast=int),
+        Validator("app.port", "app.setup_port", "inference.port", cast=int),
+        Validator("app.tls", cast=bool),
         Validator("inference.num_questions", cast=int),
         Validator("grounder.rag.retriever.top_k", cast=int),
         Validator("grounder.rag.retriever.min_similarity", cast=float),
@@ -77,6 +78,7 @@ settings = Dynaconf(
         Validator(
             "app.onboarding_notice.file",
             "app.onboarding_notice.version",
+            "app.tls_dir",
             "storage.output_dir",
             "logging.file",
             cast=str,
