@@ -203,8 +203,9 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        flex-shrink: 0;
       }
 
       .logo {
@@ -225,8 +226,7 @@
         flex-shrink: 0;
       }
 
-      /* Two-line tagline beside the CODA logo — hidden on narrow screens
-         (see mobile media query below). */
+      /* Two-line tagline beside the CODA logo — hidden at cozy+ density. */
       .logo-tagline {
         display: flex;
         flex-direction: column;
@@ -364,6 +364,113 @@
       #settingsToggle:hover {
         background: var(--border-warm);
         color: var(--ink);
+      }
+
+      /* Overflow ("more") menu — shown at minimal header density */
+      .header-more {
+        display: none;
+        position: relative;
+        flex-shrink: 0;
+      }
+      #headerMoreBtn {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        min-height: 36px;
+        padding: 0;
+        font-size: 16px;
+      }
+
+      /* Progressive header density (ResizeObserver sets data-header-density) */
+      .app-top[data-header-density="cozy"] #langChip,
+      .app-top[data-header-density="cozy"] .logo-tagline,
+      .app-top[data-header-density="compact"] #langChip,
+      .app-top[data-header-density="compact"] .logo-tagline,
+      .app-top[data-header-density="minimal"] #langChip,
+      .app-top[data-header-density="minimal"] .logo-tagline {
+        display: none;
+      }
+
+      .app-top[data-header-density="compact"] .top-right .btn span,
+      .app-top[data-header-density="minimal"] .top-right .btn span {
+        display: none;
+      }
+      .app-top[data-header-density="compact"] .top-right .btn,
+      .app-top[data-header-density="minimal"] .top-right .btn {
+        padding: 0;
+        width: 36px;
+      }
+
+      .app-top[data-header-density="compact"] .rec-badge,
+      .app-top[data-header-density="compact"] .paused-badge,
+      .app-top[data-header-density="compact"] #recordingStatus,
+      .app-top[data-header-density="minimal"] .rec-badge,
+      .app-top[data-header-density="minimal"] .paused-badge,
+      .app-top[data-header-density="minimal"] #recordingStatus {
+        display: none !important;
+      }
+
+      .app-top[data-header-density="minimal"] > .top-right > #resetBtn,
+      .app-top[data-header-density="minimal"] > .top-right > #copyBtn,
+      .app-top[data-header-density="minimal"] > .top-right > #settingsToggle,
+      .app-top[data-header-density="minimal"] > .top-right > #noteBtn {
+        display: none !important;
+      }
+      .app-top[data-header-density="minimal"] .header-more {
+        display: inline-flex;
+      }
+      .header-more-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        inset-inline-end: 0;
+        min-width: 200px;
+        padding: 6px;
+        background: var(--paper-elevated);
+        border: 1px solid var(--border-warm-strong);
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        z-index: 40;
+      }
+      .header-more-menu.open {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .header-more-menu button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        border: none;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+      }
+      .header-more-menu button:hover,
+      .header-more-menu button:focus-visible {
+        background: var(--border-warm);
+        outline: none;
+      }
+      .header-more-menu button .bi {
+        font-size: 15px;
+        color: var(--ink-soft);
+        width: 1.1em;
+        text-align: center;
+      }
+      body[data-state="idle"] #headerMoreNew,
+      body[data-state="idle"] #headerMoreCopy,
+      body[data-state="history"] #headerMoreNew,
+      body[data-state="history"] #headerMoreCopy {
+        display: none;
+      }
+      body[data-show-clinical-note="false"] #headerMoreNote {
+        display: none;
       }
 
       /* Record button: single start/stop, styled per recording state */
@@ -2803,7 +2910,9 @@
         }
       }
 
-      /* Tablet portrait + large phones */
+      /* Tablet portrait + large phones — layout polish only.
+         Progressive hides (tagline, lang chip, icon-only, badge/meter,
+         more menu) are driven by data-header-density. */
       @media (max-width: 768px) {
         .app-top {
           padding: 0 14px;
@@ -2813,21 +2922,8 @@
         .top-divider {
           display: none;
         }
-        .logo-tagline {
-          display: none;
-        }
         .top-right {
           gap: 8px;
-        }
-        .top-right .btn span {
-          display: none;
-        }
-        .top-right .btn {
-          padding: 0;
-          width: 36px;
-        }
-        .lang-chip {
-          display: none;
         }
 
         .transcript-col {
@@ -2993,13 +3089,6 @@
           font-size: 16px;
         }
 
-        /* No room for the badges and level meter beside the controls. The
-           stop and play buttons and the muted timer show the state. */
-        body.recording .rec-badge,
-        body.recording.paused .paused-badge,
-        body.recording #recordingStatus {
-          display: none !important;
-        }
         .top-left {
           gap: 8px;
         }
@@ -3007,12 +3096,10 @@
           gap: 4px;
         }
 
-        /* Ensure tap targets meet 44px minimum */
+        /* Primary controls keep a larger tap target */
         .btn,
-        #settingsToggle,
         .btn-record,
-        .btn-pause,
-        .audio-bar-play {
+        .btn-pause {
           min-height: 44px;
         }
         .btn-pause {
@@ -3020,6 +3107,33 @@
         }
         .btn {
           min-width: 44px;
+        }
+        /* Header actions keep their 36px size (match #settingsToggle);
+           density owns icon-only sizing separately. */
+        .top-right .btn {
+          min-height: unset;
+          min-width: unset;
+        }
+        .audio-bar-play {
+          width: 44px;
+          height: 44px;
+          min-width: 44px;
+          min-height: 44px;
+        }
+
+        /* Compact secondary header actions (tap-target polish).
+           Only when density is already icon-only; density owns labels. */
+        .app-top[data-header-density="compact"] .top-right .btn,
+        .app-top[data-header-density="compact"] #settingsToggle,
+        .app-top[data-header-density="compact"] #headerMoreBtn,
+        .app-top[data-header-density="minimal"] .top-right .btn,
+        .app-top[data-header-density="minimal"] #settingsToggle,
+        .app-top[data-header-density="minimal"] #headerMoreBtn {
+          width: 32px;
+          height: 32px;
+          min-width: 32px;
+          min-height: 32px;
+          font-size: 14px;
         }
       }
     </style>
@@ -3134,7 +3248,7 @@
           >
           <label class="mccd-check"
             ><input type="checkbox" name="stillbirth" /><span
-             
+
               >Stillbirth</span
             ></label
           >
@@ -3247,7 +3361,7 @@
     </div>
 
     <div class="app">
-      <header class="app-top">
+      <header class="app-top" data-header-density="full">
         <div class="top-left">
           <svg
             class="logo"
@@ -3349,6 +3463,42 @@
           <button id="settingsToggle" aria-label="Settings" title="Settings">
             <i class="bi bi-gear"></i>
           </button>
+          <div class="header-more" id="headerMore">
+            <button
+              id="headerMoreBtn"
+              class="btn btn-ghost"
+              aria-label="More"
+              title="More"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="headerMoreMenu"
+            >
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <div
+              id="headerMoreMenu"
+              class="header-more-menu"
+              role="menu"
+              aria-label="More"
+            >
+              <button type="button" role="menuitem" id="headerMoreNote">
+                <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                <span data-i18n="common.note">Clinical note</span>
+              </button>
+              <button type="button" role="menuitem" id="headerMoreNew">
+                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                <span data-i18n="common.new">New</span>
+              </button>
+              <button type="button" role="menuitem" id="headerMoreCopy">
+                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                <span data-i18n="common.copy">Copy transcript</span>
+              </button>
+              <button type="button" role="menuitem" id="headerMoreSettings">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+                <span data-i18n="settings.title">Settings</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -4171,6 +4321,7 @@
           "user.id": "ID",
           "common.new": "New",
           "common.copy": "Copy transcript",
+          "common.more": "More",
           "common.back": "Back",
           "common.clearAll": "Clear all",
           "common.learnMore": "Learn more",
@@ -4331,6 +4482,7 @@
           "user.id": "Kitambulisho",
           "common.new": "Mpya",
           "common.copy": "Nakili maandishi",
+          "common.more": "Zaidi",
           "common.back": "Rudi",
           "common.clearAll": "Futa zote",
           "common.learnMore": "Jifunze zaidi",
@@ -4491,6 +4643,7 @@
           "user.id": "Identifiant",
           "common.new": "Nouveau",
           "common.copy": "Copier la transcription",
+          "common.more": "Plus",
           "common.back": "Retour",
           "common.clearAll": "Tout effacer",
           "common.learnMore": "En savoir plus",
@@ -4654,6 +4807,7 @@
           "user.name": "الاسم",
           "user.id": "المعرّف",
           "common.copy": "نسخ النص",
+          "common.more": "المزيد",
           "common.back": "رجوع",
           "common.clearAll": "مسح الكل",
           "common.learnMore": "اعرف المزيد",
@@ -4811,6 +4965,7 @@
           "user.name": "নাম",
           "user.id": "আইডি",
           "common.copy": "প্রতিলিপি কপি করুন",
+          "common.more": "আরও",
           "common.back": "ফিরে যান",
           "common.clearAll": "সব মুছুন",
           "common.learnMore": "আরও জানুন",
@@ -4972,6 +5127,7 @@
           "user.name": "Nombre",
           "user.id": "ID",
           "common.copy": "Copiar transcripción",
+          "common.more": "Más",
           "common.back": "Atrás",
           "common.clearAll": "Borrar todo",
           "common.learnMore": "Saber más",
@@ -5134,6 +5290,7 @@
           "user.name": "Vito",
           "user.id": "ID",
           "common.copy": "Kopa tsalwa",
+          "common.more": "Swo tala",
           "common.back": "Tlhelela endzhaku",
           "common.clearAll": "Sula hinkwaswo",
           "common.learnMore": "Dyondza swo tala",
@@ -5355,6 +5512,7 @@
       function setSessionState(next) {
         sessionState = next;
         body.dataset.state = next;
+        syncHeaderDensity();
         syncCaseSource();
       }
 
@@ -6603,6 +6761,7 @@
         langChipText.textContent = showModel
           ? `${lang} · ${backendLabel} ${model}`
           : `${lang} · ${backendLabel}`;
+        syncHeaderDensity();
       }
 
       function updateTranslationVisibility() {
@@ -7025,6 +7184,91 @@
       settingsToggle.addEventListener("click", openSettings);
       settingsClose.addEventListener("click", closeSettings);
       settingsBackdrop.addEventListener("click", closeSettings);
+
+      // Header overflow ("more") menu + progressive density
+      const appTop = document.querySelector(".app-top");
+      const topLeft = appTop?.querySelector(".top-left");
+      const topRight = appTop?.querySelector(".top-right");
+      const headerMoreBtn = document.getElementById("headerMoreBtn");
+      const headerMoreMenu = document.getElementById("headerMoreMenu");
+      const HEADER_DENSITY_STEPS = ["full", "cozy", "compact", "minimal"];
+      const HEADER_FIT_MARGIN = 12;
+
+      function setHeaderMoreOpen(open) {
+        if (!headerMoreBtn || !headerMoreMenu) return;
+        headerMoreMenu.classList.toggle("open", open);
+        headerMoreBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      function closeHeaderMore() {
+        setHeaderMoreOpen(false);
+      }
+
+      // Always step from full → denser so we never stick in a compact mode
+      // after content shrinks (avoids flicker from hysteresis thresholds).
+      function syncHeaderDensity() {
+        if (!appTop || !topLeft || !topRight) return;
+        let density = "full";
+        appTop.dataset.headerDensity = density;
+        for (let i = 1; i < HEADER_DENSITY_STEPS.length; i++) {
+          void appTop.offsetWidth;
+          const style = getComputedStyle(appTop);
+          const pad =
+            (parseFloat(style.paddingLeft) || 0) +
+            (parseFloat(style.paddingRight) || 0);
+          const gap = parseFloat(style.columnGap || style.gap) || 0;
+          const needed =
+            topLeft.scrollWidth + topRight.scrollWidth + gap + pad;
+          if (needed <= appTop.clientWidth - HEADER_FIT_MARGIN) break;
+          density = HEADER_DENSITY_STEPS[i];
+          appTop.dataset.headerDensity = density;
+        }
+        if (density !== "minimal") closeHeaderMore();
+      }
+
+      if (appTop && typeof ResizeObserver !== "undefined") {
+        const headerRo = new ResizeObserver(() => syncHeaderDensity());
+        headerRo.observe(appTop);
+      }
+      syncHeaderDensity();
+
+      if (headerMoreBtn && headerMoreMenu) {
+        headerMoreBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setHeaderMoreOpen(!headerMoreMenu.classList.contains("open"));
+        });
+        document
+          .getElementById("headerMoreNote")
+          ?.addEventListener("click", () => {
+            closeHeaderMore();
+            document.getElementById("noteBtn")?.click();
+          });
+        document
+          .getElementById("headerMoreNew")
+          ?.addEventListener("click", () => {
+            closeHeaderMore();
+            document.getElementById("resetBtn")?.click();
+          });
+        document
+          .getElementById("headerMoreCopy")
+          ?.addEventListener("click", () => {
+            closeHeaderMore();
+            copyBtn?.click();
+          });
+        document
+          .getElementById("headerMoreSettings")
+          ?.addEventListener("click", () => {
+            closeHeaderMore();
+            openSettings();
+          });
+        document.addEventListener("click", (e) => {
+          if (!headerMoreMenu.classList.contains("open")) return;
+          const wrap = document.getElementById("headerMore");
+          if (wrap && !wrap.contains(e.target)) closeHeaderMore();
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeHeaderMore();
+        });
+      }
 
       function showStatus(message, type = "info") {
         statusMessage.className = `alert alert-${type}`;
