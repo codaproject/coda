@@ -60,6 +60,18 @@ class OllamaAdapter(LLMClient):
         self.timeout = timeout
         self.provider = "ollama"
         self.client = Client(host=self.base_url, timeout=self.timeout)
+        self.num_ctx = settings.llm.ollama.get("num_ctx") or None
+        think = settings.llm.ollama.get("think")
+        self.think = None if think == "" else think
+
+    def chat(self, messages, options, **kwargs):
+        """Send a chat request with the configured context and thinking."""
+        if self.num_ctx:
+            options = {**options, "num_ctx": self.num_ctx}
+        if self.think is not None:
+            kwargs["think"] = self.think
+        return self.client.chat(model=self.model, messages=messages,
+                                options=options, **kwargs)
 
     def call(self, user_prompt: str, temperature: float = 0.0,
              system_prompt: Optional[str] = None) -> str:
@@ -91,9 +103,8 @@ class OllamaAdapter(LLMClient):
 
         for attempt in range(3):  # Default max_retries
             try:
-                response = self.client.chat(
-                    model=self.model,
-                    messages=messages,
+                response = self.chat(
+                    messages,
                     options={
                         "temperature": temperature,
                     },
@@ -177,9 +188,8 @@ class OllamaAdapter(LLMClient):
             try:
                 # Use Ollama's chat endpoint with schema-based validation
                 # Pass schema directly for strict validation (prevents formatting issues)
-                response = self.client.chat(
-                    model=self.model,
-                    messages=messages,
+                response = self.chat(
+                    messages,
                     format=schema,  # Pass schema directly for strict validation
                     options={
                         "temperature": temperature,  # Use parameter instead of hardcoded value
