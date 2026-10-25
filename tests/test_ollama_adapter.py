@@ -51,3 +51,56 @@ def test_ollama_adapter_uses_base_url_from_config(monkeypatch):
     finally:
         monkeypatch.undo()
         reload_settings()
+
+
+def test_ollama_adapter_passes_num_ctx_and_think(monkeypatch):
+    from coda.config import reload_settings
+
+    captured = {}
+
+    class DummyClient:
+        def __init__(self, *, host, timeout):
+            pass
+
+        def chat(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(message=SimpleNamespace(content='{"a": 1}'))
+
+    monkeypatch.setattr(ollama_adapter, "Client", DummyClient)
+    monkeypatch.setenv("CODA_LLM__OLLAMA__NUM_CTX", "8192")
+    monkeypatch.setenv("CODA_LLM__OLLAMA__THINK", "false")
+    reload_settings()
+    try:
+        adapter = ollama_adapter.OllamaAdapter(model="qwen3")
+        assert adapter.call_with_schema("s", "u", {}, "x") == {"a": 1}
+        assert captured["options"]["num_ctx"] == 8192
+        assert captured["think"] is False
+    finally:
+        monkeypatch.undo()
+        reload_settings()
+
+
+def test_ollama_adapter_omits_unset_think(monkeypatch):
+    from coda.config import reload_settings
+
+    captured = {}
+
+    class DummyClient:
+        def __init__(self, *, host, timeout):
+            pass
+
+        def chat(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(message=SimpleNamespace(content="hi"))
+
+    monkeypatch.setattr(ollama_adapter, "Client", DummyClient)
+    monkeypatch.setenv("CODA_LLM__OLLAMA__NUM_CTX", "0")
+    monkeypatch.setenv("CODA_LLM__OLLAMA__THINK", "")
+    reload_settings()
+    try:
+        ollama_adapter.OllamaAdapter(model="qwen3").call("u")
+        assert "think" not in captured
+        assert "num_ctx" not in captured["options"]
+    finally:
+        monkeypatch.undo()
+        reload_settings()

@@ -93,6 +93,12 @@ llm:                        # shared LLM provider endpoints; api keys -> .secret
     base_url: ""
   ollama:
     base_url: http://localhost:11434
+    # Context window in tokens that models are loaded with. 0 -> the model's
+    # own maximum, which can take several times more memory.
+    num_ctx: 32768
+    # Whether models that support thinking reason before answering. Allowed
+    # values: true | false | low | medium | high, empty -> the model's default.
+    think: false
 
 kg:
   url: bolt://localhost:7687

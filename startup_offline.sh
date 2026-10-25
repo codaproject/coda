@@ -11,7 +11,7 @@ cd "$SCRIPT_DIR"
 # right choice here: the Ollama adapter constrains decoding with format=schema,
 # which degrades reasoning models.
 export CODA_INFERENCE__LLM__PROVIDER="${CODA_INFERENCE__LLM__PROVIDER:-ollama}"
-export CODA_INFERENCE__LLM__MODEL="${CODA_INFERENCE__LLM__MODEL:-qwen2.5:7b-instruct}"
+export CODA_INFERENCE__LLM__MODEL="${CODA_INFERENCE__LLM__MODEL:-qwen3:30b-a3b-instruct-2507-q4_K_M}"
 
 # Translate transcripts locally instead of calling out to an LLM API. The
 # local backend is not present in every build, and setting the variable for a
