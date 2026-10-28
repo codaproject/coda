@@ -477,6 +477,7 @@ def _summary(
                          for part in _parts(case_dir, manifest)),
         "sources": _sources(chunks, inference),
         "metadata": metadata,
+        "user": manifest.get("user"),
     }
 
 

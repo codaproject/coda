@@ -343,6 +343,13 @@ def test_list_cases_skips_empty_cases_newest_first(storage_dir):
     assert started == datetime.fromisoformat(newer.manifest["started_at"]).astimezone()
 
 
+def test_list_cases_carries_the_user(storage_dir):
+    recorder = record_case("aaaa0001", close=False)
+    recorder.close({}, {"name": "Amina", "id": "CHW-7"})
+    [case] = list_cases()
+    assert case["user"] == {"name": "Amina", "id": "CHW-7"}
+
+
 def test_audio_without_frames_counts_as_none(storage_dir, monkeypatch):
     monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
     reload_settings()

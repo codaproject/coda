@@ -2478,6 +2478,33 @@
         flex-shrink: 0;
       }
 
+      .history-search {
+        position: relative;
+        margin-bottom: 16px;
+      }
+      .history-search i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-muted);
+        font-size: 14px;
+      }
+      .history-search input {
+        width: 100%;
+        padding: 10px 14px 10px 38px;
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-md);
+        background: var(--paper-elevated);
+        color: var(--ink);
+        font: inherit;
+        font-size: 14px;
+      }
+      .history-search input:focus {
+        outline: 2px solid var(--accent-sage);
+        outline-offset: -1px;
+      }
+
       .history-card {
         background: var(--paper-elevated);
         border: 1px solid var(--border-warm);
@@ -2525,22 +2552,9 @@
         font-weight: 500;
         color: var(--ink);
       }
-      .history-item-title .code {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--ink-muted);
-      }
       .history-item-meta {
         font-size: 11px;
         color: var(--ink-muted);
-      }
-      .history-item-conf {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--ink);
-        min-width: 36px;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
       }
       .history-item-delete {
         background: none;
@@ -3868,6 +3882,16 @@
             </button>
           </div>
         </header>
+        <div class="history-search">
+          <i class="bi bi-search"></i>
+          <input
+            type="search"
+            id="historySearch"
+            autocomplete="off"
+            data-i18n-placeholder="history.search"
+            placeholder="Search by case ID"
+          />
+        </div>
         <div class="history-card" id="historyList"></div>
       </section>
 
@@ -4433,6 +4457,14 @@
           "history.sourceRecording": "Voice recording",
           "history.sourceNote": "Clinical note",
           "history.deleteDevice": "Delete the copy on this device",
+          "history.noCaseId": "No case ID",
+          "history.died": "Died",
+          "history.search": "Search by case ID",
+          "history.noMatch": "No case matches this ID",
+          "history.groupToday": "Today",
+          "history.groupYesterday": "Yesterday",
+          "history.groupThisWeek": "Earlier this week",
+          "history.groupEarlier": "Earlier",
           "history.clearConfirm":
             "Delete every session saved on this device? Cases on the server are not affected. This cannot be undone.",
           "case.kicker": "Stored case",
@@ -4599,6 +4631,14 @@
           "history.sourceRecording": "Rekodi ya sauti",
           "history.sourceNote": "Maelezo ya kliniki",
           "history.deleteDevice": "Futa nakala iliyo kwenye kifaa hiki",
+          "history.noCaseId": "Hakuna kitambulisho cha kesi",
+          "history.died": "Alifariki",
+          "history.search": "Tafuta kwa kitambulisho cha kesi",
+          "history.noMatch": "Hakuna kesi inayolingana na kitambulisho hiki",
+          "history.groupToday": "Leo",
+          "history.groupYesterday": "Jana",
+          "history.groupThisWeek": "Mapema wiki hii",
+          "history.groupEarlier": "Awali",
           "history.clearConfirm":
             "Futa kila kikao kilichohifadhiwa kwenye kifaa hiki? Kesi zilizo kwenye seva haziathiriwi. Hatua hii haiwezi kutenduliwa.",
           "case.kicker": "Kesi iliyohifadhiwa",
@@ -4769,6 +4809,14 @@
           "history.sourceRecording": "Enregistrement vocal",
           "history.sourceNote": "Note clinique",
           "history.deleteDevice": "Supprimer la copie sur cet appareil",
+          "history.noCaseId": "Aucun identifiant de cas",
+          "history.died": "Décès",
+          "history.search": "Rechercher par identifiant du cas",
+          "history.noMatch": "Aucun cas ne correspond à cet identifiant",
+          "history.groupToday": "Aujourd'hui",
+          "history.groupYesterday": "Hier",
+          "history.groupThisWeek": "Plus tôt cette semaine",
+          "history.groupEarlier": "Plus tôt",
           "history.clearConfirm":
             "Supprimer toutes les sessions sauvegardées sur cet appareil ? Les cas sur le serveur ne sont pas concernés. Cette action est irréversible.",
           "case.kicker": "Cas stocké",
@@ -4935,6 +4983,14 @@
           "history.sourceRecording": "تسجيل صوتي",
           "history.sourceNote": "ملاحظة سريرية",
           "history.deleteDevice": "حذف النسخة الموجودة على هذا الجهاز",
+          "history.noCaseId": "لا يوجد رقم للحالة",
+          "history.died": "الوفاة",
+          "history.search": "البحث برقم الحالة",
+          "history.noMatch": "لا توجد حالة تطابق هذا الرقم",
+          "history.groupToday": "اليوم",
+          "history.groupYesterday": "أمس",
+          "history.groupThisWeek": "في وقت سابق من هذا الأسبوع",
+          "history.groupEarlier": "في وقت سابق",
           "history.clearConfirm":
             "حذف جميع الجلسات المحفوظة على هذا الجهاز؟ لن تتأثر الحالات الموجودة على الخادم. لا يمكن التراجع عن هذا الإجراء.",
           "case.kicker": "حالة مخزنة",
@@ -5101,6 +5157,14 @@
           "history.sourceRecording": "ভয়েস রেকর্ডিং",
           "history.sourceNote": "ক্লিনিক্যাল নোট",
           "history.deleteDevice": "এই ডিভাইসের কপি মুছুন",
+          "history.noCaseId": "কেস আইডি নেই",
+          "history.died": "মৃত্যু",
+          "history.search": "কেস আইডি দিয়ে খুঁজুন",
+          "history.noMatch": "এই আইডির সাথে কোনো কেস মেলেনি",
+          "history.groupToday": "আজ",
+          "history.groupYesterday": "গতকাল",
+          "history.groupThisWeek": "এই সপ্তাহের শুরুতে",
+          "history.groupEarlier": "আগে",
           "history.clearConfirm":
             "এই ডিভাইসে সংরক্ষিত সব সেশন মুছবেন? সার্ভারের কেসগুলোতে কোনো প্রভাব পড়বে না। এটি আর ফেরানো যাবে না।",
           "case.kicker": "সংরক্ষিত কেস",
@@ -5270,6 +5334,14 @@
           "history.sourceRecording": "Grabación de voz",
           "history.sourceNote": "Nota clínica",
           "history.deleteDevice": "Eliminar la copia de este dispositivo",
+          "history.noCaseId": "Sin ID del caso",
+          "history.died": "Falleció",
+          "history.search": "Buscar por ID del caso",
+          "history.noMatch": "Ningún caso coincide con este ID",
+          "history.groupToday": "Hoy",
+          "history.groupYesterday": "Ayer",
+          "history.groupThisWeek": "Antes esta semana",
+          "history.groupEarlier": "Antes",
           "history.clearConfirm":
             "¿Eliminar todas las sesiones guardadas en este dispositivo? Los casos del servidor no se ven afectados. Esta acción no se puede deshacer.",
           "case.kicker": "Caso almacenado",
@@ -5441,6 +5513,14 @@
           "history.sourceRecording": "Rhekhodo ya rito",
           "history.sourceNote": "Tsalwa ra kliniki",
           "history.deleteDevice": "Sula khopi leyi nga eka xitirhisiwa lexi",
+          "history.noCaseId": "A ku na nomboro ya mhaka",
+          "history.died": "U file",
+          "history.search": "Lava hi nomboro ya mhaka",
+          "history.noMatch": "A ku na mhaka leyi fambelanaka na nomboro leyi",
+          "history.groupToday": "Namuntlha",
+          "history.groupYesterday": "Tolo",
+          "history.groupThisWeek": "Emahlweni ka vhiki leri",
+          "history.groupEarlier": "Khale",
           "history.clearConfirm":
             "Sula mitshamo hinkwayo leyi hlayisiweke eka xitirhisiwa lexi? Timhaka leti nga eka sevha a ti khumbiwi. Leswi a swi nge tlheriseleki endzhaku.",
           "case.kicker": "Mhaka leyi hlayisiweke",
@@ -5800,21 +5880,28 @@
         const d = new Date(date);
         d.setHours(0, 0, 0, 0);
         const diff = Math.round((today - d) / 86400000);
-        if (diff === 0) return "Today";
-        if (diff === 1) return "Yesterday";
-        if (diff < 7) return "Earlier this week";
-        return "Earlier";
+        if (diff === 0) return t("history.groupToday");
+        if (diff === 1) return t("history.groupYesterday");
+        if (diff < 7) return t("history.groupThisWeek");
+        return t("history.groupEarlier");
       }
-      function formatShortDate(iso) {
-        const date = new Date(iso);
-        const today = new Date();
-        if (date.toDateString() === today.toDateString()) {
-          return date.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-        }
-        return date.toLocaleDateString([], { month: "short", day: "numeric" });
+      function formatDateTime(iso) {
+        return new Date(iso).toLocaleString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+      // A YYYY-MM-DD date, read as a local calendar day
+      function formatDay(day) {
+        const [y, m, d] = day.split("-").map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
       }
       function formatDuration(sec) {
         const s = Math.max(0, Math.floor(sec || 0));
@@ -5845,11 +5932,6 @@
           return {
             startedAt: c.started_at,
             durationSeconds: c.duration_s,
-            topCause: c.top_cause && {
-              name: c.top_cause.name,
-              code: causeCode(c.top_cause.identifiers),
-              score: c.top_cause.score,
-            },
             flag: c.in_progress
               ? "inProgress"
               : c.ended_at
@@ -5859,6 +5941,7 @@
             hasAudio: c.has_audio,
             sources: c.sources,
             metadata: c.metadata,
+            user: c.user,
             localId,
             open: () => openStoredCase(c.case_id, localId),
           };
@@ -5870,16 +5953,12 @@
             entries.push({
               startedAt: s.startedAt,
               durationSeconds: s.durationSeconds,
-              topCause: {
-                name: s.topCause.name,
-                code: s.topCause.code || s.topCause.icd10 || "",
-                score: s.topCause.score,
-              },
               stores: "device",
               hasAudio: false,
               // Copies saved before notes were kept come from recordings
               sources: s.sources || ["recording"],
               metadata: s.metadata,
+              user: s.user,
               localId: s.id,
               open: () => openSessionFromHistory(s.id),
             }),
@@ -5907,32 +5986,35 @@
         return sources.includes("clinical_note") && !sources.includes("recording");
       }
 
-      // Case ID and age of a listed case, those it has
-      function entryCaseLabel(entry) {
-        const caseId = entry.metadata?.case_id;
-        const profile = entry.metadata?.profile;
-        const age = profile?.stillbirth
-          ? t("profile.stillbirth")
-          : profile?.age && `${profile.age.value} ${profile.age.unit}`;
-        return [caseId, age].filter(Boolean).join(" · ");
+      function entryCaseId(entry) {
+        return entry.metadata?.case_id || "";
       }
 
-      // Row labels; where COD results are hidden, rows carry none
-      function entryLabels(entry) {
-        const codHidden = body.dataset.showCodResult === "false";
-        const cause = codHidden ? null : entry.topCause;
-        if (!cause) {
-          return {
-            title: t(codHidden ? "case.untitled" : "case.noInference"),
-            code: "",
-            score: "",
-          };
-        }
-        return {
-          title: cause.name,
-          code: cause.code,
-          score: Math.round(cause.score * 100) + "%",
-        };
+      // Profile of a listed case and who recorded it, the parts it has
+      function entryDetails(entry) {
+        const profile = entry.metadata?.profile || {};
+        const age = profile.stillbirth
+          ? t("profile.stillbirth")
+          : profile.age && `${profile.age.value} ${profile.age.unit}`;
+        const manner =
+          profile.manner_of_death &&
+          document
+            .querySelector(
+              `#mannerOfDeath option[value="${profile.manner_of_death}"]`,
+            )
+            ?.textContent.trim();
+        const user =
+          body.dataset.showUserProfile !== "false" && entry.user?.name;
+        return [
+          age,
+          profile.sex && t(`profile.${profile.sex}`),
+          profile.date_of_death &&
+            `${t("history.died")} ${formatDay(profile.date_of_death)}`,
+          manner,
+          user,
+        ]
+          .filter(Boolean)
+          .join(" · ");
       }
 
       // --- Idle-view "Recent" block ------------------------------------
@@ -5955,8 +6037,8 @@
         idleRecentBlock.style.display = "flex";
         idleRecentList.innerHTML = "";
         entries.slice(0, 3).forEach((entry) => {
-          const { title, code, score } = entryLabels(entry);
-          const date = [entryCaseLabel(entry), formatShortDate(entry.startedAt)]
+          const title = entryCaseId(entry) || t("history.noCaseId");
+          const date = [entryDetails(entry), formatDateTime(entry.startedAt)]
             .filter(Boolean)
             .join(" · ");
           const noteIcon = entry.sources.includes("clinical_note")
@@ -5967,7 +6049,7 @@
           row.innerHTML = `
                     <div class="idle-recent-row-body">
                         <strong>${escapeHtml(title)}</strong>
-                        <small>${noteIcon}${escapeHtml(score ? `${score} · ${code || "—"} · ${date}` : date)}</small>
+                        <small>${noteIcon}${escapeHtml(date)}</small>
                     </div>
                     <i class="bi bi-chevron-right" style="color: var(--ink-faint);"></i>
                 `;
@@ -5981,17 +6063,23 @@
       const historyList = document.getElementById("historyList");
       const historyBackBtn = document.getElementById("historyBackBtn");
       const historyClearBtn = document.getElementById("historyClearBtn");
+      const historySearch = document.getElementById("historySearch");
 
       async function renderHistoryView() {
         const render = ++historyRender;
-        const entries = await loadHistoryEntries();
+        const all = await loadHistoryEntries();
         if (render !== historyRender) return;
         historyList.innerHTML = "";
-        historyClearBtn.style.display = entries.some((e) => e.localId)
+        historyClearBtn.style.display = all.some((e) => e.localId)
           ? ""
           : "none";
+        const query = historySearch.value.trim().toLowerCase();
+        const entries = all.filter((e) =>
+          entryCaseId(e).toLowerCase().includes(query),
+        );
         if (!entries.length) {
-          historyList.innerHTML = `<div class="history-empty">${escapeHtml(t("history.empty"))}</div>`;
+          const empty = all.length ? "history.noMatch" : "history.empty";
+          historyList.innerHTML = `<div class="history-empty">${escapeHtml(t(empty))}</div>`;
           return;
         }
         let lastGroup = null;
@@ -6004,7 +6092,7 @@
             historyList.appendChild(g);
             lastGroup = group;
           }
-          const { title, code, score } = entryLabels(entry);
+          const title = entryCaseId(entry) || t("history.noCaseId");
           let flag = "";
           if (entry.flag === "inProgress") {
             flag = `<span class="history-flag history-flag--live">${escapeHtml(t("case.flagInProgress"))}</span>`;
@@ -6028,14 +6116,10 @@
           const recording = entry.hasAudio
             ? `<span class="history-item-recording has-audio"><i class="bi bi-mic-fill"></i> ${escapeHtml(t("history.recording"))}</span>`
             : `<span class="history-item-recording"><i class="bi bi-mic-mute"></i> ${escapeHtml(t("history.noRecording"))}</span>`;
+          const details = escapeHtml(entryDetails(entry));
           // A case made from notes alone has no length or recording to show
-          const caseLabel = entryCaseLabel(entry);
-          const date = escapeHtml(
-            caseLabel
-              ? `${caseLabel} · ${formatShortDate(entry.startedAt)}`
-              : formatShortDate(entry.startedAt),
-          );
-          const meta = isNotesOnly(entry.sources)
+          const date = escapeHtml(formatDateTime(entry.startedAt));
+          const recorded = isNotesOnly(entry.sources)
             ? date
             : `${date} · ${escapeHtml(formatDuration(entry.durationSeconds))} · ${recording}`;
           const deleteLabel = escapeHtml(t("history.deleteDevice"));
@@ -6045,14 +6129,13 @@
                     <div class="history-item-body">
                         <div class="history-item-title">
                             <strong>${escapeHtml(title)}</strong>
-                            <span class="code">${escapeHtml(code)}</span>
                             <span class="history-flag history-flag--store"><i class="bi ${stored.icon}"></i> ${escapeHtml(t(stored.label))}</span>
                             ${sources}
                             ${flag}
                         </div>
-                        <div class="history-item-meta">${meta}</div>
+                        ${details ? `<div class="history-item-meta">${details}</div>` : ""}
+                        <div class="history-item-meta">${recorded}</div>
                     </div>
-                    <div class="history-item-conf">${escapeHtml(score)}</div>
                     ${entry.localId ? `<button class="history-item-delete" aria-label="${deleteLabel}" title="${deleteLabel}"><i class="bi bi-trash"></i></button>` : ""}
                     <i class="bi bi-chevron-right history-chev"></i>
                 `;
@@ -6353,6 +6436,7 @@
 
       historyBtn.addEventListener("click", openHistory);
       historyBackBtn.addEventListener("click", closeHistory);
+      historySearch.addEventListener("input", renderHistoryView);
       idleRecentSeeAll.addEventListener("click", openHistory);
       historyClearBtn.addEventListener("click", () => {
         if (!confirm(t("history.clearConfirm"))) return;
