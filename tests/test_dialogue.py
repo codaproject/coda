@@ -4,7 +4,9 @@ A fake transcribe_file lets us exercise transcribe_audio without loading a
 real Whisper model or any network/grounder.
 """
 import asyncio
+import math
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -203,3 +205,49 @@ def test_whisper_livekit_events_from_response():
     assert committed == ["hello there", "how are you", "fine thanks"]
     assert previews == ["how are", "today"]
     assert all(e.committed in (True, False) for e in events)
+
+
+def test_whisper_livekit_unbounded_retention_keeps_words():
+    from whisperlivekit.timed_objects import ASRToken
+    from whisperlivekit.tokens_alignment import TokensAlignment
+
+    alignment = TokensAlignment(None, SimpleNamespace(diarization=False), None)
+    alignment._retention_seconds = math.inf
+    alignment.all_tokens = [ASRToken(0, 1, "fever"), ASRToken(900, 901, "cough")]
+    alignment.current_line_tokens = list(alignment.all_tokens)
+    alignment._prune()
+    assert len(alignment.current_line_tokens) == 2
+
+
+async def test_whisper_livekit_stream_keeps_every_word(monkeypatch):
+    import whisperlivekit
+
+    processors = []
+
+    class FakeAudioProcessor:
+        def __init__(self, transcription_engine):
+            self.tokens_alignment = SimpleNamespace()
+            processors.append(self)
+
+        async def create_tasks(self):
+            async def results():
+                return
+                yield
+            return results()
+
+        async def process_audio(self, data):
+            pass
+
+        async def cleanup(self):
+            pass
+
+    async def audio():
+        return
+        yield
+
+    monkeypatch.setattr(whisperlivekit, "AudioProcessor", FakeAudioProcessor)
+    transcriber = WhisperLiveKitTranscriber.__new__(WhisperLiveKitTranscriber)
+    transcriber._engine = None
+    assert [e async for e in transcriber.stream(audio())] == []
+    [processor] = processors
+    assert processor.tokens_alignment._retention_seconds == math.inf

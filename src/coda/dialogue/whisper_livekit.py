@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+import math
 import time
 import uuid
 from typing import AsyncIterator
@@ -34,7 +35,11 @@ def _events_from_response(msg: dict, state: dict):
         prev = emitted.get(start, "")
         if text == prev:
             continue
-        delta = text[len(prev):].strip() if text.startswith(prev) else text
+        if text.startswith(prev):
+            delta = text[len(prev):].strip()
+        else:
+            logger.warning("WhisperLiveKit revised the line at %s", start)
+            delta = text
         emitted[start] = text
         if delta:
             yield TranscriptEvent(id=uuid.uuid4().hex, timestamp=time.time(),
@@ -112,6 +117,9 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
                      task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
         from whisperlivekit import AudioProcessor
         processor = AudioProcessor(transcription_engine=self._engine)
+        # Keep every committed word, so each line only grows under the same
+        # start. Dropping old words would re-key a long line and resend it.
+        processor.tokens_alignment._retention_seconds = math.inf
         results = await processor.create_tasks()
         forwarder = asyncio.create_task(self._forward(processor, audio))
         state = {"emitted": {}, "preview": ""}
