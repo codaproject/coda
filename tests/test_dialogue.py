@@ -4,7 +4,9 @@ A fake transcribe_file lets us exercise transcribe_audio without loading a
 real Whisper model or any network/grounder.
 """
 import asyncio
+import math
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -203,3 +205,15 @@ def test_whisper_livekit_events_from_response():
     assert committed == ["hello there", "how are you", "fine thanks"]
     assert previews == ["how are", "today"]
     assert all(e.committed in (True, False) for e in events)
+
+
+def test_whisper_livekit_unbounded_retention_keeps_words():
+    from whisperlivekit.timed_objects import ASRToken
+    from whisperlivekit.tokens_alignment import TokensAlignment
+
+    alignment = TokensAlignment(None, SimpleNamespace(diarization=False), None)
+    alignment._retention_seconds = math.inf
+    alignment.all_tokens = [ASRToken(0, 1, "fever"), ASRToken(900, 901, "cough")]
+    alignment.current_line_tokens = list(alignment.all_tokens)
+    alignment._prune()
+    assert len(alignment.current_line_tokens) == 2
