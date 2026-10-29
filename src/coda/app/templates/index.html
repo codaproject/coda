@@ -892,6 +892,44 @@
           background: var(--border-warm-strong);
         }
       }
+      .transcript-body .edit-covered {
+        display: none;
+      }
+      .transcript-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .transcript-editor textarea {
+        width: 100%;
+        min-height: 160px;
+        padding: 10px 12px;
+        border: 1px solid var(--accent-sage);
+        border-radius: var(--radius-sm);
+        background: var(--paper-elevated);
+        color: var(--ink);
+        font: inherit;
+        line-height: inherit;
+        resize: vertical;
+      }
+      .transcript-editor-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .transcript-edit-btn {
+        margin-left: 12px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--ink-muted);
+        font: inherit;
+        cursor: pointer;
+      }
+      .transcript-edit-btn:hover {
+        color: var(--ink);
+      }
       .annotation {
         text-decoration: underline dotted var(--ink-muted);
         text-underline-offset: 3px;
@@ -3943,7 +3981,14 @@
             <span class="section-meta"
               ><span id="wordCount" data-i18n-dynamic="wordCount"
                 >0 words</span
-              ></span
+              ><button
+                id="editTranscriptBtn"
+                class="transcript-edit-btn"
+                type="button"
+              >
+                <i class="bi bi-pencil"></i>
+                <span data-i18n="transcript.edit">Edit</span>
+              </button></span
             >
           </div>
           <div id="transcript" class="transcript-body" aria-live="polite">
@@ -4480,6 +4525,11 @@
           "continue.transcriber": "Transcriber",
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
+          "transcript.edit": "Edit",
+          "transcript.save": "Save changes",
+          "transcript.cancel": "Cancel",
+          "transcript.reinferring": "Updating the inference with the correction…",
+          "transcript.editFailed": "Could not apply the correction",
           "case.noRecording": "Recording not available",
           "case.noteTextNotStored": "Note text not stored",
           "case.voiceOnly":
@@ -4654,6 +4704,11 @@
           "continue.transcriber": "Injini ya unakili",
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
+          "transcript.edit": "Hariri",
+          "transcript.save": "Hifadhi mabadiliko",
+          "transcript.cancel": "Ghairi",
+          "transcript.reinferring": "Inasasisha makisio kwa marekebisho…",
+          "transcript.editFailed": "Imeshindwa kutumia marekebisho",
           "case.noRecording": "Rekodi haipatikani",
           "case.noteTextNotStored": "Maandishi ya maelezo hayakuhifadhiwa",
           "case.voiceOnly":
@@ -4832,6 +4887,11 @@
           "continue.transcriber": "Moteur de transcription",
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
+          "transcript.edit": "Modifier",
+          "transcript.save": "Enregistrer",
+          "transcript.cancel": "Annuler",
+          "transcript.reinferring": "Mise à jour de l'inférence avec la correction…",
+          "transcript.editFailed": "Impossible d'appliquer la correction",
           "case.noRecording": "Enregistrement indisponible",
           "case.noteTextNotStored": "Texte de la note non conservé",
           "case.voiceOnly":
@@ -5005,6 +5065,11 @@
           "continue.transcriber": "محرك النسخ",
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
+          "transcript.edit": "تعديل",
+          "transcript.save": "حفظ التغييرات",
+          "transcript.cancel": "إلغاء",
+          "transcript.reinferring": "جارٍ تحديث الاستدلال بالتصحيح…",
+          "transcript.editFailed": "تعذّر تطبيق التصحيح",
           "case.noRecording": "التسجيل غير متاح",
           "case.noteTextNotStored": "لم يُحفظ نص الملاحظة",
           "case.voiceOnly":
@@ -5180,6 +5245,11 @@
           "continue.transcriber": "প্রতিলিপি ইঞ্জিন",
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
+          "transcript.edit": "সম্পাদনা",
+          "transcript.save": "পরিবর্তন সংরক্ষণ করুন",
+          "transcript.cancel": "বাতিল",
+          "transcript.reinferring": "সংশোধন দিয়ে অনুমান হালনাগাদ হচ্ছে…",
+          "transcript.editFailed": "সংশোধনটি প্রয়োগ করা যায়নি",
           "case.noRecording": "রেকর্ডিং পাওয়া যাচ্ছে না",
           "case.noteTextNotStored": "নোটের লেখা সংরক্ষিত হয়নি",
           "case.voiceOnly":
@@ -5357,6 +5427,11 @@
           "continue.transcriber": "Motor de transcripción",
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
+          "transcript.edit": "Editar",
+          "transcript.save": "Guardar cambios",
+          "transcript.cancel": "Cancelar",
+          "transcript.reinferring": "Actualizando la inferencia con la corrección…",
+          "transcript.editFailed": "No se pudo aplicar la corrección",
           "case.noRecording": "Grabación no disponible",
           "case.noteTextNotStored": "Texto de la nota no guardado",
           "case.voiceOnly":
@@ -5537,6 +5612,11 @@
           "continue.transcriber": "Njhini yo tsala leswi vuriwaka",
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
+          "transcript.edit": "Lulamisa",
+          "transcript.save": "Hlayisa ku cinca",
+          "transcript.cancel": "Khansela",
+          "transcript.reinferring": "Ku pfuxeta nkumbetelo hi ku lulamisa…",
+          "transcript.editFailed": "Ku lulamisa a swi kotekanga",
           "case.noRecording": "Rhekhodo a yi kumeki",
           "case.noteTextNotStored": "Matsalwa a ya hlayisiwanga",
           "case.voiceOnly":
@@ -7362,13 +7442,9 @@
         wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
       }
 
-      // Append a committed chunk with its grounded terms marked, preceded by
-      // its original-language text when it was translated
-      function appendTranscriptChunk(data, fresh = false) {
-        const text = data.transcript;
-        transcriptText += text + " ";
-
-        const anns = (data.annotations || [])
+      // A chunk's text with its grounded terms marked
+      function chunkInnerHtml(text, annotations) {
+        const anns = (annotations || [])
           .slice()
           .sort((a, b) => a.start - b.start);
 
@@ -7384,9 +7460,17 @@
         if (pos < text.length) {
           chunkHtml += escapeHtml(text.slice(pos));
         }
+        return chunkHtml + " ";
+      }
+
+      // Append a committed chunk with its grounded terms marked, preceded by
+      // its original-language text when it was translated
+      function appendTranscriptChunk(data, fresh = false) {
+        const text = data.transcript;
+        transcriptText += text + " ";
 
         chunkCount++;
-        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkHtml} </span>`;
+        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkInnerHtml(text, data.annotations)}</span>`;
 
         if (data.original_transcript) {
           const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
@@ -7395,6 +7479,139 @@
 
         transcript.insertAdjacentHTML("beforeend", chunkSpan);
       }
+
+      // The transcript as shown, with any edit
+      function shownTranscript() {
+        return Array.from(transcript.querySelectorAll(".chunk"))
+          .map((el) => el.textContent)
+          .join("");
+      }
+
+      // The open transcript editor, as {editor, textarea, before, through},
+      // and the elements it covers
+      let transcriptEditor = null;
+      let editCovered = [];
+      // Set while an edit is being applied
+      let editPending = false;
+
+      // Edit the whole transcript shown so far as plain text. Text committed
+      // meanwhile, and the interim preview, stay below the editor.
+      function openTranscriptEditor() {
+        if (transcriptEditor || editPending || caseInProgress) return;
+        const before = shownTranscript().trim();
+        if (!before) return;
+        const chunks = transcript.querySelectorAll(".chunk[data-chunk-id]");
+        editCovered = Array.from(transcript.children).filter(
+          (el) => el.id !== "preview-line",
+        );
+        editCovered.forEach((el) => el.classList.add("edit-covered"));
+
+        const editor = document.createElement("div");
+        editor.className = "transcript-editor";
+        editor.innerHTML = `<textarea></textarea>
+          <div class="transcript-editor-actions">
+            <button class="btn btn-ghost" data-action="cancel">${escapeHtml(t("transcript.cancel"))}</button>
+            <button class="btn btn-primary" data-action="save">${escapeHtml(t("transcript.save"))}</button>
+          </div>`;
+        const textarea = editor.querySelector("textarea");
+        textarea.value = before;
+        transcript.prepend(editor);
+        textarea.style.height = `${textarea.scrollHeight + 4}px`;
+        transcript.scrollTop = 0;
+        textarea.focus();
+        transcriptEditor = {
+          editor,
+          textarea,
+          before,
+          through: chunks.length
+            ? chunks[chunks.length - 1].dataset.chunkId
+            : null,
+        };
+      }
+
+      function cancelTranscriptEdit() {
+        editCovered.forEach((el) => el.classList.remove("edit-covered"));
+        editCovered = [];
+        transcriptEditor.editor.remove();
+        transcriptEditor = null;
+      }
+
+      // Show the edit at once in place of what it covers, then infer again
+      // from it. A recording session's inference arrives over its socket.
+      async function saveTranscriptEdit() {
+        const { editor, textarea, before, through } = transcriptEditor;
+        const after = textarea.value.replace(/\s+/g, " ").trim();
+        if (after === before) {
+          cancelTranscriptEdit();
+          return;
+        }
+        const covered = editCovered;
+        editCovered = [];
+        transcriptEditor = null;
+        const edited = document.createElement("span");
+        edited.className = "chunk";
+        if (through) edited.dataset.chunkId = through;
+        edited.textContent = after + " ";
+        editor.replaceWith(edited);
+        covered.forEach((el) => el.remove());
+        transcriptText = shownTranscript();
+        updateWordCount();
+        editPending = true;
+        showStatus(t("transcript.reinferring"), "info");
+        try {
+          // A stored case is inferred with its own profile, as when continuing
+          if (!isRecording) await restoreCaseMetadata();
+          const resp = await fetch("/transcript-edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              before,
+              transcript: after,
+              shown_through: through,
+              session_id: isRecording ? currentInferenceSessionId : null,
+              case_id: currentCaseId,
+            }),
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          edited.innerHTML = chunkInnerHtml(data.transcript, data.annotations);
+          if (data.inference) {
+            showInference(data.inference);
+            finalizeSessionIfSaving();
+            renderResultHero();
+          }
+        } catch (e) {
+          console.error("Transcript edit failed:", e);
+          // Unless the session was cleared meanwhile
+          if (edited.isConnected) {
+            covered.forEach((el) => el.classList.remove("edit-covered"));
+            edited.replaceWith(...covered);
+            transcriptText = shownTranscript();
+            updateWordCount();
+          }
+          showStatus(t("transcript.editFailed"), "danger");
+        } finally {
+          editPending = false;
+        }
+      }
+
+      document
+        .getElementById("editTranscriptBtn")
+        .addEventListener("click", openTranscriptEditor);
+      transcript.addEventListener("click", (e) => {
+        const action = e.target.closest("[data-action]");
+        if (!transcriptEditor || !action) return;
+        if (action.dataset.action === "save") saveTranscriptEdit();
+        else cancelTranscriptEdit();
+      });
+      transcript.addEventListener("keydown", (e) => {
+        if (!transcriptEditor) return;
+        if (e.key === "Escape") cancelTranscriptEdit();
+        else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          saveTranscriptEdit();
+        }
+      });
 
       function appendSegmentDivider(ms) {
         const when = ms ? ` · ${clockTime(ms)}` : "";
@@ -7481,7 +7698,9 @@
               if (prevLine) prevLine.remove();
 
               appendTranscriptChunk(data, true);
-              transcript.scrollTop = transcript.scrollHeight;
+              if (!transcriptEditor) {
+                transcript.scrollTop = transcript.scrollHeight;
+              }
               updateWordCount();
             } else if (data.type === "preview") {
               // Interim, not-yet-committed text (streaming backends).
@@ -7497,7 +7716,9 @@
                 transcript.appendChild(prevLine);
               }
               prevLine.textContent = data.text + " ";
-              transcript.scrollTop = transcript.scrollHeight;
+              if (!transcriptEditor) {
+                transcript.scrollTop = transcript.scrollHeight;
+              }
             } else if (data.type === "inference") {
               showInference(data);
             } else if (data.type === "warning") {
@@ -8173,6 +8394,8 @@
         caseNotes.innerHTML = "";
         transcriptText = "";
         chunkCount = 0;
+        transcriptEditor = null;
+        editCovered = [];
         transcript.innerHTML =
           '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
         inference.innerHTML = "";

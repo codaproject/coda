@@ -118,6 +118,7 @@ class CaseRecorder:
 
         self._transcripts: dict[str, TextIO] = {}
         self._chunks = self._open("chunks.jsonl", "annotations")
+        self._edits = self._open("edits.jsonl", "transcripts")
         self._inference = self._open("inference.jsonl", "inference")
         self._timing = self._open("timing.jsonl", "timing")
         self._audio: Optional[wave.Wave_write] = None
@@ -225,6 +226,29 @@ class CaseRecorder:
             "kind": "chunk", "chunk_id": chunk_id, "at": received_at, **timings,
         })
 
+    def write_edit(self, edit_id, through, before, after, annotations, live,
+                   user=None):
+        """Append an edit of the transcript inference reads to the case's
+        edit log.
+
+        The edit replaces the transcript up to and including chunk
+        ``through``, ``before`` with ``after``. ``live`` is whether it was
+        made while recording. The inference it leads to is written with the
+        same ``edit_id``.
+        """
+        record = {
+            "edit_id": edit_id,
+            "through": through,
+            "edited_at": time.time(),
+            "live": live,
+            "before": before,
+            "after": after,
+            "annotations": [a.to_json() for a in annotations],
+        }
+        if self.store.get("user"):
+            record["user"] = user
+        self._append_json(self._edits, record)
+
     def write_imported(self, text: str):
         """Write a transcript recorded elsewhere as one chunk of this case."""
         if self.store.get("transcripts"):
@@ -243,9 +267,11 @@ class CaseRecorder:
             },
         )
 
-    def write_inference(self, request: dict, result: dict, shown_at: float):
+    def write_inference(self, request: dict, result: dict, shown_at: float,
+                        edit_id=None):
         """Append an inference result. One made from clinical notes keeps the
-        notes' filenames, and their text if ``store.notes`` is set."""
+        notes' filenames, and their text if ``store.notes`` is set. One made
+        after a transcript edit keeps its ``edit_id``."""
         notes = request.get("clinical_notes")
         record = {
             "shown_at": shown_at,
@@ -257,6 +283,8 @@ class CaseRecorder:
             "reasoning": result.get("reasoning"),
             "questions": result.get("questions"),
         }
+        if edit_id is not None:
+            record["edit_id"] = edit_id
         if notes is not None:
             record["notes"] = [
                 (
@@ -275,8 +303,8 @@ class CaseRecorder:
         })
 
     def close(self, metadata: dict | None = None, user: dict | None = None):
-        for f in [*self._transcripts.values(), self._chunks, self._inference,
-                  self._timing]:
+        for f in [*self._transcripts.values(), self._chunks, self._edits,
+                  self._inference, self._timing]:
             if f is not None:
                 f.close()
         self._transcripts.clear()
@@ -366,6 +394,26 @@ def _segments(manifest: dict, case_dir: Path) -> list[dict]:
             "audio": "audio.wav" if (case_dir / "audio.wav").exists() else None,
         }
     ]
+
+
+def _apply_edits(chunks, edits):
+    """The chunks as shown after the last edit: one chunk holding its text,
+    then the chunks after the last one it covered."""
+    if not edits:
+        return chunks
+    edit = edits[-1]
+    chunks = chunks or []
+    ids = [chunk["chunk_id"] for chunk in chunks]
+    covered = ids.index(edit["through"]) + 1 if edit["through"] in ids \
+        else len(chunks)
+    edited = {
+        "chunk_id": edit["through"] or edit["edit_id"],
+        "timestamp": edit["edited_at"],
+        "text": edit["after"],
+        "annotations": edit["annotations"],
+        "segment": chunks[covered - 1].get("segment", 0) if covered else 0,
+    }
+    return [edited, *chunks[covered:]]
 
 
 def _read_case(case_dir: Path) -> \
@@ -536,7 +584,8 @@ def list_cases() -> list[dict]:
 def load_case(case_id: str) -> dict | None:
     """Everything stored for one case, or None if there is no such case.
 
-    ``chunks`` and ``inference`` are None when that item was not stored. The
+    ``chunks`` are as shown after the last transcript edit. ``chunks``,
+    ``inference`` and ``edits`` are None when not stored. The
     case profile is written when a case closes, so for one that never closed
     it is taken from the last inference request. ``notes`` are the clinical
     notes of the last inference made from them.
@@ -545,6 +594,8 @@ def load_case(case_id: str) -> dict | None:
     if case_dir is None:
         return None
     manifest, chunks, inference = _read_case(case_dir)
+    edits = _read_jsonl(case_dir / "edits.jsonl")
+    shown = _apply_edits(chunks, edits)
     note_inferences = [record for record in inference or []
                        if record.get("source") == "clinical_note"]
     return {
@@ -553,14 +604,15 @@ def load_case(case_id: str) -> dict | None:
         "run_info": manifest.get("run_info"),
         "pauses": manifest.get("pauses", []),
         "segments": _parts(case_dir, manifest),
-        "chunks": [_display_chunk(c) for c in chunks]
-        if chunks is not None else None,
+        "chunks": [_display_chunk(c) for c in shown]
+        if shown is not None else None,
         "transcripts": {
             path.stem.removeprefix("transcript_"):
             path.read_text(encoding="utf-8")
             for path in sorted(case_dir.glob("transcript_*.txt"))
         },
         "inference": inference,
+        "edits": edits,
         "notes": note_inferences[-1].get("notes", [])
         if note_inferences else [],
     }

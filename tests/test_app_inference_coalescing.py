@@ -244,3 +244,26 @@ async def test_seed_is_sent_again_when_inference_was_unreachable(monkeypatch):
     coordinator.seed = None
     await server.process_inference(coordinator, 7, batch, buffer_wait_s=0.0)
     assert coordinator.seed is None
+
+
+@pytest.mark.asyncio
+async def test_restart_infers_on_edited_transcript_then_unshown_text(monkeypatch):
+    batches = []
+
+    async def fake_process_inference(session, request_generation, batch, buffer_wait_s):
+        batches.append((request_generation, batch.text, batch.edit_id))
+
+    async def fake_reset(session_id, generation):
+        return None
+
+    monkeypatch.setattr(server, "process_inference", fake_process_inference)
+    monkeypatch.setattr(server, "_reset_inference_session", fake_reset)
+    coordinator = server.InferenceSessionCoordinator(DummyWebSocket(), session_id="session-a")
+    coordinator.committed = [("c1", "fever"), ("c2", "for days"), ("c3", "then cough")]
+    coordinator.buffer.add("then cough", [], "c3", 3.0)
+
+    await coordinator.restart("high fever for days", "c2", "e1")
+    await coordinator.wait_for_idle()
+
+    assert batches == [(1, "high fever for days then cough", "e1")]
+    assert not coordinator.buffer.has_pending

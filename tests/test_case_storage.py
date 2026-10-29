@@ -929,3 +929,53 @@ async def test_notes_are_not_stored_without_storage(offline_server,
     assert result["case_id"] is None
     assert list(tmp_path.iterdir()) == []
 
+
+
+def test_load_case_shows_last_edit_then_later_chunks(storage_dir):
+    recorder = record_case("aaaa0001", close=False)
+    recorder.write_chunk("c2", 2.0, "then a cough", [], {})
+    recorder.write_edit("e1", "c1", "fever for three days",
+                        "fever for four days", [], live=True)
+    recorder.write_edit("e2", "c1", "fever for four days",
+                        "fever for five days", [], live=True)
+    recorder.close(PROFILE)
+
+    case = load_case(recorder.case_id)
+    assert [c["transcript"] for c in case["chunks"]] == \
+        ["fever for five days", "then a cough"]
+    assert case["chunks"][0]["chunk_id"] == "c1"
+    assert case["chunk_count"] == 2
+    assert [e["edit_id"] for e in case["edits"]] == ["e1", "e2"]
+
+
+@pytest.mark.asyncio
+async def test_edit_after_recording_infers_and_is_stored(offline_server,
+                                                         storage_dir,
+                                                         monkeypatch):
+    recorder = record_case("aaaa0001")
+    posted = []
+
+    async def fake_post(path, json):
+        posted.append((path, json["text"]))
+        return FakeResponse({"causes": {"icd10:A41.9": SEPSIS}})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    result = await server.edit_transcript(server.TranscriptEditRequest(
+        before="fever for three days", transcript=" fever for  five days ",
+        shown_through="c1", case_id=recorder.case_id))
+
+    assert result["transcript"] == "fever for five days"
+    assert result["inference"]["causes"] == {"icd10:A41.9": SEPSIS}
+    assert posted == [("/infer", "fever for five days")]
+    case = load_case(recorder.case_id)
+    assert case["chunks"][0]["transcript"] == "fever for five days"
+    assert case["top_cause"] == SEPSIS
+    assert len(case["segments"]) == 1
+    [edit] = case["edits"]
+    assert edit["before"] == "fever for three days"
+    assert edit["after"] == "fever for five days"
+    assert edit["through"] == "c1"
+    assert edit["live"] is False
+    assert edit["user"] == {}
+    assert case["inference"][-1]["edit_id"] == edit["edit_id"]
