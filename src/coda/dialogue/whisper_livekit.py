@@ -1,11 +1,14 @@
 import asyncio
 import contextlib
 import logging
+import math
 import time
 import uuid
 from typing import AsyncIterator
 
 from . import StreamingTranscriber, TranscriptEvent
+from .finetuned_whisper import FINETUNED_LANGUAGES, FINETUNED_MODELS, \
+    decode_options, get_model_path
 from .util import get_whisper_languages
 
 # Model size used when none is supplied (matches the other backends).
@@ -32,7 +35,11 @@ def _events_from_response(msg: dict, state: dict):
         prev = emitted.get(start, "")
         if text == prev:
             continue
-        delta = text[len(prev):].strip() if text.startswith(prev) else text
+        if text.startswith(prev):
+            delta = text[len(prev):].strip()
+        else:
+            logger.warning("WhisperLiveKit revised the line at %s", start)
+            delta = text
         emitted[start] = text
         if delta:
             yield TranscriptEvent(id=uuid.uuid4().hex, timestamp=time.time(),
@@ -45,6 +52,25 @@ def _events_from_response(msg: dict, state: dict):
     state["preview"] = buf
 
 
+def _disable_text_conditioning(asr):
+    """Decode each buffer of a LocalAgreement ASR without its previous text.
+
+    The backends always prompt with the committed text and condition on it,
+    which sends some fine-tunes into repetition loops. The faster-whisper
+    backend holds a WhisperModel, the MLX one a transcribe function.
+    """
+    def unconditioned(decode):
+        def wrapper(audio, **kwargs):
+            kwargs.update(initial_prompt=None, condition_on_previous_text=False)
+            return decode(audio, **kwargs)
+        return wrapper
+
+    if hasattr(asr.model, "transcribe"):
+        asr.model.transcribe = unconditioned(asr.model.transcribe)
+    else:
+        asr.model = unconditioned(asr.model)
+
+
 class WhisperLiveKitTranscriber(StreamingTranscriber):
     """Streaming backend running WhisperLiveKit's engine in-process.
 
@@ -55,9 +81,9 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     `faster-whisper` backend; the engine (model) is loaded once and shared.
     """
     MODELS = ("tiny", "base", "small", "medium",
-              "large", "large-v2", "large-v3")
+              "large", "large-v2", "large-v3", *FINETUNED_MODELS)
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
-    LANGUAGES = get_whisper_languages()
+    LANGUAGES = {**get_whisper_languages(), **FINETUNED_LANGUAGES}
 
     @classmethod
     def create(cls, model=None):
@@ -65,26 +91,25 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
 
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
         from coda.config import settings
-        self._model_size = model_size
-        self._settings = settings.dialogue.whisper_livekit
-        self._language = settings.dialogue.language
-        self._engine = self._build_engine(self._language)
-
-    def _build_engine(self, language: str):
-        from whisperlivekit import TranscriptionEngine
-        # TranscriptionEngine is a singleton whose __init__ short-circuits once
-        # initialized, and its language is fixed at construction. Resetting is
-        # the only way to load a different one.
-        TranscriptionEngine.reset()
-        return TranscriptionEngine(
-            model_size=self._model_size,
-            lan=language,
-            backend=self._settings.backend,
-            backend_policy=self._settings.policy,
-            confidence_validation=self._settings.confidence_validation,
-            buffer_trimming_sec=self._settings.buffer_trimming_sec,
+        wlk = settings.dialogue.whisper_livekit
+        # The language is fixed when the engine is built, so this backend
+        # transcribes whatever dialogue.language was set to at startup and
+        # ignores the per-stream language argument.
+        lan, condition = decode_options(model_size, settings.dialogue.language)
+        if model_size in FINETUNED_MODELS:
+            mlx = wlk.backend == "mlx-whisper"
+            model = {"model_dir": get_model_path(model_size, mlx=mlx)}
+        else:
+            model = {"model_size": model_size}
+        self._engine = TranscriptionEngine(
+            **model,
+            lan=lan,
+            backend=wlk.backend,
+            backend_policy=wlk.policy,
             pcm_input=True,
         )
+        if not condition and wlk.policy == "localagreement":
+            _disable_text_conditioning(self._engine.asr)
 
     def _engine_for(self, language: str):
         """Return an engine transcribing `language`, rebuilding if it changed.
@@ -104,8 +129,10 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
                      language: str = "en",
                      task: str = "transcribe") -> AsyncIterator[TranscriptEvent]:
         from whisperlivekit import AudioProcessor
-        processor = AudioProcessor(
-            transcription_engine=self._engine_for(language))
+        processor = AudioProcessor(transcription_engine=self._engine)
+        # Keep every committed word, so each line only grows under the same
+        # start. Dropping old words would re-key a long line and resend it.
+        processor.tokens_alignment._retention_seconds = math.inf
         results = await processor.create_tasks()
         forwarder = asyncio.create_task(self._forward(processor, audio))
         state = {"emitted": {}, "preview": ""}

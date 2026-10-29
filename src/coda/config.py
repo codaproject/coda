@@ -63,12 +63,15 @@ settings = Dynaconf(
         Validator("grounder.rag.reranker.enabled", cast=bool),
         Validator(
             "storage.enabled",
+            "storage.browse",
             "storage.store.audio",
             "storage.store.transcripts",
             "storage.store.annotations",
             "storage.store.inference",
             "storage.store.metadata",
             "storage.store.timing",
+            "storage.store.notes",
+            "storage.store.user",
             cast=bool,
         ),
         # And the other direction: keep these text. Dynaconf infers types, so a

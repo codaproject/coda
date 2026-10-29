@@ -1,15 +1,19 @@
 """Language-independent ASR scoring."""
 
 
-def levenshtein_ops(reference, hypothesis):
-    """Return substitutions, deletions, insertions, and reference length."""
+def levenshtein_ops(reference, hypothesis, free_lead_in=False):
+    """Return substitutions, deletions, insertions, and reference length.
+
+    With free_lead_in, hypothesis tokens before the first reference token are
+    not counted as insertions.
+    """
     n, m = len(reference), len(hypothesis)
     distance = [[0] * (m + 1) for _ in range(n + 1)]
     operation = [[None] * (m + 1) for _ in range(n + 1)]
     for i in range(1, n + 1):
         distance[i][0], operation[i][0] = i, "D"
     for j in range(1, m + 1):
-        distance[0][j], operation[0][j] = j, "I"
+        distance[0][j], operation[0][j] = 0 if free_lead_in else j, "I"
     for i in range(1, n + 1):
         for j in range(1, m + 1):
             if reference[i - 1] == hypothesis[j - 1]:
@@ -26,6 +30,8 @@ def levenshtein_ops(reference, hypothesis):
     i, j = n, m
     substitutions = deletions = insertions = 0
     while i or j:
+        if free_lead_in and not i:
+            break
         op = operation[i][j]
         if op == "E":
             i, j = i - 1, j - 1
@@ -40,18 +46,18 @@ def levenshtein_ops(reference, hypothesis):
     return substitutions, deletions, insertions, n
 
 
-def wer_details(reference, hypothesis, normalize):
+def wer_details(reference, hypothesis, normalize, free_lead_in=False):
     """Return WER, S, D, I, N, and accuracy after normalization."""
     r, h = normalize(reference).split(), normalize(hypothesis).split()
-    s, d, i, n = levenshtein_ops(r, h)
+    s, d, i, n = levenshtein_ops(r, h, free_lead_in)
     errors = s + d + i
     return (errors / n if n else float("nan"), s, d, i, n,
             (n - errors) / n if n else float("nan"))
 
 
-def cer(reference, hypothesis, normalize):
+def cer(reference, hypothesis, normalize, free_lead_in=False):
     """Return character error rate after normalization."""
     r = list(normalize(reference).replace(" ", ""))
     h = list(normalize(hypothesis).replace(" ", ""))
-    s, d, i, n = levenshtein_ops(r, h)
+    s, d, i, n = levenshtein_ops(r, h, free_lead_in)
     return (s + d + i) / n if n else float("nan")

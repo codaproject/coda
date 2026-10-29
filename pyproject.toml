@@ -54,6 +54,9 @@ dependencies = [
     "flair>=0.15.1",
     "wtpsplit-lite",
     "dynaconf>=3.3.3",
+    "pypdf",
+    "pypdfium2",
+    "pillow",
 ]
 
 [project.optional-dependencies]
@@ -96,6 +99,9 @@ where = ["src"]
 [tool.setuptools.package-data]
 "coda.app" = ["templates/*.html"]
 "coda.grounding.rag_grounder" = ["grounder_config/*.yaml", "prompt_configs/*.yaml"]
+"coda.inference.champs_prompted" = ["prompts/*.txt", "prompts/icd10/*.txt",
+                                     "prompts/icd11/*.txt",
+                                     "prompts/icd11/*.yaml"]
 "coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]

@@ -16,6 +16,8 @@ which is somwhat different from the WHO listing, potentially
 due to updates (the paper is from 2012 whereas the latest WHO VA
 standard is from 2016).
 """
+import re
+
 import pandas as pd
 from coda.kg.sources import KGSourceExporter, write_tsv_gz
 from openacme.icd10 import Icd10Graph
@@ -68,15 +70,22 @@ class WhoVaExporter(KGSourceExporter):
 
             # Parse ICD codes
             if pd.notna(icd10_codes) and icd10_codes.strip():
-                for code_part in icd10_codes.split(";"):
-                    code_part = code_part.strip()
+                # Codes and ranges are separated by semicolons or commas,
+                # and some are in parentheses
+                for code_part in re.split(r"[;,]", icd10_codes):
+                    code_part = code_part.strip().strip("()")
+                    if not code_part:
+                        continue
                     if "-" in code_part:
                         start_code, end_code = code_part.split("-", 1)
                         codes = icd10_graph.expand_icd10_range(
                             start_code.strip(), end_code.strip()
                         )
                     else:
-                        codes = [code_part]
+                        # A code also covers its subcodes
+                        codes = icd10_graph.expand_icd10_range(
+                            code_part, code_part
+                        ) or [code_part]
 
                     for code in codes:
                         icd10_curie = f"icd10:{code}"

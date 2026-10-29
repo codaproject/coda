@@ -6,14 +6,17 @@ from pathlib import Path
 
 
 # Delivered formats differ per language, and some arrive with upper case suffixes
-AUDIO_SUFFIXES = {".m4a", ".mp3", ".wav", ".flac", ".ogg", ".opus"}
+AUDIO_SUFFIXES = {".m4a", ".mp3", ".mp4", ".wav", ".flac", ".ogg", ".opus"}
 
 
 @dataclass(frozen=True)
 class Sample:
     case_id: str
     audio_path: Path
+    # None until a reference transcript is supplied
     reference: str
+    # Recording set, for datasets with more than one recording per case
+    recording_set: str = ""
 
 
 def read_references(path, text_keys):
@@ -34,19 +37,23 @@ def read_references(path, text_keys):
     return cases
 
 
-def match_recordings(audio_dir, references, identify):
-    """Require one recording per supplied reference and reject unmatched audio."""
+def match_recordings(audio_dir, references, identify, recording_set=""):
+    """Require one recording per supplied reference and reject unmatched audio.
+
+    With references None, every recording is accepted without a reference.
+    """
     samples = {}
     for path in sorted(audio_dir.iterdir()):
         if path.suffix.lower() not in AUDIO_SUFFIXES:
             continue
         case_id = identify(path)
-        if case_id not in references:
+        if references is not None and case_id not in references:
             raise ValueError(f"No reference for recording {path}")
         if case_id in samples:
             raise ValueError(f"Duplicate recording for {case_id!r}: {path}")
-        samples[case_id] = Sample(case_id, path, references[case_id])
-    missing = references.keys() - samples.keys()
+        reference = references[case_id] if references is not None else None
+        samples[case_id] = Sample(case_id, path, reference, recording_set)
+    missing = (references or {}).keys() - samples.keys()
     if missing:
         raise ValueError(f"Missing recordings in {audio_dir}: {sorted(missing)}")
     if not samples:
@@ -56,10 +63,11 @@ def match_recordings(audio_dir, references, identify):
 
 def load_samples(language, data_dir=None):
     """Load a dataset identified by its BCP 47 language tag."""
-    from languages import bn, pt_br, ts
+    from languages import bn, pt_br, st, syl, ts, zu
 
     loaders = {"bn": bn.load_samples, "pt_br": pt_br.load_samples,
-               "ts": ts.load_samples}
+               "ts": ts.load_samples, "zu": zu.load_samples,
+               "st": st.load_samples, "syl": syl.load_samples}
     if language not in loaders:
         raise ValueError(f"Unknown dataset language {language!r}; choose {list(loaders)}")
     data_dir = Path(data_dir) if data_dir is not None else Path(__file__).parent / "data"

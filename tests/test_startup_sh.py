@@ -38,8 +38,12 @@ def _run_startup_script(tmp_path: Path, env_contents: str, extra_env: dict[str, 
 
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
+    ready_dir = tmp_path / "ready"
+    ready_dir.mkdir()
     log_path = tmp_path / "startup.log"
 
+    # A fake service's port answers health checks only after its fake python
+    # has logged, so the launch order is decided by startup.sh's health gating.
     _write_executable(
         fake_bin / "python",
         """#!/usr/bin/env bash
@@ -51,22 +55,33 @@ printf 'runtime|OLLAMA_BASE_URL=%s|KG_URL=%s|RAG_PROVIDER=%s|RAG_MODEL=%s|RAG_ON
   "${CODA_LLM__OLLAMA__BASE_URL:-}" "${CODA_KG__URL:-}" "${CODA_GROUNDER__RAG__LLM__PROVIDER:-}" \
   "${CODA_GROUNDER__RAG__LLM__MODEL:-}" "${CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY:-}" \
   "${CODA_GROUNDER__RAG__RERANKER__ENABLED:-}" "${CODA_DIALOGUE__DEVICE:-}" >> "${TEST_LOG}"
-exit 0
+if [ "$2" = "coda.inference.agent" ]; then
+  port="${CODA_INFERENCE__PORT}"
+else
+  port="${CODA_APP__PORT}"
+fi
+touch "${TEST_READY_DIR}/${port}"
 """,
     )
     _write_executable(
         fake_bin / "curl",
         """#!/usr/bin/env bash
 set -euo pipefail
-last="${@: -1}"
-printf 'curl|%s\\n' "${last}" >> "${TEST_LOG}"
-exit 0
+url="${@: -1}"
+printf 'curl|%s\\n' "${url}" >> "${TEST_LOG}"
+port="${url##*:}"
+port="${port%%/*}"
+if [ -f "${TEST_READY_DIR}/${port}" ]; then
+  exit 0
+fi
+# curl's "failed to connect" exit code
+exit 7
 """,
     )
     _write_executable(
         fake_bin / "sleep",
         """#!/usr/bin/env bash
-exit 0
+exec /bin/sleep 0.01
 """,
     )
 
@@ -75,6 +90,7 @@ exit 0
         env.pop(env_var, None)
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
     env["TEST_LOG"] = str(log_path)
+    env["TEST_READY_DIR"] = str(ready_dir)
     if extra_env:
         env.update(extra_env)
 
@@ -85,6 +101,7 @@ exit 0
         capture_output=True,
         text=True,
         check=True,
+        timeout=30,
     )
 
     lines = log_path.read_text(encoding="utf-8").splitlines()

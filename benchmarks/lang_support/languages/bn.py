@@ -7,6 +7,7 @@ from dataset_io import match_recordings, read_references
 ASR_LANGUAGE = "bn"
 
 BENGALI_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+ZERO_WIDTH_JOINERS = dict.fromkeys(map(ord, "\u200c\u200d"))
 BENGALI_CARDINAL_WORDS = {
     "শূন্য": "0", "এক": "1", "দুই": "2", "দু": "2", "দো": "2",
     "তিন": "3", "চার": "4", "চারি": "4", "পাঁচ": "5",
@@ -25,8 +26,11 @@ def normalize(text, strip_accents=False):
     """Preserve Bengali marks while removing punctuation and folding numerals.
 
     strip_accents is accepted for a uniform signature across languages and has
-    no meaning for Bengali, where combining marks carry the vowels.
+    no meaning for Bengali, where combining marks carry the vowels. NFC
+    decomposes precomposed nukta letters such as য় so both spellings match,
+    and zero width joiners, which only select a glyph as in র‍্য, are dropped.
     """
+    text = unicodedata.normalize("NFC", text).translate(ZERO_WIDTH_JOINERS)
     text = "".join(
         " " if unicodedata.category(char).startswith("P") else char
         for char in text
@@ -35,11 +39,22 @@ def normalize(text, strip_accents=False):
     return " ".join(BENGALI_CARDINAL_WORDS.get(word, word) for word in text.split())
 
 
+# Two independent translations of the cases, each recorded separately, as
+# set to (reference file, case_id from recording path), with audio under
+# audio/<set>
+RECORDING_SETS = {
+    "set1": ("cases_bn_filtered.json",
+             lambda path: path.stem.removeprefix("cod-case_id_")),
+    "set2": ("cases_bn_set2.json",
+             lambda path: path.stem.removesuffix("_bn")),
+}
+
+
 def load_samples(directory):
-    references = read_references(
-        directory / "references" / "cases_bn_filtered.json", ("bn_narrative",)
-    )
-    return match_recordings(
-        directory / "audio", references,
-        lambda path: path.stem.removeprefix("cod-case_id_"),
-    )
+    samples = []
+    for name, (references, identify) in RECORDING_SETS.items():
+        references = read_references(
+            directory / "references" / references, ("bn_narrative",))
+        samples += match_recordings(directory / "audio" / name, references,
+                                    identify, name)
+    return samples

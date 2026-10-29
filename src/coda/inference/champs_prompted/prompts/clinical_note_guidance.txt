@@ -1,0 +1,3 @@
+## CLINICAL NOTE
+The **INPUT** may contain one or more <clinical_note> blocks, each holding the contents of one file, with the file's name in its `filename` attribute. The file name can hint at what kind of record the block is (e.g. discharge summary, lab results). Treat clinical notes as authoritative supplementary clinical evidence recorded at the time of care. They take precedence over the verbal autopsy narrative when the two conflict.
+Use them in Step 2 to ground your reasoning with specific clinical findings, diagnoses, or lab results mentioned in the notes.

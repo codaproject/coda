@@ -4,7 +4,9 @@ A fake transcribe_file lets us exercise transcribe_audio without loading a
 real Whisper model or any network/grounder.
 """
 import asyncio
+import math
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -15,8 +17,10 @@ from coda.dialogue import (
     TranscriptEvent,
 )
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
+from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
-from coda.dialogue.whisper_livekit import _events_from_response
+from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
+    _events_from_response
 
 
 class _FakeTranscriber(ChunkedTranscriber):
@@ -91,6 +95,22 @@ def test_faster_whisper_filter_uses_higher_threshold_non_english():
         "segments": [{"text": "জ্বর ছিল", "no_speech_prob": 0.7}],
     }
     assert transcriber._filter_segments(result, language="bn") == "জ্বর ছিল"
+
+
+def test_finetuned_models_selectable():
+    for cls in (FasterWhisperTranscriber, WhisperLiveKitTranscriber):
+        for model, language in (("anv-tso-turbo", "ts"),
+                                ("anv-zul-turbo", "zu"),
+                                ("anv-sot-turbo", "st")):
+            assert model in cls.MODELS
+            assert cls.normalize_language(language) == language
+
+
+def test_decode_options():
+    assert decode_options("anv-tso-turbo", "ts") == ("sw", False)
+    assert decode_options("anv-zul-turbo", "zu") == ("en", False)
+    assert decode_options("small", "ts") == ("ts", True)
+    assert decode_options("small", "en") == ("en", True)
 
 
 def test_indic_conformer_backend_registered():
@@ -185,3 +205,49 @@ def test_whisper_livekit_events_from_response():
     assert committed == ["hello there", "how are you", "fine thanks"]
     assert previews == ["how are", "today"]
     assert all(e.committed in (True, False) for e in events)
+
+
+def test_whisper_livekit_unbounded_retention_keeps_words():
+    from whisperlivekit.timed_objects import ASRToken
+    from whisperlivekit.tokens_alignment import TokensAlignment
+
+    alignment = TokensAlignment(None, SimpleNamespace(diarization=False), None)
+    alignment._retention_seconds = math.inf
+    alignment.all_tokens = [ASRToken(0, 1, "fever"), ASRToken(900, 901, "cough")]
+    alignment.current_line_tokens = list(alignment.all_tokens)
+    alignment._prune()
+    assert len(alignment.current_line_tokens) == 2
+
+
+async def test_whisper_livekit_stream_keeps_every_word(monkeypatch):
+    import whisperlivekit
+
+    processors = []
+
+    class FakeAudioProcessor:
+        def __init__(self, transcription_engine):
+            self.tokens_alignment = SimpleNamespace()
+            processors.append(self)
+
+        async def create_tasks(self):
+            async def results():
+                return
+                yield
+            return results()
+
+        async def process_audio(self, data):
+            pass
+
+        async def cleanup(self):
+            pass
+
+    async def audio():
+        return
+        yield
+
+    monkeypatch.setattr(whisperlivekit, "AudioProcessor", FakeAudioProcessor)
+    transcriber = WhisperLiveKitTranscriber.__new__(WhisperLiveKitTranscriber)
+    transcriber._engine = None
+    assert [e async for e in transcriber.stream(audio())] == []
+    [processor] = processors
+    assert processor.tokens_alignment._retention_seconds == math.inf

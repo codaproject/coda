@@ -8,6 +8,8 @@ from typing import ClassVar
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from coda.inference.champs_prompted.icd11_agent import age_group
+
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
 jinja_env = Environment(
@@ -65,6 +67,78 @@ class MenuPrompt:
                 return label
 
         return None
+
+
+# CHAMPS age group descriptions, by age group
+AGE_GROUPS = {
+    "stillbirth": "stillbirth",
+    "less24hours": "death in the first 24 hours",
+    "earlyneonate": "early neonate (1 to 6 days)",
+    "lateneonate": "late neonate (7 to 27 days)",
+    "infant": "infant (28 days to less than 12 months)",
+    "child": "child (12 months to less than 60 months)",
+}
+SEXES = {"female": "female", "male": "male",
+         "ambiguous": "indeterminate or ambiguous"}
+HIV_ABSTRACTIONS = {"positive": "HIV infection: Yes",
+                    "negative": "HIV infection: No",
+                    "exposed": "HIV exposure: Yes"}
+
+
+def age_components(age):
+    """Return the CHAMPS age fields of an age, as parts that add up."""
+    value = age.value
+    if age.unit == "years":
+        return [("Age in Years", int(value))]
+    if age.unit == "months":
+        years, months = divmod(int(value), 12)
+        return [("Age in Years", years), ("Age in Months", months)]
+    if age.unit == "days":
+        return [("Age in Years", 0), ("Age in Months", 0),
+                ("Age in days", float(value))]
+    if age.unit == "hours":
+        days, hours = divmod(float(value), 24)
+        return [("Age in Years", 0), ("Age in Months", 0),
+                ("Age in days", days), ("Age in hours", hours)]
+    return []
+
+
+def render_profile_evidence(profile):
+    """Return the CHAMPS demographics lines of a decedent profile."""
+    if profile is None:
+        return ""
+    fields = []
+    if profile.sex:
+        fields.append(("Sex", SEXES[profile.sex]))
+    if profile.date_of_death:
+        fields.append(("De-Identified Date of Death", profile.date_of_death))
+    if profile.age and not profile.stillbirth:
+        fields += age_components(profile.age)
+    if group := age_group(profile):
+        fields.append(("Age Grouping of the CHAMPS Case", AGE_GROUPS[group]))
+    if profile.weight_kg_death:
+        fields.append(("Weight in kilograms", profile.weight_kg_death))
+    if profile.muac_cm_death:
+        fields.append(("Mid-upper arm circumference in centimeters",
+                       profile.muac_cm_death))
+    if profile.birth_weight_g:
+        fields.append(("Birth weight (grams)", profile.birth_weight_g))
+    return "\n".join(f"- {label}: {value}" for label, value in fields)
+
+
+def render_profile_abstraction(profile):
+    """Return the CHAMPS clinical abstraction lines of a decedent profile."""
+    if profile is None:
+        return ""
+    lines = []
+    if line := HIV_ABSTRACTIONS.get(profile.hiv_status):
+        lines.append(line)
+    if profile.weight_kg_admission:
+        lines.append(f"Weight (kilograms): {profile.weight_kg_admission:g}")
+    if profile.muac_cm_admission:
+        lines.append("Mid-upper arm circumference (cm): "
+                     f"{profile.muac_cm_admission:g}")
+    return "\n".join(lines)
 
 
 def build_menu_prompt(

@@ -1,0 +1,86 @@
+# Age-group-specific clinical guidance for ICD-11 constrained decoding.
+# Each key maps to a list of max-3 bullet points injected into the system
+# prompt under ## AGE-GROUP GUIDANCE.  All codes verified against icd11_graph.json.
+
+infant:
+  - "Pneumonia is a leading cause — use pathogen-specific codes (CA40.07 Streptococcus
+    pneumoniae, CA40.03 Klebsiella, CA40.11 RSV) when lab/TAC supports a specific
+    organism; reserve CA40.Z for non-specific etiology."
+  - "Malnutrition may be the underlying cause even when infection drives the terminal
+    event — use 5B51 (wasting) or 5B52 (acute malnutrition) when nutritional deficiency
+    is a primary contributor; use 5B7Z when type is unspecified."
+  - "For malaria, use 1F40.0 only when cerebral complications are documented; use 1F40.Y
+    for other severe/complicated Plasmodium falciparum malaria without cerebral involvement."
+
+child:
+  - "Malnutrition is a common underlying cause even when infection drives the terminal
+    event — do not let pneumonia (CA40.07, CA40.Z) or bacterial infection (1C41) displace
+    malnutrition as the underlying cause. Use 5B51 (wasting) when records document severe
+    weight loss, low weight-for-height, or low MUAC without oedema — this is the default
+    malnutrition code when wasting is the clinical picture. Use 5B52 (acute malnutrition)
+    only when oedematous malnutrition (kwashiorkor) is explicitly documented. Use 5B7Z
+    when malnutrition type is unspecified."
+  - "For malaria: use 1F40.0 only when cerebral malaria or CNS involvement is explicitly
+    documented (coma, seizures, cerebral signs); use 1F40.Y for other severe/complicated
+    Plasmodium falciparum without CNS involvement. Do not assign malaria codes when lab
+    evidence is absent — when haematological findings dominate without confirmed
+    parasitaemia, consider sickle cell disease (3A51.1 without crisis, 3A51.2 with
+    crisis) as the underlying cause."
+  - "For non-infectious underlying causes: assign cerebral palsy (8D2Z) when a chronic
+    non-progressive neurological deficit is documented — do not reclassify as wasting
+    (5B51) or ill-defined (MH14). For HIV, use 1C62.3Y for stage 4 and 1C62.2 for stage
+    3 when staging evidence is available; use 1C62.Z only when clinical stage is
+    unspecified."
+
+earlyneonate:
+  - "Use weight-specific low birth weight codes when birth weight is documented (KA21.01/02
+    extremely low 500-999g, KA21.10/11 very low 1000-1499g, KA21.20 low 1500-1999g);
+    use KA21.4Z (preterm newborn, unspecified) only when gestational age confirms prematurity
+    but weight is unavailable."
+  - "Distinguish respiratory causes carefully: RDS (KB23.0Y/Z) is prematurity-related
+    hyaline membrane disease; congenital pneumonia (KB24) implies infection acquired before
+    or during birth; birth asphyxia (KB21.0 severe, KB21.1 mild-moderate, KB21.Z
+    unspecified) requires documented intrapartum oxygen deprivation with clinical signs;
+    use KB04 (hypoxic ischaemic encephalopathy) when HIE is the dominant documented
+    sequela; intrauterine hypoxia (KB20.x) applies when fetal compromise precedes delivery
+    without meeting postnatal asphyxia criteria."
+  - "Reserve KA60 (sepsis of fetus or newborn) when systemic infection is the primary
+    diagnosis; if prematurity or birth asphyxia dominates, assign those as the underlying
+    cause even when sepsis co-exists."
+
+lateneonate:
+  - "Prematurity complications (KA21.xx weight-specific, KA21.4Z unspecified preterm)
+    remain a leading underlying cause in the late neonatal period — do not reclassify to
+    community causes if death is a delayed consequence of preterm birth."
+  - "Late-onset sepsis (KA60) is appropriate when systemic infection signs dominate without
+    a localised focus; use CA40.03 (Klebsiella pneumoniae) or CA40.Z (organism unspecified)
+    when respiratory signs localise the infection to the lungs."
+  - "Birth asphyxia (KB21.x) and perinatal hypoxia (KB20.x) remain valid underlying causes
+    when death results from late complications of a documented perinatal insult at delivery."
+
+less24hours:
+  - "Distinguish birth asphyxia (KB21.0 severe, KB21.1 mild-moderate, KB21.Z unspecified —
+    intrapartum oxygen deprivation with Apgar/resuscitation evidence) from intrauterine
+    hypoxia (KB20.0 before onset of labour, KB20.1 during labour/delivery, KB20.Z
+    unspecified — fetal distress without postnatal survival sufficient for full asphyxia
+    assessment)."
+  - "Use weight-specific prematurity/LBW codes (KA21.01/02 extremely low) when birth weight
+    is documented and prematurity drives the death; use KA21.4Z when gestational age confirms
+    preterm but weight is unavailable."
+  - "Prioritise congenital anomalies (LA00.0Z anencephaly, LA00.00 craniorachischisis, LD2Z
+    multiple anomalies) as the underlying cause when structural defects are incompatible with
+    life, even if birth asphyxia or respiratory failure is the immediate cause."
+
+stillbirth:
+  - "Intrauterine hypoxia is the most common underlying cause — use KB20.0 (before onset of
+    labour), KB20.1 (during labour/delivery), or KB20.Z (timing unspecified); use KD3B.0
+    (antepartum fetal death) or KD3B.Z (time of death and cause both unspecified) only when
+    the underlying cause is entirely unknown."
+  - "Prioritise congenital infections (1A60.Z congenital syphilis, KA62.3 congenital CMV)
+    when lab/TAC confirms maternal or fetal infection; use KA60 (sepsis of fetus or newborn)
+    when systemic fetal infection is suspected without a confirmed pathogen; use KA6Z
+    (infections of fetus or newborn, unspecified) when infection type is entirely unspecified."
+  - "Congenital anomalies (LA00.0Z anencephaly, LA00.00 craniorachischisis, LA02.00
+    myelomeningocele with hydrocephalus, LA04.Z congenital hydrocephalus, LD2Z/LD9Z other
+    anomalies) take precedence as the underlying cause when structural defects are identified
+    at pathology, even if intrauterine hypoxia was the final event."

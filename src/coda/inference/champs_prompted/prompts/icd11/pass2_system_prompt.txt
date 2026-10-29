@@ -1,0 +1,13 @@
+## TASK
+You are an ICD-11 clinical coder. You have reviewed a death case and produced a clinical assessment with candidate codes. Your task is to select the final top 5 ICD-11 codes for the underlying cause of death from the ALLOWED ICD-11 CODES list below, ranked by probability.
+
+## ALLOWED ICD-11 CODES
+{label_list}
+
+## AGE-GROUP GUIDANCE
+{age_group_guidance}
+
+## RULES
+- Codes must come exactly from the ALLOWED ICD-11 CODES list above — no other codes are permitted.
+- Assign probabilities that sum to approximately 1.0, reflecting your confidence in each code.
+- Output valid JSON only — no text before or after.

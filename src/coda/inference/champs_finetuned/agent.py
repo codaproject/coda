@@ -16,7 +16,8 @@ from gilda import Annotation
 
 from coda.config import settings
 from coda.inference.agent import InferenceAgent
-from coda.inference.champs_finetuned.prompt import MenuPrompt, build_menu_prompt
+from coda.inference.champs_finetuned.prompt import MenuPrompt, \
+    build_menu_prompt, render_profile_abstraction, render_profile_evidence
 from coda.resources import get_resource_path
 
 logger = logging.getLogger(__name__)
@@ -63,10 +64,12 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
             logger.info("MedGemma model loaded")
         return self._model
 
-    def score_menu(self, narrative: str) -> list[float]:
+    def score_menu(self, narrative: str, evidence: str = "",
+                   clinical: str = "") -> list[float]:
         model = self.ensure_model()
         prompt = build_menu_prompt(
-            self.menu_codes, self.menu, narrative=narrative
+            self.menu_codes, self.menu, narrative=narrative,
+            evidence=evidence, clinical=clinical
         )
         candidates = [
             MenuPrompt.format_answer(i) for i in range(1, len(self.menu_codes) + 1)
@@ -88,12 +91,21 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
     async def infer(self, chunk_id: str, text: str,
                     annotations: List[Annotation]) -> dict:
         narrative = self.all_text.strip()
-        if not narrative:
+        notes = [note["text"].strip() for note in self.clinical_notes]
+        if not (narrative or notes):
             return {"causes": {}, "reasoning": "No narrative text yet."}
+        # The profile is rendered as in the CHAMPS training data, and clinical
+        # notes join the clinical abstractions
+        profile = self.metadata.profile
+        evidence = render_profile_evidence(profile)
+        clinical = "\n\n".join(
+            text for text in [render_profile_abstraction(profile), *notes]
+            if text)
 
         try:
             async with self.llm_semaphore:
-                scores = await asyncio.to_thread(self.score_menu, narrative)
+                scores = await asyncio.to_thread(self.score_menu, narrative,
+                                                 evidence, clinical)
         except Exception:
             logger.exception("MedGemma inference failed for chunk %s", chunk_id)
             return {"causes": {}, "reasoning": "MedGemma inference raised an exception."}
@@ -115,7 +127,7 @@ class ChampsFinetunedInferenceAgent(InferenceAgent):
         top_code, top_prob = ranked[0]
         reasoning = (
             f"MedGemma top cause: {self.menu[top_code]} "
-            f"({top_code}, p={top_prob:.2f}) from the verbal autopsy narrative."
+            f"({top_code}, p={top_prob:.2f})."
         )
         return {"causes": causes, "reasoning": reasoning}
 

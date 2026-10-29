@@ -21,7 +21,8 @@ def load_results(results_dir):
     results = {}
     for path in sorted(Path(results_dir).glob("transcripts_*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        clips = [clip for clip in data.get("clips", []) if "wer" in clip]
+        clips = [clip for clip in data.get("clips", [])
+                 if "wer" in clip and not clip.get("excluded")]
         if not clips:
             continue
         engine = data.get("engine", path.stem.removeprefix("transcripts_"))
@@ -29,22 +30,39 @@ def load_results(results_dir):
             continue
         rtfs = [clip["rtf"] for clip in clips if clip.get("rtf") is not None]
         cers = [clip["cer"] for clip in clips if clip.get("cer") is not None]
+        # Mean WER per recording set, for datasets with more than one
+        sets = sorted({clip["recording_set"] for clip in clips
+                       if clip.get("recording_set")})
+        set_wers = {}
+        for set_name in sets if len(sets) > 1 else ():
+            wers = [clip["wer"] for clip in clips
+                    if clip.get("recording_set") == set_name]
+            set_wers[set_name] = sum(wers) / len(wers)
         results[engine] = {
             "mean_wer": sum(clip["wer"] for clip in clips) / len(clips),
             "mean_cer": sum(cers) / len(cers) if cers else None,
             "mean_rtf": sum(rtfs) / len(rtfs) if rtfs else None,
             "n": len(clips),
+            "set_wers": set_wers,
         }
     return results
 
 
 def print_summary(results):
-    print(f"\n{'engine':30s} {'mean WER':>10s} {'mean CER':>10s} {'mean RTF':>10s} {'n':>4s}")
+    sets = sorted({set_name for row in results.values()
+                   for set_name in row["set_wers"]})
+    set_header = "".join(f" {'WER ' + set_name:>10s}" for set_name in sets)
+    print(f"\n{'engine':30s} {'mean WER':>10s} {'mean CER':>10s} {'mean RTF':>10s} {'n':>4s}"
+          f"{set_header}")
     for engine in sorted(results, key=lambda name: results[name]["mean_wer"]):
         row = results[engine]
         cer = f"{row['mean_cer']:.3f}" if row["mean_cer"] is not None else "n/a"
         rtf = f"{row['mean_rtf']:.2f}" if row["mean_rtf"] is not None else "n/a"
-        print(f"{engine:30s} {row['mean_wer']:10.3f} {cer:>10s} {rtf:>10s} {row['n']:4d}")
+        set_cells = "".join(
+            f" {row['set_wers'][set_name]:10.3f}" if set_name in row["set_wers"]
+            else f" {'n/a':>10s}" for set_name in sets)
+        print(f"{engine:30s} {row['mean_wer']:10.3f} {cer:>10s} {rtf:>10s} {row['n']:4d}"
+              f"{set_cells}")
 
 
 def wer_colors(values):
@@ -102,7 +120,9 @@ def plot_comparison(results, out_path, title, *, show=False):
 def report(results_dir, out_dir, title, *, show=False):
     results = load_results(results_dir)
     if not results:
-        raise FileNotFoundError(f"No transcripts_*.json found in {results_dir}")
+        # Transcripts of a dataset without references carry no scores yet
+        print(f"No scored transcripts in {results_dir}")
+        return results
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     print_summary(results)
     plot_comparison(results, Path(out_dir) / "engine_comparison.png", title, show=show)

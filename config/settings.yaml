@@ -28,6 +28,18 @@ app:
   # differentials heading. Follow-up questions, transcript, and advisory
   # stay visible.
   show_cod_result: true
+  # Ollama model that reads the text of uploaded document images and of
+  # scanned PDF pages. Empty turns reading them off.
+  ocr_model: glm-ocr
+  # When false, the clinical note button, file cards and drag-and-drop are
+  # hidden.
+  show_clinical_note: false
+  # When false, the user (name and ID of the person using the app) selector
+  # is hidden.
+  show_user_profile: true
+  # When false, the button that drafts a medical certificate of cause of
+  # death (MCCD) from the case is hidden.
+  show_mccd: false
   # Interface language the page starts in, used when the browser has no stored
   # choice. Must be one of the locales the UI ships translations for.
   ui_language: en
@@ -60,6 +72,13 @@ inference:
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
+  champs_prompted:          # CHAMPS prompted agent (LLM)
+    # Cause coding: icd10 (CHAMPS group causes) | icd11 (ICD-11 codes allowed
+    # for the decedent's CHAMPS age group)
+    coding: icd10
+    # ICD-11 only: 1 (one structured call) | 2 (free-text reasoning, then
+    # code selection)
+    passes: 1
   champs_finetuned:         # CHAMPS-fine-tuned classifier agent (MedGemma LoRA)
     adapter_path: ""        # local path to the LoRA adapter; set via CODA_INFERENCE__CHAMPS_FINETUNED__ADAPTER_PATH
     menu: icd_all_labels.json
@@ -74,6 +93,12 @@ llm:                        # shared LLM provider endpoints; api keys -> .secret
     base_url: ""
   ollama:
     base_url: http://localhost:11434
+    # Context window in tokens that models are loaded with. 0 -> the model's
+    # own maximum, which can take several times more memory.
+    num_ctx: 32768
+    # Whether models that support thinking reason before answering. Allowed
+    # values: true | false | low | medium | high, empty -> the model's default.
+    think: false
 
 kg:
   url: bolt://localhost:7687
@@ -149,17 +174,24 @@ dialogue:
 
 storage:
   # Per-case storage of interview data. When false, the app writes no case data
-  # to disk. Each case (one session, restarted by Reset) gets its own folder.
+  # to disk. Each case (one session, restarted by Reset) gets its own folder,
+  # and continuing a session appends to it.
   enabled: false
   # Root directory for case folders. Empty -> ~/.data/coda/cases (pystow).
   output_dir: ""
+  # When true, the History view lists the case folders under output_dir and
+  # opens them. Anyone who can reach the server can then read every
+  # stored case, so enable it only where access to the server is restricted.
+  browse: false
   # What each case folder keeps.
   store:
     audio: false            # raw microphone audio as 16 kHz mono WAV
     transcripts: true       # transcript text, original language and English
     annotations: true       # per-chunk text with grounding annotations
     inference: true         # every inference result, incl. questions shown
+    notes: true             # clinical note text (inferences keep the filenames)
     metadata: true          # case profile / demographics
+    user: true              # name and ID of the person using the app
     timing: true            # per-chunk and per-inference timings
 
 logging:

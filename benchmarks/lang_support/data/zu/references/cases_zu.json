@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "zu_narrative": "Indodana yami yayinonyaka owodwa ubudala. Cishe sekusele isonto ngaphambi kokuba ishone, yabanjwa umkhuhlane, ephuma amafinyela amanzi emakhaleni futhi ekhwehlela kancane. Ngemva kwezinsuku ezintathu noma ezine, ukukhwehlela kwaba kubi kakhulu futhi yaqala ukuphefumula ngokushesha kakhulu. Uma edonsa umoya, isikhumba esingaphansi kwezimbambo naphakathi kwezimbambo sasidonsela ngaphakathi, futhi amakhala ayo evuleka kakhulu. Ubenza umsindo wokububula njalo uma ephefumula futhi enomkhuhlane owawungakwehli. Yaphelelwa umoya kangangokuba yayingasakwazi ukuncela noma ukudla. Izindebe zakhe zaba nombala oluhlaza okwesibhakabhaka kancane. Yayingahuduli futhi yayinganakho ukuqubuka emzimbeni. Ngobusuku bokugcina, ukuphefumula kwayo kwakushesha kakhulu futhi kungajulile. Yaqala ukozela kakhulu, yashonela ekhaya singakafiki esikhungweni sezempilo."
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "zu_narrative": "Indodakazi yami yayinezinyanga eziyisithupha ubudala. Yavele yaba nomkhuhlane omkhulu ngokuzumayo futhi yaqala ukukhwehlela. Ezinsukwini ezimbili ukuphefumula kwayo kwase kushesha kakhulu futhi kunomsindo, futhi ngabona isikhumba sidonselwa ngaphakathi ngaphansi kwezimbambo ngaso sonke isikhathi uma iphefumula. Ikhala layo lavuleka futhi yenza imisindo emincane yokugonqa. Yenqaba ukuncela ibele ngoba yayiphelelwa umoya kakhulu. Uma ngibeka indlebe yami esifubeni sayo kwakuzwakala kunokuklwebha. Yayingenalo uqubhu futhi indle yayo yayijwayelekile. Yaxega umzimba futhi umbala wayo waba mnyama, yashona ngosuku lwesine lokugula."
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "zu_narrative": "Indodana yami yayineminyaka emibili ubudala. Yayinokukhwehlela nomkhuhlane cishe izinsuku ezinhlanu okwakulokhu kuba kubi kakhulu esikhundleni sokuba ngcono. Yaqala ukuphefumula ngokushesha futhi yakhala ngokuthi isifuba sayo sibuhlungu uma iphefumula. Yakhwehlela isikhwehlela esiwugqinsi uma ikhwehlela. Yayingenaso isifiso sokudla futhi yayifuna ukulala phansi kuphela. Ukuphefumula kwayo kwaba nzima njengoba isifuba esingezansi sidonsela ngaphakathi, futhi yashisa futhi yaba nobuthongo. Kwakungekho uqubhu futhi kungekho sohudo, futhi intamo yayo yayingaqinile. Yayeka ukusabela kithina futhi yashona emtholampilo kungekudala ngemva kokufika kwethu."
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "zu_narrative": "Indodakazi yami yayineminyaka emithathu ubudala. Sihlala endaweni yasemakhaya eduze komfula lapho kunomiyane abaningi futhi abantu bavame ukuthola umkhuhlane ngesikhathi sezimvula. Yagula ngomkhuhlane omkhulu owafika nokuqhaqhazela okunamandla bese kuba ukujuluka okukhulu, futhi kwakulokhu kubuya njalo ngosuku noma ezimbili. Yakhala ngekhanda elibuhlungu nobuhlungu bomzimba futhi yahlanza izikhathi ezimbalwa. Ngemva kwezinsuku ezimbalwa yaba mhlophe kakhulu, izintende namehlo ayo abukeka emhlophe, futhi yayibuthakathaka futhi inobuthongo. Yayingenakho ukukhwehlela noma amakhala agobhozayo. Ngosuku lwesithathu yaba nokuquleka okuningi, yaquleka, futhi ayizange iphaphame. Yashona ngakusasa ekuseni."
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "zu_narrative": "Indodana yami yayineminyaka emibili ubudala. Kwakuyinkathi yezimvula esigodini sakithi futhi omiyane babegcwele yonke indawo. Yaba nomkhuhlane omkhulu futhi yahlanza izikhathi eziningi, futhi yaba buthakathaka kakhulu. Ngemva kwezinsuku ezimbili amehlo ayo aphenduka aphuzi futhi umchamo wayo waba mnyama njengokhukhola. Yayiphephile kakhulu futhi iphefumula ngokushesha, futhi yenqaba ukudla noma ukuphuza. Yayingenakho ukukhwehlela futhi ingenalo uqubhu. Ngosuku lwesithathu yaba nokuquleka, umzimba wayo waqhaqhazela, futhi yaba nokungazi okujulile. Ayizange iphaphame futhi futhi yashona ngalobo busuku."
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "zu_narrative": "Indodana yami yayineminyaka engaba yonyaka nohhafu. Kwaqala ngokuzumayo ngendle enamanzi, izikhathi eziningi ngosuku, cishe njengamanzi erayisi, futhi yahlanza noma yini esasiyinika yona. Lokhu kwaqhubeka izinsuku ezimbili. Yaba nokoma kakhulu ekuqaleni kwase kuthi kamuva yayeka ukuphuza. Amehlo ayo ayebonakala ecwile, umlomo wayo wawomile, futhi lapho ngincinza isikhumba esiswini sayo sahlala phezulu futhi sabuyela emuva kancane. Yachama kancane kakhulu futhi yakhala ngaphandle kwezinyembezi. Yayinomkhuhlane omncane kodwa ingenakho ukukhwehlela futhi ingenalo uqubhu. Yaba buthakathaka, yaxega futhi yaba nobuthongo, futhi yashonela ekhaya."
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "zu_narrative": "Indodakazi yami yayinezinyanga eziyisishiyagalolunye ubudala. Izinsuku ezintathu yayinendle enamanzi njalo nokuhlanza. Ekuqaleni yayomile kakhulu futhi yaphuza ngokulangazela, kodwa kamuva yaba buthakathaka kakhulu ukuphuza. Indawo ethambile ekhanda layo namehlo akhe bobabili kwakubonakala kucwile, umlomo wayo wawomile, futhi isikhumba sayo sasibuyela emuva kancane uma sincishiwe. Yachama cishe ingachami neze. Yayingenakho ukukhwehlela futhi ingenalo uqubhu. Yaba bandayo uma uyithinta ezandleni nasezinyaweni, yase iba nobuthongo obukhulu futhi yaxega, futhi yashona."
+  }
+]

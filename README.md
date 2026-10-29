@@ -188,7 +188,19 @@ The Compose path is env-driven. The main runtime variables are:
   annotations (`chunks.jsonl`), every inference result with the follow-up
   questions shown and when (`inference.jsonl`), and timings (`timing.jsonl`).
   `CODA_STORAGE__STORE__AUDIO=true` also keeps the raw audio as `audio.wav`.
+  A case is inferred either from a voice recording or from clinical notes,
+  never both. A case made from notes is stored too, keeping the notes'
+  filenames and text, or only their filenames with
+  `CODA_STORAGE__STORE__NOTES=false`.
   Each item can be switched off under `storage.store` in `settings.yaml`.
+- `CODA_STORAGE__BROWSE=true` lists the stored cases in History, where they
+  open with their recording when audio was kept, and can be continued. Anyone
+  who can reach the server can then read every case, so enable it only where
+  access is restricted. Separately, each browser can save its own sessions
+  (transcript and results, no audio or note text) with "Save sessions on this
+  device" in Settings. History shows both, and marks each row as kept on the
+  server, on this device, or both, and as inferred from a voice recording or a
+  clinical note. Settings shows which of these are on.
 - `CODA_LOGGING__LEVEL` and `CODA_LOGGING__FILE` set the application log level
   and an optional log file (logs always go to stderr as well)
 - `NEO4J_HTTP_PORT`, `NEO4J_BOLT_PORT`

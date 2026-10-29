@@ -1,0 +1,58 @@
+[
+  {
+    "case_id": "lri_1",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My son was one year old. About a week before he died he caught a cold with a runny nose and a mild cough. After three or four days the cough became much worse and he started breathing very fast. When he breathed in, the skin below his ribs and between his ribs sucked in, and his nostrils flared. He made a grunting sound with each breath and had a fever that would not come down. He became too breathless to feed and his lips turned a little blue. He did not have diarrhoea and there was no rash. On the last night his breathing was very fast and shallow, he became drowsy, and he died at home before we could reach the health centre.",
+    "st_narrative": "mora wa ka o ne a ena le selemo. Hoo e ka bang beke pele a hlokahala, o ile a tshwarwa ke sefuba ka nko e ntsang mamina le ho kgohlela hanyenyane. Ka mora matsatsi a mararo kapa a mane ho kgohlela ho ile ha mpefala haholo, mme a qala ho hema ka potlako haholo. Ha a phefomoloha, letlalo la ka tlasa la etsa modumo o dumang ka moya a mong le o mong mme a tshwerwe ke feberu e neng e sa theohe. O ile a fellwa ke moya hoo a neng a sitwa ho iphepa mme molomo wa hae wa fetoha o bolou hanyane. O ne a sena letshollo, ebile hone ho sena makgopho. Bosuing ba ho qetela ho hema ha hae hone ho potlakile ebile hosa teba, o ile a otsela, mme a hlokohalla hae pele re fihla setsing sa bophelo."
+  },
+  {
+    "case_id": "lri_2",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "infant",
+    "narrative": "My daughter was six months old. She suddenly came down with a high fever and started coughing. Within two days her breathing became very fast and noisy, and I could see the skin pulling in under her ribs each time she breathed. Her nose flared and she made small grunting sounds. She would not take the breast because she was too breathless. When I put my ear to her chest it sounded crackly. She had no rash and her stools were normal. She became limp and her colour turned dusky, and she died on the fourth day of the illness.",
+    "st_narrative": "Moradi waka o ne a ena le dikgwedi tse tsheletseng. Ka tshohanyetso o ile a theoha a tshwerwe ke feberu e matla mme a qala ho kgohlela. Ka mora matsatsi a mabedi, nako le nako ha a hema, ke ne ke bona letlalo le ntse le kena ka tlasa dikgopo tsa hae. Nko ya hae e ile ya phatloha mme ya etsa medumo e menyenyane ya ho tsetsela. O ne a hana ho nka letswele hobane o ne a hema haholo. Ha ke bea tsebe yaka sefubeng sa hae e ne e utlwahala habohloko. O ne a se na lekgopho mme mantle a hae a ne a tlwaelehile. O ile a hlotsa mme mmala wa hae wa fetoha lefifi, mme a timela ka letsatsi la bone la ho kula ha hae."
+  },
+  {
+    "case_id": "lri_3",
+    "cause_name": "Lower respiratory infections",
+    "icd10": "J18.9",
+    "age_group": "child",
+    "narrative": "My son was two years old. He had a cough and fever for about five days that kept getting worse instead of better. He started breathing fast and complained that his chest hurt when he breathed. He brought up thick phlegm when he coughed. He had no appetite and only wanted to lie down. His breathing became laboured with the lower chest drawing in, and he grew hot and drowsy. There was no rash and no diarrhoea, and his neck was not stiff. He stopped responding to us and died at the clinic shortly after we arrived.",
+    "st_narrative": "Mora wa ka o ne a le dilemo tse pedi. O ne a kgohlela a bile a e-na le feberu ka matsatsi a ka bang mahlano, mme boemo ba hae bo ne bo ntse bo mpefala ho e-na le ho ntlafala. O ile a qala ho hema ka potlako mme a tletleba ka hore sefuba se bohloko ha a hema. Ha a kgohlela, o ne a ntsha sekgohlela se teteaneng. O ne a se na takatso ya dijo mme a batla feela ho robala. Ho hema ha hae ho ile ha e-ba boima, mme karolo e ka tlaase ya sefuba sa hae ya hulehela ka hare ha a hema. O ile a tjhesa mmeleng mme a qala ho otsela haholo. O ne a se na lekgopho kapa letshollo, mme molala wa hae o ne o sa thatafala. O ile a kgaotsa ho arabela ha re bua le eena mme a hlokahala tleliniking nakwana ka mora hore re fihle."
+  },
+  {
+    "case_id": "malaria_1",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My daughter was three years old. We live in a rural area near the river where there are many mosquitoes and people often get fever in the rainy season. She became ill with a high fever that came with shaking chills and then heavy sweating, and it kept coming back every day or two. She complained of headache and body pains and vomited a few times. After a few days she became very pale, her palms and eyes looked white, and she was weak and sleepy. She did not have a cough or a runny nose. On the third day she had several convulsions, became unconscious, and did not wake up. She died the next morning.",
+    "st_narrative": "Morali wa ka o ne a le dilemo tse tharo. Re dula sebakeng sa mahaeng haufi le noka moo ho nang le menoang e mengata, mme nakong ya dipula batho ba atisa ho tshwarwa ke feberu. O ile a kula ka feberu e matla e neng e tsamaisana le ho thothomela haholo, ebe ka mora moo a fufuleloa haholo. Feberu e ne e kgutla letsatsi le leng le le leng kapa kamora letsatsi kapa a mabedi. O ne a tletleba ka hlooho e bohloko le mmele o bohloko, mme a hlatsa makgetlo a mmalwa. Ka mora matsatsi a seng makae, sefahleho sa hae le mmele wa hae tsa bonahala di le lerootho haholo, matsoho le mahlo a hae tsa shebahala di le tshweu, mme a ba fokola a bile a otsela. O ne a sa kgohlele ebile a se na mamina. Letsatsing la boraro o ile a tshwarwa ke ho tsitsipana mmeleng (convulsions) ka makgetlo a mmaloa, a akgeha, mme ha aa ka a hlola a tsoha. O ile a hlokahala hoseng ho latelang."
+  },
+  {
+    "case_id": "malaria_2",
+    "cause_name": "Malaria",
+    "icd10": "B54",
+    "age_group": "child",
+    "narrative": "My son was two years old. It was the rainy season in our village and there were mosquitoes everywhere. He developed a high fever and vomited several times, and he became very weak. After two days his eyes turned yellow and his urine became dark like cola. He was very pale and breathing fast, and he refused to eat or drink. He had no cough and no rash. On the third day he had a fit, his body shook, and he became deeply unconscious. He did not wake again and died that night.",
+    "st_narrative": "Mora waka o ne a le dilemo di pedi. E ne e le nako ya dipula motseng wa heso mme ho ne ho ena le menwang hohle. O ile a tshwarwa ke feberu e matla mme a hlatsa ka makgetlo a mmalwa, mme a fokola haholo. Kamora matsatsi a mabedi mahlo a hae a fetoha bosehla mme moroto wa hae wa eba lefifi jwaloka cola. O ne a hema ka potlako haholo, mme a hana ho ja kapa ho nwa. O ne a se na hokgohlela le lekgopho. Ka letsatsi la boraro o ile a akgeha, mmele wa hae wa sisinyeha, mme a akgeha haholo. Ha aa ka a tsoha hape mme a timela bosiung boo."
+  },
+  {
+    "case_id": "diarrhea_1",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My son was about a year and a half old. It started suddenly with watery stools, many times a day, almost like rice water, and he vomited whatever we gave him. This went on for two days. He became very thirsty at first and then stopped drinking. His eyes looked sunken, his mouth was dry, and when I pinched the skin on his belly it stayed up and was slow to go back. He passed very little urine and cried without tears. He had a slight fever but no cough and no rash. He became weak, floppy and drowsy, and he died at home.",
+    "st_narrative": "Mora wa ka o ne a ka ba selemo le halofo. Ho ile ha qala ka tshohanyetso ka mantle a metsi, hangata ka letsatsi, hoo e ka bang jwaloka metsi a raese, mme o ne a hlatsa eng kapa eng eo re neng re mo fa yona. Sena se ile sa etsahala ka matsatsi a mabedi. O ile a nyorwa haholo qalong yaba o kgaotsa ho nwa. Mahlo a hae a ne a bonahala a tebile, molomo wa hae o ne o omme, mme ha ke mo tobetsa letlalo mpeng la ema mme le dieha ho kgutlela morao. O ile a ntsha moroto o monyenyane haholo mme a lla ntle le meokgo. O ne a ena le feberu e nyenyane empa ho se hokgohlela le lekgopho. O ile a fokola mme a otsela, mme a shwela hae."
+  },
+  {
+    "case_id": "diarrhea_2",
+    "cause_name": "Diarrheal Diseases",
+    "icd10": "A09",
+    "age_group": "infant",
+    "narrative": "My daughter was nine months old. For three days she had frequent watery stools and vomiting. At first she was very thirsty and drank eagerly, but later she became too weak to drink. The soft spot on her head and her eyes both looked sunken, her mouth was dry, and her skin was slow to spring back when pinched. She passed almost no urine. She had no cough and no rash. She became cold to the touch in her hands and feet, then very drowsy and floppy, and she died.",
+    "st_narrative": "Moradi wa ka o ne a ena le dikgwedi tse robong. Ka matsatsi a mararo o ne a ena le mantle a metsi kgafetsa le ho hlatsa. Qalong o ne a nyorilwe haholo mme a nwa ka tjheseho, empa hamorao a fokola haholo hoo a neng a sitwa ho nwa. Letheba le bonolo la hlooho ya hae le mahlo a hae ka bobedi di ne di shebahala di tebile, molomo wa hae o omme, mme letlalo la hae le ne le dieha ho kgutlela morao ha a tobeditswe. O ne a batla a se na moroto. O ne a se na hokgohlela le lekgopho. O ile a hatsela ho fihlela hake mo ama matsohong le maotong, a ba a otsela haholo, a timela"
+  }
+]

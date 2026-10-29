@@ -46,6 +46,14 @@ ENV CODA_DIALOGUE__DEVICE=${COMPUTE_DEVICE}
 # Pre-download the faster-whisper model (matches the default backend/size)
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu')"
 
+# Fine-tuned transcription models to pre-download, space separated. Empty by
+# default. E.g. anv-tso-turbo, anv-zul-turbo or anv-sot-turbo for
+# Xitsonga, isiZulu or Sesotho (~0.8GB each).
+ARG FINETUNED_MODELS=""
+RUN for name in $FINETUNED_MODELS; do \
+      python -c "from coda.dialogue.finetuned_whisper import get_model_path; get_model_path('$name')" || exit 1 ; \
+    done
+
 # Pre-download the Hunflair2 NER and SaT sentence-splitter models used by the RAG grounder
 RUN python -c "from flair.nn import Classifier; from wtpsplit_lite import SaT; Classifier.load('hunflair2'); SaT('sat-3l-sm')"
 

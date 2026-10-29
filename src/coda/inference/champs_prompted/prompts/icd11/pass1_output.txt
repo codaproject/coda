@@ -1,0 +1,3 @@
+Step 4: Produce two clearly labelled sections:
+**Clinical Assessment:** Write 2–3 complete sentences in the style of a physician's clinical note. Use precise medical terminology and standard abbreviations. State facts only — no hedging, no lay language, no verbose phrasing. State the most likely underlying cause of death, the key supporting evidence, and any significant competing diagnoses. No JSON in this section.
+**Candidate Codes:** List your top 5 candidate ICD-11 codes from the ALLOWED ICD-11 CODES list, ranked by likelihood. Format: one code per line as "1. [code] (p=0.XX) — [brief reason]". Probabilities must sum to 1.0.

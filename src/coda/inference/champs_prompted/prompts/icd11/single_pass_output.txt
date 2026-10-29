@@ -1,0 +1,3 @@
+Step 4: In the reasoning field, write a clinical assessment of 2–3 complete sentences in the style of a physician's clinical note. Use precise medical terminology and standard abbreviations. State facts only — no hedging, no lay language, no verbose phrasing. State the most likely underlying cause of death, the key supporting evidence, and any significant competing diagnoses.
+Step 5: Select your top 5 ICD-11 codes from the ALLOWED ICD-11 CODES list, ranked by likelihood, with probabilities that sum to 1.0.
+Step 6: {question_guidance}

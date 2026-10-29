@@ -7,7 +7,9 @@ import pytest
 
 from coda.inference.agent import InferenceServer
 from coda.inference.champs_finetuned.agent import ChampsFinetunedInferenceAgent
-from coda.inference.champs_prompted_agent import ChampsPromptedInferenceAgent
+from coda.inference.champs_prompted.icd10_agent import ChampsPromptedIcd10Agent
+from coda.inference.champs_prompted.base_agent import render_profile
+from coda.metadata import Metadata
 
 
 class FakeLLMClient:
@@ -18,9 +20,11 @@ class FakeLLMClient:
         self.fail = fail
         self.active_counter = active_counter
         self.thread_ids = []
+        self.user_prompts = []
 
     def call_with_schema(self, **kwargs):
         self.thread_ids.append(threading.get_ident())
+        self.user_prompts.append(kwargs["user_prompt"])
         counter = self.active_counter
         if counter is not None:
             with counter["lock"]:
@@ -57,7 +61,7 @@ async def wait_for_thread_event(event: threading.Event, timeout: float = 1.0):
 @pytest.mark.asyncio
 async def test_champs_llm_runs_off_event_loop_thread():
     client = FakeLLMClient()
-    agent = ChampsPromptedInferenceAgent(client)
+    agent = ChampsPromptedIcd10Agent(client)
     loop_thread = threading.get_ident()
 
     result = await agent.process_chunk("chunk-1", "Patient had fever.", [])
@@ -68,9 +72,39 @@ async def test_champs_llm_runs_off_event_loop_thread():
 
 
 @pytest.mark.asyncio
+async def test_champs_llm_prompt_tags_clinical_notes():
+    client = FakeLLMClient()
+    agent = ChampsPromptedIcd10Agent(client)
+    notes = [{"filename": "labs.txt", "text": "Hb 5"},
+             {"filename": "discharge.txt", "text": "Sepsis"}]
+
+    await agent.set_clinical_notes("note-1", notes, "Child had fever.", [])
+
+    prompt = client.user_prompts[-1]
+    assert "Child had fever." in prompt
+    assert '<clinical_note filename="labs.txt">\nHb 5\n</clinical_note>\n' \
+        '<clinical_note filename="discharge.txt">\nSepsis\n' in prompt
+
+
+@pytest.mark.asyncio
+async def test_champs_llm_prompt_includes_profile():
+    client = FakeLLMClient()
+    agent = ChampsPromptedIcd10Agent(client)
+    metadata = {"profile": {"age": {"value": 18, "unit": "months"},
+                            "sex": "male", "date_of_death": "2026-03-14",
+                            "manner_of_death": "self_harm"}}
+
+    await agent.process_chunk("c1", "Child had fever.", [], metadata=metadata)
+
+    assert "## INPUT\n- age at death: 18 months\n- sex: male\n" \
+        "- date of death: 2026-03-14\n- manner of death: self harm\n" \
+        "- narrative:" in client.user_prompts[-1]
+
+
+@pytest.mark.asyncio
 async def test_champs_llm_exception_returns_safe_failure():
     client = FakeLLMClient(fail=True)
-    agent = ChampsPromptedInferenceAgent(client)
+    agent = ChampsPromptedIcd10Agent(client)
 
     result = await agent.infer("chunk-1", "Patient had fever.", [])
 
@@ -103,7 +137,7 @@ async def test_llm_concurrency_bound_is_respected():
                 with counter["lock"]:
                     counter["active"] -= 1
 
-    prototype = ChampsPromptedInferenceAgent(SlowLLMClient())
+    prototype = ChampsPromptedIcd10Agent(SlowLLMClient())
     agent_a = prototype.create_session_agent()
     agent_b = prototype.create_session_agent()
 
@@ -119,7 +153,7 @@ async def test_llm_concurrency_bound_is_respected():
 async def test_health_endpoint_remains_responsive_while_llm_is_blocked():
     entered = threading.Event()
     release = threading.Event()
-    agent = ChampsPromptedInferenceAgent(FakeLLMClient(
+    agent = ChampsPromptedIcd10Agent(FakeLLMClient(
         block_event=release,
         entered_event=entered,
     ))
@@ -153,7 +187,7 @@ async def test_health_endpoint_remains_responsive_while_llm_is_blocked():
 
 def test_inference_server_keeps_sessions_isolated():
     from fastapi.testclient import TestClient
-    server = InferenceServer(ChampsPromptedInferenceAgent(FakeLLMClient()))
+    server = InferenceServer(ChampsPromptedIcd10Agent(FakeLLMClient()))
     client = TestClient(server.app)
 
     resp_a1 = client.post("/infer", json={
@@ -185,7 +219,7 @@ def test_inference_server_keeps_sessions_isolated():
 
 def test_inference_server_reset_clears_only_target_session():
     from fastapi.testclient import TestClient
-    server = InferenceServer(ChampsPromptedInferenceAgent(FakeLLMClient()))
+    server = InferenceServer(ChampsPromptedIcd10Agent(FakeLLMClient()))
     client = TestClient(server.app)
 
     client.post("/infer", json={
@@ -283,3 +317,15 @@ async def test_finetuned_concurrency_bound_shared_across_sessions():
     )
 
     assert counter["max_active"] == 1
+
+
+def test_render_profile_clinical_fields():
+    profile = Metadata.from_dict({"profile": {
+        "birth_weight_g": 2900, "hiv_status": "exposed",
+        "weight_kg_admission": 6.9, "weight_kg_death": 6.5,
+        "muac_cm_death": 11.2}}).profile
+
+    assert render_profile(profile) == (
+        "- birth weight: 2900 g\n- HIV status: exposed\n"
+        "- weight: 6.9 kg at admission, 6.5 kg at death\n"
+        "- MUAC: 11.2 cm at death\n")

@@ -19,7 +19,7 @@ except ImportError:
     OpenAI = None
 
 from coda.config import settings
-from .client import LLMClient
+from .client import LLMClient, chat_messages
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,8 @@ class OpenAIAdapter(LLMClient):
         self.model = model
         self.base_url = base_url
 
-    def call(self, user_prompt: str, temperature: float = 0.0) -> str:
+    def call(self, user_prompt: str, temperature: float = 0.0,
+             system_prompt: Optional[str] = None) -> str:
         """Make an OpenAI API call without schema constraints.
 
         Parameters
@@ -89,6 +90,8 @@ class OpenAIAdapter(LLMClient):
             User prompt for the LLM.
         temperature : float, default=0.0
             Temperature for the LLM.
+        system_prompt : str, optional
+            System prompt sent before the user prompt.
 
         Returns
         -------
@@ -106,9 +109,7 @@ class OpenAIAdapter(LLMClient):
             try:
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[
-                        {"role": "user", "content": user_prompt}
-                    ],
+                    messages=chat_messages(user_prompt, system_prompt),
                     temperature=temperature,
                 )
 

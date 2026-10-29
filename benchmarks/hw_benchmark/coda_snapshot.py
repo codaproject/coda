@@ -1,8 +1,8 @@
 """CODA's CHAMPS inference request, as this benchmark issues it.
 
-Reads CODA's checked-in CHAMPS resources (src/coda/resources/champs) directly for
-the system prompt, schema guidance, and allowed causes, so the benchmark never
-drifts from coda.inference.champs_prompted_agent. COD_OUTPUT_SCHEMA below mirrors that
+Reads CODA's checked-in CHAMPS prompts (src/coda/inference/champs_prompted/prompts)
+and allowed causes (src/coda/resources/champs) directly, so the benchmark never
+drifts from coda.inference.champs_prompted. COD_OUTPUT_SCHEMA below mirrors that
 agent's schema, kept inline (rather than imported) so the benchmark stays free of
 CODA's inference dependencies; keep it in sync if CODA's schema changes. The infer
 helpers issue the constrained-decoding calls directly (Ollama's native
@@ -12,7 +12,9 @@ measure raw backend latency.
 import json
 from pathlib import Path
 
-CHAMPS = Path(__file__).resolve().parents[2] / "src" / "coda" / "resources" / "champs"
+SRC = Path(__file__).resolve().parents[2] / "src" / "coda"
+CHAMPS = SRC / "resources" / "champs"
+PROMPTS = SRC / "inference" / "champs_prompted" / "prompts"
 
 COD_OUTPUT_SCHEMA = {
     "type": "object",
@@ -58,8 +60,8 @@ COD_OUTPUT_SCHEMA = {
 def build_system_prompt():
     causes = [c.strip() for c in
         (CHAMPS / "group_causes.txt").read_text().splitlines() if c.strip()]
-    system_prompt = (CHAMPS / "system_prompt.txt").read_text()
-    schema_guidance = (CHAMPS / "schema_guidance.txt").read_text()
+    system_prompt = (PROMPTS / "icd10" / "system_prompt.txt").read_text()
+    schema_guidance = (PROMPTS / "icd10" / "schema_guidance.txt").read_text()
     return system_prompt.format(allowed_causes=", ".join(causes)) + "\n\n" + schema_guidance
 
 

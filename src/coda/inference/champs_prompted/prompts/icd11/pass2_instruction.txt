@@ -1,0 +1,2 @@
+Based on your clinical assessment above, now assign the top 5 ICD-11 codes for the underlying cause of death. Codes must come exactly from the ALLOWED ICD-11 CODES list.
+{question_guidance}

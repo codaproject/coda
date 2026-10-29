@@ -8,6 +8,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 
+def chat_messages(user_prompt, system_prompt=None):
+    """Return chat messages for a user prompt after an optional system prompt."""
+    messages = [{"role": "system", "content": system_prompt}] \
+        if system_prompt else []
+    return messages + [{"role": "user", "content": user_prompt}]
+
+
 class LLMClient(ABC):
     """
     Abstract base class for LLM API clients.
@@ -16,7 +23,8 @@ class LLMClient(ABC):
     """
 
     @abstractmethod
-    def call(self, user_prompt: str, temperature: float = 0.0) -> str:
+    def call(self, user_prompt: str, temperature: float = 0.0,
+             system_prompt: Optional[str] = None) -> str:
         """
         Make an LLM API call with no schema.
 
@@ -27,6 +35,8 @@ class LLMClient(ABC):
         temperature : float, default=0.0
             Temperature for the LLM. Controls randomness in output.
             Lower values (0.0-0.3) are more deterministic, higher values (0.7-1.0) are more creative.
+        system_prompt : str, optional
+            System prompt sent before the user prompt.
 
         Returns
         -------

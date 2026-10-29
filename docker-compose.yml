@@ -48,6 +48,9 @@ services:
       # `deploy.resources.reservations.devices` GPU reservation here.
       args:
         COMPUTE_DEVICE: ${COMPUTE_DEVICE:-cpu}
+        # Space-separated fine-tuned transcription models to bake in, e.g.
+        # anv-tso-turbo, anv-zul-turbo or anv-sot-turbo
+        FINETUNED_MODELS: ${FINETUNED_MODELS:-}
     ports:
       - "${CODA_APP__PORT:-8000}:${CODA_APP__PORT:-8000}"
     env_file:

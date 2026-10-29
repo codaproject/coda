@@ -1,0 +1,10 @@
+### Level of Certainty
+**Level 1:** Diagnosis of a condition with the highest level of certainty possible for that condition, consisting of:
+- 1) highly specific pathological findings, **or**
+- 2) a CHAMPS laboratory test with specific findings **and** medically observed and documented / clinically observed appropriate illness sign(s).
+
+**Level 2:** Diagnosis of a condition with a high level of certainty, consisting of:
+- 1) medically observed and documented appropriate illness sign(s) to support the diagnosis, **or**
+- 2) a CHAMPS laboratory test with specific findings **and** supporting symptoms reported by Verbal Autopsy (VA).
+
+**Level 3:** Conditions which would be considered for diagnosis (i.e., from Verbal Autopsy data alone) but do not meet Level 1 or Level 2 criteria.

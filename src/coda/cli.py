@@ -65,7 +65,7 @@ def build_agent(name: str, provider: str = None, model: str = None):
     """Construct an inference agent from a flag value ("champs" or "toy")."""
     if name == "toy":
         return CodaToyInferenceAgent()
-    from coda.inference.champs_prompted_agent import create_champs_prompted_agent
+    from coda.inference.champs_prompted import create_champs_prompted_agent
     kwargs = {k: v for k, v in (("provider", provider), ("model", model)) if v}
     return create_champs_prompted_agent(**kwargs)
 

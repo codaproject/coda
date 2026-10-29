@@ -5,6 +5,8 @@ import torch
 from faster_whisper import WhisperModel
 
 from . import ChunkedTranscriber
+from .finetuned_whisper import FINETUNED_LANGUAGES, FINETUNED_MODELS, \
+    decode_options, get_model_path
 from .util import get_whisper_languages
 
 # For available model sizes see
@@ -25,9 +27,9 @@ class FasterWhisperTranscriber(ChunkedTranscriber):
     backend and a built-in Silero VAD filter for suppressing silence.
     """
     MODELS = ("tiny", "base", "small", "medium",
-              "large", "large-v2", "large-v3")
+              "large", "large-v2", "large-v3", *FINETUNED_MODELS)
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
-    LANGUAGES = get_whisper_languages()
+    LANGUAGES = {**get_whisper_languages(), **FINETUNED_LANGUAGES}
 
     @classmethod
     def create(cls, model=None, **kwargs):
@@ -42,14 +44,17 @@ class FasterWhisperTranscriber(ChunkedTranscriber):
             else DEFAULT_NO_SPEECH_THRESHOLD
         )
         self.vad_filter = vad_filter
+        self.model_size = model_size
         self.device = self._resolve_device()
         self.compute_type = compute_type or self._resolve_compute_type()
         logger.info(
             f"Loading faster-whisper model: {model_size} "
             f"(device={self.device}, compute_type={self.compute_type})"
         )
+        model_path = get_model_path(model_size) \
+            if model_size in FINETUNED_MODELS else model_size
         self.model = WhisperModel(
-            model_size, device=self.device, compute_type=self.compute_type
+            model_path, device=self.device, compute_type=self.compute_type
         )
         logger.info("faster-whisper model loaded successfully")
 
@@ -91,6 +96,7 @@ class FasterWhisperTranscriber(ChunkedTranscriber):
 
     def _sync_transcribe(self, file_path: str, language: str, task: str):
         """Synchronous transcription returning a whisper-compatible dict."""
+        language, _ = decode_options(self.model_size, language)
         segments, _info = self.model.transcribe(
             file_path,
             language=language,

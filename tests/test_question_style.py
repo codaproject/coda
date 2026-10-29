@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import MagicMock
 
-from coda.inference.champs_prompted_agent import (
-    ChampsPromptedInferenceAgent,
+from coda.inference.champs_prompted.icd10_agent import (
+    ChampsPromptedIcd10Agent,
     build_cod_output_schema,
 )
 
 
 def make_agent(**kwargs):
-    return ChampsPromptedInferenceAgent(llm_client=MagicMock(), **kwargs)
+    return ChampsPromptedIcd10Agent(llm_client=MagicMock(), **kwargs)
 
 
 def test_default_style_prompt():
