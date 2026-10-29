@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import inspect
 import logging
 import math
 import time
@@ -107,10 +108,29 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
             lan=lan,
             backend=wlk.backend,
             backend_policy=wlk.policy,
+            vac=wlk.vac,
             pcm_input=True,
         )
         if not condition and wlk.policy == "localagreement":
             _disable_text_conditioning(self._engine.asr)
+        # faster-whisper's own silence/noise suppression thresholds (see
+        # decode_options in settings.yaml). WLK unpacks the backend's
+        # transcribe_kargs dict into every faster-whisper transcribe() call,
+        # and the backend is shared by all connections, so filling that dict
+        # once here applies process-wide. Only the faster-whisper backend
+        # takes these option names.
+        self.decode_options = dict(wlk.decode_options)
+        if self.decode_options and wlk.backend == "faster-whisper":
+            # faster-whisper rejects an unknown option only when it decodes,
+            # inside WLK's worker, where the error becomes a logged warning and
+            # an empty transcript. Check the option names here instead.
+            from faster_whisper import WhisperModel
+            accepted = inspect.signature(WhisperModel.transcribe).parameters
+            unknown = set(self.decode_options) - set(accepted)
+            if unknown:
+                raise ValueError(f"Unknown decode_options {sorted(unknown)}")
+            self._engine.asr.transcribe_kargs.update(self.decode_options)
+            logger.info("faster-whisper decode options: %s", self.decode_options)
 
     async def stream(self, audio: AsyncIterator[bytes], *,
                      language: str = "en",

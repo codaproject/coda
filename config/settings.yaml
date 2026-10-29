@@ -156,6 +156,21 @@ dialogue:
   whisper_livekit:
     backend: faster-whisper
     policy: localagreement
+    # Two filters against text on silence and noise. `vac` is WhisperLiveKit's
+    # voice-activity gate in front of the model: audio it rejects never
+    # reaches Whisper. `decode_options` are faster-whisper's own thresholds on
+    # what the model decodes (its defaults; faster-whisper backend only).
+    # These values were kept after benchmarks/synthetic_narrative compared
+    # them with the gate off and other thresholds (coda-internal#21): no
+    # change reduced text emitted during non-speech beyond run-to-run
+    # variation, and the gate off or the compression check off was worse.
+    vac: true
+    decode_options:
+      no_speech_threshold: 0.6
+      log_prob_threshold: -1.0
+      compression_ratio_threshold: 2.4
+      hallucination_silence_threshold: null
+      vad_filter: true
   speechmatics:
     url: wss://us.rt.speechmatics.com/v2/
     model: enhanced         # operating point. alternatives: enhanced | standard
