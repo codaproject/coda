@@ -2971,6 +2971,39 @@
         gap: 6px;
       }
 
+      /* ---- Hide-pause prompt (screen lock / tab background) --------- */
+      .hide-pause-overlay:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+        background: rgba(34, 34, 59, 0.35);
+      }
+      .hide-pause-dialog {
+        width: 100%;
+        max-width: 400px;
+        padding: 24px;
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-md);
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 12px 40px rgba(34, 34, 59, 0.2);
+      }
+      .hide-pause-dialog p {
+        margin: 0 0 20px;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      .hide-pause-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
       /* ---- Status toast (repurposed from Bootstrap alert) ------------ */
       #statusMessage.alert {
         position: fixed;
@@ -4576,6 +4609,37 @@
       </div>
     </aside>
 
+    <div id="hidePauseOverlay" class="hide-pause-overlay" hidden>
+      <div
+        class="hide-pause-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hidePauseTitle"
+      >
+        <p id="hidePauseTitle" data-i18n="record.hidePaused">
+          Recording was paused because the page was hidden.
+        </p>
+        <div class="hide-pause-actions">
+          <button
+            type="button"
+            id="hidePauseStopBtn"
+            class="btn btn-ghost"
+            data-i18n="record.stop"
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            id="hidePauseResumeBtn"
+            class="btn btn-primary"
+            data-i18n="record.resume"
+          >
+            Resume
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div
       id="statusMessage"
       class="alert alert-info"
@@ -4680,6 +4744,10 @@
           "idle.recent": "Recent",
           "record.recording": "RECORDING",
           "record.paused": "PAUSED",
+          "record.hidePaused":
+            "Recording was paused because the page was hidden.",
+          "record.resume": "Resume",
+          "record.stop": "Stop",
           "record.transcript": "Transcript",
           "record.probableCause": "Probable cause",
           "record.differentials": "Differentials",
@@ -4899,6 +4967,10 @@
           "idle.recent": "Hivi karibuni",
           "record.recording": "INAREKODI",
           "record.paused": "IMESITISHWA",
+          "record.hidePaused":
+            "Rekodi ilisimamishwa kwa sababu ukurasa ulifichwa.",
+          "record.resume": "Endelea",
+          "record.stop": "Simamisha",
           "record.transcript": "Maandishi",
           "record.probableCause": "Sababu inayowezekana",
           "record.differentials": "Tofauti",
@@ -5121,6 +5193,10 @@
           "idle.recent": "Récent",
           "record.recording": "ENREGISTREMENT",
           "record.paused": "EN PAUSE",
+          "record.hidePaused":
+            "L'enregistrement a été mis en pause car la page était masquée.",
+          "record.resume": "Reprendre",
+          "record.stop": "Arrêter",
           "record.transcript": "Transcription",
           "record.probableCause": "Cause probable",
           "record.differentials": "Diagnostics différentiels",
@@ -5341,6 +5417,10 @@
           "idle.recent": "الحديثة",
           "record.recording": "يسجل",
           "record.paused": "متوقف مؤقتًا",
+          "record.hidePaused":
+            "تم إيقاف التسجيل مؤقتًا لأن الصفحة كانت مخفية.",
+          "record.resume": "استئناف",
+          "record.stop": "إيقاف",
           "record.transcript": "النص",
           "record.probableCause": "السبب المحتمل",
           "record.differentials": "التشخيصات التفريقية",
@@ -5558,6 +5638,10 @@
           "idle.recent": "সাম্প্রতিক",
           "record.recording": "রেকর্ড হচ্ছে",
           "record.paused": "বিরতি",
+          "record.hidePaused":
+            "পৃষ্ঠা লুকানো থাকায় রেকর্ডিং বিরতি দেওয়া হয়েছে।",
+          "record.resume": "আবার শুরু",
+          "record.stop": "থামান",
           "record.transcript": "প্রতিলিপি",
           "record.probableCause": "সম্ভাব্য কারণ",
           "record.differentials": "পৃথকীকরণ",
@@ -5780,6 +5864,10 @@
           "idle.recent": "Recientes",
           "record.recording": "GRABANDO",
           "record.paused": "EN PAUSA",
+          "record.hidePaused":
+            "La grabación se pausó porque la página estaba oculta.",
+          "record.resume": "Reanudar",
+          "record.stop": "Detener",
           "record.transcript": "Transcripción",
           "record.probableCause": "Causa probable",
           "record.differentials": "Diagnósticos diferenciales",
@@ -6002,6 +6090,10 @@
           "idle.recent": "Swa sweswinyana",
           "record.recording": "KU RHEKHODA",
           "record.paused": "KU YIMISIWE SWA NKARHINYANA",
+          "record.hidePaused":
+            "Rhekhodo yi yimisiwile hikuva pheji a yi vonakali.",
+          "record.resume": "Yisa emahlweni",
+          "record.stop": "Yimisa",
           "record.transcript": "Tsalwa",
           "record.probableCause": "Xivangelo lexi nga ni nkoteko lowukulu",
           "record.differentials": "Swivangelo swin'wana leswi kotekaka",
@@ -6412,6 +6504,9 @@
       let isRecording = false;
       let isPaused = false;
       let resuming = false;
+      // Set when pauseRecording runs because the page was hidden (lock / background)
+      let pausedByHide = false;
+      let wakeLock = null;
       let micStream = null;
       let micSource = null;
       let micConstraints = null;
@@ -6437,6 +6532,9 @@
       const recordBtn = document.getElementById("recordBtn");
       const pauseBtn = document.getElementById("pauseBtn");
       const heroMicBtn = document.getElementById("heroMicBtn");
+      const hidePauseOverlay = document.getElementById("hidePauseOverlay");
+      const hidePauseResumeBtn = document.getElementById("hidePauseResumeBtn");
+      const hidePauseStopBtn = document.getElementById("hidePauseStopBtn");
       const recordingStatus = document.getElementById("recordingStatus");
       const transcript = document.getElementById("transcript");
       const inference = document.getElementById("inference");
@@ -8824,6 +8922,7 @@
           }
 
           isRecording = true;
+          pausedByHide = false;
           recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
           recordBtn.classList.remove("btn-record-start");
           recordBtn.classList.add("btn-record-stop");
@@ -8832,6 +8931,7 @@
           body.classList.add("recording");
           setSessionState("recording");
           startTimer();
+          requestWakeLock();
         } catch (error) {
           console.error("Error starting recording:", error);
           if (ws) {
@@ -8864,12 +8964,45 @@
         }
       }
 
+      async function requestWakeLock() {
+        if (!("wakeLock" in navigator) || document.visibilityState !== "visible") {
+          return;
+        }
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => {
+            wakeLock = null;
+          });
+        } catch (_) {
+          wakeLock = null;
+        }
+      }
+
+      async function releaseWakeLock() {
+        if (!wakeLock) return;
+        try {
+          await wakeLock.release();
+        } catch (_) {
+          /* already released */
+        }
+        wakeLock = null;
+      }
+
+      function showHidePauseDialog() {
+        hidePauseOverlay.hidden = false;
+      }
+
+      function hideHidePauseDialog() {
+        hidePauseOverlay.hidden = true;
+      }
+
       // Release the mic and hold the session open. No audio reaches the
       // server or the recording kept for playback.
       function pauseRecording() {
         if (!isRecording || isPaused) return;
         isPaused = true;
         pausedAt = Date.now();
+        releaseWakeLock();
         releaseMic();
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "pause" }));
@@ -8906,11 +9039,14 @@
         }
         connectMic(stream);
         isPaused = false;
+        pausedByHide = false;
         pausedMs += Date.now() - pausedAt;
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "resume" }));
         }
         showPauseButton();
+        hideHidePauseDialog();
+        requestWakeLock();
       }
 
       function showPauseButton() {
@@ -8968,6 +9104,9 @@
           pausedMs += Date.now() - pausedAt;
           isPaused = false;
         }
+        pausedByHide = false;
+        hideHidePauseDialog();
+        releaseWakeLock();
         showPauseButton();
         isRecording = false;
         releaseMic();
@@ -9063,6 +9202,32 @@
       pauseBtn.addEventListener("click", () => {
         if (isPaused) resumeRecording();
         else pauseRecording();
+      });
+
+      hidePauseResumeBtn.addEventListener("click", () => {
+        resumeRecording();
+      });
+
+      hidePauseStopBtn.addEventListener("click", () => {
+        stopRecording();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          if (isRecording && !isPaused) {
+            pauseRecording();
+            pausedByHide = true;
+          }
+          return;
+        }
+        if (pausedByHide) {
+          pausedByHide = false;
+          showHidePauseDialog();
+          return;
+        }
+        if (isRecording && !isPaused) {
+          requestWakeLock();
+        }
       });
 
       heroMicBtn.addEventListener("click", () => {
