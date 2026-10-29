@@ -62,8 +62,8 @@ logger = logging.getLogger(__name__)
 # it commits the words still in its buffer instead of holding them until resume
 PAUSE_SILENCE_BYTES = 32000
 
-# How long a connection asking to continue a case waits for the connection that
-# last recorded it to finish closing it
+# How long adding to a case waits for the connection that last recorded it to
+# finish closing it
 CASE_RELEASE_WAIT_S = 5.0
 # WebSocket close code sent when the case asked for cannot be continued
 CASE_IN_USE_CLOSE_CODE = 4409
@@ -194,10 +194,7 @@ class InferenceSessionCoordinator:
         if not storage_enabled():
             return None
         run_info = await _run_info()
-        # A connection that just stopped may still be closing the case
-        deadline = time.monotonic() + CASE_RELEASE_WAIT_S
-        while case_id in _recording_case_ids() and time.monotonic() < deadline:
-            await asyncio.sleep(0.1)
+        await _wait_for_case_release(case_id)
         # No await from here on, so no other connection can take the case
         # meanwhile
         if case_id in _recording_case_ids():
@@ -246,6 +243,8 @@ class InferenceSessionCoordinator:
             self.generation += 1
             self._pending.clear()
             self.seed = None
+            self.buffer.take()
+            self.committed = []
         logger.info(
             "Invalidated inference session %s generation %d (%s, cleared %d buffered chunk(s))",
             self.session_id, old_generation, reason, dropped
@@ -1180,6 +1179,7 @@ async def _infer_edited_case(req, edit_id, after, annotations):
         await _reset_inference_session(session_id, 0)
     if storage_enabled() and req.case_id is not None:
         run_info = await _run_info()
+        await _wait_for_case_release(req.case_id)
         # No await from here on, so no connection can take the case meanwhile
         if req.case_id in _recording_case_ids() or \
                 find_case(req.case_id) is None:
@@ -1266,6 +1266,13 @@ def _recording_case_ids() -> set[str]:
         for session in active_inference_sessions
         if session.recorder is not None
     }
+
+
+async def _wait_for_case_release(case_id):
+    """Wait a while for a connection that just stopped to close the case."""
+    deadline = time.monotonic() + CASE_RELEASE_WAIT_S
+    while case_id in _recording_case_ids() and time.monotonic() < deadline:
+        await asyncio.sleep(0.1)
 
 
 @app.get("/cases")

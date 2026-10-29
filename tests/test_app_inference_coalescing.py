@@ -213,7 +213,7 @@ async def test_seed_goes_ahead_of_the_first_batch_only(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_reset_drops_the_seed(monkeypatch):
+async def test_reset_drops_the_seed_and_committed_text(monkeypatch):
     async def fake_reset(session_id, generation):
         return None
 
@@ -221,10 +221,14 @@ async def test_reset_drops_the_seed(monkeypatch):
     monkeypatch.setattr(server, "storage_enabled", lambda: False)
     coordinator = server.InferenceSessionCoordinator(DummyWebSocket(), session_id="session-a")
     coordinator.seed = "fever for three days"
+    coordinator.committed = [("c1", "then a cough")]
+    coordinator.buffer.add("then a cough", [], "c1", 1.0)
 
     await coordinator.invalidate("reset")
 
     assert coordinator.seed is None
+    assert coordinator.committed == []
+    assert not coordinator.buffer.has_pending
 
 
 @pytest.mark.asyncio
