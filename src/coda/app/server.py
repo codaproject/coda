@@ -417,7 +417,7 @@ async def translate_text(text: str, source_language: str) -> str:
 
 
 def display_annotations(annotations):
-    """The fields the UI highlights, from grounded annotations."""
+    """Return the fields the UI highlights for grounded annotations."""
     return [
         {
             "text": ann.text,
@@ -1159,8 +1159,11 @@ class TranscriptEditRequest(BaseModel):
 
 
 async def _infer_edited_case(req, edit_id, after, annotations):
-    """Infer once from an edited transcript and store the edit and the
-    result in its case, if stored and not being recorded."""
+    """Infer once from an edited transcript and store it in its case.
+
+    The edit and its inference are stored only if the case is stored and not
+    being recorded.
+    """
     session_id = str(uuid.uuid4())
     request = {
         "chunk_id": edit_id,

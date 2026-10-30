@@ -228,8 +228,7 @@ class CaseRecorder:
 
     def write_edit(self, edit_id, through, before, after, annotations, live,
                    user=None):
-        """Append an edit of the transcript inference reads to the case's
-        edit log.
+        """Append an edit of the transcript to the case's edit log.
 
         The edit replaces the transcript up to and including chunk
         ``through``, ``before`` with ``after``. ``live`` is whether it was
@@ -397,8 +396,11 @@ def _segments(manifest: dict, case_dir: Path) -> list[dict]:
 
 
 def _apply_edits(chunks, edits):
-    """The chunks as shown after the last edit: one chunk holding its text,
-    then the chunks after the last one it covered."""
+    """Return the chunks as shown after the last edit.
+
+    That is one chunk holding the edited text, then the chunks after the last
+    one it covered.
+    """
     if not edits:
         return chunks
     edit = edits[-1]

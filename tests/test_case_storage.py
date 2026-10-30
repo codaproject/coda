@@ -930,7 +930,6 @@ async def test_notes_are_not_stored_without_storage(offline_server,
     assert list(tmp_path.iterdir()) == []
 
 
-
 def test_load_case_shows_last_edit_then_later_chunks(storage_dir):
     recorder = record_case("aaaa0001", close=False)
     recorder.write_chunk("c2", 2.0, "then a cough", [], {})
