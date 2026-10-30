@@ -175,7 +175,8 @@ class InferenceSessionCoordinator:
         self.buffer = StreamingInferenceBuffer(
             min_words=INFERENCE_MIN_WORDS
             if isinstance(transcriber, StreamingTranscriber) else 0)
-        # (chunk_id, text) of each chunk committed on this connection
+        # (chunk_id, text, annotations) of each chunk committed on this
+        # connection
         self.committed = []
 
     async def start_case(self):
@@ -258,24 +259,27 @@ class InferenceSessionCoordinator:
             await self.start_case()
             await _ws_send_safe(self.websocket, self.session_message())
 
-    async def restart(self, transcript, shown_through, edit_id):
+    async def restart(self, transcript, annotations, shown_through, edit_id):
         """Infer anew in a new generation of the same case.
 
-        The new generation starts from ``transcript``, followed by the text
-        committed after chunk ``shown_through``, as that was not shown yet.
-        Its inference is stored with ``edit_id``.
+        The new generation starts from ``transcript`` and its ``annotations``,
+        followed by the chunks committed after chunk ``shown_through``, as
+        those were not shown yet. Its inference is stored with ``edit_id``.
         """
         async with self._lock:
-            ids = [cid for cid, _ in self.committed]
+            ids = [cid for cid, _, _ in self.committed]
             start = ids.index(shown_through) + 1 if shown_through in ids else 0
-            unshown = " ".join(text for _, text in self.committed[start:])
+            unshown = self.committed[start:]
             old_generation = self.generation
             self.generation += 1
             self.seed = transcript
             self.buffer.take()
             self._pending = [PendingInferenceChunk(
-                chunk_id=edit_id, timestamp=time.time(), text=unshown,
-                annotations=[], edit_id=edit_id)]
+                chunk_id=edit_id, timestamp=time.time(),
+                text=" ".join(text for _, text, _ in unshown),
+                annotations=[*annotations,
+                             *(ann for _, _, anns in unshown for ann in anns)],
+                edit_id=edit_id)]
             if self._drain_task is None or self._drain_task.done():
                 self._drain_task = asyncio.create_task(self._drain_loop())
         logger.info("Restarted inference session %s at generation %d",
@@ -841,7 +845,9 @@ async def capture_audio(
     `resume` take effect on arrival even when transcription lags behind the
     audio. A pause also queues a marker after the audio sent before it. `seed`,
     accepted once and only before any audio, carries the transcript recorded
-    before this connection when it continues a session.
+    before this connection when it continues a session. `stop` ends the audio,
+    so that what was said is transcribed and inferred on before the client
+    closes.
     Surfaces WebSocketDisconnect to the gather; the sentinel lets the consumer's
     audio iterator (and thus the transcriber stream) end cleanly.
     """
@@ -882,6 +888,8 @@ async def capture_audio(
                     inference_session.paused = False
                     if inference_session.recorder is not None:
                         inference_session.recorder.write_resume()
+                elif control == "stop":
+                    queue.put_nowait(None)
                 elif control not in ("pause", "resume"):
                     logger.warning("Ignoring control message %r",
                                    message["text"][:100])
@@ -894,6 +902,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
     """Process: consume transcript events from the active transcriber and, for
     each committed event, translate, ground, save, and display it. Inference
     runs on the accumulated text once enough has arrived (see INFERENCE_MIN_WORDS).
+    Once the audio ends, it infers on the rest and then sends ``stopped``.
 
     While paused no audio arrives and no new inference starts. Text committed
     from audio sent before the pause is still shown and stored, and held until
@@ -965,12 +974,14 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             if committed is None:
                 continue
             chunk_id, timestamp, text, anns = committed
-            inference_session.committed.append((chunk_id, text))
+            inference_session.committed.append((chunk_id, text, anns))
             inference_session.buffer.add(text, anns, chunk_id, timestamp)
             if inference_session.buffer.ready and \
                     not inference_session.paused:
                 await flush()
         await flush()
+        await inference_session.wait_for_idle()
+        await _ws_send_safe(websocket, {"type": "stopped"})
     finally:
         timer.cancel()
 
@@ -1169,7 +1180,7 @@ async def _infer_edited_case(req, edit_id, after, annotations):
         "chunk_id": edit_id,
         "timestamp": time.time(),
         "text": after,
-        "annotations": [],
+        "annotations": [a.to_json() for a in annotations],
         "metadata": current_metadata.to_dict(),
         "session_id": session_id,
         "session_generation": 0,
@@ -1207,9 +1218,10 @@ async def edit_transcript(req: TranscriptEditRequest):
     over the WebSocket. Otherwise the inference is made here and returned.
     """
     after = " ".join(req.transcript.split())
+    if not after:
+        raise HTTPException(status_code=400, detail="Empty transcript")
     edit_id = uuid.uuid4().hex
-    annotations = await asyncio.to_thread(grounder.annotate, after) \
-        if after else []
+    annotations = await asyncio.to_thread(grounder.annotate, after)
     session = next((s for s in active_inference_sessions
                     if s.session_id == req.session_id), None)
     logger.info("Edit %s through chunk %s %s", edit_id, req.shown_through,
@@ -1220,7 +1232,8 @@ async def edit_transcript(req: TranscriptEditRequest):
             session.recorder.write_edit(edit_id, req.shown_through,
                                         req.before, after, annotations,
                                         live=True, user=current_user)
-        await session.restart(after, req.shown_through, edit_id)
+        await session.restart(after, annotations, req.shown_through,
+                              edit_id)
     else:
         result = await _infer_edited_case(req, edit_id, after, annotations)
     return {

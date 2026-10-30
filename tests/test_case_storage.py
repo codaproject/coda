@@ -955,18 +955,21 @@ async def test_edit_after_recording_infers_and_is_stored(offline_server,
     posted = []
 
     async def fake_post(path, json):
-        posted.append((path, json["text"]))
+        posted.append((path, json["text"], json["annotations"]))
         return FakeResponse({"causes": {"icd10:A41.9": SEPSIS}})
 
     monkeypatch.setattr(server, "inference_client",
                         SimpleNamespace(post=fake_post))
+    monkeypatch.setattr(server, "grounder", SimpleNamespace(
+        annotate=lambda text: [FakeAnnotation("fever")]))
+    monkeypatch.setattr(server, "display_annotations", lambda anns: [])
     result = await server.edit_transcript(server.TranscriptEditRequest(
         before="fever for three days", transcript=" fever for  five days ",
         shown_through="c1", case_id=recorder.case_id))
 
     assert result["transcript"] == "fever for five days"
     assert result["inference"]["causes"] == {"icd10:A41.9": SEPSIS}
-    assert posted == [("/infer", "fever for five days")]
+    assert posted == [("/infer", "fever for five days", [{"text": "fever"}])]
     case = load_case(recorder.case_id)
     assert case["chunks"][0]["transcript"] == "fever for five days"
     assert case["top_cause"] == SEPSIS

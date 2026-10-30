@@ -3985,6 +3985,7 @@
                 id="editTranscriptBtn"
                 class="transcript-edit-btn"
                 type="button"
+                hidden
               >
                 <i class="bi bi-pencil"></i>
                 <span data-i18n="transcript.edit">Edit</span>
@@ -4530,6 +4531,7 @@
           "transcript.cancel": "Cancel",
           "transcript.reinferring": "Updating the inference with the correction…",
           "transcript.editFailed": "Could not apply the correction",
+          "transcript.finishing": "Finishing the transcript…",
           "case.noRecording": "Recording not available",
           "case.noteTextNotStored": "Note text not stored",
           "case.voiceOnly":
@@ -4709,6 +4711,7 @@
           "transcript.cancel": "Ghairi",
           "transcript.reinferring": "Inasasisha makisio kwa marekebisho…",
           "transcript.editFailed": "Imeshindwa kutumia marekebisho",
+          "transcript.finishing": "Inakamilisha nakala…",
           "case.noRecording": "Rekodi haipatikani",
           "case.noteTextNotStored": "Maandishi ya maelezo hayakuhifadhiwa",
           "case.voiceOnly":
@@ -4892,6 +4895,7 @@
           "transcript.cancel": "Annuler",
           "transcript.reinferring": "Mise à jour de l'inférence avec la correction…",
           "transcript.editFailed": "Impossible d'appliquer la correction",
+          "transcript.finishing": "Finalisation de la transcription…",
           "case.noRecording": "Enregistrement indisponible",
           "case.noteTextNotStored": "Texte de la note non conservé",
           "case.voiceOnly":
@@ -5070,6 +5074,7 @@
           "transcript.cancel": "إلغاء",
           "transcript.reinferring": "جارٍ تحديث الاستدلال بالتصحيح…",
           "transcript.editFailed": "تعذّر تطبيق التصحيح",
+          "transcript.finishing": "جارٍ إكمال النص…",
           "case.noRecording": "التسجيل غير متاح",
           "case.noteTextNotStored": "لم يُحفظ نص الملاحظة",
           "case.voiceOnly":
@@ -5250,6 +5255,7 @@
           "transcript.cancel": "বাতিল",
           "transcript.reinferring": "সংশোধন দিয়ে অনুমান হালনাগাদ হচ্ছে…",
           "transcript.editFailed": "সংশোধনটি প্রয়োগ করা যায়নি",
+          "transcript.finishing": "প্রতিলিপি শেষ করা হচ্ছে…",
           "case.noRecording": "রেকর্ডিং পাওয়া যাচ্ছে না",
           "case.noteTextNotStored": "নোটের লেখা সংরক্ষিত হয়নি",
           "case.voiceOnly":
@@ -5432,6 +5438,7 @@
           "transcript.cancel": "Cancelar",
           "transcript.reinferring": "Actualizando la inferencia con la corrección…",
           "transcript.editFailed": "No se pudo aplicar la corrección",
+          "transcript.finishing": "Terminando la transcripción…",
           "case.noRecording": "Grabación no disponible",
           "case.noteTextNotStored": "Texto de la nota no guardado",
           "case.voiceOnly":
@@ -5617,6 +5624,7 @@
           "transcript.cancel": "Khansela",
           "transcript.reinferring": "Ku pfuxeta nkumbetelo hi ku lulamisa…",
           "transcript.editFailed": "Ku lulamisa a swi kotekanga",
+          "transcript.finishing": "Ku hetisisa matsalwa…",
           "case.noRecording": "Rhekhodo a yi kumeki",
           "case.noteTextNotStored": "Matsalwa a ya hlayisiwanga",
           "case.voiceOnly":
@@ -5691,6 +5699,9 @@
       let pausedMs = 0;
       let pausedAt = 0;
       let transcriptText = "";
+      // A stopped recording's socket, open until the server has transcribed
+      // and inferred on everything it was sent
+      let finishingSocket = null;
       let chunkCount = 0;
       let timerInterval = null;
       let timerStart = 0;
@@ -7440,6 +7451,10 @@
       function updateWordCount() {
         const words = transcriptText.trim().split(/\s+/).filter(Boolean).length;
         wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
+        // Nothing to edit, the case is being recorded elsewhere, or its
+        // recording is still finishing
+        document.getElementById("editTranscriptBtn").hidden =
+          !words || caseInProgress || !!finishingSocket;
       }
 
       // A chunk's text with its grounded terms marked
@@ -7493,11 +7508,16 @@
       let editCovered = [];
       // Set while an edit is being applied
       let editPending = false;
+      // The latest edit's save, which a stop waits for
+      let editRequest = Promise.resolve();
 
       // Edit the whole transcript shown so far as plain text. Text committed
       // meanwhile, and the interim preview, stay below the editor.
       function openTranscriptEditor() {
-        if (transcriptEditor || editPending || caseInProgress) return;
+        if (transcriptEditor || editPending || caseInProgress ||
+            finishingSocket) {
+          return;
+        }
         const before = shownTranscript().trim();
         if (!before) return;
         const chunks = transcript.querySelectorAll(".chunk[data-chunk-id]");
@@ -7543,6 +7563,10 @@
         const after = textarea.value.replace(/\s+/g, " ").trim();
         if (after === before) {
           cancelTranscriptEdit();
+          return;
+        }
+        if (!after) {
+          textarea.focus();
           return;
         }
         const covered = editCovered;
@@ -7601,15 +7625,18 @@
       transcript.addEventListener("click", (e) => {
         const action = e.target.closest("[data-action]");
         if (!transcriptEditor || !action) return;
-        if (action.dataset.action === "save") saveTranscriptEdit();
-        else cancelTranscriptEdit();
+        if (action.dataset.action === "save") {
+          editRequest = saveTranscriptEdit();
+        } else {
+          cancelTranscriptEdit();
+        }
       });
       transcript.addEventListener("keydown", (e) => {
         if (!transcriptEditor) return;
         if (e.key === "Escape") cancelTranscriptEdit();
         else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
-          saveTranscriptEdit();
+          editRequest = saveTranscriptEdit();
         }
       });
 
@@ -7645,6 +7672,7 @@
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
           if (!continuing) {
+            abandonFinishingSocket();
             evolution = [];
             latestCauses = null;
             currentCaseId = null;
@@ -7681,6 +7709,10 @@
           };
 
           ws.onmessage = (event) => {
+            // From a socket left finishing when a new session began
+            if (event.target !== ws && event.target !== finishingSocket) {
+              return;
+            }
             const data = JSON.parse(event.data);
 
             if (data.type === "session") {
@@ -7721,6 +7753,12 @@
               }
             } else if (data.type === "inference") {
               showInference(data);
+              if (!isRecording) {
+                finalizeSessionIfSaving();
+                renderResultHero();
+              }
+            } else if (data.type === "stopped") {
+              event.target.close();
             } else if (data.type === "warning") {
               showStatus(data.message, "warning");
             } else if (data.type === "error") {
@@ -7930,6 +7968,38 @@
 
       // Without `save` the session on screen is kept as it was before this
       // recording, as when continuing it was refused.
+      const STOP_FINISH_MS = 120000;
+
+      // Ask the server to finish, after any edit being saved, and close the
+      // socket once it has or after STOP_FINISH_MS
+      function finishSocket(sock) {
+        finishingSocket = sock;
+        showStatus(t("transcript.finishing"), "info");
+        const timer = setTimeout(() => sock.close(), STOP_FINISH_MS);
+        sock.addEventListener("close", () => {
+          clearTimeout(timer);
+          if (finishingSocket !== sock) return;
+          finishingSocket = null;
+          document.getElementById("preview-line")?.remove();
+          updateWordCount();
+        });
+        editRequest.then(() => {
+          if (sock.readyState === WebSocket.OPEN) {
+            sock.send(JSON.stringify({ type: "stop" }));
+          } else {
+            sock.close();
+          }
+        });
+      }
+
+      // Stop waiting on a finishing socket, whose messages no longer apply
+      function abandonFinishingSocket() {
+        if (!finishingSocket) return;
+        const sock = finishingSocket;
+        finishingSocket = null;
+        sock.close();
+      }
+
       function stopRecording({ save = true } = {}) {
         const started = isRecording;
         if (isPaused) {
@@ -7947,7 +8017,8 @@
         analyser = null;
 
         if (ws) {
-          ws.close();
+          if (started && save) finishSocket(ws);
+          else ws.close();
           ws = null;
         }
 
@@ -8396,6 +8467,7 @@
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];
+        abandonFinishingSocket();
         transcript.innerHTML =
           '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
         inference.innerHTML = "";
@@ -8455,6 +8527,7 @@
         if (
           continueStarting ||
           isRecording ||
+          finishingSocket ||
           caseInProgress ||
           !recordingAllowed()
         ) {
