@@ -96,7 +96,9 @@ where = ["src"]
 "coda.grounding.rag_grounder" = ["grounder_config/*.yaml", "prompt_configs/*.yaml"]
 "coda.inference.champs_prompted" = ["prompts/*.txt", "prompts/icd10/*.txt",
                                      "prompts/icd11/*.txt",
-                                     "prompts/icd11/*.yaml"]
+                                     "prompts/icd11/*.yaml",
+                                     "prompts/icd11_adult/*.txt",
+                                     "prompts/icd11_adult/*.yaml"]
 "coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
 
 [tool.setuptools.dynamic]

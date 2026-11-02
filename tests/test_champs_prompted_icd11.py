@@ -1,5 +1,10 @@
 import pytest
 
+from coda.inference.champs_prompted.adult_agent import (
+    ADULT_AGE_GROUP_LIMITS,
+    AdultIcd11SinglePassAgent,
+    load_adult_labels,
+)
 from coda.inference.champs_prompted.icd11_agent import (
     ChampsPromptedIcd11SinglePassAgent,
     ChampsPromptedIcd11TwoPassAgent,
@@ -16,10 +21,13 @@ RANKS = {"rank_1_code": "1F40.Y", "rank_1_prob": 0.6,
          "rank_5_code": "CA40.Z", "rank_5_prob": 0.05,
          "questions": ["q1", "q2", "q3"]}
 INFANT = {"profile": {"age": {"value": 11, "unit": "months"}}}
+OLDER_MAN = {"profile": {"age": {"value": 70, "unit": "years"},
+                         "sex": "male"}}
 
 
 class FakeLLMClient:
-    def __init__(self):
+    def __init__(self, ranks=RANKS):
+        self.ranks = ranks
         self.calls = []
 
     def call(self, **kwargs):
@@ -28,7 +36,7 @@ class FakeLLMClient:
 
     def call_with_schema(self, **kwargs):
         self.calls.append(kwargs)
-        return {"reasoning": "Severe malaria.", **RANKS}
+        return {"reasoning": "Severe malaria.", **self.ranks}
 
 
 @pytest.mark.parametrize("profile, group", [
@@ -98,3 +106,36 @@ def test_clinical_assessment_headings(label):
 
 def test_clinical_assessment_without_heading():
     assert clinical_assessment(" Severe malaria. ") == "Severe malaria."
+
+
+@pytest.mark.parametrize("years, group", [
+    (12, "young_adult"),
+    (40, "middle_aged"),
+    (70, "older_adult"),
+])
+def test_adult_age_group(years, group):
+    profile = Profile.from_dict({"age": {"value": years, "unit": "years"}})
+    assert age_group(profile, ADULT_AGE_GROUP_LIMITS) == group
+
+
+def test_adult_labels_by_sex():
+    assert load_adult_labels("female")["JB60"] == "Maternal"
+    assert "JB60" not in load_adult_labels("male")
+    assert "2C82.Z" not in load_adult_labels("female")
+    assert len(load_adult_labels(None)) == 35
+
+
+@pytest.mark.asyncio
+async def test_adult_single_pass_ranks_adult_codes():
+    client = FakeLLMClient({"rank_1_code": "8B20", "rank_1_prob": 1.0})
+    agent = AdultIcd11SinglePassAgent(client)
+
+    result = await agent.process_chunk("c1", "He collapsed suddenly.", [],
+                                       metadata=OLDER_MAN)
+
+    [call] = client.calls
+    enum = call["schema"]["properties"]["rank_1_code"]["enum"]
+    assert enum == sorted(load_adult_labels("male"))
+    assert "Cardiovascular causes dominate" in call["system_prompt"]
+    assert "{" not in call["system_prompt"]
+    assert result["causes"]["icd11:8B20"]["name"] == "Stroke"
