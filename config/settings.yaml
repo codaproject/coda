@@ -73,8 +73,11 @@ inference:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini
   champs_prompted:          # CHAMPS prompted agent (LLM)
+    # Decedents the agent is for: child (CHAMPS causes, under 5) | adult
+    # (adult causes, icd11 coding only)
+    population: child
     # Cause coding: icd10 (CHAMPS group causes) | icd11 (ICD-11 codes allowed
-    # for the decedent's CHAMPS age group)
+    # for the decedent's age group)
     coding: icd10
     # ICD-11 only: 1 (one structured call) | 2 (free-text reasoning, then
     # code selection)

@@ -1,0 +1,30 @@
+# Age-group-specific clinical guidance for adult ICD-11 constrained decoding.
+# Each key maps to a list of max-3 bullet points injected into the system
+# prompt under ## AGE-GROUP GUIDANCE.
+
+young_adult:
+  - "Injuries are a leading cause at this age — consider Road Traffic, Homicide,
+    Suicide and Drowning whenever an injury or violent event is reported."
+  - "AIDS and TB are major causes in high HIV prevalence settings — weigh
+    prolonged fever, weight loss, chronic cough or diarrhoea toward them."
+  - "For women, consider Maternal whenever death occurred during or shortly after
+    pregnancy, delivery or abortion."
+
+middle_aged:
+  - "Non-communicable diseases become leading causes — consider Stroke, Acute
+    Myocardial Infarction, Cirrhosis, Diabetes and cancers when a chronic illness
+    is reported."
+  - "AIDS and TB remain common — do not displace them with a non-communicable
+    cause when chronic wasting, cough or opportunistic infections dominate."
+  - "For cancers common at this age (Cervical Cancer, Breast Cancer, Stomach
+    Cancer, Esophageal Cancer), use the site-specific category when the site is
+    reported."
+
+older_adult:
+  - "Cardiovascular causes dominate — consider Stroke, Acute Myocardial
+    Infarction and Other Cardiovascular Diseases first when the illness was
+    sudden or involved chest pain, breathlessness or swelling."
+  - "Chronic conditions (COPD, Diabetes, Renal Failure) and cancers (Lung Cancer,
+    Prostate Cancer, Colorectal Cancer, Stomach Cancer) are common — prefer them
+    over Other Non-communicable Diseases when documented."
+  - "Falls are a common cause of injury death at this age."

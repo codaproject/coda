@@ -39,8 +39,11 @@ AGE_GROUP_GUIDANCE = yaml.safe_load(
     (PROMPTS_DIR / "icd11" / "age_group_guidance.yaml").read_text())
 
 
-def age_group(profile):
-    """Return the CHAMPS age group of a decedent profile, or None."""
+def age_group(profile, limits=AGE_GROUP_LIMITS):
+    """Return the age group of a decedent profile, or None.
+
+    ``limits`` are the groups' upper age bounds in days, CHAMPS's by default.
+    """
     if profile is None:
         return None
     if profile.stillbirth:
@@ -48,7 +51,7 @@ def age_group(profile):
     days = profile.age.days if profile.age else None
     if days is None or days < 0:
         return None
-    for limit, group in AGE_GROUP_LIMITS:
+    for limit, group in limits:
         if days < limit:
             return group
     return None
@@ -81,12 +84,16 @@ def object_schema(properties):
 class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
     """Base class for prompted agents choosing ICD-11 codes by age group.
 
-    The allowed codes and age-group guidance follow the decedent's CHAMPS
-    age group, or all CHAMPS ICD-11 codes when the age group is unknown.
-    Subclasses implement rank_codes.
+    The allowed codes and age-group guidance follow the decedent's age
+    group. By default these are the CHAMPS age groups and their ICD-11 codes,
+    all of them when the age group is unknown. Subclasses implement
+    rank_codes.
     """
 
     diagnosis_standard = read_prompt("icd11/diagnosis_standard.txt")
+    clinical_guidance = read_prompt("icd11/clinical_guidance.txt")
+    age_group_limits = AGE_GROUP_LIMITS
+    age_group_guidance = AGE_GROUP_GUIDANCE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -100,17 +107,19 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
         """Fill a prompt template with the allowed codes and guidance."""
         label_list = "\n".join(f"  {code} | {name}"
                                for code, name in sorted(labels.items()))
-        guidance = "\n".join(f"    - {item}"
-                             for item in AGE_GROUP_GUIDANCE.get(group, [])) \
+        guidance = "\n".join(
+            f"    - {item}"
+            for item in self.age_group_guidance.get(group, [])) \
             or "No age group is known for this case."
         return template.replace("{label_list}", label_list) \
+            .replace("{clinical_guidance}", self.clinical_guidance) \
             .replace("{age_group_guidance}", guidance) \
             .replace("{question_guidance}", self.question_guidance)
 
     async def infer(self, chunk_id, text, annotations):
         """Rank ICD-11 codes for the case and return them as causes."""
-        group = age_group(self.metadata.profile)
-        labels = load_labels(group)
+        group = age_group(self.metadata.profile, self.age_group_limits)
+        labels = self.allowed_labels(group)
         logger.info("Ranking ICD-11 codes for age group %s (%d codes)",
                     group or "unknown", len(labels))
         try:
@@ -129,6 +138,10 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
             }
         return {"causes": normalize_scores(causes), "reasoning": reasoning,
                 "questions": ranks.get("questions", [])}
+
+    def allowed_labels(self, group):
+        """Return the code-to-name labels the case may be coded with."""
+        return load_labels(group)
 
     async def rank_codes(self, chunk_id, labels, group):
         """Return the ranked codes response and the reasoning shown."""

@@ -1,0 +1,9 @@
+- Use the description of each code to reason about clinical fit — the description is the ICD-11 name for that code.
+- For infectious deaths: prefer pathogen-specific codes when lab/TAC evidence supports a specific organism; use broader infection codes only when evidence is non-specific.
+- For perinatal/neonatal deaths (age < 28 days or perinatal context): use Chapter 19 perinatal codes (e.g., prematurity KA21.4Z, birth asphyxia KB21.Z, neonatal sepsis KA60).
+- For stillbirths: focus on antepartum and intrapartum causes; use Chapter 19 perinatal/fetal codes where available.
+- For respiratory deaths: prefer specific pneumonia codes when labs support it; use CA40.Z only when etiology is non-specific.
+- For sepsis: use sepsis codes only when systemic infection without a clear primary focus dominates.
+- For malnutrition: use 5B51 for marasmus/marasmic kwashiorkor; use 5B52 for kwashiorkor.
+- If evidence is ambiguous or insufficient, use the most appropriate unspecified code within the most likely chapter.
+- If the input contains very little or no clinical information, base your assessment on the most epidemiologically prevalent causes for this age group.

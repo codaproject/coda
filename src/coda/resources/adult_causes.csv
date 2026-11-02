@@ -1,0 +1,36 @@
+cause,icd10_code,icd11_code,sex
+AIDS,B24,1C62.Z,any
+Diarrhea/Dysentery,A09,1A40.Z,any
+Malaria,B54,1F4Z,any
+Maternal,O95,JB60,female
+Other Infectious Diseases,B99,1H0Z,any
+Pneumonia,J22,CA4Z,any
+TB,A16,1B10.1,any
+Acute Myocardial Infarction,I24,BA41.Z,any
+Asthma,J45,CA23.32,any
+Breast Cancer,C50,2C6Z,female
+COPD,J44,CA22.Z,any
+Cervical Cancer,C53,2C77.Z,female
+Cirrhosis,K74,DB93.1,any
+Colorectal Cancer,C18,2B90.Z,any
+Diabetes,E14,5A14,any
+Epilepsy,G40,8A6Z,any
+Esophageal Cancer,C15,2B70.Z,any
+Leukemia/Lymphomas,C96,2B3Z,any
+Lung Cancer,C34,2C25.Z,any
+Other Cardiovascular Diseases,I99,BE2Z,any
+Other Non-communicable Diseases,R99,MH14,any
+Prostate Cancer,C61,2C82.Z,male
+Renal Failure,N19,GB6Z,any
+Stomach Cancer,C16,2B72.Z,any
+Stroke,I64,8B20,any
+Other Cancers,C76,2D42,any
+Bite of Venomous Animal,X27,PA78,any
+Drowning,W74,PA9Z,any
+Falls,W19,PA6Z,any
+Fires,X09,PB1Z,any
+Homicide,Y09,PF2Z,any
+Other Injuries,X58,PB6Y,any
+Accidental Poisoning,X49,PB36,any
+Road Traffic,V89,PA0Z,any
+Suicide,X84,PD3Z,any
