@@ -31,6 +31,6 @@ Falls,W19,PA6Z,any
 Fires,X09,PB1Z,any
 Homicide,Y09,PF2Z,any
 Other Injuries,X58,PB6Y,any
-Accidental Poisoning,X49,PB36,any
+Poisonings,X49,PB36,any
 Road Traffic,V89,PA0Z,any
 Suicide,X84,PD3Z,any

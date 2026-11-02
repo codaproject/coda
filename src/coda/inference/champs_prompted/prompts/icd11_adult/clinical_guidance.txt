@@ -1,5 +1,5 @@
 - Each allowed code stands for a cause category, and its description is the category name. Choose the category that best fits the case.
-- For deaths from injury: code the external cause (Road Traffic, Falls, Drowning, Fires, Accidental Poisoning, Bite of Venomous Animal), not the resulting medical condition. Use the manner of death or reported intent to choose Homicide or Suicide. Use Other Injuries only for injuries outside these categories.
+- For deaths from injury: code the external cause (Road Traffic, Falls, Drowning, Fires, Poisonings, Bite of Venomous Animal), not the resulting medical condition. Use the manner of death or reported intent to choose Homicide or Suicide, including for intentional poisoning. Use Other Injuries only for injuries outside these categories.
 - For deaths during pregnancy, delivery or within 42 days after the end of pregnancy from pregnancy-related causes (e.g. haemorrhage, eclampsia, sepsis, abortion complications): use Maternal.
 - For HIV and TB: use AIDS when the decedent is HIV positive with wasting, chronic diarrhoea or opportunistic infections, also when TB co-occurs. Use TB for prolonged cough, weight loss and night sweats without HIV.
 - For cancers: use the site-specific category when the site is known, Leukemia/Lymphomas for blood cancers, and Other Cancers for other or unknown sites.
