@@ -59,7 +59,8 @@ def create_champs_prompted_agent(
 
     agent_settings = settings.inference.get("champs_prompted") or {}
     population = agent_settings.get("population", "child")
-    coding = agent_settings.get("coding", "icd10")
+    coding = "icd11" if population == "adult" \
+        else agent_settings.get("coding", "icd10")
     passes = 1 if coding == "icd10" else int(agent_settings.get("passes", 1))
     key = (population, coding, passes)
     if key not in AGENT_CLASSES:
