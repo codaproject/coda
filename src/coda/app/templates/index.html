@@ -6497,6 +6497,14 @@
         updateWordCount();
       }
 
+      // Unanswered pings in a row before the recording is stopped. The server
+      // only replies; these two settings are the whole watchdog.
+      const PING_INTERVAL_MS = 4000;
+      const PINGS_LOST_LIMIT = 3;
+      let pingTimer = null;
+      let pingsLost = 0;
+      let pingAwaiting = false;
+
       let ws = null;
       let audioContext = null;
       let analyser = null;
@@ -8743,6 +8751,7 @@
               event.target.send(JSON.stringify({ type: "seed", text: seed }));
             }
             showStatus("Connected to server", "success");
+            startConnectionWatch();
           };
 
           ws.onmessage = (event) => {
@@ -8752,7 +8761,10 @@
             }
             const data = JSON.parse(event.data);
 
-            if (data.type === "session") {
+            if (data.type === "pong") {
+              pingsLost = 0;
+              pingAwaiting = false;
+            } else if (data.type === "session") {
               currentInferenceSessionId = data.session_id || null;
               currentInferenceSessionGeneration =
                 data.session_generation ?? null;
@@ -9056,6 +9068,37 @@
         pauseBtn.title = "Pause recording";
       }
 
+      function stopConnectionWatch() {
+        if (pingTimer !== null) {
+          clearInterval(pingTimer);
+          pingTimer = null;
+        }
+        pingsLost = 0;
+        pingAwaiting = false;
+      }
+
+      // Runs for the life of the recording socket, including while paused.
+      function startConnectionWatch() {
+        stopConnectionWatch();
+        pingTimer = setInterval(() => {
+          if (pingAwaiting) {
+            pingsLost += 1;
+            if (pingsLost >= PINGS_LOST_LIMIT) {
+              showStatus(
+                "Connection error. Make sure the server is running.",
+                "danger",
+              );
+              stopRecording();
+              return;
+            }
+          }
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping" }));
+            pingAwaiting = true;
+          }
+        }, PING_INTERVAL_MS);
+      }
+
       // Without `save` the session on screen is kept as it was before this
       // recording, as when continuing it was refused.
       const STOP_FINISH_MS = 120000;
@@ -9099,6 +9142,7 @@
       }
 
       function stopRecording({ save = true } = {}) {
+        stopConnectionWatch();
         const started = isRecording;
         if (isPaused) {
           pausedMs += Date.now() - pausedAt;
