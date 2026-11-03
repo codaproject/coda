@@ -53,12 +53,19 @@ services:
         FINETUNED_MODELS: ${FINETUNED_MODELS:-}
     ports:
       - "${CODA_APP__PORT:-8000}:${CODA_APP__PORT:-8000}"
+      - "${CODA_APP__SETUP_PORT:-8001}:${CODA_APP__SETUP_PORT:-8001}"
     env_file:
       - path: .env
         required: false
     environment:
       CODA_APP__HOST: ${CODA_APP__HOST:-0.0.0.0}
       CODA_APP__PORT: ${CODA_APP__PORT:-8000}
+      CODA_APP__TLS: ${CODA_APP__TLS:-true}
+      # Inside the container the files always live at /certs. The host
+      # directory is the ./certs mount below, so the authority survives
+      # recreating the container.
+      CODA_APP__TLS_DIR: /certs
+      CODA_APP__SETUP_PORT: ${CODA_APP__SETUP_PORT:-8001}
       CODA_DIALOGUE__TRANSCRIBER_BACKEND: ${CODA_DIALOGUE__TRANSCRIBER_BACKEND:-whisper-livekit}
       CODA_INFERENCE__URL: ${CODA_INFERENCE__URL:-http://inference:${CODA_INFERENCE__PORT:-5123}}
       CODA_INFERENCE__LLM__PROVIDER: ${CODA_INFERENCE__LLM__PROVIDER:-openai}
@@ -72,10 +79,12 @@ services:
       CODA_GROUNDER__RAG__RERANKER__ENABLED: ${CODA_GROUNDER__RAG__RERANKER__ENABLED:-true}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # To keep stored cases (storage.enabled) outside the container, mount a
-    # host directory and point CODA_STORAGE__OUTPUT_DIR at it:
-    # volumes:
-    #   - ./cases:/cases
+    # The certificate authority files are stored in ./certs and mounted here.
+    # To keep stored cases (storage.enabled) outside the container as well,
+    # uncomment the cases mount below and point CODA_STORAGE__OUTPUT_DIR at it:
+    volumes:
+      - ./certs:/certs
+      # - ./cases:/cases
     depends_on:
       inference:
         condition: service_healthy
