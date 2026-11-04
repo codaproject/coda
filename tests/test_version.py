@@ -13,16 +13,24 @@ def fresh_version():
     coda.get_version.cache_clear()
 
 
-def fake_git(monkeypatch, returncode, stdout=""):
+def version_for(monkeypatch, returncode, described):
+    monkeypatch.setattr(coda, "__version__", "1.1.0")
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs:
-                        SimpleNamespace(returncode=returncode, stdout=stdout))
+                        SimpleNamespace(returncode=returncode,
+                                        stdout=described + "\n"))
+    return coda.get_version()
 
 
-def test_version_from_tag(monkeypatch):
-    fake_git(monkeypatch, 0, "v1.2.0-3-gab12cd3-dirty\n")
-    assert coda.get_version() == "1.2.0-3-gab12cd3-dirty"
+def test_version(monkeypatch):
+    assert version_for(monkeypatch, 0, "1.1.0") == "1.1.0"
 
 
-def test_version_without_tag(monkeypatch):
-    fake_git(monkeypatch, 128)
-    assert coda.get_version() == coda.__version__
+def test_version_off_release(monkeypatch):
+    assert version_for(monkeypatch, 0, "1.1.0-3-gab12cd3-dirty") == \
+        "1.1.0+3-gab12cd3-dirty"
+    coda.get_version.cache_clear()
+    assert version_for(monkeypatch, 0, "ab12cd3") == "1.1.0+ab12cd3"
+
+
+def test_version_without_git(monkeypatch):
+    assert version_for(monkeypatch, 128, "") == "1.1.0"

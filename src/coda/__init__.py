@@ -19,18 +19,21 @@ __version__ = '1.0.0'
 
 @cache
 def get_version():
-    """Return the git-described version of this checkout, else __version__.
+    """Return __version__, marked when the git checkout is not its release.
 
-    On a release tag this is e.g. ``1.0.0``, past it ``1.0.0-3-gab12cd3``,
-    with ``-dirty`` appended when tracked files have local changes.
+    On the clean release tag this is e.g. ``1.0.0``. Otherwise git's
+    description is appended, e.g. ``1.0.0+3-gab12cd3`` three commits past the
+    tag, ``1.0.0+dirty`` with local changes, or ``1.1.0+ab12cd3`` before the
+    tag exists. Outside a git checkout it is ``__version__``.
     """
     try:
         out = subprocess.run(
-            ['git', 'describe', '--tags', '--match', 'v[0-9]*', '--dirty'],
-            cwd=Path(__file__).parent, capture_output=True, text=True,
-            timeout=5)
+            ['git', 'describe', '--tags', '--always', '--dirty', '--match',
+             __version__], cwd=Path(__file__).parent, capture_output=True,
+            text=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
         return __version__
-    if out.returncode:
+    described = out.stdout.strip()
+    if out.returncode or described == __version__:
         return __version__
-    return out.stdout.strip().removeprefix('v')
+    return f"{__version__}+{described.removeprefix(__version__ + '-')}"
