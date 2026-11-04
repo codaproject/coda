@@ -100,7 +100,8 @@ where = ["src"]
                                      "prompts/icd11/*.yaml",
                                      "prompts/icd11_adult/*.txt",
                                      "prompts/icd11_adult/*.yaml"]
-"coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv"]
+"coda.resources" = ["*.csv", "*.tsv", "*.json", "champs/*.txt", "champs/*.tsv",
+                    "champs/*.json", "adult/*.csv", "adult/*.json"]
 
 [tool.setuptools.dynamic]
 version = {attr = "coda.__version__"}

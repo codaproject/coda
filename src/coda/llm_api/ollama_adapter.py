@@ -63,13 +63,16 @@ class OllamaAdapter(LLMClient):
         self.num_ctx = settings.llm.ollama.get("num_ctx") or None
         think = settings.llm.ollama.get("think")
         self.think = None if think == "" else think
+        self.keep_alive = settings.llm.ollama.get("keep_alive") or None
 
     def chat(self, messages, options, **kwargs):
-        """Send a chat request with the configured context and thinking."""
+        """Send a chat request with the configured Ollama options."""
         if self.num_ctx:
             options = {**options, "num_ctx": self.num_ctx}
         if self.think is not None:
             kwargs["think"] = self.think
+        if self.keep_alive is not None:
+            kwargs["keep_alive"] = self.keep_alive
         return self.client.chat(model=self.model, messages=messages,
                                 options=options, **kwargs)
 

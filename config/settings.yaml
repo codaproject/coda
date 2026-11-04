@@ -113,6 +113,9 @@ llm:                        # shared LLM provider endpoints; api keys -> .secret
     # Whether models that support thinking reason before answering. Allowed
     # values: true | false | low | medium | high, empty -> the model's default.
     think: false
+    # How long a model stays loaded after its last request, e.g. 30m or 2h,
+    # -1 -> until Ollama stops, empty -> Ollama's default of 5m.
+    keep_alive: 2h
 
 kg:
   url: bolt://localhost:7687
