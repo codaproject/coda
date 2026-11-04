@@ -2019,8 +2019,14 @@
         align-items: center;
         gap: 6px;
       }
+      .idle-version {
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        color: var(--ink-faint);
+        margin-top: -28px;
+      }
       /* Off-release builds (past a tag or locally modified) */
-      .idle-version[data-version*="-"] {
+      .coda-version[data-version*="+"] {
         color: var(--warning);
       }
 
@@ -3468,7 +3474,9 @@
             >No data leaves this device. No sign-in required.</span
           >
         </div>
-        <div class="onboard-foot-right">CODA 1.0</div>
+        <div class="onboard-foot-right coda-version" data-version="__CODA_VERSION__">
+          CODA __CODA_VERSION__
+        </div>
       </div>
     </div>
 
@@ -3904,9 +3912,9 @@
             >Advisory only · Final determination remains with the
             clinician</span
           >
-          <span class="idle-version" data-version="__CODA_VERSION__"
-            >· CODA __CODA_VERSION__</span
-          >
+        </div>
+        <div class="idle-version coda-version" data-version="__CODA_VERSION__">
+          CODA __CODA_VERSION__
         </div>
       </section>
 
