@@ -3,6 +3,7 @@ import pytest
 from coda.inference.champs_prompted.adult_agent import (
     ADULT_AGE_GROUP_LIMITS,
     AdultIcd11SinglePassAgent,
+    load_adult_chain_labels,
     load_adult_labels,
 )
 from coda.inference.champs_prompted.icd11_agent import (
@@ -143,7 +144,8 @@ def test_adult_labels_by_sex():
 
 @pytest.mark.asyncio
 async def test_adult_single_pass_ranks_adult_codes():
-    client = FakeLLMClient({"rank_1_code": "8B20", "rank_1_prob": 1.0})
+    client = FakeLLMClient({"rank_1_code": "8B20", "rank_1_prob": 1.0,
+                            "chain": ["CA71.0", "CB41.0Z"]})
     agent = AdultIcd11SinglePassAgent(client)
 
     result = await agent.process_chunk("c1", "He collapsed suddenly.", [],
@@ -155,4 +157,7 @@ async def test_adult_single_pass_ranks_adult_codes():
     assert "Cardiovascular causes dominate" in call["system_prompt"]
     assert "{" not in call["system_prompt"]
     assert result["causes"]["icd11:8B20"]["name"] == "Stroke"
-    assert "chain" not in call["schema"]["properties"]
+    chain_enum = call["schema"]["properties"]["chain"]["items"]["enum"]
+    assert chain_enum == sorted(load_adult_chain_labels())
+    assert [c["identifiers"]["icd11"] for c in result["chain"]] == \
+        ["8B20", "CA71.0", "CB41.0Z"]

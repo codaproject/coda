@@ -33,6 +33,13 @@ def load_adult_labels(sex=None):
                 or sex not in ("female", "male")}
 
 
+def load_adult_chain_labels():
+    """Return the ICD-11 code-to-name labels of adult causal chain links."""
+    with open(get_resource_path("adult_chain_causes.csv")) as fh:
+        return {row["icd11_code"]: row["cause"]
+                for row in csv.DictReader(fh)}
+
+
 class AdultIcd11Mixin:
     """Adult causes and guidance for the ICD-11 prompted agents."""
 
@@ -40,7 +47,7 @@ class AdultIcd11Mixin:
     age_group_limits = ADULT_AGE_GROUP_LIMITS
     age_group_guidance = yaml.safe_load(
         (PROMPTS_DIR / "icd11_adult" / "age_group_guidance.yaml").read_text())
-    chain_labels = {}
+    chain_labels = load_adult_chain_labels()
 
     def allowed_labels(self, group):
         profile = self.metadata.profile
