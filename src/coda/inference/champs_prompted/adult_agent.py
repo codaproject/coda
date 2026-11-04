@@ -1,6 +1,8 @@
 """Prompted agents choosing ICD-11 codes of adult causes of death."""
 
 import csv
+import json
+import os
 from functools import lru_cache
 
 import yaml
@@ -27,7 +29,7 @@ def load_adult_labels(sex=None):
     Causes restricted to one sex are left out for the other, all causes are
     kept when the sex is unknown.
     """
-    with open(get_resource_path("adult_causes.csv")) as fh:
+    with open(get_resource_path(os.path.join("adult", "causes.csv"))) as fh:
         return {row["icd11_code"]: row["cause"] for row in csv.DictReader(fh)
                 if row["sex"] in ("any", sex)
                 or sex not in ("female", "male")}
@@ -35,9 +37,9 @@ def load_adult_labels(sex=None):
 
 def load_adult_chain_labels():
     """Return the ICD-11 code-to-name labels of adult causal chain links."""
-    with open(get_resource_path("adult_chain_causes.csv")) as fh:
-        return {row["icd11_code"]: row["cause"]
-                for row in csv.DictReader(fh)}
+    path = os.path.join("adult", "icd_chain_labels.json")
+    with open(get_resource_path(path)) as fh:
+        return json.load(fh)
 
 
 class AdultIcd11Mixin:
