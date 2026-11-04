@@ -58,11 +58,11 @@ sync_env() {
 }
 
 latest_release() {
-    git tag -l 'v[0-9]*' --sort=-v:refname | grep -v -- - | head -1
+    git tag -l '[0-9]*' --sort=-v:refname | grep -v -- - | head -1
 }
 
 current_release() {
-    git describe --tags --exact-match --match 'v[0-9]*' HEAD 2>/dev/null
+    git describe --tags --exact-match --match '[0-9]*' HEAD 2>/dev/null
 }
 
 # Offer to switch to the newest release, rolling back if that fails. With
@@ -72,7 +72,7 @@ update() {
     if [ "$mode" = startup ] && [ -z "$(current_release)" ]; then
         return 0
     fi
-    current="$(git describe --tags --always --dirty --match 'v[0-9]*')"
+    current="$(git describe --tags --always --dirty --match '[0-9]*')"
     echo "Checking for CODA updates..."
     if ! GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 \
             -c http.lowSpeedTime=10 fetch --quiet --tags --force origin 2>/dev/null; then
@@ -84,27 +84,30 @@ server. Check the internet connection and try again."
     if [ -z "$latest" ] || [ "$current" = "$latest" ] || \
             { [ "$mode" = startup ] && [ "$(current_release)" = "$latest" ]; }
     then
-        [ "$mode" = startup ] || notify "CODA ${current#v} is up to date."
+        [ "$mode" = startup ] || notify "CODA $current is up to date."
         return 0
     fi
-    notes="$(git tag -l --format='%(contents)' "$latest")"
-    ask "CODA ${latest#v} is available. This laptop has ${current#v}.
+    # Notes of an annotated tag, empty for a lightweight one
+    notes="$(git tag -l --format='%(if)%(*objectname)%(then)%(contents)%(end)' \
+        "$latest")"
+    [ -z "$notes" ] || notes="$notes
 
-$notes
+"
+    ask "CODA $latest is available. This laptop has $current.
 
-Update now?" || return 0
+${notes}Update now?" || return 0
     previous="$(git rev-parse HEAD)"
-    echo "Updating CODA to ${latest#v}..."
+    echo "Updating CODA to $latest..."
     # The new release's own sync_env installs its environment
     if GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force "$latest" \
             && (. mac/common.sh && sync_env); then
-        notify "CODA is now at ${latest#v}."
+        notify "CODA is now at $latest."
         return 0
     fi
-    echo "Update failed, going back to ${current#v}..." >&2
+    echo "Update failed, going back to $current..." >&2
     GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force "$previous" \
         && (. mac/common.sh && sync_env)
-    notify "The update to ${latest#v} failed, CODA stays at ${current#v}. \
+    notify "The update to $latest failed, CODA stays at $current. \
 The Terminal window shows the details."
     return 1
 }

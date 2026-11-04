@@ -19,7 +19,7 @@ Installation
    ```bash
    git clone https://github.com/codaproject/coda.git ~/coda
    cd ~/coda
-   git checkout "$(git tag -l 'v[0-9]*' --sort=-v:refname | grep -v -- - | head -1)"
+   git checkout "$(git tag -l '[0-9]*' --sort=-v:refname | grep -v -- - | head -1)"
    ln -s ~/coda/mac/CODA.app ~/coda/mac/"Update CODA.app" ~/Desktop/
    ```
 
@@ -44,7 +44,7 @@ laptop goes back to the version it had. Without internet the check is skipped.
 `.env`, `certs/` and saved cases are not touched by updates.
 
 The interview page shows the version in its footer. A version such as
-`1.0.0-3-gab12cd3` or one ending in `-dirty` is not a release, and is shown in
+`1.0.0+3-gab12cd3` or `1.0.0+dirty` is not a release, and is shown in
 orange.
 
 Releasing
@@ -58,9 +58,10 @@ Releasing
      --python-platform aarch64-apple-darwin -o mac/requirements.lock
    ```
 
-3. Tag the commit with release notes, which the update dialog shows, and push:
+3. Tag the commit with a one-line summary, which the update dialog shows, and
+   push the tag before creating the GitHub release from it:
 
    ```bash
-   git tag -a v1.1.0 -m "Adds Xitsonga transcription"
-   git push origin v1.1.0
+   git tag -a 1.1.0 -m "Adds Xitsonga transcription"
+   git push origin 1.1.0
    ```
