@@ -2019,6 +2019,10 @@
         align-items: center;
         gap: 6px;
       }
+      /* Off-release builds (past a tag or locally modified) */
+      .idle-version[data-version*="-"] {
+        color: var(--warning);
+      }
 
       /* Result state */
       body[data-state="result"] .result-hero {
@@ -3899,6 +3903,9 @@
           <span data-i18n="idle.advisory"
             >Advisory only · Final determination remains with the
             clinician</span
+          >
+          <span class="idle-version" data-version="__CODA_VERSION__"
+            >· CODA __CODA_VERSION__</span
           >
         </div>
       </section>

@@ -8,6 +8,7 @@ To run:
 """
 
 import asyncio
+import html
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, \
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
+from coda import get_version
 from coda.app.documents import OcrUnavailable, document_text
 from coda.app.storage import CaseRecorder, case_audio_path, case_sources, \
     cases_browsable, cases_root, find_case, list_cases, load_case, \
@@ -1336,7 +1338,7 @@ async def get_index():
     )
     html_content = html_content.replace(
         "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
-    )
+    ).replace("__CODA_VERSION__", html.escape(get_version()))
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(
             "<body",
@@ -1373,4 +1375,4 @@ async def get_index():
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": get_version()}

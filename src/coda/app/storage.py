@@ -90,7 +90,7 @@ class CaseRecorder:
                 "started_at": started.isoformat(),
                 "ended_at": None,
                 "pauses": [],
-                "coda_version": coda.__version__,
+                "coda_version": coda.get_version(),
                 "run_info": run_info,
                 "segments": [],
             }
@@ -109,7 +109,7 @@ class CaseRecorder:
                 "session_id": session_id,
                 "started_at": started.isoformat(),
                 "ended_at": None,
-                "coda_version": coda.__version__,
+                "coda_version": coda.get_version(),
                 "run_info": run_info,
                 "audio": audio_file if keeps_audio else None,
             }
