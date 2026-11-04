@@ -186,37 +186,43 @@ class CausalLM:
         batch_size: int,
     ) -> list[float]:
         device = self._model.device
-        prefix_len = len(prefix_ids)
+        suffixes = [ids[len(prefix_ids) :] for ids in input_ids]
+        # Tokens shared by every candidate, e.g. "Answer: ", are conditioned on
+        # but not scored, so each candidate keeps at least one scored token
+        shared = min(_common_prefix_len(suffixes), min(suffix_lengths) - 1)
+        scored_prefix = prefix_ids + suffixes[0][:shared]
+        answers = [suffix[shared:] for suffix in suffixes]
+
         with torch.inference_mode():
-            prefix = torch.tensor([prefix_ids], device=device)
+            prefix = torch.tensor([scored_prefix], device=device)
             out = self._model(input_ids=prefix, use_cache=True, logits_to_keep=1)
             base_cache = out.past_key_values
             first_logprobs = out.logits[0, -1].float().log_softmax(-1)
 
-            scores = [0.0] * len(input_ids)
+            scores = [0.0] * len(answers)
             by_length: dict[int, list[int]] = {}
-            for i, length in enumerate(suffix_lengths):
-                by_length.setdefault(length, []).append(i)
+            for i, answer in enumerate(answers):
+                by_length.setdefault(len(answer), []).append(i)
 
-            for indices in by_length.values():
+            for length, indices in by_length.items():
                 for start in range(0, len(indices), batch_size):
                     chunk = indices[start : start + batch_size]
-                    suffixes = torch.tensor(
-                        [input_ids[i][prefix_len:] for i in chunk], device=device
-                    )
-                    total = first_logprobs[suffixes[:, 0]]
-                    if suffixes.shape[1] > 1:
+                    tokens = torch.tensor([answers[i] for i in chunk], device=device)
+                    total = first_logprobs[tokens[:, 0]]
+                    if tokens.shape[1] > 1:
                         cache = copy.deepcopy(base_cache)
                         cache.batch_repeat_interleave(len(chunk))
                         logits = self._model(
-                            input_ids=suffixes[:, :-1], past_key_values=cache
+                            input_ids=tokens[:, :-1], past_key_values=cache
                         ).logits
                         logprobs = logits.float().log_softmax(-1)
-                        rest = logprobs.gather(2, suffixes[:, 1:, None])[..., 0]
+                        rest = logprobs.gather(2, tokens[:, 1:, None])[..., 0]
                         total = total + rest.sum(-1)
 
+                    # Mean per-token log-prob, so answers of different token
+                    # lengths (e.g. "7" and "42") compete on equal terms
                     for i, value in zip(chunk, total.tolist(), strict=True):
-                        scores[i] = value
+                        scores[i] = value / length
 
         return scores
 
@@ -313,6 +319,14 @@ def _build_model_kwargs(
 def _merge_lora_adapter(model: PreTrainedModel, adapter_path: str) -> PreTrainedModel:
     peft_model = PeftModel.from_pretrained(model, adapter_path)
     return cast(PreTrainedModel, peft_model.merge_and_unload())
+
+
+def _common_prefix_len(sequences: list[list[int]]) -> int:
+    shortest = min((len(seq) for seq in sequences), default=0)
+    for i in range(shortest):
+        if any(seq[i] != sequences[0][i] for seq in sequences):
+            return i
+    return shortest
 
 
 class MedGemmaModel(InferenceModel):
