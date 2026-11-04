@@ -70,6 +70,12 @@ contributed by each source:
 | **WDI** | `wdi`: Development/health indicators | `has_indicator` (country to indicator) | World Bank World Development Indicators and World Health Indicators linked to country nodes, with time-series data stored as year-value mappings on edges.                                       |
 | **WHO Mortality** | `who_mortality`: Country nodes with population data | `has_mortality` (country to ICD-10 cause) | WHO Mortality Database providing national death counts by ICD-10 cause from 2021 onwards, broken down by year, sex, and age group. Country nodes carry population and birth data.                |
 
+Running CODA on a Mac
+---------------------
+
+To install CODA on an Apple Silicon Mac as double-clickable apps that start
+CODA and update it to new releases, see [mac/README.md](mac/README.md).
+
 Running CODA using Docker
 -------------------------
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+# Open update.command in Terminal. A Finder alias or symlink to this app also works.
+open -a Terminal "$(cd "$(dirname "$0")/../../.." && pwd)/update.command"

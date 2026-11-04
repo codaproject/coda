@@ -236,3 +236,6 @@ certs/
 uv.lock
 
 docs/
+
+# Mac launcher Python environment
+.venv-mac/
