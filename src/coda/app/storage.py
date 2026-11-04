@@ -281,6 +281,7 @@ class CaseRecorder:
             "causes": result.get("causes"),
             "reasoning": result.get("reasoning"),
             "questions": result.get("questions"),
+            "chain": result.get("chain"),
         }
         if edit_id is not None:
             record["edit_id"] = edit_id

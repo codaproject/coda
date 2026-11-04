@@ -1,0 +1,5 @@
+## CAUSAL CHAIN
+In the chain field, give the sequence of conditions through which the rank 1 underlying cause led to death, in causal order, using at most 3 codes from the ALLOWED CHAIN CODES list. The first code is a complication directly caused by the underlying cause, each further code is directly caused by the one before it, and the last code is the immediate cause of death. Every code must be a distinct condition. Never include the underlying cause itself or another form, subtype or unspecified variant of the same disease. Include a condition only if the evidence describes it. Most deaths have a chain of 0 to 2 codes, and an empty chain is better than a guessed one.
+
+## ALLOWED CHAIN CODES
+{chain_label_list}

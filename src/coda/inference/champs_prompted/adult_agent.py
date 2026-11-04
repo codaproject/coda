@@ -40,6 +40,7 @@ class AdultIcd11Mixin:
     age_group_limits = ADULT_AGE_GROUP_LIMITS
     age_group_guidance = yaml.safe_load(
         (PROMPTS_DIR / "icd11_adult" / "age_group_guidance.yaml").read_text())
+    chain_labels = {}
 
     def allowed_labels(self, group):
         profile = self.metadata.profile

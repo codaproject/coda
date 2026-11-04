@@ -77,6 +77,22 @@ async def test_single_pass_ranks_age_group_codes():
 
 
 @pytest.mark.asyncio
+async def test_single_pass_causal_chain():
+    client = FakeLLMClient({**RANKS, "chain": ["1F40.0", "8A66", "8A66"]})
+    agent = ChampsPromptedIcd11SinglePassAgent(client)
+
+    result = await agent.process_chunk("c1", "Child had fever.", [],
+                                       metadata=INFANT)
+
+    [call] = client.calls
+    chain_enum = call["schema"]["properties"]["chain"]["items"]["enum"]
+    assert chain_enum == sorted(load_labels("chain"))
+    assert "8A66 | " in call["system_prompt"]
+    assert [c["identifiers"]["icd11"] for c in result["chain"]] == \
+        ["1F40.Y", "8A66"]
+
+
+@pytest.mark.asyncio
 async def test_two_pass_codes_from_first_pass_assessment():
     client = FakeLLMClient()
     agent = ChampsPromptedIcd11TwoPassAgent(client)
@@ -139,3 +155,4 @@ async def test_adult_single_pass_ranks_adult_codes():
     assert "Cardiovascular causes dominate" in call["system_prompt"]
     assert "{" not in call["system_prompt"]
     assert result["causes"]["icd11:8B20"]["name"] == "Stroke"
+    assert "chain" not in call["schema"]["properties"]

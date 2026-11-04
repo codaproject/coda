@@ -65,6 +65,12 @@ def load_labels(group):
         return json.load(fh)
 
 
+def label_lines(labels):
+    """Return code-to-name labels as sorted prompt list lines."""
+    return "\n".join(f"  {code} | {name}"
+                     for code, name in sorted(labels.items()))
+
+
 def rank_properties(codes):
     """Return schema properties for ranked codes and their probabilities."""
     properties = {}
@@ -87,13 +93,15 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
     The allowed codes and age-group guidance follow the decedent's age
     group. By default these are the CHAMPS age groups and their ICD-11 codes,
     all of them when the age group is unknown. Subclasses implement
-    rank_codes.
+    rank_codes, whose response may give the chain of codes from the top
+    underlying cause to death, drawn from chain_labels.
     """
 
     diagnosis_standard = read_prompt("icd11/diagnosis_standard.txt")
     clinical_guidance = read_prompt("icd11/clinical_guidance.txt")
     age_group_limits = AGE_GROUP_LIMITS
     age_group_guidance = AGE_GROUP_GUIDANCE
+    chain_labels = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -105,13 +113,11 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
 
     def fill_prompt(self, template, labels, group):
         """Fill a prompt template with the allowed codes and guidance."""
-        label_list = "\n".join(f"  {code} | {name}"
-                               for code, name in sorted(labels.items()))
         guidance = "\n".join(
             f"    - {item}"
             for item in self.age_group_guidance.get(group, [])) \
             or "No age group is known for this case."
-        return template.replace("{label_list}", label_list) \
+        return template.replace("{label_list}", label_lines(labels)) \
             .replace("{clinical_guidance}", self.clinical_guidance) \
             .replace("{age_group_guidance}", guidance) \
             .replace("{question_guidance}", self.question_guidance)
@@ -137,7 +143,24 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
                 "score": float(ranks.get(f"rank_{i}_prob", 0.0)),
             }
         return {"causes": normalize_scores(causes), "reasoning": reasoning,
-                "questions": ranks.get("questions", [])}
+                "questions": ranks.get("questions", []),
+                "chain": self.causal_chain(causes, ranks.get("chain", []))}
+
+    def causal_chain(self, causes, codes):
+        """Return the top cause followed by the chain codes it led to."""
+        if not causes:
+            return []
+        top = next(iter(causes.values()))
+        chain = [{"name": top["name"], "identifiers": top["identifiers"]}]
+        # Codes sharing a stem, e.g. 1F40.0 and 1F40.Y, are one disease
+        seen = {top["identifiers"]["icd11"].split(".")[0]}
+        for code in codes:
+            stem = code.split(".")[0]
+            if code in self.chain_labels and stem not in seen:
+                seen.add(stem)
+                chain.append({"name": self.chain_labels[code],
+                              "identifiers": {"icd11": code}})
+        return chain
 
     def allowed_labels(self, group):
         """Return the code-to-name labels the case may be coded with."""
@@ -153,16 +176,28 @@ class ChampsPromptedIcd11SinglePassAgent(ChampsPromptedIcd11Agent):
 
     system_prompt = read_prompt("icd11/system_prompt.txt").replace(
         "{output_steps}", read_prompt("icd11/single_pass_output.txt"))
+    chain_prompt = read_prompt("icd11/causal_chain.txt")
+    chain_labels = load_labels("chain")
 
     async def rank_codes(self, chunk_id, labels, group):
-        system_prompt = self.fill_prompt(self.system_prompt, labels, group) \
-            + "\n\n" + CLINICAL_NOTE_GUIDANCE
-        schema = object_schema({
+        system_prompt = self.fill_prompt(self.system_prompt, labels, group)
+        properties = {
             "reasoning": {"type": "string",
                           "description": "2-3 sentence clinical assessment."},
             **rank_properties(sorted(labels)),
             "questions": self.question_schema,
-        })
+        }
+        if self.chain_labels:
+            system_prompt += "\n\n" + self.chain_prompt.replace(
+                "{chain_label_list}", label_lines(self.chain_labels))
+            properties["chain"] = {
+                "type": "array",
+                "items": {"type": "string",
+                          "enum": sorted(self.chain_labels)},
+                "maxItems": 3,
+            }
+        system_prompt += "\n\n" + CLINICAL_NOTE_GUIDANCE
+        schema = object_schema(properties)
         response = await self.call_llm(
             chunk_id,
             self.llm_client.call_with_schema,

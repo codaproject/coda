@@ -2109,6 +2109,11 @@
         border-radius: 999px;
         transition: width 0.3s ease;
       }
+      .result-hero-chain p {
+        margin: 4px 0 0;
+        max-width: 680px;
+        color: var(--ink);
+      }
 
       /* ---- Inference-offline error state ----------------------------- */
       /* Amber tokens that work on both light and dark themes */
@@ -3956,6 +3961,10 @@
             style="width: 0%"
           ></div>
         </div>
+        <div id="resultChain" class="result-hero-chain" hidden>
+          <span class="kicker" data-i18n="result.chain">Causal chain</span>
+          <p id="resultChainText"></p>
+        </div>
       </section>
 
       <div class="app-body">
@@ -4461,6 +4470,7 @@
           "record.lastError": "Last error",
           "record.autoRetry": "Auto-retrying on next chunk…",
           "result.primary": "Primary determination",
+          "result.chain": "Causal chain",
           "result.confidence": "confidence",
           "chart.evolution": "How probabilities evolved",
           "chart.paused": "CHART PAUSED",
@@ -4641,6 +4651,7 @@
           "record.lastError": "Kosa la mwisho",
           "record.autoRetry": "Kujaribu tena kwa sehemu ijayo…",
           "result.primary": "Uamuzi wa msingi",
+          "result.chain": "Mnyororo wa visababishi",
           "result.confidence": "kujiamini",
           "chart.evolution": "Jinsi uwezekano ulivyobadilika",
           "chart.paused": "CHATI IMESIMAMA",
@@ -4824,6 +4835,7 @@
           "record.lastError": "Dernière erreur",
           "record.autoRetry": "Nouvelle tentative au prochain segment…",
           "result.primary": "Détermination principale",
+          "result.chain": "Chaîne causale",
           "result.confidence": "confiance",
           "chart.evolution": "Évolution des probabilités",
           "chart.paused": "GRAPHIQUE EN PAUSE",
@@ -5005,6 +5017,7 @@
           "record.lastError": "آخر خطأ",
           "record.autoRetry": "إعادة المحاولة تلقائياً في المقطع التالي…",
           "result.primary": "التحديد الأساسي",
+          "result.chain": "السلسلة السببية",
           "result.confidence": "الثقة",
           "chart.evolution": "كيف تطورت الاحتمالات",
           "chart.paused": "الرسم متوقف",
@@ -5185,6 +5198,7 @@
           "record.lastError": "সর্বশেষ ত্রুটি",
           "record.autoRetry": "পরবর্তী অংশে স্বয়ংক্রিয় পুনঃচেষ্টা…",
           "result.primary": "প্রাথমিক নির্ধারণ",
+          "result.chain": "কারণ-শৃঙ্খল",
           "result.confidence": "আত্মবিশ্বাস",
           "chart.evolution": "সম্ভাবনা যেভাবে পাল্টেছে",
           "chart.paused": "চার্ট বিরতিতে",
@@ -5368,6 +5382,7 @@
           "record.lastError": "Último error",
           "record.autoRetry": "Reintento automático en el próximo fragmento…",
           "result.primary": "Determinación principal",
+          "result.chain": "Cadena causal",
           "result.confidence": "confianza",
           "chart.evolution": "Cómo evolucionaron las probabilidades",
           "chart.paused": "GRÁFICO EN PAUSA",
@@ -5553,6 +5568,7 @@
           "record.autoRetry":
             "CODA yi ta ringeta nakambe hi yoxe eka xiphemu lexi landzelaka…",
           "result.primary": "Xiboho lexikulu",
+          "result.chain": "Ketani ya swivangelo",
           "result.confidence": "mpimo wa ntshembo",
           "chart.evolution": "Ndlela leyi mipimo ya nkoteko yi cinceke ha yona",
           "chart.paused": "CHATI YI YIMISIWE SWA NKARHINYANA",
@@ -5724,6 +5740,8 @@
       const updatingPill = document.getElementById("updatingPill");
       const langChipText = document.getElementById("langChipText");
       const resultTitle = document.getElementById("resultTitle");
+      const resultChain = document.getElementById("resultChain");
+      const resultChainText = document.getElementById("resultChainText");
       const resultConfidence = document.getElementById("resultConfidence");
       const resultIcd = document.getElementById("resultIcd");
       const resultIcdLabel = document.getElementById("resultIcdLabel");
@@ -5756,10 +5774,21 @@
         return key ? key.toUpperCase() : "";
       }
 
+      // Chain of causes of the latest inference, underlying cause first
+      function latestChain() {
+        const last = evolution[evolution.length - 1];
+        return (last && last.chain) || [];
+      }
+
       function renderResultHero() {
         const sorted = Object.entries(latestCauses || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
+        const chain = latestChain();
+        resultChain.hidden = chain.length < 2;
+        resultChainText.textContent = chain
+          .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
+          .join(" → ");
         if (!sorted.length) {
           resultTitle.textContent = "No inference this session";
           resultConfidence.textContent = "—";
@@ -6289,6 +6318,7 @@
         evolution = records.map((rec) => ({
           t: rec.t,
           causes: rec.causes,
+          chain: rec.chain,
           reasoning: rec.reasoning,
           source: rec.source,
         }));
@@ -6372,6 +6402,7 @@
           snapshots.map((snap) => ({
             t: snap.t || null,
             causes: snap.causes,
+            chain: snap.chain,
             reasoning: snap.reasoning || null,
             source: snap.source || "recording",
             heading: timelineHeading(snap.t, snap.source),
@@ -6446,6 +6477,7 @@
           (c.inference || []).map((rec) => ({
             t: rec.shown_at * 1000,
             causes: rec.causes,
+            chain: rec.chain,
             reasoning: rec.reasoning,
             source: rec.source || "recording",
             heading: timelineHeading(rec.shown_at * 1000, rec.source),
@@ -8389,8 +8421,14 @@
         const [top] = Object.values(latestCauses || {}).sort(
           (a, b) => b.score - a.score,
         );
-        mccd.cause_a.value = top ? top.name : "";
-        mccd.code_a.value = top ? causeCode(top.identifiers) : "";
+        // Immediate cause on line (a), underlying cause on the lowest line
+        const chain = latestChain().slice().reverse();
+        const lines = chain.length ? chain : top ? [top] : [];
+        lines.forEach((cause, i) => {
+          const letter = String.fromCharCode(97 + i);
+          mccd[`cause_${letter}`].value = cause.name;
+          mccd[`code_${letter}`].value = causeCode(cause.identifiers);
+        });
       }
 
       function resetMccd() {
@@ -8630,6 +8668,7 @@
         evolution.push({
           t: Date.now(),
           causes: latestCauses,
+          chain: data.chain,
           reasoning: data.reasoning || null,
           source: data.source || "recording",
         });
