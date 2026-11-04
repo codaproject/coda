@@ -809,6 +809,7 @@
       body[data-show-cod-result="false"] .inference-col > .section-head,
       body[data-show-cod-result="false"] .inference-card .cause-row,
       body[data-show-cod-result="false"] .inference-card .inference-reasoning,
+      body[data-show-cod-result="false"] .inference-card .inference-chain,
       body[data-show-cod-result="false"] .inference-col > .evolution-block,
       body[data-show-cod-result="false"]
         .inference-col
@@ -1158,6 +1159,12 @@
         border-radius: 1.5px;
         flex-shrink: 0;
       }
+      .inference-chain {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--ink-soft);
+        margin-top: 12px;
+      }
       .inference-reasoning {
         font-size: 12px;
         color: var(--ink-muted);
@@ -1173,6 +1180,7 @@
       .inference-questions {
         margin-top: 12px;
       }
+      .inference-chain .questions-head,
       .inference-questions .questions-head {
         font-size: 10px;
         font-weight: 700;
@@ -2108,11 +2116,6 @@
         background: var(--ink);
         border-radius: 999px;
         transition: width 0.3s ease;
-      }
-      .result-hero-chain p {
-        margin: 4px 0 0;
-        max-width: 680px;
-        color: var(--ink);
       }
 
       /* ---- Inference-offline error state ----------------------------- */
@@ -3961,10 +3964,6 @@
             style="width: 0%"
           ></div>
         </div>
-        <div id="resultChain" class="result-hero-chain" hidden>
-          <span class="kicker" data-i18n="result.chain">Causal chain</span>
-          <p id="resultChainText"></p>
-        </div>
       </section>
 
       <div class="app-body">
@@ -5740,8 +5739,6 @@
       const updatingPill = document.getElementById("updatingPill");
       const langChipText = document.getElementById("langChipText");
       const resultTitle = document.getElementById("resultTitle");
-      const resultChain = document.getElementById("resultChain");
-      const resultChainText = document.getElementById("resultChainText");
       const resultConfidence = document.getElementById("resultConfidence");
       const resultIcd = document.getElementById("resultIcd");
       const resultIcdLabel = document.getElementById("resultIcdLabel");
@@ -5784,11 +5781,6 @@
         const sorted = Object.entries(latestCauses || {}).sort(
           (a, b) => b[1].score - a[1].score,
         );
-        const chain = latestChain();
-        resultChain.hidden = chain.length < 2;
-        resultChainText.textContent = chain
-          .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
-          .join(" → ");
         if (!sorted.length) {
           resultTitle.textContent = "No inference this session";
           resultConfidence.textContent = "—";
@@ -5815,6 +5807,7 @@
         reasoning,
         questions,
         heading,
+        chain,
       ) {
         const sorted = Object.entries(causes || {}).sort(
           (a, b) => b[1].score - a[1].score,
@@ -5871,6 +5864,13 @@
             </div>
           `;
         });
+
+        if (chain && chain.length > 1) {
+          const links = chain
+            .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
+            .join(" → ");
+          html += `<div class="inference-chain"><div class="questions-head">${escapeHtml(t("result.chain"))}</div>${escapeHtml(links)}</div>`;
+        }
 
         if (reasoning) {
           html += `<div class="inference-reasoning">${escapeHtml(reasoning)}</div>`;
@@ -6332,6 +6332,7 @@
               rec.reasoning,
               null,
               rec.heading,
+              rec.chain,
             ),
           );
           updateCausesChart(rec.causes || {});
@@ -6344,6 +6345,9 @@
             last.causes,
             beforeLast ? beforeLast.causes : null,
             last.reasoning,
+            null,
+            null,
+            last.chain,
           );
         } else {
           inference.innerHTML = diffEl.innerHTML =
@@ -8678,6 +8682,8 @@
           previous,
           data.reasoning,
           data.questions,
+          null,
+          data.chain,
         );
         inference.insertAdjacentHTML("afterbegin", html);
         // Mirror into the main-column differentials container so the
