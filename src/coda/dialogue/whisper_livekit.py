@@ -81,7 +81,8 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     `faster-whisper` backend; the engine (model) is loaded once and shared.
     """
     MODELS = ("tiny", "base", "small", "medium",
-              "large", "large-v2", "large-v3", *FINETUNED_MODELS)
+              "large", "large-v2", "large-v3", "large-v3-turbo",
+              *FINETUNED_MODELS)
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
     LANGUAGES = {**get_whisper_languages(), **FINETUNED_LANGUAGES}
 

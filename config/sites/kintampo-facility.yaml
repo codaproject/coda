@@ -18,6 +18,7 @@ inference:
 
 dialogue:
   language: en
+  transcriber_model: large-v3-turbo
   whisper_livekit:
     backend: mlx-whisper
 
