@@ -1,0 +1,56 @@
+{
+  "madlad-3b": {
+    "bleu": 41.86,
+    "chrf": 62.75,
+    "ter": 45.24,
+    "comet": 0.857,
+    "mean_translation_s": 27.53,
+    "n": 7,
+    "missing": []
+  },
+  "nllb-600m": {
+    "bleu": 29.09,
+    "chrf": 54.97,
+    "ter": 55.86,
+    "comet": 0.801,
+    "mean_translation_s": 3.48,
+    "n": 7,
+    "missing": []
+  },
+  "nllb-1.3b": {
+    "bleu": 31.85,
+    "chrf": 57.51,
+    "ter": 55.31,
+    "comet": 0.821,
+    "mean_translation_s": 6.31,
+    "n": 7,
+    "missing": []
+  },
+  "llm": {
+    "bleu": 51.04,
+    "chrf": 72.83,
+    "ter": 36.69,
+    "comet": 0.875,
+    "mean_translation_s": 1.53,
+    "n": 7,
+    "missing": []
+  },
+  "madlad-7b-mt": {
+    "bleu": 46.3,
+    "chrf": 66.51,
+    "ter": 39.86,
+    "comet": 0.869,
+    "mean_translation_s": 156.12,
+    "n": 7,
+    "missing": []
+  },
+  "madlad-7b-bt": {
+    "bleu": 43.74,
+    "chrf": 64.13,
+    "ter": 43.31,
+    "comet": 0.855,
+    "mean_translation_s": 170.12,
+    "n": 7,
+    "missing": []
+  }
+}

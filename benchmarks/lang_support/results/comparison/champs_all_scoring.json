@@ -1,0 +1,558 @@
+{
+  "pt_br_text": {
+    "english": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 0.0,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "raw_portuguese": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 0.0,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "madlad-3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 27.91,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 154.89,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "6/7",
+      "top3": "6/7",
+      "top1_count": 6,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 179.1,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 3.89,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 7.58,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 1.17,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    }
+  },
+  "pt_br_audio": {
+    "madlad-3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 26.84,
+      "mean_transcription_s": 5.74,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 176.94,
+      "mean_transcription_s": 5.63,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "6/7",
+      "top3": "6/7",
+      "top1_count": 6,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 172.94,
+      "mean_transcription_s": 5.57,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 2.96,
+      "mean_transcription_s": 5.75,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 6.62,
+      "mean_transcription_s": 6.15,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 1.45,
+      "mean_transcription_s": 5.7,
+      "missing": []
+    }
+  },
+  "bn_audio_indic-conformer": {
+    "madlad-3b": {
+      "top1": "6/7",
+      "top3": "7/7",
+      "top1_count": 6,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 28.3,
+      "mean_transcription_s": 2.73,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 188.38,
+      "mean_transcription_s": 2.7,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 182.37,
+      "mean_transcription_s": 2.71,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 4.14,
+      "mean_transcription_s": 2.57,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 7.36,
+      "mean_transcription_s": 2.57,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 1.3,
+      "mean_transcription_s": 2.61,
+      "missing": []
+    },
+    "hymt2-1.8b": {
+      "top1": "0/0",
+      "top3": "0/0",
+      "top1_count": 0,
+      "top3_count": 0,
+      "total": 0,
+      "mean_translation_s": null,
+      "mean_transcription_s": null,
+      "missing": [
+        "diarrhea_1",
+        "diarrhea_2",
+        "lri_1",
+        "lri_2",
+        "lri_3",
+        "malaria_1",
+        "malaria_2"
+      ]
+    }
+  },
+  "bn_audio_speechmatics": {
+    "madlad-3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 23.45,
+      "mean_transcription_s": 4.84,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 174.29,
+      "mean_transcription_s": 4.99,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 168.94,
+      "mean_transcription_s": 4.95,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 3.65,
+      "mean_transcription_s": 4.54,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 5.94,
+      "mean_transcription_s": 4.69,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 1.6,
+      "mean_transcription_s": 5.18,
+      "missing": []
+    },
+    "hymt2-1.8b": {
+      "top1": "0/0",
+      "top3": "0/0",
+      "top1_count": 0,
+      "top3_count": 0,
+      "total": 0,
+      "mean_translation_s": null,
+      "mean_transcription_s": null,
+      "missing": [
+        "diarrhea_1",
+        "diarrhea_2",
+        "lri_1",
+        "lri_2",
+        "lri_3",
+        "malaria_1",
+        "malaria_2"
+      ]
+    }
+  },
+  "syl_audio_bn-coded_indic-conformer": {
+    "madlad-3b": {
+      "top1": "4/7",
+      "top3": "6/7",
+      "top1_count": 4,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 47.64,
+      "mean_transcription_s": 3.16,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "5/7",
+      "top3": "6/7",
+      "top1_count": 5,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 199.32,
+      "mean_transcription_s": 3.22,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "6/7",
+      "top3": "6/7",
+      "top1_count": 6,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 186.52,
+      "mean_transcription_s": 3.2,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "5/7",
+      "top3": "5/7",
+      "top1_count": 5,
+      "top3_count": 5,
+      "total": 7,
+      "mean_translation_s": 4.71,
+      "mean_transcription_s": 3.03,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "5/7",
+      "top3": "6/7",
+      "top1_count": 5,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 8.37,
+      "mean_transcription_s": 3.05,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 2.01,
+      "mean_transcription_s": 3.0,
+      "missing": []
+    },
+    "hymt2-1.8b": {
+      "top1": "0/0",
+      "top3": "0/0",
+      "top1_count": 0,
+      "top3_count": 0,
+      "total": 0,
+      "mean_translation_s": null,
+      "mean_transcription_s": null,
+      "missing": [
+        "diarrhea_1",
+        "diarrhea_2",
+        "lri_1",
+        "lri_2",
+        "lri_3",
+        "malaria_1",
+        "malaria_2"
+      ]
+    }
+  },
+  "syl_audio_bn-coded_speechmatics": {
+    "madlad-3b": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 25.75,
+      "mean_transcription_s": 6.86,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 179.22,
+      "mean_transcription_s": 5.79,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "6/7",
+      "top3": "7/7",
+      "top1_count": 6,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 181.67,
+      "mean_transcription_s": 7.04,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "5/7",
+      "top3": "7/7",
+      "top1_count": 5,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 3.87,
+      "mean_transcription_s": 5.72,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "6/7",
+      "top3": "7/7",
+      "top1_count": 6,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 6.61,
+      "mean_transcription_s": 6.35,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 2.02,
+      "mean_transcription_s": 6.57,
+      "missing": []
+    },
+    "hymt2-1.8b": {
+      "top1": "0/0",
+      "top3": "0/0",
+      "top1_count": 0,
+      "top3_count": 0,
+      "total": 0,
+      "mean_translation_s": null,
+      "mean_transcription_s": null,
+      "missing": [
+        "diarrhea_1",
+        "diarrhea_2",
+        "lri_1",
+        "lri_2",
+        "lri_3",
+        "malaria_1",
+        "malaria_2"
+      ]
+    }
+  },
+  "syl_text": {
+    "helsinki-inc": {
+      "top1": "4/7",
+      "top3": "4/7",
+      "top1_count": 4,
+      "top3_count": 4,
+      "total": 7,
+      "mean_translation_s": 12.57,
+      "mean_transcription_s": 0.0,
+      "missing": []
+    }
+  },
+  "syl_audio_bn-coded_indic-conformer_FULL": {
+    "madlad-3b": {
+      "top1": "5/7",
+      "top3": "6/7",
+      "top1_count": 5,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 45.32,
+      "mean_transcription_s": 3.2,
+      "missing": []
+    },
+    "madlad-7b-mt": {
+      "top1": "4/7",
+      "top3": "5/7",
+      "top1_count": 4,
+      "top3_count": 5,
+      "total": 7,
+      "mean_translation_s": 194.24,
+      "mean_transcription_s": 3.12,
+      "missing": []
+    },
+    "madlad-7b-bt": {
+      "top1": "6/7",
+      "top3": "6/7",
+      "top1_count": 6,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 184.55,
+      "mean_transcription_s": 3.12,
+      "missing": []
+    },
+    "nllb-600m": {
+      "top1": "4/7",
+      "top3": "5/7",
+      "top1_count": 4,
+      "top3_count": 5,
+      "total": 7,
+      "mean_translation_s": 3.95,
+      "mean_transcription_s": 3.02,
+      "missing": []
+    },
+    "nllb-1.3b": {
+      "top1": "5/7",
+      "top3": "6/7",
+      "top1_count": 5,
+      "top3_count": 6,
+      "total": 7,
+      "mean_translation_s": 7.64,
+      "mean_transcription_s": 3.03,
+      "missing": []
+    },
+    "llm": {
+      "top1": "7/7",
+      "top3": "7/7",
+      "top1_count": 7,
+      "top3_count": 7,
+      "total": 7,
+      "mean_translation_s": 1.85,
+      "mean_transcription_s": 2.99,
+      "missing": []
+    },
+    "hymt2-1.8b": {
+      "top1": "0/0",
+      "top3": "0/0",
+      "top1_count": 0,
+      "top3_count": 0,
+      "total": 0,
+      "mean_translation_s": null,
+      "mean_transcription_s": null,
+      "missing": [
+        "diarrhea_1",
+        "diarrhea_2",
+        "lri_1",
+        "lri_2",
+        "lri_3",
+        "malaria_1",
+        "malaria_2"
+      ]
+    }
+  }
+}
