@@ -9,6 +9,10 @@ update startup || true
 # Rerun the updated version of this script
 [ "$(git rev-parse HEAD)" = "$head" ] || exec "$PWD/mac/start.command" "$@"
 
+# Keep a log of everything shown in the Terminal window
+mkdir -p "$HOME/Library/Logs/CODA"
+exec > >(tee -a "$HOME/Library/Logs/CODA/coda.log") 2>&1
+
 sync_env || fail "Installing CODA's Python packages failed, see the \
 Terminal window for details."
 export PYTHONPATH="$PWD/src"

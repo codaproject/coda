@@ -35,6 +35,9 @@ close CODA and start it again:
 ~/coda/.venv-mac/bin/hf auth login
 ```
 
+Everything shown in the CODA Terminal window is also kept in
+`~/Library/Logs/CODA/coda.log`, and saved cases are in `~/.data/coda/cases`.
+
 Phones and tablets on the same network connect as described in the main
 README under "Phone or tablet on the same network". CODA prints the setup page
 address in its Terminal window.
