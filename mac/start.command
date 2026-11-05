@@ -46,6 +46,8 @@ build_grounding || fail "Preparing grounding data failed, see the Terminal \
 window for details."
 
 trap 'kill $(jobs -p) 2>/dev/null' EXIT
+# Keep the Mac from sleeping while CODA runs
+caffeinate -i -w $$ &
 # Wait for a service's health URL, failing if the service exits
 wait_for() {
     until curl -sfk "$2" >/dev/null; do
