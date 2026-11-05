@@ -43,9 +43,8 @@ release tag, then installs its Python packages and models. If that fails, the
 laptop goes back to the version it had. Without internet the check is skipped.
 `.env`, `certs/` and saved cases are not touched by updates.
 
-The interview page shows the version in its footer. A version such as
-`1.0.0+3-gab12cd3` or `1.0.0+dirty` is not a release, and is shown in
-orange.
+The interview page shows the version and commit in its footer, e.g.
+`CODA 1.0.0 (ab12cd)`.
 
 Releasing
 ---------

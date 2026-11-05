@@ -2025,10 +2025,6 @@
         color: var(--ink-faint);
         margin-top: -28px;
       }
-      /* Off-release builds (past a tag or locally modified) */
-      .coda-version[data-version*="+"] {
-        color: var(--warning);
-      }
 
       /* Result state */
       body[data-state="result"] .result-hero {
@@ -3474,7 +3470,7 @@
             >No data leaves this device. No sign-in required.</span
           >
         </div>
-        <div class="onboard-foot-right coda-version" data-version="__CODA_VERSION__">
+        <div class="onboard-foot-right">
           CODA __CODA_VERSION__
         </div>
       </div>
@@ -3913,7 +3909,7 @@
             clinician</span
           >
         </div>
-        <div class="idle-version coda-version" data-version="__CODA_VERSION__">
+        <div class="idle-version">
           CODA __CODA_VERSION__
         </div>
       </section>

@@ -18,22 +18,20 @@ __version__ = '1.0.0'
 
 
 @cache
-def get_version():
-    """Return __version__, marked when the git checkout is not its release.
-
-    On the clean release tag this is e.g. ``1.0.0``. Otherwise git's
-    description is appended, e.g. ``1.0.0+3-gab12cd3`` three commits past the
-    tag, ``1.0.0+dirty`` with local changes, or ``1.1.0+ab12cd3`` before the
-    tag exists. Outside a git checkout it is ``__version__``.
-    """
+def get_commit():
+    """Return the short git commit hash of this checkout, None outside git."""
     try:
-        out = subprocess.run(
-            ['git', 'describe', '--tags', '--always', '--dirty', '--match',
-             __version__], cwd=Path(__file__).parent, capture_output=True,
-            text=True, timeout=5)
+        out = subprocess.run(['git', 'rev-parse', '--short=6', 'HEAD'],
+                             cwd=Path(__file__).parent, capture_output=True,
+                             text=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
-        return __version__
-    described = out.stdout.strip()
-    if out.returncode or described == __version__:
-        return __version__
-    return f"{__version__}+{described.removeprefix(__version__ + '-')}"
+        return None
+    if out.returncode:
+        return None
+    return out.stdout.strip()
+
+
+def get_version_label():
+    """Return the version with the commit hash, e.g. ``1.0.0 (ab12cd)``."""
+    commit = get_commit()
+    return f"{__version__} ({commit})" if commit else __version__

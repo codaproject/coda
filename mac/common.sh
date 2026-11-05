@@ -65,6 +65,14 @@ current_release() {
     git describe --tags --exact-match --match '[0-9]*' HEAD 2>/dev/null
 }
 
+# Release tag, else __version__, with the commit, e.g. 1.0.0 (ab12cd)
+version_label() {
+    local version
+    version="$(current_release)" || version="$(sed -n \
+        "s/^__version__ = '\(.*\)'$/\1/p" src/coda/__init__.py)"
+    printf '%s (%s)' "$version" "$(git rev-parse --short=6 HEAD)"
+}
+
 # Offer to switch to the newest release, rolling back if that fails. With
 # "startup", stay quiet unless this checkout is on an older release.
 update() {
@@ -72,7 +80,7 @@ update() {
     if [ "$mode" = startup ] && [ -z "$(current_release)" ]; then
         return 0
     fi
-    current="$(git describe --tags --always --dirty --match '[0-9]*')"
+    current="$(version_label)"
     echo "Checking for CODA updates..."
     if ! GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 \
             -c http.lowSpeedTime=10 fetch --quiet --tags --force origin 2>/dev/null; then
@@ -81,8 +89,8 @@ server. Check the internet connection and try again."
         return 0
     fi
     latest="$(latest_release)"
-    if [ -z "$latest" ] || [ "$current" = "$latest" ] || \
-            { [ "$mode" = startup ] && [ "$(current_release)" = "$latest" ]; }
+    if [ -z "$latest" ] || \
+            [ "$(git rev-parse HEAD)" = "$(git rev-parse "$latest^{commit}")" ]
     then
         [ "$mode" = startup ] || notify "CODA $current is up to date."
         return 0
