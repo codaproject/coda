@@ -1,0 +1,22 @@
+# Kintampo: facility and community deaths, mostly adults, interviews in English
+
+app:
+  tls: true
+  show_clinical_note: true
+  show_mccd: true
+  show_cod_result: true
+  ui_language: en
+
+inference:
+  num_questions: 3
+  question_style: simplified
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    population: adult
+
+dialogue:
+  language: en
+  whisper_livekit:
+    backend: mlx-whisper
