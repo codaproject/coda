@@ -11,8 +11,8 @@ Ollama model. Three apps go on the Desktop:
 Installation
 ------------
 
-On a new Mac, open Terminal and run, with the laptop's site profile from
-`config/sites/` in place of `<site>`:
+On a new Mac, open Terminal and run, with the laptop's site (e.g. `kintampo`,
+see `config/sites/`) in place of `<site>`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | bash -s <site>
@@ -43,6 +43,13 @@ Settings come from three files, each overriding the one before:
 3. `~/Library/Application Support/CODA/settings.yaml`, this laptop's file,
    which `CODA Settings` opens. It names the site profile and holds any changes
    made on the laptop. Updates never touch it.
+
+A site has one profile per use case, named `<site>-<use>.yaml`, e.g.
+`kintampo-facility.yaml` and `kintampo-community.yaml`. With `site: kintampo`
+in the laptop's file, CODA asks at start which use case to run when the site
+has more than one, and offers the last choice first. `site:
+kintampo-facility` always starts that use case. The interview page footer
+shows the profile in use, and each saved case records it.
 
 To start a new site profile, copy `config/sites/mac.yaml`. Before starting,
 CODA checks the settings and shows a dialog naming any problem, such as a

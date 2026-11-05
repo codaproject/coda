@@ -2,7 +2,7 @@
 # Set up CODA on a new Apple Silicon Mac for a site profile, from Terminal:
 #   curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | bash -s <site>
 set -euo pipefail
-site="${1:?Give a site profile name from config/sites/, e.g. mac}"
+site="${1:?Give a site name from config/sites/, e.g. kintampo}"
 dir="$HOME/coda"
 export GIT_LFS_SKIP_SMUDGE=1
 
@@ -23,7 +23,8 @@ fi
 
 . "$dir/mac/common.sh"
 git checkout --quiet "$(latest_release)"
-[ -f "config/sites/$site.yaml" ] || fail "No site profile config/sites/$site.yaml"
+ls config/sites | grep -qE "^$site(-.*)?\.yaml$" \
+    || fail "No site profile $site in config/sites/"
 mkdir -p "$DATA"
 [ -f "$CODA_SETTINGS_FILE" ] \
     || sed "s/^site: .*/site: $site/" mac/settings.yaml > "$CODA_SETTINGS_FILE"

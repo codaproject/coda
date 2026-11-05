@@ -14,6 +14,28 @@ Terminal window for details."
 export PYTHONPATH="$PWD/src"
 mkdir -p "$DATA"
 [ -f "$CODA_SETTINGS_FILE" ] || cp mac/settings.yaml "$CODA_SETTINGS_FILE"
+
+# A site with profiles <site>-<use>.yaml asks which use to start
+site="$(sed -n 's/^site:[[:space:]]*["'\'']*\([A-Za-z0-9_-]*\).*/\1/p' \
+    "$CODA_SETTINGS_FILE")"
+if [ -n "$site" ] && [ ! -f "config/sites/$site.yaml" ]; then
+    uses="$(cd config/sites && ls "$site"-*.yaml 2>/dev/null \
+        | sed "s/^$site-//; s/\.yaml\$//")"
+    if [ "$(printf '%s' "$uses" | grep -c .)" -gt 1 ]; then
+        last="$(cat "$DATA/last_use" 2>/dev/null || true)"
+        printf '%s\n' "$uses" | grep -qx "$last" || last="${uses%%$'\n'*}"
+        use="$(osascript -e 'on run argv' \
+            -e 'set choice to choose from list (rest of argv) with title "CODA" with prompt "Start CODA for:" default items {item 1 of argv}' \
+            -e 'if choice is false then error number -128' \
+            -e 'return item 1 of choice' -e 'end run' "$last" $uses)" \
+            || exit 0
+        echo "$use" > "$DATA/last_use"
+    else
+        use="$uses"
+    fi
+    [ -z "$use" ] || export CODA_SITE="$site-$use"
+fi
+
 config="$(python mac/check_config.py 2>&1)" \
     || fail "CODA's settings have a problem: $config"
 read -r port tls setup_port inference_port provider model <<< "$config"

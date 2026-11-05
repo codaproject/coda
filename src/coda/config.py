@@ -53,12 +53,14 @@ def _settings_files():
     """Return the settings files to load, in increasing precedence.
 
     ``CODA_SETTINGS_FILE`` names a machine's own settings file. Its ``site``
-    key selects a site profile in ``config/sites/``, which it overrides.
+    key, or ``CODA_SITE`` when set, selects a site profile in
+    ``config/sites/``, which the machine's file overrides.
     """
     files = ["settings.yaml"]
     local = os.getenv("CODA_SETTINGS_FILE")
     if local and Path(local).exists():
-        site = (yaml.safe_load(Path(local).read_text()) or {}).get("site")
+        site = os.getenv("CODA_SITE") or \
+            (yaml.safe_load(Path(local).read_text()) or {}).get("site")
         if site:
             profile = CONFIG_DIR / "sites" / f"{site}.yaml"
             if not profile.exists():

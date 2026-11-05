@@ -1,16 +1,15 @@
-# USP: facility and community deaths, children and adults, interviews in
-# Portuguese
+# Wits VIDA facility deaths, mostly children, entered by clinicians, in English, isiZulu or Sesotho
 
 app:
   tls: true
   show_clinical_note: true
-  show_mccd: false
+  show_mccd: true
   show_cod_result: true
   ui_language: en
 
 inference:
-  num_questions: 3
-  question_style: simplified
+  num_questions: 0
+  question_style: default
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
@@ -19,6 +18,6 @@ inference:
     coding: icd11
 
 dialogue:
-  language: pt
+  language: en
   whisper_livekit:
     backend: mlx-whisper

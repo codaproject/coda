@@ -1,9 +1,9 @@
-# Kintampo: facility and community deaths, mostly adults, interviews in English
+# USP community deaths, children and adults, interviews by nurses and field workers in Portuguese
 
 app:
   tls: true
-  show_clinical_note: true
-  show_mccd: true
+  show_clinical_note: false
+  show_mccd: false
   show_cod_result: true
   ui_language: en
 
@@ -14,9 +14,10 @@ inference:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    population: adult
+    population: child
+    coding: icd11
 
 dialogue:
-  language: en
+  language: pt
   whisper_livekit:
     backend: mlx-whisper

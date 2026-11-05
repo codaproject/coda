@@ -1,4 +1,4 @@
-# icddr,b: facility and community deaths, mostly children, interviews in Bangla
+# Kintampo facility deaths, mostly adults, entered by clinicians, in English
 
 app:
   tls: true
@@ -8,16 +8,15 @@ app:
   ui_language: en
 
 inference:
-  num_questions: 3
-  question_style: simplified
+  num_questions: 0
+  question_style: default
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    population: child
-    coding: icd11
+    population: adult
 
 dialogue:
-  language: bn
+  language: en
   whisper_livekit:
     backend: mlx-whisper

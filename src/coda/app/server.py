@@ -472,6 +472,7 @@ async def _run_info() -> dict:
         logger.warning("Could not fetch inference service info: %s", e)
         inference_info = None
     return {
+        "site": settings.site,
         "language": current_language,
         "translation_mode": translation_mode,
         "transcriber_backend": current_transcriber_backend,
@@ -1338,7 +1339,8 @@ async def get_index():
     )
     html_content = html_content.replace(
         "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
-    ).replace("__CODA_VERSION__", html.escape(get_version_label()))
+    ).replace("__CODA_VERSION__", html.escape(
+        " · ".join(filter(None, [get_version_label(), settings.site]))))
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(
             "<body",
