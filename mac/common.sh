@@ -29,19 +29,7 @@ ask() {
 # Ask which use case to start, with the given one as default, printing the
 # choice and failing on "Cancel"
 choose_usecase() {
-    local default="$1" choice
-    shift
-    choice="$(osascript -e 'on run argv' \
-        -e 'set choices to {"Cancel"} & (rest of rest of argv)' \
-        -e 'return button returned of (display dialog "Start CODA for:" with title "CODA" with icon (POSIX file (item 1 of argv)) buttons choices default button (item 2 of argv) cancel button "Cancel")' \
-        -e 'end run' "$ICON" "$(label "$default")" $(for u; do label "$u"; done) \
-        2>/dev/null)" || return
-    printf '%s\n' "$choice" | tr '[:upper:]' '[:lower:]'
-}
-
-# Capitalize a word for a button
-label() {
-    printf '%s%s\n' "$(printf '%s' "${1:0:1}" | tr '[:lower:]' '[:upper:]')" "${1:1}"
+    osascript -l JavaScript mac/choose_usecase.js "$ICON" "$@" 2>/dev/null
 }
 
 fail() {
