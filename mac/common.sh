@@ -6,6 +6,8 @@ VENV=.venv-mac
 DATA="$HOME/Library/Application Support/CODA"
 GILDA_DB="$DATA/grounding_terms.db"
 export CODA_SETTINGS_FILE="$DATA/settings.yaml"
+export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
+export PYTHONPATH="$PWD/src"
 
 # Show a message in a dialog
 notify() {
@@ -46,6 +48,49 @@ sync_env() {
     "$VENV/bin/python" -m nltk.downloader -q stopwords || return
     cp mac/requirements.lock "$VENV/requirements.lock"
     rm -f "$GILDA_DB"
+}
+
+# Site named in this laptop's settings file
+laptop_site() {
+    sed -n 's/^site:[[:space:]]*["'\'']*\([A-Za-z0-9_-]*\).*/\1/p' \
+        "$CODA_SETTINGS_FILE" 2>/dev/null
+}
+
+# Profiles of a site: <site>.yaml if there is one, else each <site>-<use>.yaml
+site_profiles() {
+    if [ -f "config/sites/$1.yaml" ]; then
+        echo "$1"
+    else
+        (cd config/sites && ls "$1"-*.yaml 2>/dev/null | sed 's/\.yaml$//')
+    fi
+}
+
+start_ollama() {
+    curl -sf http://127.0.0.1:11434/api/tags >/dev/null && return
+    open -a Ollama
+    for _ in $(seq 60); do
+        curl -sf http://127.0.0.1:11434/api/tags >/dev/null && return
+        sleep 1
+    done
+    return 1
+}
+
+build_grounding() {
+    [ -f "$GILDA_DB" ] && return
+    echo "Preparing grounding data..."
+    mkdir -p "$DATA"
+    python -m coda.grounding.build_grounding_db "$GILDA_DB.tmp" \
+        && mv "$GILDA_DB.tmp" "$GILDA_DB"
+}
+
+# Download everything the profiles of this laptop's site need
+prepare() {
+    local profile
+    start_ollama || return
+    build_grounding || return
+    for profile in $(site_profiles "$(laptop_site)"); do
+        CODA_SITE="$profile" python mac/prepare.py || return
+    done
 }
 
 latest_release() {
@@ -97,9 +142,9 @@ server. Check the internet connection and try again."
 ${notes}Update now?" || return 0
     previous="$(git rev-parse HEAD)"
     echo "Updating CODA to $latest..."
-    # The new release's own sync_env installs its environment
+    # The new release's own scripts install what it needs
     if GIT_LFS_SKIP_SMUDGE=1 git checkout --quiet --force "$latest" \
-            && (. mac/common.sh && sync_env); then
+            && (. mac/common.sh && sync_env && prepare); then
         notify "CODA is now at $latest."
         return 0
     fi

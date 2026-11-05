@@ -15,53 +15,35 @@ exec > >(tee -a "$HOME/Library/Logs/CODA/coda.log") 2>&1
 
 sync_env || fail "Installing CODA's Python packages failed, see the \
 Terminal window for details."
-export PYTHONPATH="$PWD/src"
 mkdir -p "$DATA"
 [ -f "$CODA_SETTINGS_FILE" ] || cp mac/settings.yaml "$CODA_SETTINGS_FILE"
 
-# A site with profiles <site>-<use>.yaml asks which use to start
-site="$(sed -n 's/^site:[[:space:]]*["'\'']*\([A-Za-z0-9_-]*\).*/\1/p' \
-    "$CODA_SETTINGS_FILE")"
-if [ -n "$site" ] && [ ! -f "config/sites/$site.yaml" ]; then
-    uses="$(cd config/sites && ls "$site"-*.yaml 2>/dev/null \
-        | sed "s/^$site-//; s/\.yaml\$//")"
-    if [ "$(printf '%s' "$uses" | grep -c .)" -gt 1 ]; then
-        last="$(cat "$DATA/last_use" 2>/dev/null || true)"
-        printf '%s\n' "$uses" | grep -qx "$last" || last="${uses%%$'\n'*}"
-        use="$(osascript -e 'on run argv' \
-            -e 'set choice to choose from list (rest of argv) with title "CODA" with prompt "Start CODA for:" default items {item 1 of argv}' \
-            -e 'if choice is false then error number -128' \
-            -e 'return item 1 of choice' -e 'end run' "$last" $uses)" \
-            || exit 0
-        echo "$use" > "$DATA/last_use"
-    else
-        use="$uses"
-    fi
-    [ -z "$use" ] || export CODA_SITE="$site-$use"
+# A site with several profiles asks which use case to start
+site="$(laptop_site)"
+profiles="$(site_profiles "$site")"
+if [ "$(printf '%s' "$profiles" | grep -c .)" -gt 1 ]; then
+    uses="$(printf '%s\n' "$profiles" | sed "s/^$site-//")"
+    last="$(cat "$DATA/last_use" 2>/dev/null || true)"
+    printf '%s\n' "$uses" | grep -qx "$last" || last="${uses%%$'\n'*}"
+    use="$(osascript -e 'on run argv' \
+        -e 'set choice to choose from list (rest of argv) with title "CODA" with prompt "Start CODA for:" default items {item 1 of argv}' \
+        -e 'if choice is false then error number -128' \
+        -e 'return item 1 of choice' -e 'end run' "$last" $uses)" \
+        || exit 0
+    echo "$use" > "$DATA/last_use"
+    export CODA_SITE="$site-$use"
+elif [ -n "$profiles" ]; then
+    export CODA_SITE="$profiles"
 fi
 
 config="$(python mac/check_config.py 2>&1)" \
     || fail "CODA's settings have a problem: $config"
-read -r port tls setup_port inference_port provider model <<< "$config"
-
-if ! curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
-    open -a Ollama
-    for _ in $(seq 60); do
-        curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break
-        sleep 1
-    done
-fi
-if [ "$provider" = ollama ] && ! ollama show "$model" >/dev/null 2>&1; then
-    echo "Downloading $model..."
-    ollama pull "$model"
-fi
-
-export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
-if [ ! -f "$GILDA_DB" ]; then
-    echo "Preparing grounding data (first start only)..."
-    python -m coda.grounding.build_grounding_db "$GILDA_DB.tmp"
-    mv "$GILDA_DB.tmp" "$GILDA_DB"
-fi
+read -r port tls setup_port inference_port <<< "$config"
+start_ollama || fail "Ollama did not start."
+python mac/prepare.py ollama || fail "Downloading CODA's models failed, \
+see the Terminal window for details."
+build_grounding || fail "Preparing grounding data failed, see the Terminal \
+window for details."
 
 trap 'kill $(jobs -p) 2>/dev/null' EXIT
 # Wait for a service's health URL, failing if the service exits

@@ -1,8 +1,7 @@
 """Check CODA's settings and print the values the Mac launcher needs.
 
-Prints the app port, whether TLS is on, the setup page port, the inference
-port, the LLM provider and the LLM model on one line. On a problem, prints it
-and exits with status 1.
+Prints the app port, whether TLS is on, the setup page port and the
+inference port on one line. On a problem, prints it and exits with status 1.
 """
 import os
 import sys
@@ -35,8 +34,7 @@ def main():
     except Exception as exc:
         sys.exit(str(exc))
     print(settings.app.port, settings.app.tls, settings.app.setup_port,
-          settings.inference.port,
-          settings.inference.llm.provider, settings.inference.llm.model)
+          settings.inference.port)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 #!/bin/bash
-# Set up CODA on a new Apple Silicon Mac for a site profile, from Terminal:
+# Set up CODA on a new Apple Silicon Mac for a site, downloading everything
+# its profiles need. From Terminal:
 #   curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | bash -s <site>
+# A HF_TOKEN in the environment is saved for models that need a Hugging Face
+# login.
 set -euo pipefail
 site="${1:?Give a site name from config/sites/, e.g. kintampo}"
 dir="$HOME/coda"
@@ -30,5 +33,7 @@ mkdir -p "$DATA"
     || sed "s/^site: .*/site: $site/" mac/settings.yaml > "$CODA_SETTINGS_FILE"
 ln -sf "$PWD/mac/CODA.app" "$PWD/mac/Update CODA.app" \
     "$PWD/mac/CODA Settings.app" "$HOME/Desktop/"
-echo "Starting CODA for the first time, which downloads its packages and models."
+echo "Installing CODA's packages and models, which takes a while..."
+sync_env && prepare || fail "Installing CODA failed, see above for details."
+echo "CODA is installed, starting it for the first time."
 open mac/CODA.app

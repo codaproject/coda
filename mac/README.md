@@ -20,19 +20,21 @@ curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.s
 
 The first run installs the Xcode command line tools and asks to be run again
 once they are in place. It then installs uv and Ollama, checks out the newest
-CODA release into `~/coda`, writes the laptop's settings file, puts the apps
-on the Desktop and starts CODA. The first start needs internet. It installs
-the Python packages, downloads the models, prepares the grounding data, and
-asks to trust CODA's local certificate authority so the browser accepts
-`https://localhost:8000`.
+CODA release into `~/coda`, writes the laptop's settings file and puts the
+apps on the Desktop. Then it installs the Python packages, prepares the
+grounding data, and downloads every model the site's profiles use (language
+models, the OCR model where clinical notes are shown, and speech models),
+after which CODA can run without internet. Finally it starts CODA, which asks
+once to trust its local certificate authority so the browser accepts
+`https://localhost:8000`. Before shipping a laptop, turn off Wi-Fi and start
+each of its use cases once.
 
-At icddr,b, Bangla transcription uses a model that needs a Hugging Face
-login. After the first start, sign in once with a Hugging Face token that has
-accepted the terms of `ai4bharat/indic-conformer-600m-multilingual`, then
-close CODA and start it again:
+At icddr,b, Bangla transcription uses a model that needs a Hugging Face login.
+Run the installation with a Hugging Face token that has accepted the terms of
+`ai4bharat/indic-conformer-600m-multilingual`:
 
 ```bash
-~/coda/.venv-mac/bin/hf auth login
+curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | HF_TOKEN=<token> bash -s icddrb
 ```
 
 Everything shown in the CODA Terminal window is also kept in
