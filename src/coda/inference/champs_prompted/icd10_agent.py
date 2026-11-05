@@ -175,12 +175,12 @@ class ChampsPromptedIcd10Agent(ChampsPromptedInferenceAgent):
             matched = self._match_cause(cause_name)
 
             if matched is None:
-                logger.warning("Unknown cause name '%s' - skipping",
-                               cause_name)
+                logger.debug("Unknown cause name '%s' - skipping",
+                             cause_name)
                 continue
             if matched != cause_name:
-                logger.info("Mapped cause name '%s' -> '%s'",
-                            cause_name, matched)
+                logger.debug("Mapped cause name '%s' -> '%s'",
+                             cause_name, matched)
 
             code = self.cause_codes[matched]
             causes[f"{self.coding_system}:{code}"] = {

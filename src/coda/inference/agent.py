@@ -111,16 +111,12 @@ class InferenceAgent:
             top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
             top_cause_name = causes[top_curie]['name']
             top_score = causes[top_curie]['score']
-            logger.info(
-                "Chunk %s: %d chunks processed in %.2fs, top cause=%s (%s, score=%.2f)",
-                chunk_id, len(self.dialogue_history), infer_s,
-                top_cause_name, top_curie, top_score
-            )
-        else:
-            logger.info(
-                "Chunk %s: %d chunks processed in %.2fs, no causes",
-                chunk_id, len(self.dialogue_history), infer_s
-            )
+            logger.debug("Chunk %s: top cause=%s (%s, score=%.2f)",
+                         chunk_id, top_cause_name, top_curie, top_score)
+        logger.info(
+            "Chunk %s: %d chunks processed in %.2fs, %d causes",
+            chunk_id, len(self.dialogue_history), infer_s, len(causes)
+        )
 
         return result
 
@@ -291,16 +287,13 @@ class InferenceServer:
                 if causes:
                     top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
                     top_cause_name = causes[top_curie]['name']
-                    logger.info(
-                        "Processed chunk %s in %.2fs: top cause=%s (%s)",
-                        request.chunk_id, time.perf_counter() - started,
-                        top_cause_name, top_curie
-                    )
-                else:
-                    logger.info(
-                        "Processed chunk %s in %.2fs: no causes",
-                        request.chunk_id, time.perf_counter() - started
-                    )
+                    logger.debug("Chunk %s: top cause=%s (%s)",
+                                 request.chunk_id, top_cause_name, top_curie)
+                logger.info(
+                    "Processed chunk %s in %.2fs: %d causes",
+                    request.chunk_id, time.perf_counter() - started,
+                    len(causes)
+                )
                 return result
             except Exception as e:
                 logger.error(

@@ -15,6 +15,8 @@ from .util import get_whisper_languages
 DEFAULT_MODEL_SIZE = "small"
 
 logger = logging.getLogger(__name__)
+# SimulStreaming logs its decoding context, which is transcript text
+logging.getLogger("whisperlivekit.simul_whisper").setLevel(logging.WARNING)
 
 
 def _events_from_response(msg: dict, state: dict):

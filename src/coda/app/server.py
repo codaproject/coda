@@ -533,17 +533,13 @@ async def process_inference(
             top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
             top_cause_name = causes[top_curie]['name']
             top_score = causes[top_curie]['score']
-            logger.info(
-                "Inference result for %s in %.2fs: %s (%s, score=%.2f, chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, top_cause_name, top_curie, top_score,
-                batch.chunk_count, len(batch.text), buffer_wait_s
-            )
-        else:
-            logger.info(
-                "Inference result for %s in %.2fs: no causes (chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, batch.chunk_count, len(batch.text),
-                buffer_wait_s
-            )
+            logger.debug("Top cause for %s: %s (%s, score=%.2f)",
+                         batch.chunk_id, top_cause_name, top_curie, top_score)
+        logger.info(
+            "Inference result for %s in %.2fs: %d causes (chunks=%d, text_chars=%d, wait=%.2fs)",
+            batch.chunk_id, infer_s, len(causes), batch.chunk_count,
+            len(batch.text), buffer_wait_s
+        )
 
     except httpx.TimeoutException:
         logger.error("Inference timeout for chunk %s after %.2fs",
@@ -620,7 +616,7 @@ async def set_metadata(payload: dict = Body(...)):
     """Set per-interview metadata forwarded to the inference agent."""
     global current_metadata
     current_metadata = Metadata.from_dict(payload)
-    logger.info(f"Metadata set: {current_metadata.to_dict()}")
+    logger.debug(f"Metadata set: {current_metadata.to_dict()}")
     return current_metadata.to_dict()
 
 
@@ -1058,7 +1054,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
         len(english_text), len(annotations)
     )
-    logger.info(f"Chunk {chunk_id}: {english_text}")
+    logger.debug(f"Chunk {chunk_id}: {english_text}")
 
     return chunk_id, timestamp, english_text, annotations
 

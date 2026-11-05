@@ -251,12 +251,12 @@ class ChunkedTranscriber(Transcriber):
             segments = result.get("segments", [])
             if segments:
                 probs = [f"{s.get('no_speech_prob', 0):.2f}" for s in segments]
-                logger.info(f"Raw transcription ({language}/{task}): "
-                            f"{raw_text!r}")
+                logger.debug(f"Raw transcription ({language}/{task}): "
+                             f"{raw_text!r}")
                 logger.info(f"Segment no_speech_probs: {probs}")
             else:
-                logger.info(f"Raw transcription ({language}/{task}): "
-                            f"{raw_text!r} (no segments)")
+                logger.debug(f"Raw transcription ({language}/{task}): "
+                             f"{raw_text!r} (no segments)")
 
             # Filter segments based on no_speech_prob to avoid hallucinations
             # during silence (e.g., "thank you for watching").
