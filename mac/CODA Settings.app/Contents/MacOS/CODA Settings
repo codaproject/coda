@@ -1,0 +1,7 @@
+#!/bin/bash
+# Open this laptop's CODA settings file in TextEdit, creating it if missing
+dir="$HOME/Library/Application Support/CODA"
+mkdir -p "$dir"
+[ -f "$dir/settings.yaml" ] \
+    || cp "$(dirname "$0")/../../../settings.yaml" "$dir/settings.yaml"
+open -e "$dir/settings.yaml"

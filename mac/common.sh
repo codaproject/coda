@@ -1,10 +1,11 @@
-# Helpers shared by the Mac start and update scripts, sourced from the repo root
+# Helpers shared by the Mac scripts, sourced from the repo root
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 export PATH="$PWD/.venv-mac/bin:$HOME/.local/bin:/opt/homebrew/bin:\
 /usr/local/bin:/Applications/Ollama.app/Contents/Resources:$PATH"
 VENV=.venv-mac
 DATA="$HOME/Library/Application Support/CODA"
 GILDA_DB="$DATA/grounding_terms.db"
+export CODA_SETTINGS_FILE="$DATA/settings.yaml"
 
 # Show a message in a dialog
 notify() {
@@ -32,18 +33,6 @@ check_prereqs() {
     command -v uv >/dev/null || fail "uv is not installed, see mac/README.md."
     command -v ollama >/dev/null \
         || fail "Ollama is not installed, see mac/README.md."
-}
-
-# Export KEY=value lines from the given files, keeping variables already set
-load_env() {
-    local key value
-    while IFS='=' read -r key value; do
-        key="${key#export }"
-        case "$key" in
-            ""|\#*|*[!A-Za-z0-9_]*) continue ;;
-        esac
-        [ -n "${!key+x}" ] || export "$key=${value%$'\r'}"
-    done < <(cat "$@" 2>/dev/null)
 }
 
 # Install the locked Python environment if the lock changed

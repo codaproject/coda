@@ -1,0 +1,24 @@
+# Offline Apple Silicon laptop, with phones and tablets joining over HTTPS.
+# Copy this file to start a new site profile.
+
+app:
+  tls: true
+  # show_cod_result: true
+  # show_clinical_note: false
+  # show_mccd: false
+  # ui_language: en
+  # lock_server_settings: false
+
+inference:
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  # question_style: simplified
+
+dialogue:
+  # language: en
+  whisper_livekit:
+    backend: mlx-whisper
+
+# storage:
+#   enabled: true

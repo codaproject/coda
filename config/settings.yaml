@@ -6,6 +6,9 @@
 #
 # Overriding values:
 #   - Edit a value here to change the default.
+#   - Set CODA_SETTINGS_FILE to a machine's own YAML settings file, which
+#     overrides a site profile under config/sites/ (chosen by its `site` key)
+#     that in turn overrides this file.
 #   - Override at runtime with an environment variable, using the CODA_ prefix
 #     and `__` (double underscore) to descend into nested keys, e.g.:
 #         CODA_APP__PORT=9000
@@ -15,6 +18,9 @@
 # Secrets (API keys) live in `.secrets.yaml` (gitignored), not here. The OpenAI
 # and Speechmatics keys keep their conventional env-var names (OPENAI_API_KEY,
 # SPEECHMATICS_API_KEY) rather than the CODA_ prefix.
+
+# Site profile name, set in a machine's settings file. Empty -> none.
+site: ""
 
 app:
   host: 0.0.0.0

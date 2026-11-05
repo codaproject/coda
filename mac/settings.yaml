@@ -1,0 +1,14 @@
+# CODA settings for this laptop. Restart CODA after editing.
+#
+# Values here override the site profile (config/sites/<site>.yaml in the CODA
+# folder), which overrides CODA's defaults (config/settings.yaml, which lists
+# and explains every setting). Uncomment and edit lines below as needed.
+
+site: mac
+
+# dialogue:
+#   language: en
+# app:
+#   ui_language: en
+# storage:
+#   enabled: true

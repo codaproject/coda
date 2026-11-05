@@ -48,9 +48,29 @@ def _resolve_config_dir() -> Path:
 CONFIG_DIR = _resolve_config_dir()
 PROMPTS_DIR = CONFIG_DIR / "prompts"
 
+
+def _settings_files():
+    """Return the settings files to load, in increasing precedence.
+
+    ``CODA_SETTINGS_FILE`` names a machine's own settings file. Its ``site``
+    key selects a site profile in ``config/sites/``, which it overrides.
+    """
+    files = ["settings.yaml"]
+    local = os.getenv("CODA_SETTINGS_FILE")
+    if local and Path(local).exists():
+        site = (yaml.safe_load(Path(local).read_text()) or {}).get("site")
+        if site:
+            profile = CONFIG_DIR / "sites" / f"{site}.yaml"
+            if not profile.exists():
+                raise ValueError(f"No site profile {profile}")
+            files.append(str(profile))
+        files.append(local)
+    return files + [".secrets.yaml"]
+
+
 settings = Dynaconf(
     root_path=str(CONFIG_DIR),
-    settings_files=["settings.yaml", ".secrets.yaml"],
+    settings_files=_settings_files(),
     envvar_prefix="CODA",       # `CODA_APP__PORT=9000` overrides app.port
     merge_enabled=True,         # deep-merge .secrets.yaml / env-vars over settings.yaml
     load_dotenv=True,
@@ -58,6 +78,12 @@ settings = Dynaconf(
         # Coerce env-var strings (which always arrive as text) to the right type.
         Validator("app.port", "app.setup_port", "inference.port", cast=int),
         Validator("app.tls", cast=bool),
+        Validator("inference.agent",
+                  is_in=["champs_prompted", "champs_finetuned"]),
+        Validator("inference.llm.provider", "grounder.rag.llm.provider",
+                  is_in=["openai", "ollama"]),
+        Validator("inference.question_style", is_in=["default", "simplified"]),
+        Validator("grounder.type", is_in=["gilda", "rag"]),
         Validator("inference.num_questions", cast=int),
         Validator("grounder.rag.retriever.top_k", cast=int),
         Validator("grounder.rag.retriever.min_similarity", cast=float),

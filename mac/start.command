@@ -11,7 +11,12 @@ update startup || true
 
 sync_env || fail "Installing CODA's Python packages failed, see the \
 Terminal window for details."
-load_env .env mac/defaults.env
+export PYTHONPATH="$PWD/src"
+mkdir -p "$DATA"
+[ -f "$CODA_SETTINGS_FILE" ] || cp mac/settings.yaml "$CODA_SETTINGS_FILE"
+config="$(python mac/check_config.py 2>&1)" \
+    || fail "CODA's settings have a problem: $config"
+read -r port tls setup_port inference_port provider model <<< "$config"
 
 if ! curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
     open -a Ollama
@@ -20,40 +25,44 @@ if ! curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
         sleep 1
     done
 fi
-if [ "${CODA_INFERENCE__LLM__PROVIDER:-}" = ollama ] && \
-        ! ollama show "$CODA_INFERENCE__LLM__MODEL" >/dev/null 2>&1; then
-    echo "Downloading $CODA_INFERENCE__LLM__MODEL..."
-    ollama pull "$CODA_INFERENCE__LLM__MODEL"
+if [ "$provider" = ollama ] && ! ollama show "$model" >/dev/null 2>&1; then
+    echo "Downloading $model..."
+    ollama pull "$model"
 fi
 
-export PYTHONPATH="$PWD/src"
-if [ -z "${CODA_GROUNDER__GILDA__SQLITE_DB:-}" ]; then
-    export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
-    if [ ! -f "$GILDA_DB" ]; then
-        echo "Preparing grounding data (first start only)..."
-        mkdir -p "$DATA"
-        python -m coda.grounding.build_grounding_db "$GILDA_DB.tmp"
-        mv "$GILDA_DB.tmp" "$GILDA_DB"
-    fi
+export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
+if [ ! -f "$GILDA_DB" ]; then
+    echo "Preparing grounding data (first start only)..."
+    python -m coda.grounding.build_grounding_db "$GILDA_DB.tmp"
+    mv "$GILDA_DB.tmp" "$GILDA_DB"
 fi
+
+trap 'kill $(jobs -p) 2>/dev/null' EXIT
+# Wait for a service's health URL, failing if the service exits
+wait_for() {
+    until curl -sfk "$2" >/dev/null; do
+        kill -0 "$1" 2>/dev/null || fail "CODA stopped while starting, see \
+the Terminal window for details."
+        sleep 1
+    done
+}
+python -m coda.inference.agent &
+wait_for $! "http://127.0.0.1:$inference_port/health"
+python -m coda.app &
 
 # Once the app answers, trust its certificate authority and open it
-port="${CODA_APP__PORT:-8000}"
-scheme=https
-case "$(printf '%s' "${CODA_APP__TLS:-true}" | tr '[:upper:]' '[:lower:]')" in
-    1|true|yes|on) ;;
-    *) scheme=http ;;
-esac
-(
-    until curl -sfk "$scheme://127.0.0.1:$port/health" >/dev/null; do
-        sleep 2
-    done
-    ca="${CODA_APP__TLS_DIR:-certs}/ca.pem"
-    if [ $scheme = https ] && ! security verify-cert -c "$ca" >/dev/null 2>&1
-    then
-        security add-trusted-cert -r trustRoot \
-            -k "$HOME/Library/Keychains/login.keychain-db" "$ca" || true
-    fi
-    open "$scheme://localhost:$port"
-) &
-exec ./startup.sh
+scheme=http
+[ "$tls" = True ] && scheme=https
+wait_for $! "$scheme://127.0.0.1:$port/health"
+ca=certs/ca.pem
+if [ $scheme = https ] && ! security verify-cert -c "$ca" >/dev/null 2>&1; then
+    security add-trusted-cert -r trustRoot \
+        -k "$HOME/Library/Keychains/login.keychain-db" "$ca" || true
+fi
+open "$scheme://localhost:$port"
+echo "CODA is running at $scheme://localhost:$port"
+ip="$(ipconfig getifaddr en0 || ipconfig getifaddr en1 || true)"
+[ $scheme = http ] || [ -z "$ip" ] \
+    || echo "Phone and tablet setup: http://$ip:$setup_port"
+echo "Close this window to stop CODA."
+wait
