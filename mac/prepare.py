@@ -32,7 +32,8 @@ def main():
     if os.getenv("HF_TOKEN"):
         from huggingface_hub import login
         login(token=os.environ["HF_TOKEN"], add_to_git_credential=False)
-    print(f"Preparing the {settings.site} speech model...", flush=True)
+    profile = " ".join(filter(None, [settings.site, settings.usecase]))
+    print(f"Preparing the {profile} speech model...", flush=True)
     from coda.dialogue import create_transcriber
     create_transcriber(settings.dialogue.transcriber_backend,
                        model=settings.dialogue.transcriber_model or None)

@@ -8,19 +8,40 @@ GILDA_DB="$DATA/grounding_terms.db"
 export CODA_SETTINGS_FILE="$DATA/settings.yaml"
 export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
 export PYTHONPATH="$PWD/src"
+ICON="$PWD/mac/CODA.app/Contents/Resources/icon.icns"
+# Address of the running CODA, removed when it stops
+URL_FILE="$DATA/url"
 
 # Show a message in a dialog
 notify() {
     osascript -e 'on run argv' \
-        -e 'display dialog (item 1 of argv) with title "CODA" buttons {"OK"} default button "OK"' \
-        -e 'end run' "$1" >/dev/null 2>&1 || true
+        -e 'display dialog (item 1 of argv) with title "CODA" with icon (POSIX file (item 2 of argv)) buttons {"OK"} default button "OK"' \
+        -e 'end run' "$1" "$ICON" >/dev/null 2>&1 || true
 }
 
 # Ask a yes/no question in a dialog, failing on "Not now"
 ask() {
     osascript -e 'on run argv' \
-        -e 'display dialog (item 1 of argv) with title "CODA" buttons {"Not now", "Update"} default button "Update" cancel button "Not now"' \
-        -e 'end run' "$1" >/dev/null 2>&1
+        -e 'display dialog (item 1 of argv) with title "CODA" with icon (POSIX file (item 2 of argv)) buttons {"Not now", "Update"} default button "Update" cancel button "Not now"' \
+        -e 'end run' "$1" "$ICON" >/dev/null 2>&1
+}
+
+# Ask which use case to start, with the given one as default, printing the
+# choice and failing on "Cancel"
+choose_usecase() {
+    local default="$1" choice
+    shift
+    choice="$(osascript -e 'on run argv' \
+        -e 'set choices to {"Cancel"} & (rest of rest of argv)' \
+        -e 'return button returned of (display dialog "Start CODA for:" with title "CODA" with icon (POSIX file (item 1 of argv)) buttons choices default button (item 2 of argv) cancel button "Cancel")' \
+        -e 'end run' "$ICON" "$(label "$default")" $(for u; do label "$u"; done) \
+        2>/dev/null)" || return
+    printf '%s\n' "$choice" | tr '[:upper:]' '[:lower:]'
+}
+
+# Capitalize a word for a button
+label() {
+    printf '%s%s\n' "$(printf '%s' "${1:0:1}" | tr '[:lower:]' '[:upper:]')" "${1:1}"
 }
 
 fail() {
@@ -56,13 +77,10 @@ laptop_site() {
         "$CODA_SETTINGS_FILE" 2>/dev/null
 }
 
-# Profiles of a site: <site>.yaml if there is one, else each <site>-<use>.yaml
-site_profiles() {
-    if [ -f "config/sites/$1.yaml" ]; then
-        echo "$1"
-    else
-        (cd config/sites && ls "$1"-*.yaml 2>/dev/null | sed 's/\.yaml$//')
-    fi
+# Use cases of a site, from its <site>-<usecase>.yaml profiles
+site_usecases() {
+    (cd config/sites && ls "$1"-*.yaml 2>/dev/null) \
+        | sed "s/^$1-//; s/\.yaml\$//"
 }
 
 start_ollama() {
@@ -85,12 +103,12 @@ build_grounding() {
 
 # Download everything the profiles of this laptop's site need
 prepare() {
-    local profile
     start_ollama || return
     build_grounding || return
-    for profile in $(site_profiles "$(laptop_site)"); do
-        CODA_SITE="$profile" python mac/prepare.py || return
-    done
+    printf '%s\n' "$(site_usecases "$(laptop_site)")" \
+        | while read -r usecase; do
+            CODA_USECASE="$usecase" python mac/prepare.py </dev/null || exit
+        done
 }
 
 latest_release() {

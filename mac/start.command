@@ -18,22 +18,16 @@ Terminal window for details."
 mkdir -p "$DATA"
 [ -f "$CODA_SETTINGS_FILE" ] || cp mac/settings.yaml "$CODA_SETTINGS_FILE"
 
-# A site with several profiles asks which use case to start
-site="$(laptop_site)"
-profiles="$(site_profiles "$site")"
-if [ "$(printf '%s' "$profiles" | grep -c .)" -gt 1 ]; then
-    uses="$(printf '%s\n' "$profiles" | sed "s/^$site-//")"
-    last="$(cat "$DATA/last_use" 2>/dev/null || true)"
-    printf '%s\n' "$uses" | grep -qx "$last" || last="${uses%%$'\n'*}"
-    use="$(osascript -e 'on run argv' \
-        -e 'set choice to choose from list (rest of argv) with title "CODA" with prompt "Start CODA for:" default items {item 1 of argv}' \
-        -e 'if choice is false then error number -128' \
-        -e 'return item 1 of choice' -e 'end run' "$last" $uses)" \
-        || exit 0
-    echo "$use" > "$DATA/last_use"
-    export CODA_SITE="$site-$use"
-elif [ -n "$profiles" ]; then
-    export CODA_SITE="$profiles"
+# A site with several use cases asks which one to start
+usecases="$(site_usecases "$(laptop_site)")"
+if [ "$(printf '%s' "$usecases" | grep -c .)" -gt 1 ]; then
+    last="$(cat "$DATA/last_usecase" 2>/dev/null || true)"
+    printf '%s\n' "$usecases" | grep -qx "$last" || last="${usecases%%$'\n'*}"
+    usecase="$(choose_usecase "$last" $usecases)" || exit 0
+    echo "$usecase" > "$DATA/last_usecase"
+    export CODA_USECASE="$usecase"
+elif [ -n "$usecases" ]; then
+    export CODA_USECASE="$usecases"
 fi
 
 config="$(python mac/check_config.py 2>&1)" \
@@ -45,7 +39,7 @@ see the Terminal window for details."
 build_grounding || fail "Preparing grounding data failed, see the Terminal \
 window for details."
 
-trap 'kill $(jobs -p) 2>/dev/null' EXIT
+trap 'rm -f "$URL_FILE"; kill $(jobs -p) 2>/dev/null' EXIT
 # Keep the Mac from sleeping while CODA runs
 caffeinate -i -w $$ &
 # Wait for a service's health URL, failing if the service exits
@@ -69,6 +63,7 @@ if [ $scheme = https ] && ! security verify-cert -c "$ca" >/dev/null 2>&1; then
     security add-trusted-cert -r trustRoot \
         -k "$HOME/Library/Keychains/login.keychain-db" "$ca" || true
 fi
+echo "$scheme://localhost:$port" > "$URL_FILE"
 open "$scheme://localhost:$port"
 echo "CODA is running at $scheme://localhost:$port"
 ip="$(ipconfig getifaddr en0 || ipconfig getifaddr en1 || true)"

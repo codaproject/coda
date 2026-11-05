@@ -49,12 +49,18 @@ CONFIG_DIR = _resolve_config_dir()
 PROMPTS_DIR = CONFIG_DIR / "prompts"
 
 
+def site_profile(site, usecase):
+    """Return the path of the profile for a site and use case."""
+    name = f"{site}-{usecase}" if usecase else site
+    return CONFIG_DIR / "sites" / f"{name}.yaml"
+
+
 def _settings_files():
     """Return the settings files to load, in increasing precedence.
 
     ``CODA_SETTINGS_FILE`` names a machine's own settings file. Its ``site``
-    key, or ``CODA_SITE`` when set, selects a site profile in
-    ``config/sites/``, which the machine's file overrides.
+    key, or ``CODA_SITE`` when set, and ``CODA_USECASE`` select a site
+    profile in ``config/sites/``, which the machine's file overrides.
     """
     files = ["settings.yaml"]
     local = os.getenv("CODA_SETTINGS_FILE")
@@ -62,7 +68,7 @@ def _settings_files():
         site = os.getenv("CODA_SITE") or \
             (yaml.safe_load(Path(local).read_text()) or {}).get("site")
         if site:
-            profile = CONFIG_DIR / "sites" / f"{site}.yaml"
+            profile = site_profile(site, os.getenv("CODA_USECASE"))
             if not profile.exists():
                 raise ValueError(f"No site profile {profile}")
             files.append(str(profile))

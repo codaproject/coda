@@ -473,6 +473,7 @@ async def _run_info() -> dict:
         inference_info = None
     return {
         "site": settings.site,
+        "usecase": settings.usecase,
         "language": current_language,
         "translation_mode": translation_mode,
         "transcriber_backend": current_transcriber_backend,
@@ -1338,7 +1339,8 @@ async def get_index():
     ).replace(
         "__CODA_WORDING__", json.dumps(settings.app.wording),
     ).replace("__CODA_VERSION__", html.escape(
-        " · ".join(filter(None, [get_version_label(), settings.site]))))
+        " · ".join(filter(None, [get_version_label(), settings.site,
+                            settings.usecase]))))
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(
             "<body",

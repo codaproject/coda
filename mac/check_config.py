@@ -21,12 +21,12 @@ def unknown_keys(values, defaults, prefix=""):
 
 def main():
     try:
-        from coda.config import CONFIG_DIR, settings
+        from coda.config import CONFIG_DIR, settings, site_profile
         settings.validators.validate()
         defaults = yaml.safe_load((CONFIG_DIR / "settings.yaml").read_text())
         files = [Path(os.environ["CODA_SETTINGS_FILE"])]
         if settings.site:
-            files.insert(0, CONFIG_DIR / "sites" / f"{settings.site}.yaml")
+            files.insert(0, site_profile(settings.site, settings.usecase))
         for path in files:
             values = yaml.safe_load(path.read_text()) or {}
             for key in unknown_keys(values, defaults):
