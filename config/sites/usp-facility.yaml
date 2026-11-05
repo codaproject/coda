@@ -5,7 +5,7 @@ app:
   show_clinical_note: true
   show_mccd: false
   show_cod_result: true
-  ui_language: en
+  ui_language: pt
 
 inference:
   num_questions: 0

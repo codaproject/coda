@@ -5,7 +5,8 @@ app:
   show_clinical_note: false
   show_mccd: false
   show_cod_result: true
-  ui_language: en
+  ui_language: pt
+  wording: interview
 
 inference:
   num_questions: 3

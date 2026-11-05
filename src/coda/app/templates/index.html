@@ -10,6 +10,8 @@
       // Server-configured interface language, used when this browser has no
       // stored choice of its own.
       const CODA_UI_LANGUAGE = __CODA_UI_LANGUAGE__;
+      // Server-configured wording variant of the strings that have one
+      const CODA_WORDING = __CODA_WORDING__;
 
       // Set theme + locale + consent before first paint to avoid FOUC.
       (function () {
@@ -3878,11 +3880,11 @@
           <button
             id="heroMicBtn"
             class="idle-mic-btn"
-            aria-label="Begin dictation"
+            aria-label="Start recording"
           >
             <i class="bi bi-mic-fill"></i>
           </button>
-          <h1 id="idleHeading" data-i18n="idle.begin">Begin dictation</h1>
+          <h1 id="idleHeading" data-i18n="idle.begin">Start recording</h1>
           <p data-i18n="idle.helper">
             Press the button or use the space bar. Your audio is transcribed on
             this device.
@@ -4143,6 +4145,7 @@
           <option value="ar">العربية</option>
           <option value="bn">বাংলা</option>
           <option value="es">Español</option>
+          <option value="pt">Português</option>
           <option value="ts">Xitsonga</option>
         </select>
       </div>
@@ -4458,7 +4461,7 @@
           "onboard.note": "You can adjust preferences in Settings at any time.",
           "onboard.footLeft":
             "No data leaves this device. No sign-in required.",
-          "idle.begin": "Begin dictation",
+          "idle.begin": "Start recording",
           "idle.helper":
             "Press the button or use the space bar. Your audio is transcribed on this device.",
           "idle.advisory":
@@ -4570,6 +4573,16 @@
             "This case did not close normally, most likely because the server stopped during the interview. Everything saved up to that point is shown.",
           "case.inProgressNote":
             "This case is still being recorded. You are seeing what has been saved so far.",
+          "onboard.body1@interview":
+            "When you interview a family about a death, CODA transcribes the conversation and suggests follow-up questions in real time. All processing happens on your device.",
+          "onboard.body2@interview":
+            "CODA's suggestions are only a guide. The cause of death is determined later, when the case is reviewed.",
+          "onboard.consent@interview":
+            "I understand that CODA's suggestions are a guide and do not determine the cause of death.",
+          "idle.advisory@interview":
+            "Suggestions only · The cause of death is determined at review",
+          "advisory.short@interview":
+            "Suggestions only · The cause of death is determined at review",
         },
         sw: {
           "profile.title": "Wasifu wa kesi",
@@ -4640,7 +4653,7 @@
           "onboard.note": "Unaweza kubadilisha mipangilio wakati wowote.",
           "onboard.footLeft":
             "Hakuna data inayotoka kwenye kifaa hiki. Hakuna kuingia kunakohitajika.",
-          "idle.begin": "Anza kuandika kwa sauti",
+          "idle.begin": "Anza kurekodi",
           "idle.helper":
             "Bonyeza kitufe au tumia upau wa nafasi. Sauti yako inaandikwa kwenye kifaa hiki.",
           "idle.advisory": "Ushauri tu · Uamuzi wa mwisho ni wa daktari",
@@ -4752,6 +4765,16 @@
             "Kesi hii haikufungwa kwa kawaida, huenda kwa sababu seva ilisimama wakati wa mahojiano. Kila kitu kilichohifadhiwa hadi wakati huo kinaonyeshwa.",
           "case.inProgressNote":
             "Kesi hii bado inarekodiwa. Unaona kile kilichohifadhiwa hadi sasa.",
+          "onboard.body1@interview":
+            "Unapoihoji familia kuhusu kifo, CODA huandika mazungumzo na kupendekeza maswali ya ufuatiliaji papo hapo. Uchakataji wote hufanyika kwenye kifaa chako.",
+          "onboard.body2@interview":
+            "Mapendekezo ya CODA ni mwongozo tu. Sababu ya kifo huamuliwa baadaye, kesi inapokaguliwa.",
+          "onboard.consent@interview":
+            "Ninaelewa kwamba mapendekezo ya CODA ni mwongozo na hayaamui sababu ya kifo.",
+          "idle.advisory@interview":
+            "Mapendekezo tu · Sababu ya kifo huamuliwa wakati wa ukaguzi",
+          "advisory.short@interview":
+            "Mapendekezo tu · Sababu ya kifo huamuliwa wakati wa ukaguzi",
         },
         fr: {
           "profile.title": "Profil du cas",
@@ -4823,7 +4846,7 @@
             "Vous pouvez ajuster les préférences dans Paramètres à tout moment.",
           "onboard.footLeft":
             "Aucune donnée ne quitte cet appareil. Aucune connexion requise.",
-          "idle.begin": "Commencer la dictée",
+          "idle.begin": "Commencer l'enregistrement",
           "idle.helper":
             "Appuyez sur le bouton ou la barre d'espace. Votre audio est transcrit sur cet appareil.",
           "idle.advisory":
@@ -4937,6 +4960,16 @@
             "Ce cas ne s'est pas clôturé normalement, probablement parce que le serveur s'est arrêté pendant l'entretien. Tout ce qui a été sauvegardé jusque-là est affiché.",
           "case.inProgressNote":
             "Ce cas est toujours en cours d'enregistrement. Vous voyez ce qui a été sauvegardé jusqu'à présent.",
+          "onboard.body1@interview":
+            "Lorsque vous interrogez une famille au sujet d'un décès, CODA transcrit la conversation et suggère des questions de suivi en temps réel. Tout le traitement se fait sur votre appareil.",
+          "onboard.body2@interview":
+            "Les suggestions de CODA ne sont qu'un guide. La cause du décès est déterminée plus tard, lors de l'examen du dossier.",
+          "onboard.consent@interview":
+            "Je comprends que les suggestions de CODA sont un guide et ne déterminent pas la cause du décès.",
+          "idle.advisory@interview":
+            "Suggestions uniquement · La cause du décès est déterminée lors de l'examen",
+          "advisory.short@interview":
+            "Suggestions uniquement · La cause du décès est déterminée lors de l'examen",
         },
         ar: {
           "common.new": "جديد",
@@ -5006,7 +5039,7 @@
           "onboard.note": "يمكنك تعديل التفضيلات في الإعدادات في أي وقت.",
           "onboard.footLeft":
             "لا تغادر أي بيانات هذا الجهاز. لا يلزم تسجيل الدخول.",
-          "idle.begin": "ابدأ الإملاء",
+          "idle.begin": "ابدأ التسجيل",
           "idle.helper":
             "اضغط الزر أو استخدم مسطرة المسافة. يتم نسخ صوتك على هذا الجهاز.",
           "idle.advisory": "استشاري فقط · القرار النهائي يعود للطبيب",
@@ -5116,6 +5149,16 @@
             "لم تُغلق هذه الحالة بشكل طبيعي، والأرجح أن الخادم توقف أثناء المقابلة. يُعرض كل ما حُفظ حتى تلك اللحظة.",
           "case.inProgressNote":
             "لا تزال هذه الحالة قيد التسجيل. أنت ترى ما تم حفظه حتى الآن.",
+          "onboard.body1@interview":
+            "عندما تجري مقابلة مع أسرة بشأن وفاة، يقوم CODA بتدوين المحادثة واقتراح أسئلة متابعة في الوقت الفعلي. تتم جميع المعالجة على جهازك.",
+          "onboard.body2@interview":
+            "اقتراحات CODA للإرشاد فقط. يُحدَّد سبب الوفاة لاحقًا عند مراجعة الحالة.",
+          "onboard.consent@interview":
+            "أفهم أن اقتراحات CODA للإرشاد فقط ولا تحدد سبب الوفاة.",
+          "idle.advisory@interview":
+            "اقتراحات فقط · يُحدَّد سبب الوفاة عند المراجعة",
+          "advisory.short@interview":
+            "اقتراحات فقط · يُحدَّد سبب الوفاة عند المراجعة",
         },
         bn: {
           "common.new": "নতুন",
@@ -5187,7 +5230,7 @@
             "আপনি যেকোনো সময় সেটিংসে পছন্দ পরিবর্তন করতে পারবেন।",
           "onboard.footLeft":
             "কোনো ডেটা এই ডিভাইস ছেড়ে যায় না। সাইন-ইন লাগে না।",
-          "idle.begin": "ডিকটেশন শুরু করুন",
+          "idle.begin": "রেকর্ডিং শুরু করুন",
           "idle.helper":
             "বোতাম টিপুন বা স্পেস বার ব্যবহার করুন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
           "idle.advisory": "শুধু পরামর্শ · চূড়ান্ত সিদ্ধান্ত চিকিৎসকের",
@@ -5299,6 +5342,16 @@
             "এই কেসটি স্বাভাবিকভাবে বন্ধ হয়নি, সম্ভবত সাক্ষাৎকারের সময় সার্ভার বন্ধ হয়ে গিয়েছিল। সেই সময় পর্যন্ত যা সংরক্ষিত হয়েছে সবই দেখানো হচ্ছে।",
           "case.inProgressNote":
             "এই কেসটি এখনো রেকর্ড হচ্ছে। এখন পর্যন্ত যা সংরক্ষিত হয়েছে তা দেখছেন।",
+          "onboard.body1@interview":
+            "আপনি যখন কোনো মৃত্যুর বিষয়ে পরিবারের সাক্ষাৎকার নেন, CODA কথোপকথন লিখে নেয় এবং সঙ্গে সঙ্গে পরবর্তী প্রশ্নের পরামর্শ দেয়। সমস্ত প্রক্রিয়াকরণ আপনার ডিভাইসেই হয়।",
+          "onboard.body2@interview":
+            "CODA-র পরামর্শ শুধু একটি নির্দেশিকা। মৃত্যুর কারণ পরে, কেসটি পর্যালোচনার সময় নির্ধারিত হয়।",
+          "onboard.consent@interview":
+            "আমি বুঝি যে CODA-র পরামর্শ একটি নির্দেশিকা এবং এটি মৃত্যুর কারণ নির্ধারণ করে না।",
+          "idle.advisory@interview":
+            "শুধু পরামর্শ · মৃত্যুর কারণ পর্যালোচনার সময় নির্ধারিত হয়",
+          "advisory.short@interview":
+            "শুধু পরামর্শ · মৃত্যুর কারণ পর্যালোচনার সময় নির্ধারিত হয়",
         },
         es: {
           "common.new": "Nuevo",
@@ -5370,7 +5423,7 @@
             "Puedes ajustar las preferencias en Ajustes en cualquier momento.",
           "onboard.footLeft":
             "Ningún dato sale de este dispositivo. No se requiere inicio de sesión.",
-          "idle.begin": "Empezar dictado",
+          "idle.begin": "Empezar a grabar",
           "idle.helper":
             "Presiona el botón o la barra espaciadora. Tu audio se transcribe en este dispositivo.",
           "idle.advisory":
@@ -5483,6 +5536,16 @@
             "Este caso no se cerró normalmente, probablemente porque el servidor se detuvo durante la entrevista. Se muestra todo lo guardado hasta ese momento.",
           "case.inProgressNote":
             "Este caso todavía se está grabando. Estás viendo lo que se ha guardado hasta ahora.",
+          "onboard.body1@interview":
+            "Cuando entrevistas a una familia sobre una muerte, CODA transcribe la conversación y sugiere preguntas de seguimiento en tiempo real. Todo el procesamiento ocurre en tu dispositivo.",
+          "onboard.body2@interview":
+            "Las sugerencias de CODA son solo una guía. La causa de muerte se determina después, al revisar el caso.",
+          "onboard.consent@interview":
+            "Entiendo que las sugerencias de CODA son una guía y no determinan la causa de muerte.",
+          "idle.advisory@interview":
+            "Solo sugerencias · La causa de muerte se determina en la revisión",
+          "advisory.short@interview":
+            "Solo sugerencias · La causa de muerte se determina en la revisión",
         },
         ts: {
           "common.new": "Leyintshwa",
@@ -5554,7 +5617,7 @@
             "U nga cinca leswi u swi hlawuleke eka Swiyimiso nkarhi wun'wana ni wun'wana.",
           "onboard.footLeft":
             "A ku na vuxokoxoko lebyi humaka eka xitirhisiwa lexi. A swi laveki ku nghena.",
-          "idle.begin": "Sungula ku hlamusela hi nomu",
+          "idle.begin": "Sungula ku rhekhoda",
           "idle.helper":
             "Tshikilela batheni kumbe u tirhisa batheni yo siya xivandla (space bar). Marito ya wena ya tsariwa eka xitirhisiwa lexi.",
           "idle.advisory":
@@ -5670,6 +5733,213 @@
             "Mhaka leyi a yi pfariwanga hi ndlela leyi tolovelekeke, kumbexana hikuva sevha yi yimile hi nkarhi wa mbulavurisano. Hinkwaswo leswi hlayisiweke ku fikela hi nkarhi wolowo swa kombiwa.",
           "case.inProgressNote":
             "Mhaka leyi ya ha rhekhodiwa. U vona leswi hlayisiweke ku fikela sweswi.",
+          "onboard.body1@interview":
+            "Loko u vutisa ndyangu mayelana ni rifu, CODA yi tsala mbulavurisano naswona yi ringanyeta swivutiso swo landzelela hi nkarhi wolowo. Ntirho lowu hinkwawo wu endliwa eka xitirhisiwa xa wena.",
+          "onboard.body2@interview":
+            "Swiringanyeto swa CODA i nkongomiso ntsena. Xivangelo xa rifu xi kumiwa endzhaku, loko mhaka yi kambisisiwa.",
+          "onboard.consent@interview":
+            "Ndza swi twisisa leswaku swiringanyeto swa CODA i nkongomiso naswona a swi kumi xivangelo xa rifu.",
+          "idle.advisory@interview":
+            "Swiringanyeto ntsena · Xivangelo xa rifu xi kumiwa hi nkarhi wa ku kambisisa",
+          "advisory.short@interview":
+            "Swiringanyeto ntsena · Xivangelo xa rifu xi kumiwa hi nkarhi wa ku kambisisa",
+        },
+        pt: {
+          "profile.title": "Perfil do caso",
+          "profile.age": "Idade",
+          "profile.stillbirth": "Natimorto",
+          "profile.caseId": "ID do caso",
+          "profile.clinical": "Clínico",
+          "profile.birthWeight": "Peso ao nascer",
+          "profile.hiv": "Status de HIV",
+          "profile.hivNegative": "Negativo",
+          "profile.hivPositive": "Positivo",
+          "profile.hivExposed": "Exposto",
+          "profile.hivUnknown": "Desconhecido",
+          "profile.weight": "Peso",
+          "profile.muac": "Perímetro braquial",
+          "profile.atAdmission": "na admissão",
+          "profile.atDeath": "no óbito",
+          "profile.sex": "Sexo",
+          "profile.female": "Feminino",
+          "profile.male": "Masculino",
+          "profile.ambiguous": "Indeterminado",
+          "profile.dateOfDeath": "Data do óbito",
+          "profile.manner": "Circunstância do óbito",
+          "profile.mannerDisease": "Doença",
+          "profile.mannerAccident": "Acidente",
+          "profile.mannerSelfHarm": "Lesão autoprovocada",
+          "profile.mannerAssault": "Agressão",
+          "profile.mannerPending": "Em investigação",
+          "profile.mannerUnknown": "Não sabe",
+          "user.title": "Usuário",
+          "user.name": "Nome",
+          "user.id": "ID",
+          "common.new": "Novo",
+          "common.copy": "Copiar transcrição",
+          "common.back": "Voltar",
+          "common.clearAll": "Limpar tudo",
+          "common.learnMore": "Saiba mais",
+          "common.continue": "Continuar para o CODA",
+          "common.retry": "Tentar novamente",
+          "common.checkSettings": "Verificar configurações",
+          "common.seeAll": "Ver tudo",
+          "common.history": "Histórico",
+          "note.upload": "Enviar nota",
+          "note.run": "Executar inferência",
+          "note.dropHint": "Arraste notas clínicas, PDFs ou fotos para cá",
+          "note.type": "Digitar nota",
+          "note.placeholder": "Digite as notas clínicas deste caso",
+          "note.cancel": "Cancelar",
+          "note.save": "Adicionar ao caso",
+          "note.reading": "Lendo…",
+          "note.readingPhoto": "Lendo a foto…",
+          "note.failed": "Não foi possível ler",
+          "note.waiting": "Aguardando documentos…",
+          "note.saveEdit": "Salvar alterações",
+          "note.ocrTitle":
+            "Texto lido da imagem por OCR. Toque para conferir ou corrigir.",
+          "note.editTitle": "Toque para ver ou editar o texto",
+          "tagline.line1": "Causa da morte",
+          "tagline.line2": "Assistente de determinação",
+          "onboard.eyebrow": "ANTES DE COMEÇAR",
+          "onboard.headline":
+            "O CODA ajuda você a pensar. Ele não substitui o seu julgamento.",
+          "onboard.body1":
+            "Quando você dita uma narrativa clínica descrevendo o óbito de um paciente, o CODA transcreve o que você diz e mostra as causas de morte prováveis em tempo real. Todo o processamento acontece no seu dispositivo.",
+          "onboard.body2":
+            "O resultado é apenas orientativo. A determinação final da causa da morte continua sendo sua e, quando for o caso, da confirmação post-mortem.",
+          "onboard.consent":
+            "Entendo que o resultado do CODA é orientativo e não substitui o julgamento clínico.",
+          "onboard.note":
+            "Você pode ajustar as preferências em Configurações a qualquer momento.",
+          "onboard.footLeft":
+            "Nenhum dado sai deste dispositivo. Não é preciso fazer login.",
+          "idle.begin": "Iniciar gravação",
+          "idle.helper":
+            "Pressione o botão ou use a barra de espaço. Seu áudio é transcrito neste dispositivo.",
+          "idle.advisory":
+            "Apenas orientativo · A determinação final cabe ao médico",
+          "idle.recent": "Recentes",
+          "record.recording": "GRAVANDO",
+          "record.paused": "PAUSADO",
+          "record.transcript": "Transcrição",
+          "record.probableCause": "Causa provável",
+          "record.differentials": "Diagnósticos diferenciais",
+          "record.suggestedQuestions": "Perguntas de acompanhamento sugeridas",
+          "record.updating": "Atualizando",
+          "record.offlinePill": "Offline",
+          "record.placeholder":
+            "Toque no microfone para começar. Seu áudio é transcrito neste dispositivo.",
+          "record.inferenceUnavailable": "Inferência indisponível",
+          "record.inferenceBody":
+            "O modelo de causa da morte não está respondendo. Sua transcrição continua sendo capturada e salva localmente.",
+          "record.lastError": "Último erro",
+          "record.autoRetry": "Tentando de novo no próximo trecho…",
+          "result.primary": "Determinação principal",
+          "result.chain": "Cadeia causal",
+          "result.confidence": "confiança",
+          "chart.evolution": "Como as probabilidades evoluíram",
+          "chart.paused": "GRÁFICO PAUSADO",
+          "chart.now": "agora",
+          "chart.empty": "Nenhuma inferência ainda",
+          "advisory.short": "Apenas orientativo · A determinação final é sua",
+          "settings.title": "Configurações",
+          "settings.interfaceLang": "Idioma da interface",
+          "settings.transcriptionLang": "Idioma da transcrição",
+          "settings.transcriptionModel": "Modelo de transcrição",
+          "settings.microphone": "Microfone",
+          "settings.transcriptionBackend": "Mecanismo de transcrição",
+          "settings.grounder": "Mecanismo de ancoragem",
+          "settings.appearance": "Aparência",
+          "settings.localStorage": "Armazenamento",
+          "settings.themeLight": "Claro",
+          "settings.themeDark": "Escuro",
+          "settings.themeSystem": "Sistema",
+          "settings.on": "Ligado",
+          "settings.off": "Desligado",
+          "settings.storageServer": "Neste servidor",
+          "settings.storageServerNote":
+            "Definido pelo administrador do servidor.",
+          "settings.storageServerSaves": "Salva cada caso",
+          "settings.storageServerBrowse": "Lista os casos no Histórico",
+          "settings.storageServerAudio": "Mantém a gravação",
+          "settings.storageServerNotes": "Mantém o texto das notas clínicas",
+          "settings.storageDevice": "Salvar sessões neste dispositivo",
+          "settings.storageDeviceNote":
+            "Mantém a transcrição e os resultados de cada sessão neste navegador. As gravações e o texto das notas clínicas não são mantidos.",
+          "history.title": "Sessões anteriores",
+          "history.where":
+            "Sessões salvas neste dispositivo e casos armazenados neste servidor. Cada uma mostra onde está guardada.",
+          "history.empty":
+            "Nenhuma sessão salva ainda. Para manter suas sessões, ative o salvamento neste dispositivo em Configurações.",
+          "history.storedServer": "Servidor",
+          "history.storedDevice": "Este dispositivo",
+          "history.storedBoth": "Servidor + dispositivo",
+          "history.recording": "Gravação",
+          "history.noRecording": "Sem gravação",
+          "history.sourceRecording": "Gravação de voz",
+          "history.sourceNote": "Nota clínica",
+          "history.deleteDevice": "Excluir a cópia deste dispositivo",
+          "history.noCaseId": "Sem ID do caso",
+          "history.died": "Óbito",
+          "history.search": "Buscar por ID do caso",
+          "history.noMatch": "Nenhum caso corresponde a este ID",
+          "history.groupToday": "Hoje",
+          "history.groupYesterday": "Ontem",
+          "history.groupThisWeek": "No início desta semana",
+          "history.groupEarlier": "Anteriores",
+          "history.clearConfirm":
+            "Excluir todas as sessões salvas neste dispositivo? Os casos no servidor não são afetados. Esta ação não pode ser desfeita.",
+          "case.kicker": "Caso armazenado",
+          "case.kickerDevice": "Salvo neste dispositivo",
+          "case.continued": "Continuado",
+          "case.parts": "partes",
+          "audio.part": "Parte",
+          "case.continue": "Continuar",
+          "continue.settingsChanged":
+            "As configurações mudaram desde que esta sessão foi gravada:",
+          "continue.confirm": "Continuar com as configurações atuais?",
+          "continue.language": "Idioma",
+          "continue.transcriber": "Transcritor",
+          "continue.inference": "Inferência",
+          "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
+          "transcript.edit": "Editar",
+          "transcript.save": "Salvar alterações",
+          "transcript.cancel": "Cancelar",
+          "transcript.reinferring": "Atualizando a inferência com a correção…",
+          "transcript.editFailed": "Não foi possível aplicar a correção",
+          "transcript.finishing": "Finalizando a transcrição…",
+          "case.noRecording": "Gravação indisponível",
+          "case.noteTextNotStored": "Texto da nota não armazenado",
+          "case.voiceOnly":
+            "Este caso é uma gravação de voz, então não é possível adicionar notas clínicas a ele. Inicie um novo caso para usar notas.",
+          "case.notesOnly":
+            "Este caso usa notas clínicas, então não pode também ser gravado. Inicie um novo caso para gravar.",
+          "case.timeline": "Linha do tempo da inferência",
+          "case.noInference": "Sem inferência",
+          "case.untitled": "Entrevista",
+          "case.loadFailed": "Não foi possível carregar o caso",
+          "case.noTranscript":
+            "Nenhuma transcrição foi armazenada para este caso.",
+          "case.noInferenceStored":
+            "Nenhum resultado de inferência foi armazenado para este caso.",
+          "case.flagIncomplete": "Incompleto",
+          "case.flagInProgress": "Em andamento",
+          "case.incompleteNote":
+            "Este caso não foi encerrado normalmente, provavelmente porque o servidor parou durante a entrevista. Tudo o que foi salvo até aquele momento é exibido.",
+          "case.inProgressNote":
+            "Este caso ainda está sendo gravado. Você está vendo o que foi salvo até agora.",
+          "onboard.body1@interview":
+            "Quando você entrevista uma família sobre um óbito, o CODA transcreve a conversa e sugere perguntas de acompanhamento em tempo real. Todo o processamento acontece no seu dispositivo.",
+          "onboard.body2@interview":
+            "As sugestões do CODA são apenas um guia. A causa da morte é determinada depois, na revisão do caso.",
+          "onboard.consent@interview":
+            "Entendo que as sugestões do CODA são um guia e não determinam a causa da morte.",
+          "idle.advisory@interview":
+            "Apenas sugestões · A causa da morte é determinada na revisão",
+          "advisory.short@interview":
+            "Apenas sugestões · A causa da morte é determinada na revisão",
         },
       };
 
@@ -5678,7 +5948,10 @@
 
       function t(key) {
         return (
-          (I18N_STRINGS[uiLocale] && I18N_STRINGS[uiLocale][key]) ||
+          (I18N_STRINGS[uiLocale] &&
+            (I18N_STRINGS[uiLocale][`${key}@${CODA_WORDING}`] ||
+              I18N_STRINGS[uiLocale][key])) ||
+          I18N_STRINGS.en[`${key}@${CODA_WORDING}`] ||
           I18N_STRINGS.en[key] ||
           key
         );

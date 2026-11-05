@@ -6,6 +6,7 @@ app:
   show_mccd: true
   show_cod_result: true
   ui_language: en
+  wording: interview
 
 inference:
   num_questions: 3

@@ -60,6 +60,10 @@ app:
   # Interface language the page starts in, used when the browser has no stored
   # choice. Must be one of the locales the UI ships translations for.
   ui_language: en
+  # Wording of the onboarding and start screens, for clinicians entering
+  # a case or for field workers interviewing a family: clinical |
+  # interview
+  wording: clinical
   onboarding_notice:
     # Optional deployment-specific HTML fragment shown on the onboarding page
     # before the consent checkbox. Empty -> no notice. The file is trusted

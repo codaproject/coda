@@ -1335,6 +1335,8 @@ async def get_index():
     )
     html_content = html_content.replace(
         "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
+    ).replace(
+        "__CODA_WORDING__", json.dumps(settings.app.wording),
     ).replace("__CODA_VERSION__", html.escape(
         " · ".join(filter(None, [get_version_label(), settings.site]))))
     if not settings.app.get("show_case_profile", True):
