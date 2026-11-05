@@ -24,7 +24,7 @@ across machines. `keep_up` and inference latency are backend-agnostic, so Ollama
 
 | | STT backend | Inference backend | Models |
 |---|---|---|---|
-| **mac** (`configs/mac.py`) | mlx-whisper | Ollama + mlx-openai-server | qwen2.5-7b, gpt-oss-20b, Qwen3-30B-A3B (MLX) |
+| **mac** (`configs/mac.py`) | mlx-whisper | Ollama + mlx-openai-server | qwen2.5-7b, gpt-oss-20b, Qwen3-30B-A3B (Ollama and MLX) |
 | **ryzen** (`configs/ryzen.py`) | lemonade-whisper | Lemonade (llama.cpp/GGUF) | Qwen2.5-7B, Qwen3-8B, Qwen3-14B, Gemma-4-12B |
 
 Ryzen uses only GGUF models: Lemonade's ryzenai-llm (NPU/Hybrid) recipe does not

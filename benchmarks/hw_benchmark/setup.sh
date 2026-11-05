@@ -31,6 +31,7 @@ fi
 echo "Pulling Ollama models..."
 ollama pull qwen2.5:7b-instruct
 ollama pull gpt-oss:20b
+ollama pull qwen3:30b-a3b-instruct-2507-q4_K_M
 
 if [ ! -d "$VENV" ]; then
     echo "Creating venv at $VENV"

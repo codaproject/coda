@@ -62,7 +62,9 @@ def build_system_prompt():
         (CHAMPS / "group_causes.txt").read_text().splitlines() if c.strip()]
     system_prompt = (PROMPTS / "icd10" / "system_prompt.txt").read_text()
     schema_guidance = (PROMPTS / "icd10" / "schema_guidance.txt").read_text()
-    return system_prompt.format(allowed_causes=", ".join(causes)) + "\n\n" + schema_guidance
+    question_guidance = (PROMPTS / "question_style_default.txt").read_text()
+    return system_prompt.format(allowed_causes=", ".join(causes),
+        question_guidance=question_guidance.strip()) + "\n\n" + schema_guidance
 
 
 def user_prompt(narrative):
