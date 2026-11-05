@@ -42,6 +42,8 @@ sync_env() {
     fi
     cmp -s mac/requirements.lock "$VENV/requirements.lock" && return
     uv pip sync --python "$VENV/bin/python" mac/requirements.lock || return
+    # Stopword list Gilda needs
+    "$VENV/bin/python" -m nltk.downloader -q stopwords || return
     cp mac/requirements.lock "$VENV/requirements.lock"
     rm -f "$GILDA_DB"
 }
