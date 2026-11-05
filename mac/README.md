@@ -85,7 +85,8 @@ Releasing
 ---------
 
 1. Set `__version__` in `src/coda/__init__.py` and commit.
-2. If the dependencies changed, regenerate the lock and commit it:
+2. If the dependencies changed, regenerate the lock and commit it. CI fails
+   on a pull request whose lock does not match `pyproject.toml`:
 
    ```bash
    uv pip compile pyproject.toml --extra mac --extra indic-conformer \
