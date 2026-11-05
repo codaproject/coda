@@ -20,3 +20,6 @@ dialogue:
   language: en
   whisper_livekit:
     backend: mlx-whisper
+
+storage:
+  enabled: true

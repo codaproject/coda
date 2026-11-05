@@ -20,5 +20,5 @@ dialogue:
   whisper_livekit:
     backend: mlx-whisper
 
-# storage:
-#   enabled: true
+storage:
+  enabled: true

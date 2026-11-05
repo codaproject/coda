@@ -26,6 +26,15 @@ the Python packages, downloads the models, prepares the grounding data, and
 asks to trust CODA's local certificate authority so the browser accepts
 `https://localhost:8000`.
 
+At icddr,b, Bangla transcription uses a model that needs a Hugging Face
+login. After the first start, sign in once with a Hugging Face token that has
+accepted the terms of `ai4bharat/indic-conformer-600m-multilingual`, then
+close CODA and start it again:
+
+```bash
+~/coda/.venv-mac/bin/hf auth login
+```
+
 Phones and tablets on the same network connect as described in the main
 README under "Phone or tablet on the same network". CODA prints the setup page
 address in its Terminal window.
@@ -74,7 +83,8 @@ Releasing
 2. If the dependencies changed, regenerate the lock and commit it:
 
    ```bash
-   uv pip compile pyproject.toml --extra mac --python-version 3.12 \
+   uv pip compile pyproject.toml --extra mac --extra indic-conformer \
+     --python-version 3.12 \
      --python-platform aarch64-apple-darwin -o mac/requirements.lock
    ```
 

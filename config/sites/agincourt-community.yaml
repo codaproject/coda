@@ -21,3 +21,6 @@ dialogue:
   transcriber_model: anv-tso-turbo
   whisper_livekit:
     backend: mlx-whisper
+
+storage:
+  enabled: true

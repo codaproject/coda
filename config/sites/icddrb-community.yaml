@@ -19,5 +19,7 @@ inference:
 
 dialogue:
   language: bn
-  whisper_livekit:
-    backend: mlx-whisper
+  transcriber_backend: indic-conformer
+
+storage:
+  enabled: true
