@@ -966,6 +966,12 @@
         font-size: 13px;
         color: var(--ink-muted);
       }
+      /* Chunk whose translation is still in flight */
+      .chunk.pending-translation::after {
+        content: "\2026";
+        color: var(--ink-muted);
+        opacity: 0.6;
+      }
       /* Where a continued session picked up again */
       .segment-divider {
         margin: 18px 0 4px;

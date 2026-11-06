@@ -452,6 +452,56 @@ async def translate_text(text: str, source_language: str) -> str:
         text, source_language, language_name=get_language_name(source_language))
 
 
+async def _flush_sentence(inference_session: InferenceSessionCoordinator,
+                          batch):
+    """Translate one buffered sentence and patch it onto the chunks it spans.
+
+    Returns (chunk_id, timestamp, english_text, annotations) for inference.
+    """
+    original_text, chunk_ids, timestamp = batch
+    anchor = chunk_ids[0]
+
+    translation_start = time.perf_counter()
+    english_text = await translate_text(original_text, current_language)
+    translation_s = time.perf_counter() - translation_start
+
+    annotations = []
+    grounding_s = 0.0
+    if english_text:
+        grounding_start = time.perf_counter()
+        annotations = await asyncio.to_thread(grounder.annotate, english_text)
+        grounding_s = time.perf_counter() - grounding_start
+
+    recorder = inference_session.recorder
+    if recorder is not None:
+        recorder.write_chunk(
+            anchor, timestamp, english_text, annotations,
+            timings={"translate_s": round(translation_s, 3),
+                     "ground_s": round(grounding_s, 3)},
+            original_text=original_text,
+            original_language=current_language,
+        )
+
+    await _ws_send_safe(inference_session.websocket, {
+        "type": "transcript_update",
+        "chunk_id": anchor,
+        "chunk_ids": chunk_ids,
+        "timestamp": timestamp,
+        "transcript": english_text,
+        "annotations": display_annotations(annotations),
+        "original_transcript": original_text,
+        "original_language": current_language,
+    })
+    logger.info(
+        "Sentence %s spanning %d chunks in %.2fs (translate=%.2fs ground=%.2fs "
+        "text_chars=%d annotations=%d)",
+        anchor, len(chunk_ids), translation_s + grounding_s, translation_s,
+        grounding_s, len(english_text), len(annotations)
+    )
+    logger.debug(f"Sentence {anchor}: {english_text}")
+    return anchor, timestamp, english_text, annotations
+
+
 def display_annotations(annotations):
     """Return the fields the UI highlights for grounded annotations."""
     return [
@@ -650,6 +700,30 @@ async def set_metadata(payload: dict = Body(...)):
     current_metadata = Metadata.from_dict(payload)
     logger.debug(f"Metadata set: {current_metadata.to_dict()}")
     return current_metadata.to_dict()
+
+
+@app.get("/translator_backends")
+async def get_translator_backends():
+    """List selectable translation backends for the settings UI."""
+    return {"backends": list(TRANSLATOR_BACKENDS)}
+
+
+@app.get("/translator_backends/{backend}")
+async def get_translator_backend_models(backend: str):
+    """Return one backend's selectable models, loaded on demand.
+
+    The backend is imported only here; if its dependencies aren't installed the
+    response reports it as unavailable so the UI can warn instead of failing.
+    """
+    if backend not in TRANSLATOR_BACKENDS:
+        raise HTTPException(status_code=404,
+                            detail=f"Unknown backend {backend!r}")
+    try:
+        info = await asyncio.to_thread(get_translator_models, backend)
+    except Exception as e:
+        logger.warning("Translator backend %r unavailable: %s", backend, e)
+        return {"backend": backend, "available": False, "error": str(e)}
+    return {"backend": backend, "available": True, **info}
 
 
 @app.get("/next-case-id")
@@ -1010,8 +1084,11 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 done = await _flush_sentence(inference_session, batch)
                 if done is not None:
                     chunk_id, timestamp, text, anns = done
-                    buf.add(text, anns, chunk_id, timestamp)
-                    if buf.ready:
+                    inference_session.committed.append((chunk_id, text, anns))
+                    inference_session.buffer.add(text, anns, chunk_id,
+                                                 timestamp)
+                    if inference_session.buffer.ready and \
+                            not inference_session.paused:
                         await flush()
             except Exception as e:
                 logger.error(f"Translation failed: {e}", exc_info=True)
@@ -1019,13 +1096,16 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 translations.task_done()
 
     async def idle_flush():
-        # Flush text held over a pause once recording resumes, and pending text
-        # that never reached the word threshold once it has waited long enough,
-        # so a short trailing utterance still gets inferred.
+        # Flush text held over a pause once recording resumes, and pending
+        # text that never reached the word threshold once it has waited long
+        # enough, so a short trailing utterance still gets inferred.
         while True:
             await asyncio.sleep(1.0)
             if inference_session.paused:
                 continue
+            if sentences.has_pending and \
+                    time.monotonic() - last_chunk_at >= TRANSLATION_MAX_WAIT_S:
+                queue_pending()
             buf = inference_session.buffer
             if buf.ready or (buf.has_pending and time.monotonic() - last_infer
                              >= INFERENCE_MAX_WAIT_S):
