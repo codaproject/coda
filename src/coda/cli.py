@@ -26,6 +26,7 @@ from coda.dialogue import (
 )
 from coda.dialogue.whisper import DEFAULT_MODEL_SIZE
 from coda.translate import create_translator, TRANSLATOR_BACKENDS
+from coda.translate.sentences import SentenceBuffer
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.inference.agent import CodaToyInferenceAgent
 from coda.inference.streaming import INFERENCE_MIN_WORDS, StreamingInferenceBuffer
@@ -83,9 +84,6 @@ async def _translate(text, language, task, backend, model, device="cpu"):
     source is already English."""
     if not backend or task == "translate" or language == "en":
         return text, 0.0
-    if backend == "ctranslate2" and device == "mps":
-        print("Note: ctranslate2 (NLLB) has no MPS support; running on CPU.")
-        device = "cpu"
     translator = create_translator(backend, model=model, device=device)
     t = time.perf_counter()
     translated = await translator.translate(text, language)
@@ -176,10 +174,9 @@ async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
 
     Committed segments are small and frequent; inferring on each one floods the
     agent and lets it fall behind the audio. Mirroring the live app, committed
-    text is translated and grounded per segment but inference is held off 
-    until min_words new words accumulate, with a final flush for the trailing 
-    text. Translating small, isolated committed fragments (rather than whole
-    narratives) is untested against the MT models benchmarked so far."""
+    text is grounded per segment but inference is held off until min_words new
+    words accumulate, with a final flush for the trailing text. Text to
+    translate is first gathered into whole sentences, as in the app."""
     pcm = audio_i16.tobytes()
     blob = SAMPLE_RATE * 2  # 1 second of s16le
 
@@ -208,18 +205,33 @@ async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
         translation_s_acc = 0.0
         grounding_s_acc = 0.0
 
-    async for event in transcriber.stream(audio_iter(), language=language, task=task):
-        if not event.committed or not event.text.strip():
-            continue
+    async def add(batch):
+        nonlocal grounding_s_acc, translation_s_acc
+        if batch is None:
+            return
+        text, chunk_ids, timestamp = batch
         text, translation_s = await _translate(
-            event.text, language, task, translate_backend, translate_model,
+            text, language, task, translate_backend, translate_model,
             translate_device)
         translation_s_acc += translation_s
         annotations, grounding_s = _ground(grounder, text)
         grounding_s_acc += grounding_s
-        buf.add(text, annotations, event.id, event.timestamp)
+        buf.add(text, annotations, chunk_ids[0], timestamp)
         if buf.ready:
             await flush()
+
+    translating = translate_backend and task != "translate" and language != "en"
+    sentences = SentenceBuffer()
+    async for event in transcriber.stream(audio_iter(), language=language, task=task):
+        if not event.committed or not event.text.strip():
+            continue
+        if not translating:
+            await add((event.text, [event.id], event.timestamp))
+            continue
+        sentences.add(event.text, event.id, event.timestamp)
+        if sentences.ready:
+            await add(sentences.take())
+    await add(sentences.take())
     await flush()
     return agent.all_text.strip(), per_chunk
 
@@ -369,9 +381,9 @@ def main():
                         help="Model for --translate-backend; empty uses that "
                              "backend's default.")
     parser.add_argument("--translate-device", default="cpu",
-                        help="Device for --translate-backend (madlad/hy_mt2 "
-                             "support mps; ctranslate2/nllb is CPU-only "
-                             "regardless of this flag).")
+                        help="Device for --translate-backend (the CTranslate2 "
+                             "backends, madlad and ctranslate2, run on CPU "
+                             "in place of mps).")
     parser.add_argument("--whisper-model", default=DEFAULT_MODEL_SIZE,
                         help=f"Whisper model size (default: {DEFAULT_MODEL_SIZE})")
     parser.add_argument("--no-speech-threshold", type=float, default=None,
@@ -436,10 +448,9 @@ def main():
         print(f"Loaded {duration_s:.1f}s of audio. Mode={mode}, "
               f"agent={args.agent}, grounder={args.grounder}")
 
-        if args.translate_backend and (streaming or args.chunking is not None):
-            print("Note: --translate-backend with --chunking/streaming applies "
-                  "translation PER CHUNK, untested for the MT models we've "
-                  "benchmarked -- expect this combination to be unreliable.")
+        if args.translate_backend and args.chunking is not None:
+            print("Note: --translate-backend with --chunking translates each "
+                  "chunk on its own, cutting sentences apart.")
         if streaming:
             # Streaming backends ignore --chunking (they do their own chunking).
             full_text, per_chunk = asyncio.run(
