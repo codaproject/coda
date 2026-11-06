@@ -71,7 +71,9 @@ contourpy==1.4.0
 cryptography==50.0.2
     # via coda (pyproject.toml)
 ctranslate2==4.8.5
-    # via faster-whisper
+    # via
+    #   coda (pyproject.toml)
+    #   faster-whisper
 cycler==0.12.1
     # via matplotlib
 decorator==5.3.1
@@ -143,6 +145,7 @@ httpx2==2.16.0
     # via openai
 huggingface-hub==0.36.2
     # via
+    #   coda (pyproject.toml)
     #   accelerate
     #   faster-whisper
     #   flair
@@ -400,7 +403,9 @@ segtok==1.5.11
 sentence-transformers==5.7.0
     # via coda (pyproject.toml)
 sentencepiece==0.2.2
-    # via transformers
+    # via
+    #   coda (pyproject.toml)
+    #   transformers
 setuptools==81.0.0
     # via torch
 six==1.17.0
