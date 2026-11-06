@@ -1,5 +1,3 @@
-              const text = data.transcript || "";
-              transcriptText += text + " ";
 <!doctype html>
 <html lang="en" data-theme="system">
   <head>
@@ -6104,6 +6102,26 @@
         applyTranscriptDensity();
       }
 
+      // Add a translated sentence to the English stream
+      function appendTranslationLine(data) {
+        const text = data.transcript || "";
+        transcriptText += text + " ";
+        translationStream.insertAdjacentHTML(
+          "beforeend",
+          `<span class="translation-line" data-chunk-id="${data.chunk_id}">${chunkInnerHtml(text, data.annotations)}</span>`,
+        );
+        translationStream.scrollTop = translationStream.scrollHeight;
+        showTranslationStream();
+      }
+
+      function clearTranslationStream() {
+        translationStream.innerHTML = "";
+        translationHead.style.display = "none";
+        translationStream.style.display = "none";
+        transcriptDensity.style.display = "none";
+        transcript.style.display = "";
+      }
+
       function applyTranscriptDensity() {
         const mode = transcriptDensity.value;
         const showEnglish = mode !== "original";
@@ -6835,6 +6853,7 @@
         sessionPartCount = parts.length;
 
         // Transcript as shown live, else the plain stored text
+        clearTranslationStream();
         if (c.chunks && c.chunks.length) {
           transcript.innerHTML = "";
           c.chunks.forEach((chunk, i) => {
@@ -6842,7 +6861,12 @@
             if (i > 0 && chunk.segment !== c.chunks[i - 1].segment) {
               appendSegmentDivider(part ? Date.parse(part.started_at) : null);
             }
-            appendTranscriptChunk(chunk);
+            if (chunk.original_transcript) {
+              appendTranscriptChunk({ ...chunk, transcript: "" });
+              appendTranslationLine(chunk);
+            } else {
+              appendTranscriptChunk(chunk);
+            }
           });
         } else if (c.transcripts.en) {
           transcriptText = c.transcripts.en;
@@ -8223,20 +8247,13 @@
             } else if (data.type === "transcript_update") {
               // A finished sentence joins the English stream. The spoken text
               // it came from stays where it is, untouched.
-              const text = data.transcript || "";
-              transcriptText += text + " ";
               for (const id of data.chunk_ids || [data.chunk_id]) {
                 const c = transcript.querySelector(
                   `.chunk[data-chunk-id="${id}"]`,
                 );
                 if (c) c.classList.remove("pending-translation");
               }
-              translationStream.insertAdjacentHTML(
-                "beforeend",
-                `<span class="translation-line" data-chunk-id="${data.chunk_id}">${chunkInnerHtml(text, data.annotations)}</span>`,
-              );
-              translationStream.scrollTop = translationStream.scrollHeight;
-              showTranslationStream();
+              appendTranslationLine(data);
               updateWordCount();
             } else if (data.type === "preview") {
               // Interim, not-yet-committed text (streaming backends).
@@ -8974,11 +8991,7 @@
         closeNoteEditor();
         caseNotes.innerHTML = "";
         transcriptText = "";
-        translationStream.innerHTML = "";
-        translationHead.style.display = "none";
-        translationStream.style.display = "none";
-        transcriptDensity.style.display = "none";
-        transcript.style.display = "";
+        clearTranslationStream();
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];
