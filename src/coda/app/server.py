@@ -51,8 +51,8 @@ from coda.grounding.rag_grounder import RagGrounder
 from coda.translate import (
     TRANSLATOR_BACKENDS,
     create_translator,
-    get_asr_task,
     get_translator_models,
+    text_backend,
 )
 from coda.translate.sentences import (
     TRANSLATION_MAX_WAIT_S,
@@ -117,16 +117,16 @@ rag_config = {
 # How non-English transcripts reach English, see coda.translate for the
 # available backends.
 translation_mode = settings.translate.backend
-# Backend used when the transcriber did not already translate at the source,
-# which also covers whisper_translate paired with a non-whisper transcriber.
-FALLBACK_TEXT_TRANSLATOR = "madlad"
 
 
 def text_translator_backend() -> str:
-    """The backend that translates transcript text for the current mode."""
-    if get_asr_task(translation_mode) == "translate":
-        return FALLBACK_TEXT_TRANSLATOR
-    return translation_mode
+    """The backend that translates transcript text for the current mode.
+
+    When the transcriber translates speech itself this is the speech backend,
+    which offers no models.
+    """
+    return text_backend(translation_mode, current_transcriber_backend) \
+        or translation_mode
 
 
 def _default_translation_model_for(backend: str):
@@ -451,13 +451,19 @@ def current_translator():
 
 
 # Load the translation model up front so the first sentence isn't delayed
-if current_language != "en":
+if current_language != "en" and \
+        text_backend(translation_mode, current_transcriber_backend):
     current_translator().load()
 
 
 async def translate_text(text: str, source_language: str) -> str:
-    """Translate text to English with the text translation backend."""
-    return await current_translator().translate(
+    """Translate text to English, or return it unchanged if that fails."""
+    try:
+        translator = current_translator()
+    except Exception as e:
+        logger.error(f"Translator unavailable: {e}")
+        return text
+    return await translator.translate(
         text, source_language, language_name=get_language_name(source_language))
 
 
@@ -874,11 +880,10 @@ async def update_settings(req: SettingsRequest):
             mode = translation_mode
         if mode != translation_mode:
             translation_mode = mode
-            # Each backend has its own model list, so fall back to the new
-            # backend's default unless the caller picked one.
-            if req.translation_model is None:
-                current_translation_model = await asyncio.to_thread(
-                    _default_translation_model_for, text_translator_backend())
+            # Each backend has its own model list, so start from the new
+            # backend's default, which a valid requested model replaces below
+            current_translation_model = await asyncio.to_thread(
+                _default_translation_model_for, text_translator_backend())
             logger.info(f"Translation mode set to: {translation_mode}")
     if (req.translation_model is not None
             and req.translation_model != current_translation_model):
@@ -1063,9 +1068,8 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
     # Direct speech-to-English translation is a Whisper capability; for other
     # backends, non-English transcribes then translates the text. Captured at
     # connection start (settings changes apply on the next connection).
-    direct_translate = (current_language != "en"
-                        and get_asr_task(translation_mode) == "translate"
-                        and current_transcriber_backend == "whisper")
+    direct_translate = (current_language != "en" and text_backend(
+        translation_mode, current_transcriber_backend) is None)
     task = "translate" if direct_translate else "transcribe"
 
     last_infer = time.monotonic()
@@ -1117,11 +1121,11 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
         # enough, so a short trailing utterance still gets inferred.
         while True:
             await asyncio.sleep(1.0)
-            if inference_session.paused:
-                continue
             if sentences.has_pending and \
                     time.monotonic() - last_chunk_at >= TRANSLATION_MAX_WAIT_S:
                 queue_pending()
+            if inference_session.paused:
+                continue
             buf = inference_session.buffer
             if buf.ready or (buf.has_pending and time.monotonic() - last_infer
                              >= INFERENCE_MAX_WAIT_S):

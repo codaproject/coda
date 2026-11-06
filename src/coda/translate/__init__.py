@@ -1,5 +1,5 @@
 __all__ = ["Translator", "TRANSLATOR_BACKENDS", "create_translator",
-           "get_asr_task", "get_translator_models"]
+           "get_asr_task", "get_translator_models", "text_backend"]
 
 import logging
 
@@ -67,6 +67,17 @@ def get_asr_task(backend: str) -> str:
     the transcriber in its normal "transcribe" mode.
     """
     return _load_backend_class(backend).ASR_TASK
+
+
+def text_backend(backend, transcriber_backend):
+    """Return the backend that translates transcript text, or None if none.
+
+    A backend that translates speech needs the whisper transcriber, with any
+    other transcriber the text is translated with madlad instead.
+    """
+    if get_asr_task(backend) != "translate":
+        return backend
+    return None if transcriber_backend == "whisper" else "madlad"
 
 
 class Translator:

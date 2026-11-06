@@ -38,11 +38,14 @@ def main():
     from coda.dialogue import create_transcriber
     create_transcriber(settings.dialogue.transcriber_backend,
                        model=settings.dialogue.transcriber_model or None)
-    if settings.dialogue.language != "en":
+    from coda.translate import create_translator, text_backend
+    backend = text_backend(settings.translate.backend,
+                           settings.dialogue.transcriber_backend)
+    if settings.dialogue.language != "en" and backend:
         print(f"Preparing the {profile} translation model...", flush=True)
-        from coda.translate import create_translator
-        create_translator(settings.translate.backend,
-                          model=settings.translate.model or None).load()
+        same = backend == settings.translate.backend
+        create_translator(
+            backend, model=same and settings.translate.model or None).load()
 
 
 if __name__ == "__main__":

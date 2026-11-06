@@ -1,6 +1,6 @@
 import pytest
 
-from coda.translate import create_translator
+from coda.translate import create_translator, text_backend
 from coda.translate.ct2 import CTranslate2Translator
 from coda.translate.sentences import SentenceBuffer
 
@@ -40,3 +40,9 @@ def test_unknown_translator():
         create_translator("nope")
     with pytest.raises(ValueError):
         create_translator("madlad", model="nope")
+
+
+def test_text_backend():
+    assert text_backend("madlad", "indic-conformer") == "madlad"
+    assert text_backend("whisper_translate", "whisper") is None
+    assert text_backend("whisper_translate", "whisper-livekit") == "madlad"
