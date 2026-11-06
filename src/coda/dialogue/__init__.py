@@ -77,6 +77,7 @@ def get_transcriber_models(backend: str) -> dict:
     should surface that to the user (e.g. as a UI warning).
     """
     cls = _load_backend_class(backend.lower())
+    cls.check_available()
     return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
 
 
@@ -182,6 +183,10 @@ class Transcriber:
         code = code.strip()
         code = cls.LANGUAGE_ALIASES.get(code, code)
         return code if code in cls.LANGUAGES else None
+
+    @classmethod
+    def check_available(cls):
+        """Raise if this backend cannot run here, explaining why."""
 
     @classmethod
     def create(cls, model=None):

@@ -93,6 +93,11 @@ class SpeechmaticsTranscriber(StreamingTranscriber):
     DEFAULT_MODEL = settings.dialogue.speechmatics.model
 
     @classmethod
+    def check_available(cls):
+        if not cls._resolve_api_key():
+            raise ValueError("No Speechmatics API key is set")
+
+    @classmethod
     def create(cls, model=None):
         return cls(model=model or cls.DEFAULT_MODEL)
 

@@ -804,6 +804,7 @@ async def update_settings(req: SettingsRequest):
     prev_backend = current_transcriber_backend
     prev_model = current_transcriber_model
     prev_language = current_language
+    prev_grounder = current_grounder
     if req.language is not None and req.language != current_language:
         current_language = req.language
         transcriber_changed = transcriber.LANGUAGE_AT_BUILD
@@ -851,7 +852,15 @@ async def update_settings(req: SettingsRequest):
         logger.info(f"Transcriber model set to: {current_transcriber_model}")
     # Transcriber and grounder are independent; rebuild each only if it changed.
     if grounder_changed:
-        grounder = await asyncio.to_thread(create_grounder, current_grounder)
+        try:
+            grounder = await asyncio.to_thread(create_grounder,
+                                               current_grounder)
+        except Exception as e:
+            current_grounder = prev_grounder
+            logger.error("Failed to load grounder: %s", e)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not load grounder: {e}") from e
         logger.info("Grounder reloaded: %s", current_grounder)
     if transcriber_changed:
         try:

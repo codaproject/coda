@@ -7811,9 +7811,12 @@
         });
       });
 
-      grounderSelect.addEventListener("change", () => {
+      grounderSelect.addEventListener("change", async () => {
         updateRagVisibility();
-        updateSettings({ grounder: grounderSelect.value });
+        if (!(await updateSettings({ grounder: grounderSelect.value }))) {
+          await loadSettings();
+          updateRagVisibility();
+        }
       });
 
       ragProviderSelect.addEventListener("change", () => {
