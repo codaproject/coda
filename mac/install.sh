@@ -5,7 +5,7 @@
 # A HF_TOKEN in the environment is saved for models that need a Hugging Face
 # login.
 set -euo pipefail
-site="${1:?Give a site name from config/sites/, e.g. kintampo}"
+site="${1:?Give a site name from config/sites/}"
 dir="$HOME/coda"
 export GIT_LFS_SKIP_SMUDGE=1
 

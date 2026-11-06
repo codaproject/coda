@@ -11,8 +11,8 @@ Ollama model. Three apps go on the Desktop:
 Installation
 ------------
 
-On a new Mac, open Terminal and run, with the laptop's site (e.g. `kintampo`,
-see `config/sites/`) in place of `<site>`:
+On a new Mac, open Terminal and run, with the laptop's site (the part of a
+profile name in `config/sites/` before the use case) in place of `<site>`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | bash -s <site>
@@ -29,12 +29,12 @@ once to trust its local certificate authority so the browser accepts
 `https://localhost:8000`. Before shipping a laptop, turn off Wi-Fi and start
 each of its use cases once.
 
-At icddr,b, Bangla transcription uses a model that needs a Hugging Face login.
-Run the installation with a Hugging Face token that has accepted the terms of
-`ai4bharat/indic-conformer-600m-multilingual`:
+Profiles that use the `indic-conformer` transcriber need a Hugging Face
+login. Run the installation with a Hugging Face token that has accepted the
+terms of `ai4bharat/indic-conformer-600m-multilingual`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | HF_TOKEN=<token> bash -s icddrb
+curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | HF_TOKEN=<token> bash -s <site>
 ```
 
 Everything shown in the CODA Terminal window is also kept in
@@ -58,10 +58,10 @@ Settings come from three files, each overriding the one before:
    which `CODA Settings` opens. It names the site profile and holds any changes
    made on the laptop. Updates never touch it.
 
-A site has one profile per use case, named `<site>-<usecase>.yaml`, e.g.
-`kintampo-facility.yaml` and `kintampo-community.yaml`. With `site: kintampo`
-in the laptop's file, CODA asks at start which use case to run when the site
-has more than one, and offers the last choice first. The interview page
+A site has one profile per use case, named `<site>-<usecase>.yaml`, where
+the use case is `facility` or `community`. With `site: <site>` in the
+laptop's file, CODA asks at start which use case to run when the site has
+more than one, and offers the last choice first. The interview page
 footer shows the site and use case, and each saved case records them.
 
 Opening CODA while it runs brings up its page in the browser. Closing its
