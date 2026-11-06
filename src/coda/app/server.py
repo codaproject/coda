@@ -882,8 +882,15 @@ async def update_settings(req: SettingsRequest):
             logger.info(f"Translation mode set to: {translation_mode}")
     if (req.translation_model is not None
             and req.translation_model != current_translation_model):
-        current_translation_model = req.translation_model
-        logger.info(f"Translation model set to: {current_translation_model}")
+        models = (await asyncio.to_thread(
+            get_translator_models, text_translator_backend()))["models"]
+        if req.translation_model in models:
+            current_translation_model = req.translation_model
+            logger.info(
+                f"Translation model set to: {current_translation_model}")
+        else:
+            logger.warning("Ignoring unknown translation model %r",
+                           req.translation_model)
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
