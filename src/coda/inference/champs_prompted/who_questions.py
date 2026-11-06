@@ -36,6 +36,10 @@ SEX_FIELD = "Id10019"
 BIRTH_WEIGHT_FIELD = "Id10366"
 DAYS_PER_YEAR = 365.25
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12
+# Words that make a quote a denial
+NEGATIONS = {"no", "not", "never", "none", "nothing", "neither", "nor",
+             "without", "didn", "wasn", "weren", "hadn", "couldn", "don",
+             "doesn", "isn", "t"}
 SYSTEM_PROMPT = read_prompt("who_answers.txt")
 
 
@@ -92,6 +96,11 @@ def evidence_in_text(evidence, text):
     """Return whether a quote appears word for word in the text."""
     quote = words(evidence)
     return bool(quote) and f" {quote} " in f" {words(text)} "
+
+
+def is_negated(evidence):
+    """Return whether a quote contains a negation."""
+    return bool(NEGATIONS & set(words(evidence).split()))
 
 
 # Choices that give no answer
@@ -206,6 +215,9 @@ class WhoQuestions:
                             question)
             elif not evidence_in_text(item.get("evidence", ""), text):
                 logger.info("Answer to %s has no evidence in the transcript",
+                            question)
+            elif value == "no" and not is_negated(item["evidence"]):
+                logger.info("Answer no to %s has no denial in its evidence",
                             question)
             else:
                 values[question] = value

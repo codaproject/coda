@@ -1,7 +1,7 @@
 import pytest
 
 from coda.inference.champs_prompted.who_questions import age_fields, \
-    evidence_in_text, parse_answer, profile_fields
+    evidence_in_text, is_negated, parse_answer, profile_fields
 from coda.metadata import Profile
 
 YES_NO = {"type": "select one", "choices": ["yes", "no", "dk", "ref"]}
@@ -44,6 +44,12 @@ def test_evidence_in_text():
     assert evidence_in_text("high fever for five", text)
     assert not evidence_in_text("high temperature", text)
     assert not evidence_in_text("", text)
+
+
+def test_is_negated():
+    assert is_negated("She had no diarrhea")
+    assert is_negated("he didn't cough")
+    assert not is_negated("He died at home")
 
 
 class FakeClient:
