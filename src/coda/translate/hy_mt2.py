@@ -55,8 +55,11 @@ class HyMT2Translator(Translator):
                              f"expected one of {self.MODELS}")
         self.device = device
 
+    def load(self):
+        return _load(self.REPOS[self.model], self.device)
+
     def _translate(self, text):
-        model, tokenizer = _load(self.REPOS[self.model], self.device)
+        model, tokenizer = self.load()
         prompt = self.PROMPT_TEMPLATE.format(
             target_lang=self.TARGET_LANGUAGE, source_text=text)
         messages = [{"role": "user", "content": prompt}]

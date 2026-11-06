@@ -86,6 +86,10 @@ class Translator:
         """Instantiate this backend."""
         raise NotImplementedError
 
+    def load(self):
+        """Download and load the model, if the backend runs one locally."""
+
+
     async def translate(self, text: str, source_language: str,
                         language_name: str = None) -> str:
         raise NotImplementedError

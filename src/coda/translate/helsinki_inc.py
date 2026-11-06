@@ -41,9 +41,12 @@ class HelsinkiIncTranslator(Translator):
                              f"expected one of {self.MODELS}")
         self.device = device
 
+    def load(self):
+        return _load(self.REPOS[self.model], self.device)
+
     def _translate(self, text):
         import torch
-        model, tokenizer = _load(self.REPOS[self.model], self.device)
+        model, tokenizer = self.load()
         inputs = tokenizer(text, return_tensors="pt", padding=True).to(self.device)
         with torch.inference_mode():
             output = model.generate(**inputs, max_new_tokens=512)

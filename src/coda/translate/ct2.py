@@ -97,9 +97,11 @@ class CTranslate2Translator(Translator):
             return None
         return cls.LANGUAGES.get(code.strip())
 
+    def load(self):
+        return _load(self.REPOS[self.model], self.device, self.compute_type)
+
     def _translate(self, text, source_code):
-        translator, tokenizer = _load(self.REPOS[self.model], self.device,
-                                      self.compute_type)
+        translator, tokenizer = self.load()
         tokenizer.src_lang = source_code
         sentences = [s for s in SENTENCE_END.split(text.strip()) if s.strip()]
         if not sentences:

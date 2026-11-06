@@ -61,9 +61,12 @@ class IndicTranslateTranslator(Translator):
                              f"expected one of {self.MODELS}")
         self.device = device
 
+    def load(self):
+        return _load(self.REPOS[self.model], self.device)
+
     def _translate(self, text):
         import torch
-        model, processor = _load(self.REPOS[self.model], self.device)
+        model, processor = self.load()
         messages = [{
             "role": "user",
             "content": f"Translate the following text into {self.TARGET_LANGUAGE}:\n\n{text}",
