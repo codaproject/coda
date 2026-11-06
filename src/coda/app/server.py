@@ -428,7 +428,8 @@ def create_grounder(grounder_name: str):
 
 grounder = create_grounder(current_grounder)
 transcriber = create_transcriber(
-    current_transcriber_backend, model=current_transcriber_model
+    current_transcriber_backend, model=current_transcriber_model,
+    language=current_language
 )
 if transcriber.normalize_language(current_language) is None:
     # A backend that can't do the configured language returns empty text for
@@ -802,8 +803,10 @@ async def update_settings(req: SettingsRequest):
     transcriber_changed = False
     prev_backend = current_transcriber_backend
     prev_model = current_transcriber_model
-    if req.language is not None:
+    prev_language = current_language
+    if req.language is not None and req.language != current_language:
         current_language = req.language
+        transcriber_changed = transcriber.LANGUAGE_AT_BUILD
         logger.info(f"Language set to: {current_language}")
     if req.grounder is not None:
         grounder_name = req.grounder.strip().lower()
@@ -854,11 +857,12 @@ async def update_settings(req: SettingsRequest):
         try:
             transcriber = await asyncio.to_thread(
                 create_transcriber, current_transcriber_backend,
-                current_transcriber_model
+                current_transcriber_model, current_language
             )
         except Exception as e:
             current_transcriber_backend = prev_backend
             current_transcriber_model = prev_model
+            current_language = prev_language
             logger.error("Failed to load transcriber: %s", e)
             raise HTTPException(
                 status_code=400,

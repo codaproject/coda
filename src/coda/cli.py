@@ -435,7 +435,8 @@ def main():
         if args.no_speech_threshold is not None:
             transcriber_kwargs["no_speech_threshold"] = args.no_speech_threshold
         transcriber = create_transcriber(
-            args.transcriber, model=args.whisper_model, **transcriber_kwargs
+            args.transcriber, model=args.whisper_model, language=args.language,
+            **transcriber_kwargs
         )
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)

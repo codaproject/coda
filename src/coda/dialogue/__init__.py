@@ -55,13 +55,18 @@ def _load_backend_class(backend: str):
     )
 
 
-def create_transcriber(backend: str = None, model: str = None, **kwargs):
+def create_transcriber(backend: str = None, model: str = None,
+                       language: str = None, **kwargs):
     """Build a Transcriber for the named backend, optionally with a model.
 
-    Defaults to the dialogue.transcriber_backend config value.
+    Defaults to the dialogue.transcriber_backend config value. A backend that
+    fixes its language when built is built for `language`, if given.
     """
     backend = (backend or settings.dialogue.transcriber_backend).lower()
-    return _load_backend_class(backend).create(model=model)
+    cls = _load_backend_class(backend)
+    if language and cls.LANGUAGE_AT_BUILD:
+        return cls.create(model=model, language=language)
+    return cls.create(model=model)
 
 
 def get_transcriber_models(backend: str) -> dict:
@@ -165,6 +170,9 @@ class Transcriber:
     DEFAULT_MODEL = None
     LANGUAGES = {}
     LANGUAGE_ALIASES = {}
+    # Whether the language is fixed when the backend is built, so changing it
+    # means building the backend again
+    LANGUAGE_AT_BUILD = False
 
     @classmethod
     def normalize_language(cls, code):
