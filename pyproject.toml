@@ -80,6 +80,11 @@ indic-conformer = [
 ]
 mac = [
     "mlx-whisper",
+    # Dependencies of codalg, which the Mac scripts install from its
+    # private repository
+    "pyxform==4.5.0",
+    "jpype1",
+    "jdk4py",
 ]
 champs-finetuned = [
     "torch",

@@ -3,7 +3,7 @@
 # its profiles need. From Terminal:
 #   curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | bash -s <site>
 # A HF_TOKEN in the environment is saved for models that need a Hugging Face
-# login.
+# login, and a CODALG_TOKEN for the private codalg package.
 set -euo pipefail
 site="${1:?Give a site name from config/sites/}"
 dir="$HOME/coda"

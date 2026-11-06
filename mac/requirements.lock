@@ -79,13 +79,17 @@ cycler==0.12.1
 decorator==5.3.1
     # via librosa
 defusedxml==0.7.1
-    # via nltk
+    # via
+    #   nltk
+    #   pyxform
 deprecated==3.0.1
     # via flair
 docopt==0.6.2
     # via bioc
 dynaconf==3.3.5
     # via coda (pyproject.toml)
+et-xmlfile==2.0.0
+    # via openpyxl
 fastapi==0.162.0
     # via
     #   coda (pyproject.toml)
@@ -169,6 +173,8 @@ intervaltree==3.2.1
     # via bioc
 itsdangerous==2.2.0
     # via flask
+jdk4py==25.0.2.1
+    # via coda (pyproject.toml)
 jinja2==3.1.6
     # via
     #   flask
@@ -185,6 +191,8 @@ joblib==1.6.0
     #   librosa
     #   nltk
     #   scikit-learn
+jpype1==1.7.1
+    # via coda (pyproject.toml)
 jsonlines==4.0.0
     # via bioc
 jsonschema==4.26.0
@@ -195,6 +203,8 @@ kiwisolver==1.5.1
     # via matplotlib
 langdetect==1.0.9
     # via flair
+lark==1.3.1
+    # via pyxform
 lazy-loader==0.6
     # via librosa
 librosa==1.0.0
@@ -281,12 +291,15 @@ openai==3.45.0
     # via coda (pyproject.toml)
 openai-whisper==20250625
     # via coda (pyproject.toml)
+openpyxl==3.1.5
+    # via pyxform
 opentelemetry-api==1.45.2
     # via fastapi
 packaging==26.3
     # via
     #   accelerate
     #   huggingface-hub
+    #   jpype1
     #   lazy-loader
     #   matplotlib
     #   onnxruntime
@@ -345,6 +358,8 @@ pytorch-revgrad==0.2.0
     # via flair
 pytz==2026.6
     # via neo4j
+pyxform==4.5.0
+    # via coda (pyproject.toml)
 pyyaml==6.0.3
     # via
     #   coda (pyproject.toml)
@@ -547,3 +562,5 @@ wrapt==2.5.2
     # via deprecated
 wtpsplit-lite==0.2.0
     # via coda (pyproject.toml)
+xlrd==2.0.1
+    # via pyxform
