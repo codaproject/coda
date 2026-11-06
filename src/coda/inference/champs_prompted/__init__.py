@@ -123,8 +123,19 @@ def create_champs_prompted_agent(
         "question_style": str(settings.inference.get(
             "question_style", DEFAULT_QUESTION_STYLE)),
     }
+    child = {}
+    selection = settings.inference.get("question_selection", "llm")
+    if selection != "llm":
+        if coding != "icd11":
+            raise ValueError(f"Question selection {selection!r} needs icd11 "
+                             f"coding")
+        from coda.inference.champs_prompted.who_questions import \
+            WhoQuestions
+        child["question_selector"] = WhoQuestions(
+            selection, client,
+            skip_logic=settings.inference.get("question_skip_logic", True))
     agents = {
-        "child": AGENT_CLASSES[keys["child"]](**shared),
+        "child": AGENT_CLASSES[keys["child"]](**shared, **child),
         "adult": AGENT_CLASSES[keys["adult"]](**shared),
     }
     return ChildAdultAgent(agents, default)

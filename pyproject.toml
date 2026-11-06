@@ -88,6 +88,10 @@ champs-finetuned = [
     "accelerate",
     "jinja2",
 ]
+questions = [
+    "codalg[questionnaire] @ git+https://github.com/uw-codaproject/coda-sft@v0.2.0#subdirectory=packages/codalg",
+    "jdk4py",
+]
 
 [project.urls]
 Homepage = "https://github.com/codaproject/coda"

@@ -94,6 +94,13 @@ inference:
   # clinically phrased questions, `simplified` for short, plain-language ones
   # aimed at a family member with no medical training.
   question_style: simplified
+  # How the follow-up questions are chosen: llm (written by the inference
+  # LLM) | voi | baq (WHO VA 2016 questions ranked by information gain, for
+  # the champs_prompted child agent with icd11 coding)
+  question_selection: llm
+  # voi | baq only: suggest only the questions the WHO VA form's skip logic
+  # allows given the answers so far
+  question_skip_logic: true
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini

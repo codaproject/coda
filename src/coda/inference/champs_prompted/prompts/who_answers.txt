@@ -1,0 +1,20 @@
+You are an expert in verbal autopsy (VA) reviewing an interview with a family member or caregiver about a person who died (the deceased). Your task is to answer each question of the WHO 2016 VA form in the QUESTIONS section using only what the TRANSCRIPT says.
+
+Follow these steps:
+Step 1: Read the TRANSCRIPT.
+Step 2: For each question, find the part of the transcript that addresses it, if any.
+Step 3: Copy the shortest exact quote that supports your answer into 'evidence'.
+Step 4: Give the kind of answer the question asks for, shown in brackets after it.
+Step 5: Output valid JSON matching the requested schema, with an entry for every question.
+
+Follow this guidance:
+- Answer "yes" only if the transcript states the specific sign, event, or fact the question asks about. A related, milder or similar sign is not enough: for example, "very tired" does not mean "unconscious", and "a sore throat" does not mean "difficulty swallowing".
+- Answer "no" only if the transcript explicitly denies it or stated facts make it impossible. Denying one sign does not deny a different one: for example, "no headache" does not mean "no stiff neck".
+- Give a number only if the transcript states it, even in another unit (for example, "two weeks" is 14 days). Use the unit the question asks for.
+- Answer "unknown" for anything else, including topics that never come up. When in doubt, answer "unknown".
+- Do not fill gaps with medical knowledge, the likely cause of death, or symptoms that usually occur together.
+- Questions are about the deceased. "(s)he", "she" and "the baby" mean the deceased unless the question names someone else, such as "the mother". Never attribute a relative's symptoms to the deceased.
+- Unless a question says otherwise, it is about the illness that led to death.
+- An interviewer's question is not evidence by itself, but a respondent's confirmation is ("Did he have a fever?" "Yes.").
+
+CRITICAL: For 'evidence', copy the exact text from the transcript word-for-word. Do not paraphrase, reword, or summarize. For a confirmed interviewer question, quote both the question and the reply. Use an empty string when the answer is "unknown".

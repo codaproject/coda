@@ -4549,6 +4549,7 @@
           "record.probableCause": "Probable cause",
           "record.differentials": "Differentials",
           "record.suggestedQuestions": "Suggested follow-up questions",
+          "record.questionsDone": "Enough information for a confident cause, further questions are optional",
           "record.updating": "Updating",
           "record.offlinePill": "Offline",
           "record.placeholder":
@@ -4745,6 +4746,7 @@
           "record.probableCause": "Sababu inayowezekana",
           "record.differentials": "Tofauti",
           "record.suggestedQuestions": "Maswali ya ufuatiliaji yanayopendekezwa",
+          "record.questionsDone": "Taarifa zinatosha kwa chanzo cha uhakika, maswali zaidi ni ya hiari",
           "record.updating": "Inasasisha",
           "record.offlinePill": "Nje ya mtandao",
           "record.placeholder":
@@ -4944,6 +4946,7 @@
           "record.probableCause": "Cause probable",
           "record.differentials": "Diagnostics différentiels",
           "record.suggestedQuestions": "Questions de suivi suggérées",
+          "record.questionsDone": "Informations suffisantes pour une cause fiable, les questions supplémentaires sont facultatives",
           "record.updating": "Mise à jour",
           "record.offlinePill": "Hors ligne",
           "record.placeholder":
@@ -5141,6 +5144,7 @@
           "record.probableCause": "السبب المحتمل",
           "record.differentials": "التشخيصات التفريقية",
           "record.suggestedQuestions": "أسئلة متابعة مقترحة",
+          "record.questionsDone": "المعلومات كافية لتحديد سبب موثوق، والأسئلة الإضافية اختيارية",
           "record.updating": "يُحدِّث",
           "record.offlinePill": "غير متصل",
           "record.placeholder":
@@ -5337,6 +5341,7 @@
           "record.probableCause": "সম্ভাব্য কারণ",
           "record.differentials": "পৃথকীকরণ",
           "record.suggestedQuestions": "প্রস্তাবিত অনুসরণমূলক প্রশ্ন",
+          "record.questionsDone": "নির্ভরযোগ্য কারণ নির্ধারণের জন্য যথেষ্ট তথ্য পাওয়া গেছে, আরও প্রশ্ন ঐচ্ছিক",
           "record.updating": "আপডেট হচ্ছে",
           "record.offlinePill": "অফলাইন",
           "record.placeholder":
@@ -5536,6 +5541,7 @@
           "record.probableCause": "Causa probable",
           "record.differentials": "Diagnósticos diferenciales",
           "record.suggestedQuestions": "Preguntas de seguimiento sugeridas",
+          "record.questionsDone": "Información suficiente para una causa fiable, las preguntas adicionales son opcionales",
           "record.updating": "Actualizando",
           "record.offlinePill": "Sin conexión",
           "record.placeholder":
@@ -5736,6 +5742,7 @@
           "record.differentials": "Swivangelo swin'wana leswi kotekaka",
           "record.suggestedQuestions":
             "Swivutiso swo landzelela leswi ringanyetiweke",
+          "record.questionsDone": "Vuxokoxoko byi ringanele ku kuma xivangelo lexi tiyeke, swivutiso swin'wana i swa ku tihlawulela",
           "record.updating": "Ku pfuxetiwa",
           "record.offlinePill": "Handle ka inthanete",
           "record.placeholder":
@@ -5938,6 +5945,7 @@
           "record.probableCause": "Causa provável",
           "record.differentials": "Diagnósticos diferenciais",
           "record.suggestedQuestions": "Perguntas de acompanhamento sugeridas",
+          "record.questionsDone": "Informações suficientes para uma causa confiável, perguntas adicionais são opcionais",
           "record.updating": "Atualizando",
           "record.offlinePill": "Offline",
           "record.placeholder":
@@ -6245,6 +6253,7 @@
         questions,
         heading,
         chain,
+        questionsDone,
       ) {
         const sorted = Object.entries(causes || {}).sort(
           (a, b) => b[1].score - a[1].score,
@@ -6313,11 +6322,14 @@
           html += `<div class="inference-reasoning">${escapeHtml(reasoning)}</div>`;
         }
 
-        if (questions && questions.length) {
+        if ((questions && questions.length) || questionsDone) {
           html += '<div class="inference-questions">';
           html += `<div class="questions-head">${escapeHtml(t("record.suggestedQuestions"))}</div>`;
+          if (questionsDone) {
+            html += `<div class="small text-muted">${escapeHtml(t("record.questionsDone"))}</div>`;
+          }
           html += "<ul>";
-          questions.forEach((q) => {
+          (questions || []).forEach((q) => {
             html += `<li>${escapeHtml(q)}</li>`;
           });
           html += "</ul></div>";
@@ -9290,6 +9302,7 @@
           data.questions,
           null,
           data.chain,
+          data.questions_done,
         );
         inference.insertAdjacentHTML("afterbegin", html);
         // Mirror into the main-column differentials container so the
