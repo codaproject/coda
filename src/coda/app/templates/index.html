@@ -7755,8 +7755,15 @@
 
       transcriberBackendSelect.addEventListener("change", async () => {
         const backend = transcriberBackendSelect.value;
-        // Warns and leaves the selection if the backend can't be loaded.
-        if (!(await loadBackendModels(backend))) return;
+        // A backend that can't be loaded keeps its warning, and the
+        // selection returns to the backend in use
+        if (!(await loadBackendModels(backend))) {
+          const warning = backendWarningText.textContent;
+          await loadSettings();
+          backendWarningText.textContent = warning;
+          backendWarning.style.display = "flex";
+          return;
+        }
         const applied = await updateSettings({
           transcriber_backend: backend,
           transcriber_model: transcriberModelSelect.value || null,
@@ -7769,8 +7776,8 @@
           backend !== "whisper" &&
           translationModeSelect.value === "whisper_translate"
         ) {
-          translationModeSelect.value = "llm";
-          await updateSettings({ translation_mode: "llm" });
+          translationModeSelect.value = "madlad";
+          await updateSettings({ translation_mode: "madlad" });
         }
         // Available languages depend on the backend; keep the current one if
         // still supported, otherwise select the first supported language.
