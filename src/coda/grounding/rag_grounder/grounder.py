@@ -3,14 +3,16 @@ RAG-based grounder.
 """
 import logging
 import time
+from pathlib import Path
 
+import yaml
 from gilda import Annotation, ScoredMatch
 from gilda.process import normalize
 from gilda.scorer import generate_match
 from gilda.term import Term
 from tqdm import tqdm
 
-from coda.config import PROMPTS, settings
+from coda.config import settings
 from coda.grounding import BaseGrounder
 from coda.llm_api import LLMClient, create_llm_client
 
@@ -19,6 +21,8 @@ from .reranker import Reranker
 from .retriever import Retriever
 from .utils import find_evidence_spans
 from .types import RetrievalTerm
+
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +67,9 @@ class RagGrounder(BaseGrounder):
         self.reranker = self._build_reranker()
 
     @staticmethod
-    def _prompt(key: str) -> dict:
-        """Look up a prompt config by key (a config/prompts/ filename stem)."""
-        return PROMPTS[key]
+    def _prompt(key):
+        """Return the prompt config of a key, a filename stem in prompts/."""
+        return yaml.safe_load((PROMPTS_DIR / f"{key}.yaml").read_text())
 
     def _build_extractor(self) -> Extractor:
         match self.extractor_type.lower().strip():

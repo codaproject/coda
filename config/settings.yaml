@@ -151,7 +151,7 @@ grounder:
       model: gpt-4o-mini
     extractor:
       type: hunflair        # alternatives: LLM | hunflair (use LLM for ICD-11)
-      # Prompt key into config/prompts/. alternatives: extractor_default | extractor_medcoder
+      # Extractor prompt. alternatives: extractor_default | extractor_medcoder
       prompt: extractor_default
     retriever:
       ontology: icd10       # alternatives: icd10 | icd11
@@ -163,7 +163,7 @@ grounder:
       min_similarity: 0.0
     reranker:
       enabled: true         # alternatives: true | false
-      # Prompt key into config/prompts/. alternatives: reranker_default
+      # Reranker prompt. alternatives: reranker_default
       prompt: reranker_default
 
 dialogue:

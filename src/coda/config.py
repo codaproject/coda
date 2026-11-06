@@ -5,7 +5,6 @@ the YAML files under the repo-root ``config/`` directory:
 
     config/settings.yaml    modular config, one namespace per module
     config/.secrets.yaml    API keys (gitignored)
-    config/prompts/*.yaml   RAG prompt bodies, addressed by key
 
 Read configuration directly off the module-level ``settings`` object using
 dotted access, e.g. ``settings.app.host``, ``settings.grounder.rag.retriever
@@ -46,7 +45,6 @@ def _resolve_config_dir() -> Path:
 
 
 CONFIG_DIR = _resolve_config_dir()
-PROMPTS_DIR = CONFIG_DIR / "prompts"
 
 
 def site_profile(site, usecase):
@@ -136,25 +134,6 @@ def reload_settings() -> None:
     """
     settings.reload()
     settings.validators.validate()
-
-
-def _load_prompts() -> dict:
-    """Load every ``config/prompts/*.yaml`` file, keyed by filename stem.
-
-    Prompt bodies are static data (no environment layering or env-var overrides),
-    so they are read as plain dicts and exposed via ``PROMPTS`` rather than the
-    Dynaconf store (which would drop them on ``settings.reload()``). Look one up
-    by its config key, e.g. ``PROMPTS[settings.grounder.rag.extractor.prompt]``.
-    """
-    prompts = {}
-    for path in sorted(PROMPTS_DIR.glob("*.yaml")):
-        with open(path) as f:
-            prompts[path.stem] = yaml.safe_load(f)
-    return prompts
-
-
-# Prompt configs keyed by filename stem (e.g. "extractor_default").
-PROMPTS = _load_prompts()
 
 
 def inference_url() -> str:
