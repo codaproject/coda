@@ -18,8 +18,8 @@ inference:
     population: adult
 
 translate:
-  backend: madlad
-  model: madlad400-3b-mt
+  backend: ctranslate2
+  model: nllb-1.3b
 
 dialogue:
   language: ts
