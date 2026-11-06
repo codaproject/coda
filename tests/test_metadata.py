@@ -78,3 +78,11 @@ def test_invalid_clinical_values_dropped():
                                         "weight_kg_death": -1,
                                         "muac_cm_admission": "x"}})
     assert m.is_empty()
+
+
+def test_population():
+    m = Metadata.from_dict({"profile": {"population": "adult"}})
+    assert m.profile.population == "adult"
+    assert m.to_dict()["profile"]["population"] == "adult"
+    m = Metadata.from_dict({"profile": {"population": "elderly"}})
+    assert m.profile is None

@@ -596,6 +596,10 @@
         outline: 2px solid var(--accent-sage);
         outline-offset: -2px;
       }
+      .profile-bar[data-population="adult"] .profile-child,
+      .profile-bar:not([data-population="adult"]) .profile-adult {
+        display: none;
+      }
       .profile-bar[data-stillbirth="true"] .profile-age {
         opacity: 0.4;
         pointer-events: none;
@@ -3655,6 +3659,20 @@
         </div>
         <div class="profile-fields" id="profileFields">
           <div class="profile-row">
+            <div class="profile-segmented" role="radiogroup" id="populationGroup">
+              <label
+                ><input type="radio" name="population" value="child" /><span
+                  data-i18n="profile.child"
+                  >Child</span
+                ></label
+              >
+              <label
+                ><input type="radio" name="population" value="adult" /><span
+                  data-i18n="profile.adult"
+                  >Adult</span
+                ></label
+              >
+            </div>
             <div class="profile-field">
               <label for="caseId" data-i18n="profile.caseId">Case ID</label>
               <input type="text" id="caseId" autocomplete="off" />
@@ -3662,14 +3680,15 @@
             <div class="profile-field profile-age">
               <label for="ageValue" data-i18n="profile.age">Age</label>
               <input type="number" id="ageValue" min="0" step="1" placeholder="—" />
-              <select id="ageUnit">
+              <select id="ageUnit" class="profile-child">
                 <option value="hours">hours</option>
                 <option value="days">days</option>
                 <option value="months" selected>months</option>
                 <option value="years">years</option>
               </select>
+              <span class="profile-unit profile-adult">years</span>
             </div>
-            <label class="profile-still">
+            <label class="profile-still profile-child">
               <input type="checkbox" id="stillbirthToggle" />
               <span data-i18n="profile.stillbirth">Stillbirth</span>
             </label>
@@ -3736,7 +3755,7 @@
             <span class="profile-row-label" data-i18n="profile.clinical"
               >Clinical</span
             >
-            <div class="profile-field">
+            <div class="profile-field profile-child">
               <label for="birthWeight" data-i18n="profile.birthWeight"
                 >Birth weight</label
               >
@@ -3753,7 +3772,11 @@
                 <option value="positive" data-i18n="profile.hivPositive">
                   Positive
                 </option>
-                <option value="exposed" data-i18n="profile.hivExposed">
+                <option
+                  value="exposed"
+                  class="profile-child"
+                  data-i18n="profile.hivExposed"
+                >
                   Exposed
                 </option>
                 <option value="unknown" data-i18n="profile.hivUnknown">
@@ -3775,7 +3798,7 @@
               <input type="number" id="weightDeath" min="0" step="0.1" />
               <span class="profile-unit">kg</span>
             </div>
-            <div class="profile-field">
+            <div class="profile-field profile-child">
               <label for="muacAdmission" data-i18n="profile.muac">MUAC</label>
               <label for="muacAdmission" class="profile-sublabel"
                 data-i18n="profile.atAdmission">at admission</label
@@ -4447,6 +4470,8 @@
           "profile.title": "Case profile",
           "profile.age": "Age",
           "profile.stillbirth": "Stillbirth",
+          "profile.child": "Child",
+          "profile.adult": "Adult",
           "profile.caseId": "Case ID",
           "profile.clinical": "Clinical",
           "profile.birthWeight": "Birth weight",
@@ -4642,6 +4667,8 @@
           "profile.title": "Wasifu wa kesi",
           "profile.age": "Umri",
           "profile.stillbirth": "Aliyezaliwa mfu",
+          "profile.child": "Mtoto",
+          "profile.adult": "Mtu mzima",
           "profile.caseId": "Kitambulisho cha kesi",
           "profile.clinical": "Kliniki",
           "profile.birthWeight": "Uzito wa kuzaliwa",
@@ -4837,6 +4864,8 @@
           "profile.title": "Profil du cas",
           "profile.age": "Âge",
           "profile.stillbirth": "Mort-né",
+          "profile.child": "Enfant",
+          "profile.adult": "Adulte",
           "profile.caseId": "Identifiant du cas",
           "profile.clinical": "Clinique",
           "profile.birthWeight": "Poids de naissance",
@@ -5036,6 +5065,8 @@
           "profile.title": "ملف الحالة",
           "profile.age": "العمر",
           "profile.stillbirth": "مولود ميت",
+          "profile.child": "طفل",
+          "profile.adult": "بالغ",
           "profile.caseId": "رقم الحالة",
           "profile.clinical": "سريري",
           "profile.birthWeight": "الوزن عند الولادة",
@@ -5228,6 +5259,8 @@
           "profile.title": "কেসের প্রোফাইল",
           "profile.age": "বয়স",
           "profile.stillbirth": "মৃত জন্ম",
+          "profile.child": "শিশু",
+          "profile.adult": "প্রাপ্তবয়স্ক",
           "profile.caseId": "কেস আইডি",
           "profile.clinical": "ক্লিনিক্যাল",
           "profile.birthWeight": "জন্ম ওজন",
@@ -5424,6 +5457,8 @@
           "profile.title": "Perfil del caso",
           "profile.age": "Edad",
           "profile.stillbirth": "Mortinato",
+          "profile.child": "Niño",
+          "profile.adult": "Adulto",
           "profile.caseId": "ID del caso",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso al nacer",
@@ -5621,6 +5656,8 @@
           "profile.title": "Vuxokoxoko bya mhaka",
           "profile.age": "Malembe",
           "profile.stillbirth": "Ku velekiwa ka n'wana a file",
+          "profile.child": "N'wana",
+          "profile.adult": "Munhu lonkulu",
           "profile.caseId": "Nomboro ya mhaka",
           "profile.clinical": "Vutshunguri",
           "profile.birthWeight": "Ntiko wa ku velekiwa",
@@ -5820,6 +5857,8 @@
           "profile.title": "Perfil do caso",
           "profile.age": "Idade",
           "profile.stillbirth": "Natimorto",
+          "profile.child": "Criança",
+          "profile.adult": "Adulto",
           "profile.caseId": "ID do caso",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso ao nascer",
@@ -8674,6 +8713,11 @@
       const mannerSelect = document.getElementById("mannerOfDeath");
       const sexRadios = document.querySelectorAll('input[name="sex"]');
       const hivSelect = document.getElementById("hivStatus");
+      const populationRadios = document.querySelectorAll(
+        'input[name="population"]',
+      );
+      // Population chosen last, preselected for the next case
+      const POPULATION_KEY = "codaPopulation";
       // Measurement inputs by profile field name
       const measurementInputs = {
         birth_weight_g: document.getElementById("birthWeight"),
@@ -8697,6 +8741,42 @@
         return document.querySelector('input[name="sex"]:checked');
       }
 
+      function rememberedPopulation() {
+        try {
+          return localStorage.getItem(POPULATION_KEY) === "adult"
+            ? "adult"
+            : "child";
+        } catch (e) {
+          return "child";
+        }
+      }
+
+      function checkedPopulation() {
+        return (
+          document.querySelector('input[name="population"]:checked')?.value ||
+          "child"
+        );
+      }
+
+      // Show the profile fields of a population
+      function setPopulation(population) {
+        populationRadios.forEach((r) => (r.checked = r.value === population));
+        profileBar.setAttribute("data-population", population);
+        // Some browsers show hidden options
+        hivSelect.querySelector('option[value="exposed"]').disabled =
+          population === "adult";
+        if (population === "adult") stillbirthToggle.checked = false;
+        applyStillbirthState();
+      }
+
+      function isAdult() {
+        return checkedPopulation() === "adult";
+      }
+
+      function ageUnit() {
+        return isAdult() ? "years" : ageUnitSelect.value;
+      }
+
       function applyStillbirthState() {
         profileBar.setAttribute(
           "data-stillbirth",
@@ -8711,12 +8791,12 @@
 
       // One-line summary shown on the toggle while collapsed.
       function updateProfileSummary() {
-        const parts = [];
+        const parts = [t(`profile.${checkedPopulation()}`)];
         if (caseIdInput.value.trim()) parts.push(caseIdInput.value.trim());
         if (stillbirthToggle.checked) {
           parts.push(t("profile.stillbirth"));
         } else if (ageValueInput.value !== "") {
-          parts.push(ageValueInput.value + " " + ageUnitSelect.value);
+          parts.push(ageValueInput.value + " " + ageUnit());
         }
         const sex = checkedSex();
         if (sex) parts.push(sex.nextElementSibling.textContent);
@@ -8737,10 +8817,8 @@
         const ageValue =
           ageValueInput.value === "" ? null : Number(ageValueInput.value);
         const profile = {
-          age:
-            ageValue === null
-              ? null
-              : { value: ageValue, unit: ageUnitSelect.value },
+          population: checkedPopulation(),
+          age: ageValue === null ? null : { value: ageValue, unit: ageUnit() },
           stillbirth: stillbirthToggle.checked,
           date_of_death: dateOfDeathInput.value || null,
           sex: checkedSex()?.value || null,
@@ -8749,6 +8827,14 @@
         };
         for (const [name, input] of Object.entries(measurementInputs)) {
           profile[name] = input.value === "" ? null : Number(input.value);
+        }
+        // Fields of the other population are hidden and left out
+        if (isAdult()) {
+          profile.stillbirth = false;
+          profile.birth_weight_g = null;
+          profile.muac_cm_admission = null;
+          profile.muac_cm_death = null;
+          if (profile.hiv_status === "exposed") profile.hiv_status = null;
         }
         return profile;
       }
@@ -8781,6 +8867,7 @@
       }
 
       function fillProfileInputs(profile) {
+        setPopulation(profile.population || "child");
         ageValueInput.value = profile.age ? profile.age.value : "";
         ageUnitSelect.value = profile.age ? profile.age.unit : "months";
         stillbirthToggle.checked = !!profile.stillbirth;
@@ -8803,6 +8890,7 @@
         sexRadios.forEach((r) => (r.checked = false));
         hivSelect.value = "";
         Object.values(measurementInputs).forEach((input) => (input.value = ""));
+        setPopulation(rememberedPopulation());
         applyStillbirthState();
         updateProfileSummary();
         setProfileExpanded(false);
@@ -8966,6 +9054,22 @@
         document.title = title;
       });
 
+      setPopulation(rememberedPopulation());
+      populationRadios.forEach((radio) =>
+        radio.addEventListener("change", () => {
+          try {
+            localStorage.setItem(POPULATION_KEY, radio.value);
+          } catch (e) {}
+          // Adult ages are in years
+          if (radio.value === "adult" && ageUnitSelect.value !== "years") {
+            ageValueInput.value = "";
+          } else if (radio.value === "child" && ageValueInput.value !== "") {
+            ageUnitSelect.value = "years";
+          }
+          setPopulation(radio.value);
+          pushMetadata();
+        }),
+      );
       ageValueInput.addEventListener("change", pushMetadata);
       ageUnitSelect.addEventListener("change", pushMetadata);
       stillbirthToggle.addEventListener("change", pushMetadata);
