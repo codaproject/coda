@@ -7919,7 +7919,7 @@
         transcriptText += text + " ";
 
         chunkCount++;
-        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkInnerHtml(text, data.annotations)}</span>`;
+        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}${data.pending_translation ? " pending-translation" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkInnerHtml(text, data.annotations)}</span>`;
 
         if (data.original_transcript) {
           const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
