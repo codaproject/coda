@@ -1,22 +1,26 @@
+import asyncio
+import contextlib
 import json
 import logging
 import os
+import time
+import uuid
 
 import numpy as np
 import websockets
 
 from coda.config import settings
 
-from . import ChunkedTranscriber
+from . import StreamingTranscriber, TranscriptEvent
 
 logger = logging.getLogger(__name__)
 
 
-class SpeechmaticsTranscriber(ChunkedTranscriber):
+class SpeechmaticsTranscriber(StreamingTranscriber):
     """Transcriber using Speechmatics' realtime WebSocket API.
 
-    Each chunk is sent over a short-lived connection: StartRecognition,
-    stream the raw PCM, EndOfStream, then collect the finalized transcript.
+    A recording is streamed over one connection: StartRecognition, the raw
+    PCM as it arrives, EndOfStream, then the remaining results.
     """
     LANGUAGES = {
         "en": "English",
@@ -117,107 +121,102 @@ class SpeechmaticsTranscriber(ChunkedTranscriber):
                 return fh.read().strip()
         return (settings.dialogue.speechmatics.get("api_key") or "").strip()
 
-    async def transcribe_audio(self, audio_data: np.ndarray,
-                               sample_rate: int = 16000,
-                               language: str = "en",
-                               task: str = "transcribe") -> str:
+    async def transcribe_audio(self, audio_data, sample_rate=16000,
+                               language="en", task="transcribe"):
+        """Transcribe one whole recording in a single session."""
+        pcm = np.ascontiguousarray(audio_data, dtype=np.int16).tobytes()
+
+        async def audio():
+            yield pcm
+
+        texts = []
         try:
-            sm_language = self.normalize_language(language)
-            if sm_language is None:
-                logger.error(
-                    "Language %r is not supported by Speechmatics; skipping chunk",
-                    language,
-                )
-                return ""
-            pcm = np.ascontiguousarray(audio_data, dtype=np.int16)
-            peak = int(np.max(np.abs(pcm))) if pcm.size else 0
-            if peak < 33:
-                logger.warning("Audio appears to be silent (peak < 0.001)")
-                return ""
-            return await self._stream(pcm.tobytes(), sample_rate, sm_language, task)
+            async for event in self.stream(audio(), language=language,
+                                           task=task, sample_rate=sample_rate):
+                if event.committed:
+                    texts.append(event.text)
         except Exception as e:
             logger.error(f"Transcription error: {e}", exc_info=True)
-            return ""
+        return " ".join(texts).strip()
 
-    async def _stream(self, pcm_bytes: bytes, sample_rate: int,
-                      language: str, task: str) -> str:
-        """Run one StartRecognition -> EndOfStream -> EndOfTranscript exchange."""
-        config = {
-            "language": language,
-            "operating_point": self.model,
+    async def stream(self, audio, *, language="en", task="transcribe",
+                     sample_rate=16000):
+        """Transcribe raw 16-bit PCM over one realtime session.
+
+        Partial results are emitted as previews and final ones as committed
+        events. Speechmatics translates via translation_config rather than a
+        transcription task.
+        """
+        sm_language = self.normalize_language(language)
+        if sm_language is None:
+            logger.error("Language %r is not supported by Speechmatics",
+                         language)
+            async for _ in audio:
+                pass
+            return
+        translate = task == "translate" and sm_language != "en"
+        start = {
+            "message": "StartRecognition",
+            "audio_format": {"type": "raw", "encoding": "pcm_s16le",
+                             "sample_rate": sample_rate},
+            "transcription_config": {"language": sm_language,
+                                     "operating_point": self.model,
+                                     "enable_partials": True},
         }
-        # Speechmatics translates via translation_config, not a "translate" task.
-        translate = task == "translate" and language != "en"
         if translate:
-            config_message = {
-                "message": "StartRecognition",
-                "audio_format": {
-                    "type": "raw",
-                    "encoding": "pcm_s16le",
-                    "sample_rate": sample_rate,
-                },
-                "transcription_config": config,
-                "translation_config": {"target_languages": ["en"]},
-            }
-        else:
-            config_message = {
-                "message": "StartRecognition",
-                "audio_format": {
-                    "type": "raw",
-                    "encoding": "pcm_s16le",
-                    "sample_rate": sample_rate,
-                },
-                "transcription_config": config,
-            }
-
+            start["translation_config"] = {"target_languages": ["en"],
+                                           "enable_partials": True}
+        final, partial = ("AddTranslation", "AddPartialTranslation") \
+            if translate else ("AddTranscript", "AddPartialTranscript")
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with websockets.connect(
-            self.url, additional_headers=headers
-        ) as ws:
-            await ws.send(json.dumps(config_message))
-
+        async with websockets.connect(self.url,
+                                      additional_headers=headers) as ws:
+            await ws.send(json.dumps(start))
             await self._await_message(ws, "RecognitionStarted")
-
-            # Stream audio as binary frames; count them for last_seq_no.
-            seq = 0
-            chunk_size = sample_rate * 2
-            for start in range(0, len(pcm_bytes), chunk_size):
-                await ws.send(pcm_bytes[start:start + chunk_size])
-                seq += 1
-
-            await ws.send(json.dumps(
-                {"message": "EndOfStream", "last_seq_no": seq}
-            ))
-
-            transcripts = []
-            final_key = "AddTranslation" if translate else "AddTranscript"
-            async for raw in ws:
-                if isinstance(raw, bytes):
-                    continue
-                msg = json.loads(raw)
-                kind = msg["message"]
-                if kind == final_key:
-                    transcripts.append(self._text_from(msg, translate))
-                elif kind == "Error":
-                    logger.error(f"Speechmatics error: {msg}")
-                    break
-                elif kind == "EndOfTranscript":
-                    break
-
-            return " ".join(t for t in transcripts if t).strip()
+            sender = asyncio.create_task(self._send_audio(ws, audio))
+            try:
+                async for raw in ws:
+                    if isinstance(raw, bytes):
+                        continue
+                    msg = json.loads(raw)
+                    kind = msg["message"]
+                    if kind in (final, partial):
+                        text = self._text_from(msg, translate)
+                        if text or kind == partial:
+                            yield TranscriptEvent(
+                                id=uuid.uuid4().hex, timestamp=time.time(),
+                                text=text, committed=kind == final)
+                    elif kind == "Error":
+                        raise RuntimeError(f"Speechmatics error: {msg}")
+                    elif kind == "EndOfTranscript":
+                        break
+            finally:
+                sender.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await sender
 
     @staticmethod
-    def _text_from(msg: dict, translate: bool) -> str:
-        """Extract text from an AddTranscript or AddTranslation message."""
+    async def _send_audio(ws, audio):
+        """Forward audio frames, then end the stream."""
+        seq = 0
+        async for data in audio:
+            await ws.send(data)
+            seq += 1
+        await ws.send(json.dumps({"message": "EndOfStream",
+                                  "last_seq_no": seq}))
+
+    @staticmethod
+    def _text_from(msg, translate):
+        """Extract text from a transcript or translation message."""
         if translate:
-            # Translation results carry text in results[].content, no transcript field.
+            # Translation results carry text in results[].content
             return " ".join(
                 r.get("content", "") for r in msg.get("results", [])
             ).strip()
         return msg.get("metadata", {}).get("transcript", "").strip()
 
     @staticmethod
-    async def _await_message(ws, expected: str):
+    async def _await_message(ws, expected):
         """Read messages until the expected one arrives, raising on Error."""
         async for raw in ws:
             if isinstance(raw, bytes):

@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_DURATION = 3
 
 # Selectable transcription backends, chosen via dialogue.transcriber_backend
-# (see coda.config). whisper/faster-whisper/speechmatics are chunked;
-# whisper-livekit is in-process streaming.
+# (see coda.config). whisper/faster-whisper are chunked;
+# whisper-livekit and speechmatics stream.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
                         "whisper-livekit", "indic-conformer")
 
