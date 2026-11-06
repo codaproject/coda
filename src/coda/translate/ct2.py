@@ -76,6 +76,8 @@ class CTranslate2Translator(Translator):
         "tr": "tur_Latn", "tt": "tat_Cyrl", "uk": "ukr_Cyrl", "ur": "urd_Arab",
         "uz": "uzn_Latn", "vi": "vie_Latn", "yi": "ydd_Hebr", "yo": "yor_Latn",
         "yue": "yue_Hant", "zh": "zho_Hans",
+        "ts": "tso_Latn", "zu": "zul_Latn", "st": "sot_Latn", "or": "ory_Orya",
+        "mai": "mai_Deva", "mni": "mni_Beng", "ks": "kas_Arab",
     }
 
     @classmethod
@@ -87,7 +89,8 @@ class CTranslate2Translator(Translator):
         if self.model not in self.MODELS:
             raise ValueError(f"Unknown translation model {self.model!r}, "
                              f"expected one of {self.MODELS}")
-        self.device = device
+        # CTranslate2 has no MPS backend
+        self.device = "cpu" if device == "mps" else device
         self.compute_type = compute_type
 
     @classmethod
