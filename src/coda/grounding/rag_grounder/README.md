@@ -35,7 +35,7 @@ grounder:
       model: gpt-4o-mini
     extractor:
       type: hunflair               # LLM | hunflair
-      prompt: extractor_default    # key into config/prompts/
+      prompt: extractor_default    # file stem in prompts/
     retriever:
       ontology: icd10              # ontology loaded into neo4j
       embedding_model: all-MiniLM-L6-v2
@@ -43,11 +43,11 @@ grounder:
       min_similarity: 0.0
     reranker:
       enabled: true
-      prompt: reranker_default     # key into config/prompts/
+      prompt: reranker_default     # file stem in prompts/
 ```
 
-Prompt configs are referenced by key (a filename stem under `config/prompts/`),
-not by path. Override any value by editing `config/settings.yaml` or with a
+Prompts are selected by their filename stem in `prompts/`, described under
+Prompts below. Override any value by editing `config/settings.yaml` or with a
 `CODA_`-prefixed env var (e.g. `CODA_GROUNDER__RAG__RETRIEVER__ONTOLOGY=icd11`).
 For ICD-11 grounding, set `retriever.ontology: icd11` and `extractor.type: LLM`
 (the settings file's comments point this out).
@@ -63,8 +63,57 @@ For ICD-11 grounding, set `retriever.ontology: icd11` and `extractor.type: LLM`
 | `types.py` | `RetrievalTerm` dataclass |
 | `utils.py` | Evidence span finding |
 
-Configuration and prompts live in the repo-root `config/` directory
-(`config/settings.yaml` and `config/prompts/`), loaded by `coda.config`.
+Settings live in the repo-root `config/settings.yaml`, loaded by
+`coda.config`, and prompts in `prompts/`.
+
+## Prompts
+
+The LLM extractor and the reranker each take their prompt from a YAML file in
+`prompts/`. Settings name the file by its stem, in
+`grounder.rag.extractor.prompt` and `grounder.rag.reranker.prompt`.
+
+### Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `use_schema` | yes | If `true`, calls the LLM with structured output (JSON schema). If `false`, parses raw JSON from the response text. |
+| `system_prompt` | no | System prompt. Supports `{concept_type}` interpolation (extractor only). |
+| `user_prompt` | yes | User prompt. Extractor supports `{concept_type}` and `{text}`; reranker supports `{concept}`, `{evidence_text}`, and `{retrieved_terms}`. |
+| `concept_key` | extractor only | The key for the concept name in the LLM's output. |
+| `supporting_evidence_key` | extractor only | The key for the evidence list in the LLM's output. |
+| `schema` | if `use_schema: true` | JSON schema for structured output. |
+
+### Output field keys (extractor)
+
+Because different prompts use different field names in their output,
+`concept_key` and `supporting_evidence_key` tell the extractor which keys to
+read:
+
+```yaml
+concept_key: Disease                       # key for the concept name in LLM output
+supporting_evidence_key: Supporting Evidence  # key for the evidence list
+```
+
+### Provided prompts
+
+| File | Description |
+|------|-------------|
+| `extractor_default.yaml` | General-purpose extractor. Parametric on `concept_type`. Uses structured output. |
+| `extractor_medcoder.yaml` | Verbatim prompt from the MedCodER paper for ICD-10 disease extraction. Uses raw JSON output (`use_schema: false`). |
+| `reranker_default.yaml` | General-purpose reranker. Uses structured output. |
+
+### Custom prompts
+
+Add a YAML file to `prompts/` following the structure of an existing one, then
+select it by its filename stem:
+
+```yaml
+# prompts/my_extractor.yaml  ->  selected as `my_extractor`
+grounder:
+  rag:
+    extractor:
+      prompt: my_extractor
+```
 
 ## Requirements
 

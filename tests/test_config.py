@@ -1,10 +1,15 @@
 """Tests for the unified Dynaconf-backed configuration (coda.config)."""
 
 import os
+from pathlib import Path
 
 import pytest
+import yaml
 
-from coda.config import PROMPTS, inference_url, reload_settings, settings
+from coda.config import inference_url, reload_settings, settings
+
+RAG_PROMPTS = Path(__file__).parents[1] / "src" / "coda" / "grounding" / \
+    "rag_grounder" / "prompts"
 
 # CODA_-prefixed env vars that override config values.
 CODA_ENV_VARS = (
@@ -179,20 +184,20 @@ def test_secrets_merge_without_clobbering_settings():
     assert settings.llm.ollama.base_url == "http://localhost:11434"
 
 
-def test_prompts_loaded():
-    assert set(PROMPTS) == {
+def test_rag_prompts():
+    prompts = {path.stem: yaml.safe_load(path.read_text())
+               for path in RAG_PROMPTS.glob("*.yaml")}
+    assert set(prompts) == {
         "extractor_default",
         "extractor_medcoder",
         "reranker_default",
     }
-    # The prompt referenced by the default extractor config exists and is usable.
-    key = settings.grounder.rag.extractor.prompt
-    assert key in PROMPTS
-    assert "system_prompt" in PROMPTS[key]
-    assert "schema" in PROMPTS[key]
-    # Regression: the medcoder prompt must use `supporting_evidence_key`.
-    assert "supporting_evidence_key" in PROMPTS["extractor_medcoder"]
-    assert "supporting_evidence_field" not in PROMPTS["extractor_medcoder"]
+    extractor = prompts[settings.grounder.rag.extractor.prompt]
+    assert "system_prompt" in extractor
+    assert "schema" in extractor
+    assert settings.grounder.rag.reranker.prompt in prompts
+    assert "supporting_evidence_key" in prompts["extractor_medcoder"]
+    assert "supporting_evidence_field" not in prompts["extractor_medcoder"]
 
 
 def test_storage_env_var_overrides(monkeypatch, tmp_path):
