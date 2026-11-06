@@ -25,6 +25,8 @@ from coda.dialogue import (
     create_transcriber,
 )
 from coda.dialogue.whisper import DEFAULT_MODEL_SIZE
+from coda.translate import create_translator, TRANSLATOR_BACKENDS
+from coda.translate.sentences import SentenceBuffer
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.inference.agent import CodaToyInferenceAgent
 from coda.inference.streaming import INFERENCE_MIN_WORDS, StreamingInferenceBuffer
@@ -75,6 +77,19 @@ def load_audio_int16(input_path: str) -> np.ndarray:
     return (np.clip(audio_f32, -1.0, 1.0) * 32767.0).astype(np.int16)
 
 
+async def _translate(text, language, task, backend, model, device="cpu"):
+    """Translate text to English if a backend was given and it's actually
+    needed; returns (text, elapsed_seconds). Mirrors the app's guard: skip
+    when Whisper already produced English (--task translate), or when the
+    source is already English."""
+    if not backend or task == "translate" or language == "en":
+        return text, 0.0
+    translator = create_translator(backend, model=model, device=device)
+    t = time.perf_counter()
+    translated = await translator.translate(text, language)
+    return translated, round(time.perf_counter() - t, 3)
+
+
 def _ground(grounder, text):
     """Ground text to annotations; returns (annotations, elapsed_seconds)."""
     t = time.perf_counter()
@@ -90,33 +105,40 @@ async def _infer(agent, chunk_id, text, annotations, ts):
 
 
 async def _transcribe_and_infer(transcriber, grounder, agent, chunk_id, audio,
-                                language, task, ts):
+                                language, task, ts, translate_backend=None,
+                                translate_model=None, translate_device="cpu"):
     """Transcribe, ground, and infer for one audio chunk, timing each step."""
     t = time.perf_counter()
     text = await transcriber.transcribe_audio(
         audio, sample_rate=SAMPLE_RATE, language=language, task=task
     )
     transcription_s = round(time.perf_counter() - t, 3)
+    text, translation_s = await _translate(
+        text, language, task, translate_backend, translate_model, translate_device)
     annotations, grounding_s = _ground(grounder, text)
     inference, inference_s = await _infer(agent, chunk_id, text, annotations, ts)
     # audio_s is the spoken length of this chunk (the "wall clock" the live
     # system would have advanced by); not present on the text path.
     timings = {"audio_s": round(len(audio) / SAMPLE_RATE, 3),
-               "transcription_s": transcription_s, "grounding_s": grounding_s,
-               "inference_s": inference_s}
+               "transcription_s": transcription_s, "translation_s": translation_s, 
+               "grounding_s": grounding_s, "inference_s": inference_s}
     return chunk_id, text, annotations, inference, timings
 
 
-async def run_whole_file(transcriber, grounder, agent, audio_i16, language, task):
+async def run_whole_file(transcriber, grounder, agent, audio_i16, language, task,
+                         translate_backend=None, translate_model=None,
+                         translate_device="cpu"):
     """Transcribe the entire recording in one pass, then a single inference call."""
     row = await _transcribe_and_infer(
-        transcriber, grounder, agent, "chunk-0", audio_i16, language, task, time.time()
+        transcriber, grounder, agent, "chunk-0", audio_i16, language, task,
+        time.time(), translate_backend, translate_model, translate_device
     )
     return row[1], [row]
 
 
 async def run_chunked(transcriber, grounder, agent, audio_i16, language, task,
-                      chunk_duration):
+                      chunk_duration, translate_backend=None, translate_model=None,
+                      translate_device="cpu"):
     """Simulate the live pipeline: feed fixed-duration chunks and infer per chunk."""
     processor = AudioProcessor(sample_rate=SAMPLE_RATE, chunk_duration=chunk_duration)
     processor.add_audio(audio_i16.tobytes())
@@ -128,21 +150,24 @@ async def run_chunked(transcriber, grounder, agent, audio_i16, language, task,
             break
         chunk_id, ts, audio = chunk
         per_chunk.append(await _transcribe_and_infer(
-            transcriber, grounder, agent, chunk_id, audio, language, task, ts
+            transcriber, grounder, agent, chunk_id, audio, language, task, ts,
+            translate_backend, translate_model, translate_device
         ))
 
     # Process the trailing remainder (< chunk_size) that get_chunk() leaves behind
     tail = processor.audio_buffer
     if tail.size > 0:
         per_chunk.append(await _transcribe_and_infer(
-            transcriber, grounder, agent, "chunk-tail", tail, language, task, time.time()
+            transcriber, grounder, agent, "chunk-tail", tail, language, task, 
+            time.time(), translate_backend, translate_model, translate_device
         ))
 
     return agent.all_text.strip(), per_chunk
 
 
 async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
-                        min_words=INFERENCE_MIN_WORDS):
+                        min_words=INFERENCE_MIN_WORDS, translate_backend=None,
+                        translate_model=None, translate_device="cpu"):
     """Drive a streaming backend over a whole recording. Streaming backends
     decode with their own buffering/commit policy, so the file is fed as a byte
     stream rather than fixed chunks.
@@ -150,7 +175,8 @@ async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
     Committed segments are small and frequent; inferring on each one floods the
     agent and lets it fall behind the audio. Mirroring the live app, committed
     text is grounded per segment but inference is held off until min_words new
-    words accumulate, with a final flush for the trailing text."""
+    words accumulate, with a final flush for the trailing text. Text to
+    translate is first gathered into whole sentences, as in the app."""
     pcm = audio_i16.tobytes()
     blob = SAMPLE_RATE * 2  # 1 second of s16le
 
@@ -160,38 +186,66 @@ async def run_streaming(transcriber, grounder, agent, audio_i16, language, task,
 
     per_chunk = []
     buf = StreamingInferenceBuffer(min_words=min_words)
-    # Grounding is timed per segment but reported per inference batch.
+    # Translation and grounding are timed per segment but reported per
+    # inference batch.
+    translation_s_acc = 0.0
     grounding_s_acc = 0.0
 
     async def flush():
-        nonlocal grounding_s_acc
+        nonlocal grounding_s_acc, translation_s_acc
         batch = buf.take()
         if batch is None:
             return
         text, anns, chunk_id, timestamp = batch
         inference, inference_s = await _infer(agent, chunk_id, text, anns, timestamp)
         per_chunk.append((chunk_id, text, anns, inference,
-                          {"grounding_s": round(grounding_s_acc, 3),
+                          {"translation_s": round(translation_s_acc, 3),
+                           "grounding_s": round(grounding_s_acc, 3),
                            "inference_s": inference_s}))
+        translation_s_acc = 0.0
         grounding_s_acc = 0.0
 
+    async def add(batch):
+        nonlocal grounding_s_acc, translation_s_acc
+        if batch is None:
+            return
+        text, chunk_ids, timestamp = batch
+        text, translation_s = await _translate(
+            text, language, task, translate_backend, translate_model,
+            translate_device)
+        translation_s_acc += translation_s
+        annotations, grounding_s = _ground(grounder, text)
+        grounding_s_acc += grounding_s
+        buf.add(text, annotations, chunk_ids[0], timestamp)
+        if buf.ready:
+            await flush()
+
+    translating = translate_backend and task != "translate" and language != "en"
+    sentences = SentenceBuffer()
     async for event in transcriber.stream(audio_iter(), language=language, task=task):
         if not event.committed or not event.text.strip():
             continue
-        annotations, grounding_s = _ground(grounder, event.text)
-        grounding_s_acc += grounding_s
-        buf.add(event.text, annotations, event.id, event.timestamp)
-        if buf.ready:
-            await flush()
+        if not translating:
+            await add((event.text, [event.id], event.timestamp))
+            continue
+        sentences.add(event.text, event.id, event.timestamp)
+        if sentences.ready:
+            await add(sentences.take())
+    await add(sentences.take())
     await flush()
     return agent.all_text.strip(), per_chunk
 
 
-async def run_text(grounder, agent, text):
+async def run_text(grounder, agent, text, language="en", translate_backend=None,
+                   translate_model=None, translate_device="cpu"):
     """Ground a pre-existing transcript and run a single inference call."""
+    text, translation_s = await _translate(
+        text, language, "transcribe", translate_backend, translate_model,
+        translate_device)
     annotations, grounding_s = _ground(grounder, text)
     inference, inference_s = await _infer(agent, "chunk-0", text, annotations, time.time())
-    timings = {"grounding_s": grounding_s, "inference_s": inference_s}
+    timings = {"translation_s": translation_s, "grounding_s": grounding_s,
+               "inference_s": inference_s}
     return text, [("chunk-0", text, annotations, inference, timings)]
 
 
@@ -229,6 +283,7 @@ def write_outputs(output_dir: Path, full_text: str, per_chunk: list, meta: dict)
     # Roll up timing across all chunks (steps timed separately; the text path
     # has no transcription step, the audio path has all three).
     transcription_s = round(sum(t.get("transcription_s", 0) for *_, t in per_chunk), 3)
+    translation_s = round(sum(t.get("translation_s", 0) for *_, t in per_chunk), 3)
     grounding_s = round(sum(t.get("grounding_s", 0) for *_, t in per_chunk), 3)
     inference_s = round(sum(t.get("inference_s", 0) for *_, t in per_chunk), 3)
     audio_processed_s = round(sum(t.get("audio_s", 0) for *_, t in per_chunk), 3)
@@ -236,9 +291,10 @@ def write_outputs(output_dir: Path, full_text: str, per_chunk: list, meta: dict)
     timing = {
         "audio_processed_s": audio_processed_s,
         "transcription_s": transcription_s,
+        "translation_s": translation_s,
         "grounding_s": grounding_s,
         "inference_s": inference_s,
-        "total_s": round(transcription_s + grounding_s + inference_s, 3),
+        "total_s": round(transcription_s + translation_s + grounding_s + inference_s, 3),
         # real-time factor: <1 means faster than real time
         "transcription_rtf": round(transcription_s / audio_s, 3) if audio_s else None,
     }
@@ -260,11 +316,14 @@ def print_summary(full_text: str, per_chunk: list):
     final = per_chunk[-1][3] if per_chunk else {}
     causes = final.get("causes", {})
     transcription_s = sum(t.get("transcription_s", 0) for *_, t in per_chunk)
+    translation_s = sum(t.get("translation_s", 0) for *_, t in per_chunk)
     grounding_s = sum(t.get("grounding_s", 0) for *_, t in per_chunk)
     inference_s = sum(t.get("inference_s", 0) for *_, t in per_chunk)
     parts = []
     if transcription_s:
         parts.append(f"transcription {transcription_s:.1f}s")
+    if translation_s:
+        parts.append(f"translation {translation_s:.1f}s")
     if grounding_s:
         parts.append(f"grounding {grounding_s:.1f}s")
     parts.append(f"inference {inference_s:.1f}s")
@@ -313,6 +372,18 @@ def main():
                         help="Transcription backend (default: faster-whisper; "
                              "streaming backends like whisper-livekit are slower "
                              "for batch files).")
+    parser.add_argument("--translate-backend", choices=list(TRANSLATOR_BACKENDS),
+                        default=None,
+                        help="Translate non-English text/transcript to English "
+                             "with this backend before grounding (default: skip "
+                             "translation).")
+    parser.add_argument("--translate-model", default=None,
+                        help="Model for --translate-backend; empty uses that "
+                             "backend's default.")
+    parser.add_argument("--translate-device", default="cpu",
+                        help="Device for --translate-backend (the CTranslate2 "
+                             "backends, madlad and ctranslate2, run on CPU "
+                             "in place of mps).")
     parser.add_argument("--whisper-model", default=DEFAULT_MODEL_SIZE,
                         help=f"Whisper model size (default: {DEFAULT_MODEL_SIZE})")
     parser.add_argument("--no-speech-threshold", type=float, default=None,
@@ -345,11 +416,18 @@ def main():
         text_in = Path(args.text).read_text().strip()
         print(f"Loaded text: {args.text} ({len(text_in)} chars). Mode=text, "
               f"agent={args.agent}, grounder={args.grounder}")
-        full_text, per_chunk = asyncio.run(run_text(grounder, agent, text_in))
+        full_text, per_chunk = asyncio.run(run_text(
+            grounder, agent, text_in, language=args.language,
+            translate_backend=args.translate_backend,
+            translate_model=args.translate_model,
+            translate_device=args.translate_device))
         meta = {
             "input": str(Path(args.text).resolve()),
             "input_type": "text",
             "mode": "text",
+            "translate_backend": args.translate_backend,
+            "translate_model": args.translate_model,
+            "translate_device": args.translate_device,
             **common_meta,
         }
     else:
@@ -357,7 +435,8 @@ def main():
         if args.no_speech_threshold is not None:
             transcriber_kwargs["no_speech_threshold"] = args.no_speech_threshold
         transcriber = create_transcriber(
-            args.transcriber, model=args.whisper_model, **transcriber_kwargs
+            args.transcriber, model=args.whisper_model, language=args.language,
+            **transcriber_kwargs
         )
         print(f"Loading audio: {args.input}")
         audio_i16 = load_audio_int16(args.input)
@@ -370,21 +449,33 @@ def main():
         print(f"Loaded {duration_s:.1f}s of audio. Mode={mode}, "
               f"agent={args.agent}, grounder={args.grounder}")
 
+        if args.translate_backend and args.chunking is not None:
+            print("Note: --translate-backend with --chunking translates each "
+                  "chunk on its own, cutting sentences apart.")
         if streaming:
             # Streaming backends ignore --chunking (they do their own chunking).
             full_text, per_chunk = asyncio.run(
                 run_streaming(transcriber, grounder, agent, audio_i16,
-                              args.language, args.task, args.infer_every_words)
+                              args.language, args.task, args.infer_every_words,
+                              translate_backend=args.translate_backend,
+                              translate_model=args.translate_model,
+                              translate_device=args.translate_device)
             )
         elif args.chunking is None:
             full_text, per_chunk = asyncio.run(
                 run_whole_file(transcriber, grounder, agent, audio_i16,
-                               args.language, args.task)
+                               args.language, args.task,
+                               translate_backend=args.translate_backend,
+                               translate_model=args.translate_model,
+                               translate_device=args.translate_device)
             )
         else:
             full_text, per_chunk = asyncio.run(
                 run_chunked(transcriber, grounder, agent, audio_i16,
-                            args.language, args.task, args.chunking)
+                            args.language, args.task, args.chunking,
+                            translate_backend=args.translate_backend,
+                            translate_model=args.translate_model,
+                            translate_device=args.translate_device)
             )
         meta = {
             "input": str(Path(args.input).resolve()),
@@ -395,6 +486,9 @@ def main():
             "whisper_model": args.whisper_model,
             "language": args.language,
             "task": args.task,
+            "translate_backend": args.translate_backend,
+            "translate_model": args.translate_model,
+            "translate_device": args.translate_device,
             "audio_duration_s": round(duration_s, 1),
         }
 

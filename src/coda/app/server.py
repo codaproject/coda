@@ -48,7 +48,16 @@ from coda.inference.streaming import (
 )
 from coda.grounding.gilda_grounder import GildaGrounder
 from coda.grounding.rag_grounder import RagGrounder
-from coda.llm_api import create_llm_client
+from coda.translate import (
+    TRANSLATOR_BACKENDS,
+    create_translator,
+    get_translator_models,
+    text_backend,
+)
+from coda.translate.sentences import (
+    TRANSLATION_MAX_WAIT_S,
+    SentenceBuffer,
+)
 from coda.config import settings, inference_url
 from coda.metadata import Metadata
 
@@ -105,9 +114,32 @@ rag_config = {
     "use_reranker": settings.grounder.rag.reranker.enabled,
     "extractor_type": settings.grounder.rag.extractor.type,
 }
-# "whisper_translate" = use whisper task="translate" (direct speech-to-English)
-# "llm" = transcribe in original language, then translate via LLM
-translation_mode = settings.dialogue.translation_mode
+# How non-English transcripts reach English, see coda.translate for the
+# available backends.
+translation_mode = settings.translate.backend
+
+
+def text_translator_backend() -> str:
+    """The backend that translates transcript text for the current mode.
+
+    When the transcriber translates speech itself this is the speech backend,
+    which offers no models.
+    """
+    return text_backend(translation_mode, current_transcriber_backend) \
+        or translation_mode
+
+
+def _default_translation_model_for(backend: str):
+    """The backend's default model, or None if the backend can't be loaded."""
+    try:
+        return get_translator_models(backend)["default_model"]
+    except Exception as e:
+        logger.warning("Translator backend %r unavailable: %s", backend, e)
+        return None
+
+
+current_translation_model = settings.translate.model or \
+    _default_translation_model_for(text_translator_backend())
 # Per-interview metadata, set via /metadata and forwarded to the inference
 # agent with every inference request.
 current_metadata = Metadata()
@@ -130,6 +162,7 @@ class SettingsRequest(BaseModel):
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
     translation_mode: Optional[str] = None
+    translation_model: Optional[str] = None
 
 
 @dataclass
@@ -395,7 +428,8 @@ def create_grounder(grounder_name: str):
 
 grounder = create_grounder(current_grounder)
 transcriber = create_transcriber(
-    current_transcriber_backend, model=current_transcriber_model
+    current_transcriber_backend, model=current_transcriber_model,
+    language=current_language
 )
 if transcriber.normalize_language(current_language) is None:
     # A backend that can't do the configured language returns empty text for
@@ -407,19 +441,81 @@ if transcriber.normalize_language(current_language) is None:
     )
 
 
+def current_translator():
+    """Return the text translator for the current backend and model."""
+    backend = text_translator_backend()
+    # The LLM backend uses the app's own provider and model, other backends
+    # carry a model selected from their own list.
+    options = ({"provider": current_llm_provider, "model": current_llm_model}
+               if backend == "llm" else {"model": current_translation_model})
+    return create_translator(backend, **options)
+
+
+# Load the translation model up front so the first sentence isn't delayed
+if current_language != "en" and \
+        text_backend(translation_mode, current_transcriber_backend):
+    current_translator().load()
+
+
 async def translate_text(text: str, source_language: str) -> str:
-    """Translate text to English using the LLM API."""
-    lang_name = get_language_name(source_language)
-    prompt = (f"Translate the following {lang_name} text to English. "
-              f"Return only the translation, nothing else.\n\n{text}")
+    """Translate text to English, or return it unchanged if that fails."""
     try:
-        llm = create_llm_client(provider=current_llm_provider,
-                                model=current_llm_model)
-        translation = await asyncio.to_thread(llm.call, prompt)
-        return translation.strip()
+        translator = current_translator()
     except Exception as e:
-        logger.error(f"Translation error: {e}")
-        return text  # fall back to original text
+        logger.error(f"Translator unavailable: {e}")
+        return text
+    return await translator.translate(
+        text, source_language, language_name=get_language_name(source_language))
+
+
+async def _flush_sentence(inference_session: InferenceSessionCoordinator,
+                          batch):
+    """Translate one buffered sentence and patch it onto the chunks it spans.
+
+    Returns (chunk_id, timestamp, english_text, annotations) for inference.
+    """
+    original_text, chunk_ids, timestamp = batch
+    anchor = chunk_ids[0]
+
+    translation_start = time.perf_counter()
+    english_text = await translate_text(original_text, current_language)
+    translation_s = time.perf_counter() - translation_start
+
+    annotations = []
+    grounding_s = 0.0
+    if english_text:
+        grounding_start = time.perf_counter()
+        annotations = await asyncio.to_thread(grounder.annotate, english_text)
+        grounding_s = time.perf_counter() - grounding_start
+
+    recorder = inference_session.recorder
+    if recorder is not None:
+        recorder.write_chunk(
+            anchor, timestamp, english_text, annotations,
+            timings={"translate_s": round(translation_s, 3),
+                     "ground_s": round(grounding_s, 3)},
+            original_text=original_text,
+            original_language=current_language,
+        )
+
+    await _ws_send_safe(inference_session.websocket, {
+        "type": "transcript_update",
+        "chunk_id": anchor,
+        "chunk_ids": chunk_ids,
+        "timestamp": timestamp,
+        "transcript": english_text,
+        "annotations": display_annotations(annotations),
+        "original_transcript": original_text,
+        "original_language": current_language,
+    })
+    logger.info(
+        "Sentence %s spanning %d chunks in %.2fs (translate=%.2fs ground=%.2fs "
+        "text_chars=%d annotations=%d)",
+        anchor, len(chunk_ids), translation_s + grounding_s, translation_s,
+        grounding_s, len(english_text), len(annotations)
+    )
+    logger.debug(f"Sentence {anchor}: {english_text}")
+    return anchor, timestamp, english_text, annotations
 
 
 def display_annotations(annotations):
@@ -609,6 +705,7 @@ async def get_settings():
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
         "server_settings_locked": settings.app.get("lock_server_settings", False),
+        "translation_model": current_translation_model,
     }
 
 
@@ -619,6 +716,30 @@ async def set_metadata(payload: dict = Body(...)):
     current_metadata = Metadata.from_dict(payload)
     logger.debug(f"Metadata set: {current_metadata.to_dict()}")
     return current_metadata.to_dict()
+
+
+@app.get("/translator_backends")
+async def get_translator_backends():
+    """List selectable translation backends for the settings UI."""
+    return {"backends": list(TRANSLATOR_BACKENDS)}
+
+
+@app.get("/translator_backends/{backend}")
+async def get_translator_backend_models(backend: str):
+    """Return one backend's selectable models, loaded on demand.
+
+    The backend is imported only here; if its dependencies aren't installed the
+    response reports it as unavailable so the UI can warn instead of failing.
+    """
+    if backend not in TRANSLATOR_BACKENDS:
+        raise HTTPException(status_code=404,
+                            detail=f"Unknown backend {backend!r}")
+    try:
+        info = await asyncio.to_thread(get_translator_models, backend)
+    except Exception as e:
+        logger.warning("Translator backend %r unavailable: %s", backend, e)
+        return {"backend": backend, "available": False, "error": str(e)}
+    return {"backend": backend, "available": True, **info}
 
 
 @app.get("/next-case-id")
@@ -676,14 +797,17 @@ async def update_settings(req: SettingsRequest):
         raise HTTPException(status_code=403, detail="Server settings are locked")
     global current_language, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
-    global translation_mode
+    global translation_mode, current_translation_model
     global current_grounder, current_transcriber_backend
     grounder_changed = False
     transcriber_changed = False
     prev_backend = current_transcriber_backend
     prev_model = current_transcriber_model
-    if req.language is not None:
+    prev_language = current_language
+    prev_grounder = current_grounder
+    if req.language is not None and req.language != current_language:
         current_language = req.language
+        transcriber_changed = transcriber.LANGUAGE_AT_BUILD
         logger.info(f"Language set to: {current_language}")
     if req.grounder is not None:
         grounder_name = req.grounder.strip().lower()
@@ -728,17 +852,26 @@ async def update_settings(req: SettingsRequest):
         logger.info(f"Transcriber model set to: {current_transcriber_model}")
     # Transcriber and grounder are independent; rebuild each only if it changed.
     if grounder_changed:
-        grounder = await asyncio.to_thread(create_grounder, current_grounder)
+        try:
+            grounder = await asyncio.to_thread(create_grounder,
+                                               current_grounder)
+        except Exception as e:
+            current_grounder = prev_grounder
+            logger.error("Failed to load grounder: %s", e)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not load grounder: {e}") from e
         logger.info("Grounder reloaded: %s", current_grounder)
     if transcriber_changed:
         try:
             transcriber = await asyncio.to_thread(
                 create_transcriber, current_transcriber_backend,
-                current_transcriber_model
+                current_transcriber_model, current_language
             )
         except Exception as e:
             current_transcriber_backend = prev_backend
             current_transcriber_model = prev_model
+            current_language = prev_language
             logger.error("Failed to load transcriber: %s", e)
             raise HTTPException(
                 status_code=400,
@@ -754,8 +887,28 @@ async def update_settings(req: SettingsRequest):
         current_llm_model = req.llm_model
         logger.info(f"LLM model set to: {current_llm_model}")
     if req.translation_mode is not None:
-        translation_mode = req.translation_mode
-        logger.info(f"Translation mode set to: {translation_mode}")
+        mode = req.translation_mode.strip()
+        if mode not in TRANSLATOR_BACKENDS:
+            logger.warning("Ignoring unknown translation mode %r", mode)
+            mode = translation_mode
+        if mode != translation_mode:
+            translation_mode = mode
+            # Each backend has its own model list, so start from the new
+            # backend's default, which a valid requested model replaces below
+            current_translation_model = await asyncio.to_thread(
+                _default_translation_model_for, text_translator_backend())
+            logger.info(f"Translation mode set to: {translation_mode}")
+    if (req.translation_model is not None
+            and req.translation_model != current_translation_model):
+        models = (await asyncio.to_thread(
+            get_translator_models, text_translator_backend()))["models"]
+        if req.translation_model in models:
+            current_translation_model = req.translation_model
+            logger.info(
+                f"Translation model set to: {current_translation_model}")
+        else:
+            logger.warning("Ignoring unknown translation model %r",
+                           req.translation_model)
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
@@ -773,6 +926,7 @@ async def update_settings(req: SettingsRequest):
         "llm_model": current_llm_model,
         "translation_mode": translation_mode,
         "server_settings_locked": settings.app.get("lock_server_settings", False),
+        "translation_model": current_translation_model,
     }
 
 
@@ -925,14 +1079,17 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             yield data
 
     # Direct speech-to-English translation is a Whisper capability; for other
-    # backends, non-English transcribes then translates via the LLM. Captured at
+    # backends, non-English transcribes then translates the text. Captured at
     # connection start (settings changes apply on the next connection).
-    direct_translate = (current_language != "en"
-                        and translation_mode == "whisper_translate"
-                        and current_transcriber_backend == "whisper")
+    direct_translate = (current_language != "en" and text_backend(
+        translation_mode, current_transcriber_backend) is None)
     task = "translate" if direct_translate else "transcribe"
 
     last_infer = time.monotonic()
+
+    # Chunk text waiting for its sentence to close before being translated.
+    sentences = SentenceBuffer()
+    last_chunk_at = time.monotonic()
 
     async def flush():
         nonlocal last_infer
@@ -943,12 +1100,43 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
         last_infer = time.monotonic()
         await _start_inference(inference_session, chunk_id, timestamp, text, anns)
 
+    # Translation is slow enough that doing it inline would stall consumption of
+    # the transcript stream and the displayed text would fall behind the audio.
+    # Sentences are queued and translated by a worker, which keeps them ordered.
+    translations = asyncio.Queue()
+
+    def queue_pending():
+        batch = sentences.take()
+        if batch is not None:
+            translations.put_nowait(batch)
+
+    async def translation_worker():
+        while True:
+            batch = await translations.get()
+            try:
+                done = await _flush_sentence(inference_session, batch)
+                if done is not None:
+                    chunk_id, timestamp, text, anns = done
+                    inference_session.committed.append((chunk_id, text, anns))
+                    inference_session.buffer.add(text, anns, chunk_id,
+                                                 timestamp)
+                    if inference_session.buffer.ready and \
+                            not inference_session.paused:
+                        await flush()
+            except Exception as e:
+                logger.error(f"Translation failed: {e}", exc_info=True)
+            finally:
+                translations.task_done()
+
     async def idle_flush():
-        # Flush text held over a pause once recording resumes, and pending text
-        # that never reached the word threshold once it has waited long enough,
-        # so a short trailing utterance still gets inferred.
+        # Flush text held over a pause once recording resumes, and pending
+        # text that never reached the word threshold once it has waited long
+        # enough, so a short trailing utterance still gets inferred.
         while True:
             await asyncio.sleep(1.0)
+            if sentences.has_pending and \
+                    time.monotonic() - last_chunk_at >= TRANSLATION_MAX_WAIT_S:
+                queue_pending()
             if inference_session.paused:
                 continue
             buf = inference_session.buffer
@@ -957,6 +1145,7 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 await flush()
 
     timer = asyncio.create_task(idle_flush())
+    worker = asyncio.create_task(translation_worker())
     try:
         async for event in transcriber.stream(
                 audio_iter(), language=current_language, task=task):
@@ -967,7 +1156,11 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             # One bad event shouldn't kill the session.
             try:
                 committed = await _handle_committed(
-                    inference_session, event, direct_translate)
+                    inference_session, event, direct_translate, sentences)
+                if event.text.strip():
+                    last_chunk_at = time.monotonic()
+                if sentences.ready:
+                    queue_pending()
             except Exception as e:
                 logger.error(f"Error on event {event.id}: {e}", exc_info=True)
                 continue
@@ -979,38 +1172,52 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             if inference_session.buffer.ready and \
                     not inference_session.paused:
                 await flush()
+        # Translate and infer on whatever is left when the stream ends
+        queue_pending()
+        await translations.join()
         await flush()
         await inference_session.wait_for_idle()
         await _ws_send_safe(websocket, {"type": "stopped"})
     finally:
         timer.cancel()
+        worker.cancel()
 
 
 async def _handle_committed(inference_session: InferenceSessionCoordinator,
-                            event, direct_translate: bool):
-    """Translate, ground, save, and display one committed transcript event.
+                            event, direct_translate: bool, sentences=None):
+    """Ground, save, and display one committed transcript event.
 
-    Returns (chunk_id, timestamp, english_text, annotations) for the caller to
-    accumulate toward inference, or None if there was no usable text.
+    Text that still needs translating is shown immediately and buffered into
+    `sentences`; its English arrives later via _flush_sentence. Returns
+    (chunk_id, timestamp, english_text, annotations) for the caller to
+    accumulate toward inference, or None if nothing is ready yet.
     """
     chunk_id = event.id
     timestamp = event.timestamp
     original_transcript = None
     english_text = event.text
     total_start = time.perf_counter()
-    translation_s = 0.0
     grounding_s = 0.0
     save_s = 0.0
     emit_s = 0.0
 
-    # If non-English and not already translated to English, translate via LLM
-    # (skip if transcript is too short to be real speech).
-    if (not direct_translate and current_language != "en"
-            and len(event.text.split()) > 1):
-        original_transcript = event.text
-        translation_start = time.perf_counter()
-        english_text = await translate_text(event.text, current_language)
-        translation_s = time.perf_counter() - translation_start
+    # Translation needs whole sentences, but the spoken text can be shown as
+    # soon as it is transcribed, so the two are decoupled.
+    needs_translation = (not direct_translate and current_language != "en"
+                         and event.text.strip())
+    if needs_translation:
+        await _ws_send_safe(inference_session.websocket, {
+            "type": "transcript",
+            "chunk_id": chunk_id,
+            "timestamp": timestamp,
+            "transcript": "",
+            "annotations": [],
+            "original_transcript": event.text,
+            "original_language": current_language,
+            "pending_translation": True,
+        })
+        sentences.add(event.text, chunk_id, timestamp)
+        return None
 
     # Ground the (final, English) text without blocking the loop
     annotations = []
@@ -1027,8 +1234,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         save_start = time.perf_counter()
         recorder.write_chunk(
             chunk_id, timestamp, english_text, annotations,
-            timings={"translate_s": round(translation_s, 3),
-                     "ground_s": round(grounding_s, 3)},
+            timings={"ground_s": round(grounding_s, 3)},
             original_text=original_transcript,
             original_language=(current_language
                                if original_transcript else None),
@@ -1051,8 +1257,9 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     emit_s = time.perf_counter() - emit_start
     total_s = time.perf_counter() - total_start
     logger.info(
-        "Chunk %s processed in %.2fs (translate=%.2fs ground=%.2fs save=%.2fs emit=%.2fs text_chars=%d annotations=%d)",
-        chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
+        "Chunk %s processed in %.2fs (ground=%.2fs save=%.2fs emit=%.2fs "
+        "text_chars=%d annotations=%d)",
+        chunk_id, total_s, grounding_s, save_s, emit_s,
         len(english_text), len(annotations)
     )
     logger.debug(f"Chunk {chunk_id}: {english_text}")

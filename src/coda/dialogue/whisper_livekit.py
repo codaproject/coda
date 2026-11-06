@@ -87,24 +87,29 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
               *FINETUNED_MODELS)
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
     LANGUAGES = {**get_whisper_languages(), **FINETUNED_LANGUAGES}
+    LANGUAGE_AT_BUILD = True
 
     @classmethod
-    def create(cls, model=None):
-        return cls(model_size=model or cls.DEFAULT_MODEL)
+    def create(cls, model=None, language=None):
+        return cls(model_size=model or cls.DEFAULT_MODEL, language=language)
 
-    def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
+    def __init__(self, model_size: str = DEFAULT_MODEL_SIZE, language=None):
         from whisperlivekit import TranscriptionEngine
         from coda.config import settings
         wlk = settings.dialogue.whisper_livekit
         # The language is fixed when the engine is built, so this backend
-        # transcribes whatever dialogue.language was set to at startup and
-        # ignores the per-stream language argument.
-        lan, condition = decode_options(model_size, settings.dialogue.language)
+        # ignores the per-stream language argument
+        lan, condition = decode_options(
+            model_size, language or settings.dialogue.language)
         if model_size in FINETUNED_MODELS:
             mlx = wlk.backend == "mlx-whisper"
             model = {"model_dir": get_model_path(model_size, mlx=mlx)}
         else:
             model = {"model_size": model_size}
+        # The engine is a singleton that ignores the arguments of later
+        # constructions, so building for another model or language needs a
+        # reset. Streams already running keep the engine they were given.
+        TranscriptionEngine.reset()
         self._engine = TranscriptionEngine(
             **model,
             lan=lan,

@@ -13,16 +13,6 @@ cd "$SCRIPT_DIR"
 export CODA_INFERENCE__LLM__PROVIDER="${CODA_INFERENCE__LLM__PROVIDER:-ollama}"
 export CODA_INFERENCE__LLM__MODEL="${CODA_INFERENCE__LLM__MODEL:-qwen3:30b-a3b-instruct-2507-q4_K_M}"
 
-# Translate transcripts locally instead of calling out to an LLM API. The
-# local backend is not present in every build, and setting the variable for a
-# build without it would leave translation quietly reaching for the network.
-if grep -q "^translate:" config/settings.yaml 2>/dev/null; then
-    export CODA_TRANSLATE__BACKEND="${CODA_TRANSLATE__BACKEND:-ctranslate2}"
-    TRANSLATION_MODE="$CODA_TRANSLATE__BACKEND"
-else
-    TRANSLATION_MODE="unavailable in this build, translation may use the network"
-fi
-
 # Gilda grounds against a local database; the RAG grounder needs API embeddings.
 export CODA_GROUNDER__TYPE="${CODA_GROUNDER__TYPE:-gilda}"
 
@@ -40,7 +30,6 @@ fi
 
 echo "Offline mode"
 echo "  inference:   ${CODA_INFERENCE__LLM__PROVIDER} / ${CODA_INFERENCE__LLM__MODEL}"
-echo "  translation: ${TRANSLATION_MODE}"
 echo "  grounder:    ${CODA_GROUNDER__TYPE}"
 
 exec ./startup.sh

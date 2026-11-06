@@ -183,10 +183,11 @@ The Compose path is env-driven. The main runtime variables are:
 - `CODA_DIALOGUE__LANGUAGE` is the spoken language of the interview and
   `CODA_APP__UI_LANGUAGE` is the language the interface starts in (a browser
   that has already chosen one in Settings keeps its own choice)
-- `CODA_DIALOGUE__TRANSLATION_MODE` is how non-English speech reaches the
-  inference agent in English: `llm` transcribes and then translates, while
-  `whisper_translate` uses Whisper's direct speech-to-English task and is
-  available on the `whisper` backend only
+- `CODA_TRANSLATE__BACKEND` is how non-English speech reaches the inference
+  agent in English: `madlad` (the default) translates the transcript locally
+  with MADLAD-400, and `whisper_translate` uses Whisper's direct
+  speech-to-English task on the `whisper` backend. `CODA_TRANSLATE__MODEL`
+  picks the backend's model
 - `CODA_KG__URL` when Neo4j is outside the standard deployment topology
 - `CODA_APP__ONBOARDING_NOTICE__FILE` points at a deployment-specific HTML
   fragment shown on the onboarding page before the consent checkbox (unset

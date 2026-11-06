@@ -1,8 +1,9 @@
 """Download the models one site profile needs, so CODA can then run offline.
 
 Pulls the profile's Ollama models that are missing and loads its speech model
-once, which caches it. With the argument ``ollama``, only pulls the Ollama
-models. A ``HF_TOKEN`` in the environment is saved for later starts.
+once, which caches it, along with its translation model for a non-English
+profile. With the argument ``ollama``, only pulls the Ollama models. A
+``HF_TOKEN`` in the environment is saved for later starts.
 """
 import os
 import subprocess
@@ -37,6 +38,14 @@ def main():
     from coda.dialogue import create_transcriber
     create_transcriber(settings.dialogue.transcriber_backend,
                        model=settings.dialogue.transcriber_model or None)
+    from coda.translate import create_translator, text_backend
+    backend = text_backend(settings.translate.backend,
+                           settings.dialogue.transcriber_backend)
+    if settings.dialogue.language != "en" and backend:
+        print(f"Preparing the {profile} translation model...", flush=True)
+        same = backend == settings.translate.backend
+        create_translator(
+            backend, model=same and settings.translate.model or None).load()
 
 
 if __name__ == "__main__":

@@ -67,7 +67,8 @@ async def test_capture_applies_control_messages_on_arrival():
 async def test_no_inference_while_paused(monkeypatch):
     log = []
 
-    async def fake_handle_committed(session, event, direct_translate):
+    async def fake_handle_committed(session, event, direct_translate,
+                                    sentences):
         log.append(f"commit {event.text}")
         return event.id, event.timestamp, event.text, []
 
@@ -109,7 +110,8 @@ async def test_no_inference_while_paused(monkeypatch):
 async def test_stopped_is_sent_after_the_last_inference(monkeypatch):
     log = []
 
-    async def fake_handle_committed(session, event, direct_translate):
+    async def fake_handle_committed(session, event, direct_translate,
+                                    sentences):
         return event.id, event.timestamp, event.text, []
 
     async def slow_process_inference(session, request_generation, batch,

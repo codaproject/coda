@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CODA — Cause of Death Determination Assistant</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2322223b'/%3E%3Cpath transform='translate(6 20.5) scale(0.354)' fill='%23fff' fill-rule='evenodd' d='M27 0C30.3137 0 33 2.68629 33 6V29H26C24.3431 29 23 30.3431 23 32C23 33.6569 24.3431 35 26 35H33V59C33 62.3137 30.3137 65 27 65H6C2.68629 65 0 62.3137 0 59V6C0 2.68629 2.68629 0 6 0H27ZM103 0C106.314 0 109 2.68629 109 6V59C109 62.3137 106.314 65 103 65H82C78.6863 65 76 62.3137 76 59V35.9639C76.1633 35.9872 76.3302 36 76.5 36H82.5C84.433 36 86 34.433 86 32.5C86 30.567 84.433 29 82.5 29H76.5C76.3303 29 76.1633 29.0118 76 29.0352V6C76 2.68629 78.6863 0 82 0H103ZM141 0C144.314 0 147 2.68629 147 6V59C147 62.3137 144.314 65 141 65H133.964C133.987 64.8367 134 64.6698 134 64.5V58.5C134 56.567 132.433 55 130.5 55C128.567 55 127 56.567 127 58.5V64.5C127 64.6698 127.013 64.8367 127.036 65H120C116.686 65 114 62.3137 114 59V6C114 2.68629 116.686 0 120 0H141ZM65 0C68.3137 0 71 2.68629 71 6V59C71 62.3137 68.3137 65 65 65H44C40.6863 65 38 62.3137 38 59V6C38 2.68629 40.6863 0 44 0H65ZM51 29C49.3431 29 48 30.3431 48 32C48 33.6569 49.3431 35 51 35H59C60.6569 35 62 33.6569 62 32C62 30.3431 60.6569 29 59 29H51Z'/%3E%3C/svg%3E"
+    />
 
     <script>
       const CODA_ONBOARDING_NOTICE_VERSION = __CODA_ONBOARDING_NOTICE_VERSION__;
@@ -941,13 +945,36 @@
       .annotation:hover {
         background: var(--border-warm);
       }
+      /* Spoken words flow as continuous text, the way they were said */
       .original-text {
-        display: block;
-        font-size: 14px;
-        font-style: italic;
+        font-size: 15px;
+        color: var(--ink);
+      }
+      /* Translations accumulate as their own stream, one line per sentence */
+      #transcriptDensity {
+        margin-right: 10px;
+        font-size: 11px;
         color: var(--ink-muted);
-        margin-top: 8px;
-        margin-bottom: 2px;
+        background: transparent;
+        border: 1px solid var(--border-warm);
+        border-radius: 6px;
+        padding: 1px 4px;
+      }
+      .translation-stream {
+        border-top: 1px solid var(--border-warm);
+        padding-top: 10px;
+        max-height: 34vh;
+      }
+      /* Translations flow as continuous prose, like the spoken text above */
+      .translation-line {
+        font-size: 13px;
+        color: var(--ink-muted);
+      }
+      /* Chunk whose translation is still in flight */
+      .chunk.pending-translation::after {
+        content: "\2026";
+        color: var(--ink-muted);
+        opacity: 0.6;
       }
       /* Where a continued session picked up again */
       .segment-divider {
@@ -4000,6 +4027,10 @@
           <div class="section-head">
             <span class="kicker" data-i18n="record.transcript">Transcript</span>
             <span class="section-meta"
+              ><select id="transcriptDensity" title="Transcript languages">
+                <option value="both" data-i18n="transcript.both">Both</option>
+                <option value="original" data-i18n="transcript.original">Original</option>
+                <option value="english" data-i18n="transcript.english">English</option></select
               ><span id="wordCount" data-i18n-dynamic="wordCount"
                 >0 words</span
               ><button
@@ -4019,6 +4050,16 @@
               device.</span
             >
           </div>
+
+          <div class="section-head" id="translationHead" style="display: none">
+            <span class="kicker" data-i18n="transcript.english">English</span>
+          </div>
+          <div
+            id="translationStream"
+            class="transcript-body translation-stream"
+            style="display: none"
+            aria-live="polite"
+          ></div>
         </section>
 
         <aside class="inference-col">
@@ -4243,8 +4284,18 @@
           <option value="whisper_translate" id="whisperTranslateOption">
             Whisper (direct speech-to-English)
           </option>
+          <option value="madlad">MADLAD-400 (local)</option>
+          <option value="ctranslate2">NLLB-200 (local, non-commercial)</option>
+          <option value="helsinki_inc">OPUS-MT Indic (local)</option>
+          <option value="hy_mt2">Hy-MT2 (local)</option>
+          <option value="indic_translate">indic-translate (local)</option>
           <option value="llm">LLM (transcribe then translate)</option>
         </select>
+      </div>
+
+      <div class="settings-row" id="translationModelRow" style="display: none">
+        <label for="translationModelSelect">Translation model</label>
+        <select id="translationModelSelect"></select>
       </div>
 
       <div class="settings-row" id="llmSettingsRow" style="display: none">
@@ -4550,6 +4601,9 @@
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
           "transcript.edit": "Edit",
+          "transcript.both": "Both",
+          "transcript.original": "Original",
+          "transcript.english": "English",
           "transcript.save": "Save changes",
           "transcript.cancel": "Cancel",
           "transcript.reinferring": "Updating the inference with the correction…",
@@ -4741,6 +4795,9 @@
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
           "transcript.edit": "Hariri",
+          "transcript.both": "Zote mbili",
+          "transcript.original": "Asili",
+          "transcript.english": "Kiingereza",
           "transcript.save": "Hifadhi mabadiliko",
           "transcript.cancel": "Ghairi",
           "transcript.reinferring": "Inasasisha makisio kwa marekebisho…",
@@ -4936,6 +4993,9 @@
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
           "transcript.edit": "Modifier",
+          "transcript.both": "Les deux",
+          "transcript.original": "Original",
+          "transcript.english": "Anglais",
           "transcript.save": "Enregistrer",
           "transcript.cancel": "Annuler",
           "transcript.reinferring": "Mise à jour de l'inférence avec la correction…",
@@ -5126,6 +5186,9 @@
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
           "transcript.edit": "تعديل",
+          "transcript.both": "كلاهما",
+          "transcript.original": "الأصل",
+          "transcript.english": "الإنجليزية",
           "transcript.save": "حفظ التغييرات",
           "transcript.cancel": "إلغاء",
           "transcript.reinferring": "جارٍ تحديث الاستدلال بالتصحيح…",
@@ -5318,6 +5381,9 @@
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
           "transcript.edit": "সম্পাদনা",
+          "transcript.both": "উভয়",
+          "transcript.original": "মূল",
+          "transcript.english": "ইংরেজি",
           "transcript.save": "পরিবর্তন সংরক্ষণ করুন",
           "transcript.cancel": "বাতিল",
           "transcript.reinferring": "সংশোধন দিয়ে অনুমান হালনাগাদ হচ্ছে…",
@@ -5512,6 +5578,9 @@
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
           "transcript.edit": "Editar",
+          "transcript.both": "Ambos",
+          "transcript.original": "Original",
+          "transcript.english": "Inglés",
           "transcript.save": "Guardar cambios",
           "transcript.cancel": "Cancelar",
           "transcript.reinferring": "Actualizando la inferencia con la corrección…",
@@ -5709,6 +5778,9 @@
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
           "transcript.edit": "Lulamisa",
+          "transcript.both": "Swimbirhi",
+          "transcript.original": "Ririmi ra masungulo",
+          "transcript.english": "Xinghezi",
           "transcript.save": "Hlayisa ku cinca",
           "transcript.cancel": "Khansela",
           "transcript.reinferring": "Ku pfuxeta nkumbetelo hi ku lulamisa…",
@@ -5905,6 +5977,9 @@
           "continue.inference": "Inferência",
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
           "transcript.edit": "Editar",
+          "transcript.both": "Ambos",
+          "transcript.original": "Original",
+          "transcript.english": "Inglês",
           "transcript.save": "Salvar alterações",
           "transcript.cancel": "Cancelar",
           "transcript.reinferring": "Atualizando a inferência com a correção…",
@@ -6020,6 +6095,45 @@
       const inference = document.getElementById("inference");
       const timerEl = document.getElementById("timer");
       const wordCountEl = document.getElementById("wordCount");
+      const transcriptDensity = document.getElementById("transcriptDensity");
+      const translationStream = document.getElementById("translationStream");
+      const translationHead = document.getElementById("translationHead");
+      // Both hidden until a non-English interview actually produces text
+      transcriptDensity.style.display = "none";
+
+      function showTranslationStream() {
+        transcriptDensity.style.display = "";
+        applyTranscriptDensity();
+      }
+
+      // Add a translated sentence to the English stream
+      function appendTranslationLine(data) {
+        const text = data.transcript || "";
+        transcriptText += text + " ";
+        translationStream.insertAdjacentHTML(
+          "beforeend",
+          `<span class="translation-line" data-chunk-id="${data.chunk_id}">${chunkInnerHtml(text, data.annotations)}</span>`,
+        );
+        translationStream.scrollTop = translationStream.scrollHeight;
+        showTranslationStream();
+      }
+
+      function clearTranslationStream() {
+        translationStream.innerHTML = "";
+        translationHead.style.display = "none";
+        translationStream.style.display = "none";
+        transcriptDensity.style.display = "none";
+        transcript.style.display = "";
+      }
+
+      function applyTranscriptDensity() {
+        const mode = transcriptDensity.value;
+        const showEnglish = mode !== "original";
+        translationHead.style.display = showEnglish ? "flex" : "none";
+        translationStream.style.display = showEnglish ? "" : "none";
+        transcript.style.display = mode === "english" ? "none" : "";
+      }
+      transcriptDensity.addEventListener("change", applyTranscriptDensity);
       const updatingPill = document.getElementById("updatingPill");
       const langChipText = document.getElementById("langChipText");
       const resultTitle = document.getElementById("resultTitle");
@@ -6743,6 +6857,7 @@
         sessionPartCount = parts.length;
 
         // Transcript as shown live, else the plain stored text
+        clearTranslationStream();
         if (c.chunks && c.chunks.length) {
           transcript.innerHTML = "";
           c.chunks.forEach((chunk, i) => {
@@ -6750,7 +6865,12 @@
             if (i > 0 && chunk.segment !== c.chunks[i - 1].segment) {
               appendSegmentDivider(part ? Date.parse(part.started_at) : null);
             }
-            appendTranscriptChunk(chunk);
+            if (chunk.original_transcript) {
+              appendTranscriptChunk({ ...chunk, transcript: "" });
+              appendTranslationLine(chunk);
+            } else {
+              appendTranscriptChunk(chunk);
+            }
           });
         } else if (c.transcripts.en) {
           transcriptText = c.transcripts.en;
@@ -7278,6 +7398,10 @@
         "translationModeSelect",
       );
       const llmSettingsRow = document.getElementById("llmSettingsRow");
+      const translationModelRow =
+        document.getElementById("translationModelRow");
+      const translationModelSelect =
+        document.getElementById("translationModelSelect");
       const llmProviderSelect = document.getElementById("llmProviderSelect");
       const llmModelInput = document.getElementById("llmModelInput");
       const grounderSelect = document.getElementById("grounderSelect");
@@ -7322,6 +7446,42 @@
           isNonEnglish && translationModeSelect.value === "llm"
             ? "flex"
             : "none";
+        translationModelRow.style.display =
+          isNonEnglish && translationModelSelect.options.length
+            ? "flex"
+            : "none";
+      }
+
+      // Labels for known translation models; unknown ids show their raw value.
+      const translationModelLabels = {
+        "nllb-600m": "NLLB-200 distilled (600M)",
+        "nllb-1.3b": "NLLB-200 distilled (1.3B)",
+        "madlad400-3b-mt": "MADLAD-400 (3B)",
+        "madlad400-7b-mt": "MADLAD-400 (7B)",
+      };
+
+      // Load the selected translation backend's model list. Backends without
+      // selectable models leave the row empty and hidden.
+      async function loadTranslationModels(backend, selected) {
+        translationModelSelect.innerHTML = "";
+        try {
+          const resp = await fetch(
+            `/translator_backends/${encodeURIComponent(backend)}`,
+          );
+          const info = await resp.json();
+          const models = info.available ? info.models || [] : [];
+          models.forEach((m) => {
+            const opt = document.createElement("option");
+            opt.value = m;
+            opt.textContent = translationModelLabels[m] || m;
+            translationModelSelect.appendChild(opt);
+          });
+          const want = selected != null ? selected : info.default_model;
+          if (want && models.includes(want)) translationModelSelect.value = want;
+        } catch (e) {
+          console.error("Failed to load translation models:", e);
+        }
+        updateTranslationVisibility();
       }
 
       function updateModelWarning() {
@@ -7511,6 +7671,10 @@
           llmProviderSelect.value = data.llm_provider;
           llmModelInput.value = data.llm_model;
           translationModeSelect.value = data.translation_mode;
+          await loadTranslationModels(
+            data.translation_mode,
+            data.translation_model,
+          );
           grounderSelect.value = data.grounder || "gilda";
           ragProviderSelect.value = data.rag_provider || "openai";
           populateRagModels(ragProviderSelect.value, data.rag_model);
@@ -7573,17 +7737,33 @@
         updateTranslationVisibility();
       });
 
-      translationModeSelect.addEventListener("change", () => {
-        updateSettings({ translation_mode: translationModeSelect.value });
+      translationModeSelect.addEventListener("change", async () => {
+        const mode = translationModeSelect.value;
+        await loadTranslationModels(mode);
+        updateSettings({
+          translation_mode: mode,
+          translation_model: translationModelSelect.value || null,
+        });
         updateTranslationVisibility();
+      });
+
+      translationModelSelect.addEventListener("change", () => {
+        updateSettings({ translation_model: translationModelSelect.value });
       });
 
       let loadedModel = null;
 
       transcriberBackendSelect.addEventListener("change", async () => {
         const backend = transcriberBackendSelect.value;
-        // Warns and leaves the selection if the backend can't be loaded.
-        if (!(await loadBackendModels(backend))) return;
+        // A backend that can't be loaded keeps its warning, and the
+        // selection returns to the backend in use
+        if (!(await loadBackendModels(backend))) {
+          const warning = backendWarningText.textContent;
+          await loadSettings();
+          backendWarningText.textContent = warning;
+          backendWarning.style.display = "flex";
+          return;
+        }
         const applied = await updateSettings({
           transcriber_backend: backend,
           transcriber_model: transcriberModelSelect.value || null,
@@ -7596,8 +7776,8 @@
           backend !== "whisper" &&
           translationModeSelect.value === "whisper_translate"
         ) {
-          translationModeSelect.value = "llm";
-          await updateSettings({ translation_mode: "llm" });
+          translationModeSelect.value = "madlad";
+          await updateSettings({ translation_mode: "madlad" });
         }
         // Available languages depend on the backend; keep the current one if
         // still supported, otherwise select the first supported language.
@@ -7638,9 +7818,12 @@
         });
       });
 
-      grounderSelect.addEventListener("change", () => {
+      grounderSelect.addEventListener("change", async () => {
         updateRagVisibility();
-        updateSettings({ grounder: grounderSelect.value });
+        if (!(await updateSettings({ grounder: grounderSelect.value }))) {
+          await loadSettings();
+          updateRagVisibility();
+        }
       });
 
       ragProviderSelect.addEventListener("change", () => {
@@ -7806,7 +7989,7 @@
         transcriptText += text + " ";
 
         chunkCount++;
-        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkInnerHtml(text, data.annotations)}</span>`;
+        const chunkSpan = `<span class="chunk${fresh ? " fresh" : ""}${data.pending_translation ? " pending-translation" : ""}" data-chunk-id="${data.chunk_id}" title="Chunk: ${data.chunk_id.slice(0, 8)}">${chunkInnerHtml(text, data.annotations)}</span>`;
 
         if (data.original_transcript) {
           const origSpan = `<span class="original-text" title="${data.original_language}">${escapeHtml(data.original_transcript)}</span> `;
@@ -7816,14 +7999,25 @@
         transcript.insertAdjacentHTML("beforeend", chunkSpan);
       }
 
+      // The English text inference reads: the translation when there is one,
+      // else the transcript
+      function editableBody() {
+        return translationStream.querySelector(".translation-line")
+          ? translationStream
+          : transcript;
+      }
+
       // The transcript as shown, with any edit
       function shownTranscript() {
-        return Array.from(transcript.querySelectorAll(".chunk"))
+        return Array.from(
+          editableBody().querySelectorAll(".chunk, .translation-line"),
+        )
           .map((el) => el.textContent)
           .join("");
       }
 
-      // The open transcript editor, as {editor, textarea, before, through},
+      // The open transcript editor, as {editor, textarea, before, body,
+      // through},
       // and the elements it covers
       let transcriptEditor = null;
       let editCovered = [];
@@ -7841,8 +8035,13 @@
         }
         const before = shownTranscript().trim();
         if (!before) return;
-        const chunks = transcript.querySelectorAll(".chunk[data-chunk-id]");
-        editCovered = Array.from(transcript.children).filter(
+        const body = editableBody();
+        if (body === translationStream && transcriptDensity.value === "original") {
+          transcriptDensity.value = "both";
+          applyTranscriptDensity();
+        }
+        const chunks = body.querySelectorAll("[data-chunk-id]");
+        editCovered = Array.from(body.children).filter(
           (el) => el.id !== "preview-line",
         );
         editCovered.forEach((el) => el.classList.add("edit-covered"));
@@ -7856,14 +8055,15 @@
           </div>`;
         const textarea = editor.querySelector("textarea");
         textarea.value = before;
-        transcript.prepend(editor);
+        body.prepend(editor);
         textarea.style.height = `${textarea.scrollHeight + 4}px`;
-        transcript.scrollTop = 0;
+        body.scrollTop = 0;
         textarea.focus();
         transcriptEditor = {
           editor,
           textarea,
           before,
+          body,
           through: chunks.length
             ? chunks[chunks.length - 1].dataset.chunkId
             : null,
@@ -7880,7 +8080,7 @@
       // Show the edit at once in place of what it covers, then infer again
       // from it. A recording session's inference arrives over its socket.
       async function saveTranscriptEdit() {
-        const { editor, textarea, before, through } = transcriptEditor;
+        const { editor, textarea, before, body, through } = transcriptEditor;
         const after = textarea.value.replace(/\s+/g, " ").trim();
         if (after === before) {
           cancelTranscriptEdit();
@@ -7894,7 +8094,8 @@
         editCovered = [];
         transcriptEditor = null;
         const edited = document.createElement("span");
-        edited.className = "chunk";
+        edited.className =
+          body === translationStream ? "translation-line" : "chunk";
         if (through) edited.dataset.chunkId = through;
         edited.textContent = after + " ";
         editor.replaceWith(edited);
@@ -7943,23 +8144,25 @@
       document
         .getElementById("editTranscriptBtn")
         .addEventListener("click", openTranscriptEditor);
-      transcript.addEventListener("click", (e) => {
-        const action = e.target.closest("[data-action]");
-        if (!transcriptEditor || !action) return;
-        if (action.dataset.action === "save") {
-          editRequest = saveTranscriptEdit();
-        } else {
-          cancelTranscriptEdit();
-        }
-      });
-      transcript.addEventListener("keydown", (e) => {
-        if (!transcriptEditor) return;
-        if (e.key === "Escape") cancelTranscriptEdit();
-        else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault();
-          editRequest = saveTranscriptEdit();
-        }
-      });
+      for (const body of [transcript, translationStream]) {
+        body.addEventListener("click", (e) => {
+          const action = e.target.closest("[data-action]");
+          if (!transcriptEditor || !action) return;
+          if (action.dataset.action === "save") {
+            editRequest = saveTranscriptEdit();
+          } else {
+            cancelTranscriptEdit();
+          }
+        });
+        body.addEventListener("keydown", (e) => {
+          if (!transcriptEditor) return;
+          if (e.key === "Escape") cancelTranscriptEdit();
+          else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            editRequest = saveTranscriptEdit();
+          }
+        });
+      }
 
       function appendSegmentDivider(ms) {
         const when = ms ? ` · ${clockTime(ms)}` : "";
@@ -8054,6 +8257,17 @@
               if (!transcriptEditor) {
                 transcript.scrollTop = transcript.scrollHeight;
               }
+              updateWordCount();
+            } else if (data.type === "transcript_update") {
+              // A finished sentence joins the English stream. The spoken text
+              // it came from stays where it is, untouched.
+              for (const id of data.chunk_ids || [data.chunk_id]) {
+                const c = transcript.querySelector(
+                  `.chunk[data-chunk-id="${id}"]`,
+                );
+                if (c) c.classList.remove("pending-translation");
+              }
+              appendTranslationLine(data);
               updateWordCount();
             } else if (data.type === "preview") {
               // Interim, not-yet-committed text (streaming backends).
@@ -8791,6 +9005,7 @@
         closeNoteEditor();
         caseNotes.innerHTML = "";
         transcriptText = "";
+        clearTranslationStream();
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];

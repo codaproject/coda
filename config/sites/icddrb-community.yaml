@@ -18,6 +18,10 @@ inference:
     population: child
     coding: icd11
 
+translate:
+  backend: madlad
+  model: madlad400-3b-mt
+
 dialogue:
   language: bn
   transcriber_backend: indic-conformer

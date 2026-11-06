@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHUNK_DURATION = 3
 
 # Selectable transcription backends, chosen via dialogue.transcriber_backend
-# (see coda.config). whisper/faster-whisper/speechmatics are chunked;
-# whisper-livekit is in-process streaming.
+# (see coda.config). whisper/faster-whisper are chunked;
+# whisper-livekit and speechmatics stream.
 TRANSCRIBER_BACKENDS = ("whisper", "faster-whisper", "speechmatics",
                         "whisper-livekit", "indic-conformer")
 
@@ -55,13 +55,18 @@ def _load_backend_class(backend: str):
     )
 
 
-def create_transcriber(backend: str = None, model: str = None, **kwargs):
+def create_transcriber(backend: str = None, model: str = None,
+                       language: str = None, **kwargs):
     """Build a Transcriber for the named backend, optionally with a model.
 
-    Defaults to the dialogue.transcriber_backend config value.
+    Defaults to the dialogue.transcriber_backend config value. A backend that
+    fixes its language when built is built for `language`, if given.
     """
     backend = (backend or settings.dialogue.transcriber_backend).lower()
-    return _load_backend_class(backend).create(model=model)
+    cls = _load_backend_class(backend)
+    if language and cls.LANGUAGE_AT_BUILD:
+        return cls.create(model=model, language=language)
+    return cls.create(model=model)
 
 
 def get_transcriber_models(backend: str) -> dict:
@@ -72,6 +77,7 @@ def get_transcriber_models(backend: str) -> dict:
     should surface that to the user (e.g. as a UI warning).
     """
     cls = _load_backend_class(backend.lower())
+    cls.check_available()
     return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
 
 
@@ -165,6 +171,9 @@ class Transcriber:
     DEFAULT_MODEL = None
     LANGUAGES = {}
     LANGUAGE_ALIASES = {}
+    # Whether the language is fixed when the backend is built, so changing it
+    # means building the backend again
+    LANGUAGE_AT_BUILD = False
 
     @classmethod
     def normalize_language(cls, code):
@@ -174,6 +183,10 @@ class Transcriber:
         code = code.strip()
         code = cls.LANGUAGE_ALIASES.get(code, code)
         return code if code in cls.LANGUAGES else None
+
+    @classmethod
+    def check_available(cls):
+        """Raise if this backend cannot run here, explaining why."""
 
     @classmethod
     def create(cls, model=None):
