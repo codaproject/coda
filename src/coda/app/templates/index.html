@@ -7929,14 +7929,25 @@
         transcript.insertAdjacentHTML("beforeend", chunkSpan);
       }
 
+      // The English text inference reads: the translation when there is one,
+      // else the transcript
+      function editableBody() {
+        return translationStream.querySelector(".translation-line")
+          ? translationStream
+          : transcript;
+      }
+
       // The transcript as shown, with any edit
       function shownTranscript() {
-        return Array.from(transcript.querySelectorAll(".chunk"))
+        return Array.from(
+          editableBody().querySelectorAll(".chunk, .translation-line"),
+        )
           .map((el) => el.textContent)
           .join("");
       }
 
-      // The open transcript editor, as {editor, textarea, before, through},
+      // The open transcript editor, as {editor, textarea, before, body,
+      // through},
       // and the elements it covers
       let transcriptEditor = null;
       let editCovered = [];
@@ -7954,8 +7965,13 @@
         }
         const before = shownTranscript().trim();
         if (!before) return;
-        const chunks = transcript.querySelectorAll(".chunk[data-chunk-id]");
-        editCovered = Array.from(transcript.children).filter(
+        const body = editableBody();
+        if (body === translationStream && transcriptDensity.value === "original") {
+          transcriptDensity.value = "both";
+          applyTranscriptDensity();
+        }
+        const chunks = body.querySelectorAll("[data-chunk-id]");
+        editCovered = Array.from(body.children).filter(
           (el) => el.id !== "preview-line",
         );
         editCovered.forEach((el) => el.classList.add("edit-covered"));
@@ -7969,14 +7985,15 @@
           </div>`;
         const textarea = editor.querySelector("textarea");
         textarea.value = before;
-        transcript.prepend(editor);
+        body.prepend(editor);
         textarea.style.height = `${textarea.scrollHeight + 4}px`;
-        transcript.scrollTop = 0;
+        body.scrollTop = 0;
         textarea.focus();
         transcriptEditor = {
           editor,
           textarea,
           before,
+          body,
           through: chunks.length
             ? chunks[chunks.length - 1].dataset.chunkId
             : null,
@@ -7993,7 +8010,7 @@
       // Show the edit at once in place of what it covers, then infer again
       // from it. A recording session's inference arrives over its socket.
       async function saveTranscriptEdit() {
-        const { editor, textarea, before, through } = transcriptEditor;
+        const { editor, textarea, before, body, through } = transcriptEditor;
         const after = textarea.value.replace(/\s+/g, " ").trim();
         if (after === before) {
           cancelTranscriptEdit();
@@ -8007,7 +8024,8 @@
         editCovered = [];
         transcriptEditor = null;
         const edited = document.createElement("span");
-        edited.className = "chunk";
+        edited.className =
+          body === translationStream ? "translation-line" : "chunk";
         if (through) edited.dataset.chunkId = through;
         edited.textContent = after + " ";
         editor.replaceWith(edited);
@@ -8056,23 +8074,25 @@
       document
         .getElementById("editTranscriptBtn")
         .addEventListener("click", openTranscriptEditor);
-      transcript.addEventListener("click", (e) => {
-        const action = e.target.closest("[data-action]");
-        if (!transcriptEditor || !action) return;
-        if (action.dataset.action === "save") {
-          editRequest = saveTranscriptEdit();
-        } else {
-          cancelTranscriptEdit();
-        }
-      });
-      transcript.addEventListener("keydown", (e) => {
-        if (!transcriptEditor) return;
-        if (e.key === "Escape") cancelTranscriptEdit();
-        else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault();
-          editRequest = saveTranscriptEdit();
-        }
-      });
+      for (const body of [transcript, translationStream]) {
+        body.addEventListener("click", (e) => {
+          const action = e.target.closest("[data-action]");
+          if (!transcriptEditor || !action) return;
+          if (action.dataset.action === "save") {
+            editRequest = saveTranscriptEdit();
+          } else {
+            cancelTranscriptEdit();
+          }
+        });
+        body.addEventListener("keydown", (e) => {
+          if (!transcriptEditor) return;
+          if (e.key === "Escape") cancelTranscriptEdit();
+          else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            editRequest = saveTranscriptEdit();
+          }
+        });
+      }
 
       function appendSegmentDivider(ms) {
         const when = ms ? ` · ${clockTime(ms)}` : "";
@@ -8192,7 +8212,7 @@
               }
               translationStream.insertAdjacentHTML(
                 "beforeend",
-                `<span class="translation-line">${html} </span>`,
+                `<span class="translation-line" data-chunk-id="${data.chunk_id}">${html} </span>`,
               );
               translationStream.scrollTop = translationStream.scrollHeight;
               showTranslationStream();
@@ -8933,6 +8953,11 @@
         closeNoteEditor();
         caseNotes.innerHTML = "";
         transcriptText = "";
+        translationStream.innerHTML = "";
+        translationHead.style.display = "none";
+        translationStream.style.display = "none";
+        transcriptDensity.style.display = "none";
+        transcript.style.display = "";
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];
