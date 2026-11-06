@@ -82,7 +82,8 @@ install_codalg() {
         GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
         GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth" \
         uv pip install --python "$VENV/bin/python" --no-deps \
-        "codalg @ git+https://github.com/uw-codaproject/coda-sft@v$CODALG_VERSION#subdirectory=packages/codalg"
+        "codalg @ git+https://github.com/uw-codaproject/coda-sft@v$CODALG_VERSION#subdirectory=packages/codalg" \
+        || echo "Installing codalg failed, CODA runs without it."
 }
 
 # Site named in this laptop's settings file
