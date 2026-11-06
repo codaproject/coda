@@ -74,6 +74,9 @@ indic-conformer = [
     "transformers",
     "onnxruntime",
 ]
+mac = [
+    "mlx-whisper",
+]
 champs-finetuned = [
     "torch",
     "transformers",

@@ -22,6 +22,7 @@ class IndicConformerTranscriber(ChunkedTranscriber):
     """
 
     MODEL_ID = "ai4bharat/indic-conformer-600m-multilingual"
+    MODEL_REVISION = "2a77d305038dfc502fd9464e7d028b90381976cb"
     SAMPLE_RATE = 16000
     LANGUAGES = {
         "as": "Assamese", "bn": "Bengali", "brx": "Bodo", "doi": "Dogri",
@@ -46,13 +47,17 @@ class IndicConformerTranscriber(ChunkedTranscriber):
             raise ValueError(f"Unknown decoding strategy {self.decoding!r}, "
                              f"expected one of {self.MODELS}")
 
-        from transformers import AutoModel
+        from huggingface_hub import snapshot_download
+        from transformers import AutoConfig, AutoModel
 
         # None lets Hugging Face use credentials saved by `hf auth login`
         hf_token = os.environ.get("HF_TOKEN") or None
-        self.model = AutoModel.from_pretrained(
-            self.MODEL_ID, trust_remote_code=True, token=hf_token
-        )
+        # The model's own from_pretrained always fetches the latest snapshot
+        path = snapshot_download(self.MODEL_ID, revision=self.MODEL_REVISION,
+                                 token=hf_token)
+        config = AutoConfig.from_pretrained(path, trust_remote_code=True,
+                                            ts_folder=path)
+        self.model = AutoModel.from_config(config, trust_remote_code=True)
 
     def _decode(self, wav, language):
         with torch.no_grad():

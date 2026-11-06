@@ -26,3 +26,21 @@ jobs:
     - name: Run tests
       run: |
         pytest tests/ -v
+
+  mac-lock:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: astral-sh/setup-uv@v6
+
+    - name: Check that the Mac lock matches pyproject.toml
+      run: |
+        uv pip compile pyproject.toml --extra mac --extra indic-conformer \
+          --python-version 3.12 --python-platform aarch64-apple-darwin \
+          -o mac/requirements.lock -q
+        git diff --exit-code mac/requirements.lock || {
+          echo "::error::mac/requirements.lock is out of date, regenerate it as in mac/README.md"
+          exit 1
+        }

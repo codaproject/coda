@@ -227,7 +227,6 @@ class OllamaAdapter(LLMClient):
                     delay = retry_delay * (2 ** attempt)
                     logger.warning(
                         f"Ollama API call attempt {attempt + 1}/{max_retries} failed: JSON decode error: {e}. "
-                        f"Response: {response_text[:200] if 'response_text' in locals() else 'N/A'}. "
                         f"Retrying in {delay}s..."
                     )
                     time.sleep(delay)

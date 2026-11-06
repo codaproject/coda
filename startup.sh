@@ -53,7 +53,12 @@ health_host_for() {
 # First global IPv4 address, for the phone setup URL. Empty when none is found.
 first_lan_ip() {
     local line cidr addr
-    command -v ip >/dev/null 2>&1 || return 0
+    if ! command -v ip >/dev/null 2>&1; then
+        # macOS
+        ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 \
+            2>/dev/null || true
+        return 0
+    fi
     while read -r line; do
         case "$line" in
             *" inet "*)
@@ -75,7 +80,7 @@ first_lan_ip() {
 }
 
 tls_enabled() {
-    case "${CODA_APP__TLS,,}" in
+    case "$(printf '%s' "$CODA_APP__TLS" | tr '[:upper:]' '[:lower:]')" in
         1|true|yes|on)
             return 0
             ;;

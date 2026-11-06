@@ -8,6 +8,7 @@ To run:
 """
 
 import asyncio
+import html
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, \
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
+from coda import __version__, get_commit, get_version_label
 from coda.app.documents import OcrUnavailable, document_text
 from coda.app.storage import CaseRecorder, case_audio_path, case_sources, \
     cases_browsable, cases_root, find_case, list_cases, load_case, \
@@ -470,6 +472,8 @@ async def _run_info() -> dict:
         logger.warning("Could not fetch inference service info: %s", e)
         inference_info = None
     return {
+        "site": settings.site,
+        "usecase": settings.usecase,
         "language": current_language,
         "translation_mode": translation_mode,
         "transcriber_backend": current_transcriber_backend,
@@ -530,17 +534,13 @@ async def process_inference(
             top_curie = max(causes.items(), key=lambda x: x[1]['score'])[0]
             top_cause_name = causes[top_curie]['name']
             top_score = causes[top_curie]['score']
-            logger.info(
-                "Inference result for %s in %.2fs: %s (%s, score=%.2f, chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, top_cause_name, top_curie, top_score,
-                batch.chunk_count, len(batch.text), buffer_wait_s
-            )
-        else:
-            logger.info(
-                "Inference result for %s in %.2fs: no causes (chunks=%d, text_chars=%d, wait=%.2fs)",
-                batch.chunk_id, infer_s, batch.chunk_count, len(batch.text),
-                buffer_wait_s
-            )
+            logger.debug("Top cause for %s: %s (%s, score=%.2f)",
+                         batch.chunk_id, top_cause_name, top_curie, top_score)
+        logger.info(
+            "Inference result for %s in %.2fs: %d causes (chunks=%d, text_chars=%d, wait=%.2fs)",
+            batch.chunk_id, infer_s, len(causes), batch.chunk_count,
+            len(batch.text), buffer_wait_s
+        )
 
     except httpx.TimeoutException:
         logger.error("Inference timeout for chunk %s after %.2fs",
@@ -617,7 +617,7 @@ async def set_metadata(payload: dict = Body(...)):
     """Set per-interview metadata forwarded to the inference agent."""
     global current_metadata
     current_metadata = Metadata.from_dict(payload)
-    logger.info(f"Metadata set: {current_metadata.to_dict()}")
+    logger.debug(f"Metadata set: {current_metadata.to_dict()}")
     return current_metadata.to_dict()
 
 
@@ -1055,7 +1055,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         chunk_id, total_s, translation_s, grounding_s, save_s, emit_s,
         len(english_text), len(annotations)
     )
-    logger.info(f"Chunk {chunk_id}: {english_text}")
+    logger.debug(f"Chunk {chunk_id}: {english_text}")
 
     return chunk_id, timestamp, english_text, annotations
 
@@ -1336,7 +1336,11 @@ async def get_index():
     )
     html_content = html_content.replace(
         "__CODA_UI_LANGUAGE__", json.dumps(settings.app.ui_language),
-    )
+    ).replace(
+        "__CODA_WORDING__", json.dumps(settings.app.wording),
+    ).replace("__CODA_VERSION__", html.escape(
+        " · ".join(filter(None, [get_version_label(), settings.site,
+                            settings.usecase]))))
     if not settings.app.get("show_case_profile", True):
         html_content = html_content.replace(
             "<body",
@@ -1373,4 +1377,5 @@ async def get_index():
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": __version__,
+            "commit": get_commit()}

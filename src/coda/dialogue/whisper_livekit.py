@@ -15,6 +15,8 @@ from .util import get_whisper_languages
 DEFAULT_MODEL_SIZE = "small"
 
 logger = logging.getLogger(__name__)
+# SimulStreaming logs its decoding context, which is transcript text
+logging.getLogger("whisperlivekit.simul_whisper").setLevel(logging.WARNING)
 
 
 def _events_from_response(msg: dict, state: dict):
@@ -81,7 +83,8 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
     `faster-whisper` backend; the engine (model) is loaded once and shared.
     """
     MODELS = ("tiny", "base", "small", "medium",
-              "large", "large-v2", "large-v3", *FINETUNED_MODELS)
+              "large", "large-v2", "large-v3", "large-v3-turbo",
+              *FINETUNED_MODELS)
     DEFAULT_MODEL = DEFAULT_MODEL_SIZE
     LANGUAGES = {**get_whisper_languages(), **FINETUNED_LANGUAGES}
 

@@ -1,0 +1,27 @@
+# Agincourt community deaths, mostly adults, interviews by field workers in Xitsonga
+
+app:
+  tls: true
+  show_clinical_note: false
+  show_mccd: false
+  show_cod_result: false
+  ui_language: en
+  wording: interview
+
+inference:
+  num_questions: 3
+  question_style: simplified
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    population: adult
+
+dialogue:
+  language: ts
+  transcriber_model: anv-tso-turbo
+  whisper_livekit:
+    backend: mlx-whisper
+
+storage:
+  enabled: true

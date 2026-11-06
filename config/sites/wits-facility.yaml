@@ -1,0 +1,27 @@
+# Wits VIDA facility deaths, mostly children, entered by clinicians, in English
+
+app:
+  tls: true
+  show_clinical_note: true
+  show_mccd: true
+  show_cod_result: true
+  ui_language: en
+
+inference:
+  num_questions: 0
+  question_style: default
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    population: child
+    coding: icd11
+
+dialogue:
+  language: en
+  transcriber_model: large-v3-turbo
+  whisper_livekit:
+    backend: mlx-whisper
+
+storage:
+  enabled: true

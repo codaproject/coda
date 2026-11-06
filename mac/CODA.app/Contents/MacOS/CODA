@@ -1,0 +1,6 @@
+#!/bin/bash
+# Open the running CODA, else start.command in Terminal. A Finder alias or
+# symlink to this app also works.
+url="$(cat "$HOME/Library/Application Support/CODA/url" 2>/dev/null)"
+[ -n "$url" ] && curl -sfk "$url/health" >/dev/null && exec open "$url"
+open -a Terminal "$(cd "$(dirname "$0")/../../.." && pwd)/start.command"

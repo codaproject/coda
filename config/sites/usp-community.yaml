@@ -1,0 +1,28 @@
+# USP community deaths, children and adults, interviews by nurses and field workers in Portuguese
+
+app:
+  tls: true
+  show_clinical_note: false
+  show_mccd: false
+  show_cod_result: true
+  ui_language: pt
+  wording: interview
+
+inference:
+  num_questions: 3
+  question_style: simplified
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    population: child
+    coding: icd11
+
+dialogue:
+  language: pt
+  transcriber_model: large-v3-turbo
+  whisper_livekit:
+    backend: mlx-whisper
+
+storage:
+  enabled: true

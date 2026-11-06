@@ -1,0 +1,27 @@
+# USP facility deaths, children and adults, entered by clinicians and nurses, in Portuguese
+
+app:
+  tls: true
+  show_clinical_note: true
+  show_mccd: false
+  show_cod_result: true
+  ui_language: pt
+
+inference:
+  num_questions: 0
+  question_style: default
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    population: child
+    coding: icd11
+
+dialogue:
+  language: pt
+  transcriber_model: large-v3-turbo
+  whisper_livekit:
+    backend: mlx-whisper
+
+storage:
+  enabled: true
