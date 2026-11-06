@@ -13,10 +13,6 @@ pipeline on that hardware, kept here for hardware with more headroom
 import asyncio
 import logging
 from functools import lru_cache
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from . import Translator
 
@@ -28,11 +24,10 @@ def _load(repo, device):
     import torch
     from transformers import AutoModelForImageTextToText, AutoProcessor
 
-    token = os.environ.get("HF_TOKEN")
-    processor = AutoProcessor.from_pretrained(repo, token=token)
+    processor = AutoProcessor.from_pretrained(repo)
     model = AutoModelForImageTextToText.from_pretrained(
         repo, dtype=torch.bfloat16, device_map=device,
-        attn_implementation="eager", token=token,
+        attn_implementation="eager",
     ).eval()
     return model, processor
 
