@@ -64,12 +64,13 @@ class HyMT2Translator(Translator):
             target_lang=self.TARGET_LANGUAGE, source_text=text)
         messages = [{"role": "user", "content": prompt}]
         inputs = tokenizer.apply_chat_template(
-            messages, add_generation_prompt=True, return_tensors="pt").to(model.device)
+            messages, add_generation_prompt=True, return_dict=True,
+            return_tensors="pt").to(model.device)
         out = model.generate(
-            inputs, max_new_tokens=512, temperature=0.7, top_p=0.6,
+            **inputs, max_new_tokens=512, temperature=0.7, top_p=0.6,
             top_k=20, repetition_penalty=1.05, do_sample=True)
         return tokenizer.decode(
-            out[0][inputs.shape[-1]:], skip_special_tokens=True).strip()
+            out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True).strip()
 
     async def translate(self, text, source_language, language_name=None):
         try:
