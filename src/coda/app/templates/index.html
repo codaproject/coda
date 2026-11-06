@@ -1,3 +1,5 @@
+              const text = data.transcript || "";
+              transcriptText += text + " ";
 <!doctype html>
 <html lang="en" data-theme="system">
   <head>
@@ -4024,9 +4026,9 @@
             <span class="kicker" data-i18n="record.transcript">Transcript</span>
             <span class="section-meta"
               ><select id="transcriptDensity" title="Transcript languages">
-                <option value="both">Both</option>
-                <option value="original">Original</option>
-                <option value="english">English</option></select
+                <option value="both" data-i18n="transcript.both">Both</option>
+                <option value="original" data-i18n="transcript.original">Original</option>
+                <option value="english" data-i18n="transcript.english">English</option></select
               ><span id="wordCount" data-i18n-dynamic="wordCount"
                 >0 words</span
               ><button
@@ -4048,7 +4050,7 @@
           </div>
 
           <div class="section-head" id="translationHead" style="display: none">
-            <span class="kicker">English</span>
+            <span class="kicker" data-i18n="transcript.english">English</span>
           </div>
           <div
             id="translationStream"
@@ -4280,8 +4282,12 @@
           <option value="whisper_translate" id="whisperTranslateOption">
             Whisper (direct speech-to-English)
           </option>
+          <option value="madlad">MADLAD-400 (local)</option>
+          <option value="ctranslate2">NLLB-200 (local, non-commercial)</option>
+          <option value="helsinki_inc">OPUS-MT Indic (local)</option>
+          <option value="hy_mt2">Hy-MT2 (local)</option>
+          <option value="indic_translate">indic-translate (local)</option>
           <option value="llm">LLM (transcribe then translate)</option>
-          <option value="ctranslate2">Local model (transcribe then translate)</option>
         </select>
       </div>
 
@@ -4593,6 +4599,9 @@
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
           "transcript.edit": "Edit",
+          "transcript.both": "Both",
+          "transcript.original": "Original",
+          "transcript.english": "English",
           "transcript.save": "Save changes",
           "transcript.cancel": "Cancel",
           "transcript.reinferring": "Updating the inference with the correction…",
@@ -4784,6 +4793,9 @@
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
           "transcript.edit": "Hariri",
+          "transcript.both": "Zote mbili",
+          "transcript.original": "Asili",
+          "transcript.english": "Kiingereza",
           "transcript.save": "Hifadhi mabadiliko",
           "transcript.cancel": "Ghairi",
           "transcript.reinferring": "Inasasisha makisio kwa marekebisho…",
@@ -4979,6 +4991,9 @@
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
           "transcript.edit": "Modifier",
+          "transcript.both": "Les deux",
+          "transcript.original": "Original",
+          "transcript.english": "Anglais",
           "transcript.save": "Enregistrer",
           "transcript.cancel": "Annuler",
           "transcript.reinferring": "Mise à jour de l'inférence avec la correction…",
@@ -5169,6 +5184,9 @@
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
           "transcript.edit": "تعديل",
+          "transcript.both": "كلاهما",
+          "transcript.original": "الأصل",
+          "transcript.english": "الإنجليزية",
           "transcript.save": "حفظ التغييرات",
           "transcript.cancel": "إلغاء",
           "transcript.reinferring": "جارٍ تحديث الاستدلال بالتصحيح…",
@@ -5361,6 +5379,9 @@
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
           "transcript.edit": "সম্পাদনা",
+          "transcript.both": "উভয়",
+          "transcript.original": "মূল",
+          "transcript.english": "ইংরেজি",
           "transcript.save": "পরিবর্তন সংরক্ষণ করুন",
           "transcript.cancel": "বাতিল",
           "transcript.reinferring": "সংশোধন দিয়ে অনুমান হালনাগাদ হচ্ছে…",
@@ -5555,6 +5576,9 @@
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
           "transcript.edit": "Editar",
+          "transcript.both": "Ambos",
+          "transcript.original": "Original",
+          "transcript.english": "Inglés",
           "transcript.save": "Guardar cambios",
           "transcript.cancel": "Cancelar",
           "transcript.reinferring": "Actualizando la inferencia con la corrección…",
@@ -5752,6 +5776,9 @@
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
           "transcript.edit": "Lulamisa",
+          "transcript.both": "Swimbirhi",
+          "transcript.original": "Ririmi ra masungulo",
+          "transcript.english": "Xinghezi",
           "transcript.save": "Hlayisa ku cinca",
           "transcript.cancel": "Khansela",
           "transcript.reinferring": "Ku pfuxeta nkumbetelo hi ku lulamisa…",
@@ -5948,6 +5975,9 @@
           "continue.inference": "Inferência",
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
           "transcript.edit": "Editar",
+          "transcript.both": "Ambos",
+          "transcript.original": "Original",
+          "transcript.english": "Inglês",
           "transcript.save": "Salvar alterações",
           "transcript.cancel": "Cancelar",
           "transcript.reinferring": "Atualizando a inferência com a correção…",
@@ -7398,6 +7428,8 @@
       const translationModelLabels = {
         "nllb-600m": "NLLB-200 distilled (600M)",
         "nllb-1.3b": "NLLB-200 distilled (1.3B)",
+        "madlad400-3b-mt": "MADLAD-400 (3B)",
+        "madlad400-7b-mt": "MADLAD-400 (7B)",
       };
 
       // Load the selected translation backend's model list. Backends without
@@ -8193,17 +8225,6 @@
               // it came from stays where it is, untouched.
               const text = data.transcript || "";
               transcriptText += text + " ";
-              const anns = (data.annotations || [])
-                .slice()
-                .sort((a, b) => a.start - b.start);
-              let html = "";
-              let pos = 0;
-              for (const ann of anns) {
-                if (ann.start > pos) html += escapeHtml(text.slice(pos, ann.start));
-                html += `<span class="annotation" title="${escapeHtml(ann.curie)} (${escapeHtml(ann.name)})">${escapeHtml(text.slice(ann.start, ann.end))}</span>`;
-                pos = ann.end;
-              }
-              if (pos < text.length) html += escapeHtml(text.slice(pos));
               for (const id of data.chunk_ids || [data.chunk_id]) {
                 const c = transcript.querySelector(
                   `.chunk[data-chunk-id="${id}"]`,
@@ -8212,7 +8233,7 @@
               }
               translationStream.insertAdjacentHTML(
                 "beforeend",
-                `<span class="translation-line" data-chunk-id="${data.chunk_id}">${html} </span>`,
+                `<span class="translation-line" data-chunk-id="${data.chunk_id}">${chunkInnerHtml(text, data.annotations)}</span>`,
               );
               translationStream.scrollTop = translationStream.scrollHeight;
               showTranslationStream();
