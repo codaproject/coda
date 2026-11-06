@@ -239,6 +239,3 @@ docs/
 
 # Mac launcher Python environment
 .venv-mac/
-
-# Transcripts and inference output written by a local app run
-src/results/
