@@ -17,6 +17,10 @@ inference:
   champs_prompted:
     population: adult
 
+translate:
+  backend: madlad
+  model: madlad400-3b-mt
+
 dialogue:
   language: ts
   transcriber_model: anv-tso-turbo

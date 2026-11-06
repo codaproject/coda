@@ -119,7 +119,7 @@ rag_config = {
 translation_mode = settings.translate.backend
 # Backend used when the transcriber did not already translate at the source,
 # which also covers whisper_translate paired with a non-whisper transcriber.
-FALLBACK_TEXT_TRANSLATOR = "llm"
+FALLBACK_TEXT_TRANSLATOR = "madlad"
 
 
 def text_translator_backend() -> str:
@@ -440,15 +440,24 @@ if transcriber.normalize_language(current_language) is None:
     )
 
 
-async def translate_text(text: str, source_language: str) -> str:
-    """Translate text to English with the text translation backend."""
+def current_translator():
+    """Return the text translator for the current backend and model."""
     backend = text_translator_backend()
     # The LLM backend uses the app's own provider and model, other backends
     # carry a model selected from their own list.
     options = ({"provider": current_llm_provider, "model": current_llm_model}
                if backend == "llm" else {"model": current_translation_model})
-    translator = create_translator(backend, **options)
-    return await translator.translate(
+    return create_translator(backend, **options)
+
+
+# Load the translation model up front so the first sentence isn't delayed
+if current_language != "en":
+    current_translator().load()
+
+
+async def translate_text(text: str, source_language: str) -> str:
+    """Translate text to English with the text translation backend."""
+    return await current_translator().translate(
         text, source_language, language_name=get_language_name(source_language))
 
 

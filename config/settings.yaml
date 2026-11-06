@@ -167,11 +167,15 @@ grounder:
       prompt: reranker_default
 
 translate:
-  # How non-English transcripts reach English:
-  #   whisper_translate = Whisper transcribes straight to English (whisper backend only)
-  #   llm               = translate the transcript with the configured LLM
-  #   ctranslate2       = translate locally with NLLB, no network needed
-  backend: llm
+  # How non-English transcripts reach English. Not used for English.
+  #   madlad            = translate locally with MADLAD-400
+  #   ctranslate2       = translate locally with NLLB-200 (non-commercial license)
+  #   helsinki_inc      = translate Indic languages locally with OPUS-MT
+  #   llm               = translate with the configured LLM
+  #   whisper_translate = Whisper transcribes straight to English (whisper
+  #                       backend only, others fall back to madlad)
+  # hy_mt2 and indic_translate need a newer transformers than CODA installs.
+  backend: madlad
   # Model for backends that offer a choice; empty uses the backend's default.
   model: ""
 
