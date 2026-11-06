@@ -93,6 +93,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         return cls(model_size=model or cls.DEFAULT_MODEL)
 
     def __init__(self, model_size: str = DEFAULT_MODEL_SIZE):
+        from whisperlivekit import TranscriptionEngine
         from coda.config import settings
         wlk = settings.dialogue.whisper_livekit
         # The language is fixed when the engine is built, so this backend
@@ -113,20 +114,6 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         )
         if not condition and wlk.policy == "localagreement":
             _disable_text_conditioning(self._engine.asr)
-
-    def _engine_for(self, language: str):
-        """Return an engine transcribing `language`, rebuilding if it changed.
-
-        The language is fixed when the engine is constructed, so a different
-        one means reloading the model. That only happens when the interview
-        language actually changes.
-        """
-        if language and language != self._language:
-            logger.info("Reloading whisper-livekit engine for language %r",
-                        language)
-            self._engine = self._build_engine(language)
-            self._language = language
-        return self._engine
 
     async def stream(self, audio: AsyncIterator[bytes], *,
                      language: str = "en",

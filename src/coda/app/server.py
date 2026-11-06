@@ -1133,7 +1133,8 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
             try:
                 committed = await _handle_committed(
                     inference_session, event, direct_translate, sentences)
-                last_chunk_at = time.monotonic()
+                if event.text.strip():
+                    last_chunk_at = time.monotonic()
                 if sentences.ready:
                     queue_pending()
             except Exception as e:
@@ -1179,7 +1180,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     # Translation needs whole sentences, but the spoken text can be shown as
     # soon as it is transcribed, so the two are decoupled.
     needs_translation = (not direct_translate and current_language != "en"
-                         and len(event.text.split()) > 1)
+                         and event.text.strip())
     if needs_translation:
         await _ws_send_safe(inference_session.websocket, {
             "type": "transcript",
