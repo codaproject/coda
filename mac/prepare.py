@@ -56,11 +56,18 @@ def main():
             backend, model=same and settings.translate.model or None).load()
     selection = settings.inference.get("question_selection", "llm")
     if selection != "llm":
-        print(f"Preparing the {profile} questionnaire...", flush=True)
         from coda.inference.champs_prompted.who_questions import \
             WhoQuestions
-        WhoQuestions(selection, None, skip_logic=settings.inference.get(
-            "question_skip_logic", True)).start()
+        try:
+            questions = WhoQuestions(
+                selection, None, skip_logic=settings.inference.get(
+                    "question_skip_logic", True))
+        except ImportError:
+            print(f"The {profile} questionnaire needs codalg, which is not "
+                  f"installed, so the LLM writes its questions", flush=True)
+            return
+        print(f"Preparing the {profile} questionnaire...", flush=True)
+        questions.start()
 
 
 if __name__ == "__main__":
