@@ -8,6 +8,7 @@ import logging
 import os
 import re
 
+import numpy as np
 import pandas as pd
 
 from coda.inference.champs_prompted.base_agent import read_prompt
@@ -41,6 +42,8 @@ NEGATIONS = {"no", "not", "never", "none", "nothing", "neither", "nor",
              "without", "didn", "wasn", "weren", "hadn", "couldn", "don",
              "doesn", "isn", "t"}
 SYSTEM_PROMPT = read_prompt("who_answers.txt")
+# Answers less likely than this are not expected to change the top cause
+MIN_ANSWER_PROBABILITY = 0.1
 
 
 def use_bundled_java():
@@ -85,6 +88,19 @@ def profile_fields(profile):
     if profile.stillbirth:
         fields.update(STILLBIRTH)
     return fields
+
+
+def changes_top_cause(probabilities, distribution, categories):
+    """Return whether a likely answer would change the most probable category.
+
+    The distribution gives each cause's answer probabilities, causes by
+    answers, the probabilities and categories those of the causes.
+    """
+    joint = pd.DataFrame(probabilities[:, np.newaxis] * distribution) \
+        .groupby(list(categories)).sum()
+    likely = joint.sum() >= MIN_ANSWER_PROBABILITY
+    top = joint.sum(axis=1).idxmax()
+    return bool((joint.loc[:, likely].idxmax() != top).any())
 
 
 def words(text):
@@ -179,6 +195,8 @@ class WhoQuestions:
         policy_class = BAQPolicy if policy == "baq" else VOIPolicy
         self.policy = policy_class.from_pretrained(QUESTIONNAIRE)
         self.fields = Questionnaire.load(QUESTIONNAIRE).fields
+        # ICD-11 category of each cause, its code before the dot
+        self.categories = [c.split(".")[0] for c in self.policy.causes]
         self.llm_client = llm_client
         self.skip_logic = skip_logic
         if skip_logic:
@@ -299,7 +317,13 @@ class WhoInterview:
         questions = [q for q in is_open.index[is_open] if q not in BACKGROUND
                      and labels[q].rstrip().endswith("?")]
         scores = policy(probabilities, self.interview)
-        stop = bool(policy.stopped_cases(
-            probabilities, scores.where(~asked)).iloc[0])
         ranked = scores.loc[CASE, questions].sort_values(ascending=False)
+        # Stop once no open question could change the top cause category
+        cause_probabilities = policy.cause_probabilities(probabilities) \
+            .loc[CASE].to_numpy()
+        stop = not any(
+            changes_top_cause(cause_probabilities,
+                              policy.answer_distributions[q],
+                              self.questions.categories)
+            for q in questions)
         return list(ranked.index), stop

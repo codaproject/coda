@@ -1,7 +1,9 @@
+import numpy as np
 import pytest
 
 from coda.inference.champs_prompted.who_questions import age_fields, \
-    evidence_in_text, is_negated, parse_answer, profile_fields
+    changes_top_cause, evidence_in_text, is_negated, parse_answer, \
+    profile_fields
 from coda.metadata import Profile
 
 YES_NO = {"type": "select one", "choices": ["yes", "no", "dk", "ref"]}
@@ -56,6 +58,15 @@ class FakeClient:
     def call_with_schema(self, schema, **kwargs):
         return {q: {"evidence": "a high fever", "answer": "yes"}
                 for q in schema["properties"]}
+
+
+def test_changes_top_cause():
+    fever = np.array([[0.9, 0.1], [0.2, 0.8]])
+    assert changes_top_cause(np.array([0.6, 0.4]), fever, ["A", "B"])
+    assert not changes_top_cause(np.array([0.95, 0.05]), fever, ["A", "B"])
+    assert not changes_top_cause(np.array([0.6, 0.4]), fever, ["A", "A"])
+    rare = np.array([[0.99, 0.01], [0.5, 0.5]])
+    assert not changes_top_cause(np.array([0.9, 0.1]), rare, ["A", "B"])
 
 
 def test_interview():
