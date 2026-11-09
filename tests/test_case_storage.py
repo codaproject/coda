@@ -1145,3 +1145,12 @@ def test_metadata_of_a_case_being_recorded_is_not_saved(storage_dir,
         f"/cases/{live.recorder.case_id}/metadata", json={"metadata": {}})
 
     assert response.status_code == 409
+
+
+def test_settings_are_refused_while_recording(monkeypatch):
+    client = TestClient(server.app)
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+    assert client.post("/settings", json={}).status_code == 409
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+    assert client.post("/settings", json={}).status_code == 200

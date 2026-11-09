@@ -835,6 +835,8 @@ async def update_settings(req: SettingsRequest):
     """Update server settings."""
     if settings.app.get("lock_server_settings", False):
         raise HTTPException(status_code=403, detail="Server settings are locked")
+    if active_inference_sessions:
+        raise HTTPException(status_code=409, detail="recording")
     global current_language, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
     global translation_mode, current_translation_model

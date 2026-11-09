@@ -4631,6 +4631,8 @@
           "continue.inUse": "This session is being recorded elsewhere",
           "case.changed":
             "This case was changed on another device. Showing its latest version.",
+          "settings.recording":
+            "Settings cannot change while an interview is being recorded.",
           "server.busy":
             "The server is busy with other interviews. Try again shortly.",
           "transcript.edit": "Edit",
@@ -4832,6 +4834,8 @@
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
           "case.changed":
             "Kesi hii imebadilishwa kwenye kifaa kingine. Inaonyesha toleo lake la hivi karibuni.",
+          "settings.recording":
+            "Mipangilio haiwezi kubadilishwa wakati mahojiano yanarekodiwa.",
           "server.busy":
             "Seva ina mahojiano mengine kwa sasa. Jaribu tena baada ya muda mfupi.",
           "transcript.edit": "Hariri",
@@ -5037,6 +5041,8 @@
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
           "case.changed":
             "Ce cas a été modifié sur un autre appareil. Sa dernière version est affichée.",
+          "settings.recording":
+            "Les paramètres ne peuvent pas changer pendant l'enregistrement d'un entretien.",
           "server.busy":
             "Le serveur est occupé par d'autres entretiens. Réessayez dans un instant.",
           "transcript.edit": "Modifier",
@@ -5237,6 +5243,7 @@
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
           "case.changed":
             "تم تعديل هذه الحالة على جهاز آخر. يتم عرض أحدث نسخة منها.",
+          "settings.recording": "لا يمكن تغيير الإعدادات أثناء تسجيل مقابلة.",
           "server.busy": "الخادم مشغول بمقابلات أخرى. حاول مرة أخرى بعد قليل.",
           "transcript.edit": "تعديل",
           "transcript.both": "كلاهما",
@@ -5438,6 +5445,8 @@
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
           "case.changed":
             "এই কেসটি অন্য একটি ডিভাইসে পরিবর্তন করা হয়েছে। এর সর্বশেষ সংস্করণ দেখানো হচ্ছে।",
+          "settings.recording":
+            "সাক্ষাৎকার রেকর্ড হওয়ার সময় সেটিংস পরিবর্তন করা যাবে না।",
           "server.busy":
             "সার্ভার অন্য সাক্ষাৎকারে ব্যস্ত। একটু পরে আবার চেষ্টা করুন।",
           "transcript.edit": "সম্পাদনা",
@@ -5642,6 +5651,8 @@
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
           "case.changed":
             "Este caso se modificó en otro dispositivo. Se muestra su versión más reciente.",
+          "settings.recording":
+            "La configuración no puede cambiar mientras se graba una entrevista.",
           "server.busy":
             "El servidor está ocupado con otras entrevistas. Inténtelo de nuevo en breve.",
           "transcript.edit": "Editar",
@@ -5849,6 +5860,8 @@
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
           "case.changed":
             "Mhaka leyi yi cinciwile eka xitirhisiwa xin'wana. Ku kombisiwa vuxokoxoko bya yona lebyintshwa.",
+          "settings.recording":
+            "Swiletelo a swi nge cinciwi loko inthavhiyu yi ri karhi yi rhekhodiwa.",
           "server.busy":
             "Sevha yi khomekile hi tiinterviyu tin'wana. Ringeta nakambe endzhaku ka nkarhinyana.",
           "transcript.edit": "Lulamisa",
@@ -6055,6 +6068,8 @@
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
           "case.changed":
             "Este caso foi alterado em outro dispositivo. A versão mais recente está sendo exibida.",
+          "settings.recording":
+            "As configurações não podem ser alteradas enquanto uma entrevista está sendo gravada.",
           "server.busy":
             "O servidor está ocupado com outras entrevistas. Tente novamente em instantes.",
           "transcript.edit": "Editar",
@@ -7810,6 +7825,11 @@
             body: JSON.stringify(changes),
           });
           const data = await resp.json();
+          if (resp.status === 409) {
+            showStatus(t("settings.recording"), "warning");
+            await loadSettings();
+            return false;
+          }
           if (!resp.ok) {
             showStatus(data.detail || "Failed to update settings", "danger");
             return false;
