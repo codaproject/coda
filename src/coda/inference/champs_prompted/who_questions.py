@@ -7,6 +7,7 @@ the questions still open given the agent's ICD-11 cause probabilities.
 import logging
 import os
 import re
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -129,6 +130,8 @@ def is_negated(evidence):
 # Choices that give no answer
 NON_ANSWERS = {"dk", "ref"}
 UNKNOWN = "unknown"
+# Answer of a respondent who says they do not know
+DONT_KNOW = "dont_know"
 
 
 def answer_hint(field):
@@ -138,11 +141,11 @@ def answer_hint(field):
         names = [c for c in choices if c.lower() not in NON_ANSWERS]
         if field["type"] == "select all that apply":
             return "any of, separated by spaces: " + " ".join(names) \
-                + " | unknown"
-        return "one of: " + " | ".join(names) + " | unknown"
+                + f" | {DONT_KNOW} | {UNKNOWN}"
+        return "one of: " + " | ".join(names) + f" | {DONT_KNOW} | {UNKNOWN}"
     if field["type"] == "integer":
-        return "a whole number | unknown"
-    return "a number | unknown"
+        return f"a whole number | {DONT_KNOW} | {UNKNOWN}"
+    return f"a number | {DONT_KNOW} | {UNKNOWN}"
 
 
 def parse_answer(field, answer):
@@ -173,7 +176,7 @@ def answer_schema(field):
     """Return the JSON schema of the answer to a form field."""
     if field["type"] == "select one":
         names = [c for c in field["choices"] if c.lower() not in NON_ANSWERS]
-        return {"type": "string", "enum": [*names, UNKNOWN]}
+        return {"type": "string", "enum": [*names, DONT_KNOW, UNKNOWN]}
     return {"type": "string"}
 
 
@@ -204,6 +207,10 @@ class WhoQuestions:
         self.fields = Questionnaire.load(QUESTIONNAIRE).fields
         # ICD-11 category of each cause, its code before the dot
         self.categories = [c.split(".")[0] for c in self.policy.causes]
+        counts = Counter(w for label in self.fields["label"]
+                         for w in set(words(label).split()))
+        self.common_words = {w for w, n in counts.items()
+                             if n > MAX_TOPIC_WORD_QUESTIONS}
         self.llm_client = llm_client
         self.skip_logic = skip_logic
         if skip_logic:
@@ -213,8 +220,17 @@ class WhoQuestions:
         """Return a new interview."""
         return WhoInterview(self)
 
+    def asks_about(self, evidence, question):
+        """Return whether a quote shares a topic word with a question."""
+        label = set(words(self.fields.loc[question, "label"]).split())
+        return bool((label - self.common_words)
+                    & set(words(evidence).split()))
+
     def code_answers(self, text, questions):
-        """Return the form values the text gives for the questions."""
+        """Return the form values the text gives for the questions.
+
+        A question the respondent says they do not know has DONT_KNOW.
+        """
         listed = "\n".join(
             f"{q}: {self.fields.loc[q, 'label']} "
             f"[{answer_hint(self.fields.loc[q])}]" for q in questions)
@@ -234,7 +250,9 @@ class WhoQuestions:
             if not isinstance(item, dict) or \
                     str(item.get("answer")).strip().lower() == UNKNOWN:
                 continue
-            value = parse_answer(self.fields.loc[question], item["answer"])
+            answer = str(item["answer"]).strip().lower()
+            value = DONT_KNOW if answer == DONT_KNOW else \
+                parse_answer(self.fields.loc[question], answer)
             if value is None:
                 logger.info("Invalid answer %r to %s", item.get("answer"),
                             question)
@@ -244,6 +262,10 @@ class WhoQuestions:
             elif value == "no" and not is_negated(item["evidence"]):
                 logger.info("Answer no to %s has no denial in its evidence",
                             question)
+            elif value == DONT_KNOW and \
+                    not self.asks_about(item["evidence"], question):
+                logger.info("Answer %s to %s has no question in its evidence",
+                            DONT_KNOW, question)
             else:
                 values[question] = value
         return values
@@ -284,9 +306,11 @@ class WhoInterview:
             values = self.questions.code_answers(text, questions)
             if not values:
                 break
+            unknown = [q for q, v in values.items() if v == DONT_KNOW]
             self.interview.record(
-                pd.Series(dtype=object),
-                pd.DataFrame({q: [v] for q, v in values.items()},
+                pd.Series(unknown, index=[CASE] * len(unknown), dtype=object),
+                pd.DataFrame({q: [v] for q, v in values.items()
+                              if v != DONT_KNOW},
                              index=[CASE], dtype=object))
         else:
             ranked, stop = self.rank(probabilities)

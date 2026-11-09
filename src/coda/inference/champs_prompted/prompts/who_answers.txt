@@ -11,6 +11,7 @@ Follow this guidance:
 - Answer "yes" only if the transcript states the specific sign, event, or fact the question asks about. A related, milder or similar sign is not enough: for example, "very tired" does not mean "unconscious", and "a sore throat" does not mean "difficulty swallowing".
 - Answer "no" only if the transcript explicitly denies it or stated facts make it impossible. Denying one sign does not deny a different one: for example, "no headache" does not mean "no stiff neck".
 - Give a number only if the transcript states it, even in another unit (for example, "two weeks" is 14 days). Use the unit the question asks for.
+- Answer "dont_know" only if the respondent says they do not know the answer to that question, and quote both the question asked and the reply.
 - Answer "unknown" for anything else, including topics that never come up. When in doubt, answer "unknown".
 - Do not fill gaps with medical knowledge, the likely cause of death, or symptoms that usually occur together.
 - Questions are about the deceased. "(s)he", "she" and "the baby" mean the deceased unless the question names someone else, such as "the mother". Never attribute a relative's symptoms to the deceased.

@@ -85,3 +85,22 @@ def test_interview():
     assert not set(labels) & set(questions.fields.loc[answered, "label"])
     assert interview.update("", profile, {"icd10:A00": {"score": 1}},
                             3) == ([], False)
+
+
+class DontKnowClient:
+    def call_with_schema(self, schema, **kwargs):
+        return {q: {"evidence": "I don't know", "answer": "dont_know"}
+                for q in schema["properties"]}
+
+
+def test_dont_know():
+    pytest.importorskip("codalg")
+    from coda.inference.champs_prompted.who_questions import WhoQuestions
+    questions = WhoQuestions("voi", DontKnowClient(), skip_logic=False)
+    cough = "Did he have a cough? I don't know."
+    assert questions.asks_about(cough, "Id10153")
+    assert not questions.asks_about(cough, "Id10397")
+    interview = questions.start()
+    causes = {"icd11:1C62.Z": {"score": 0.6}, "icd11:CA40.Z": {"score": 0.4}}
+    interview.update("I don't know.", None, causes, 3)
+    assert not interview.interview.asked_questions.loc["case"].any()
