@@ -53,12 +53,19 @@ def site_profile(site, usecase):
     return CONFIG_DIR / "sites" / f"{name}.yaml"
 
 
+def usecase_defaults(usecase):
+    """Return the path of the settings shared by a use case's profiles."""
+    return CONFIG_DIR / "usecases" / f"{usecase}.yaml"
+
+
 def _settings_files():
     """Return the settings files to load, in increasing precedence.
 
     ``CODA_SETTINGS_FILE`` names a machine's own settings file. Its ``site``
     key, or ``CODA_SITE`` when set, and ``CODA_USECASE`` select a site
-    profile in ``config/sites/``, which the machine's file overrides.
+    profile in ``config/sites/``, which the machine's file overrides. The
+    profile overrides the settings its use case shares in
+    ``config/usecases/``.
     """
     files = ["settings.yaml"]
     local = os.getenv("CODA_SETTINGS_FILE")
@@ -66,9 +73,12 @@ def _settings_files():
         site = os.getenv("CODA_SITE") or \
             (yaml.safe_load(Path(local).read_text()) or {}).get("site")
         if site:
-            profile = site_profile(site, os.getenv("CODA_USECASE"))
+            usecase = os.getenv("CODA_USECASE")
+            profile = site_profile(site, usecase)
             if not profile.exists():
                 raise ValueError(f"No site profile {profile}")
+            if usecase and usecase_defaults(usecase).exists():
+                files.append(str(usecase_defaults(usecase)))
             files.append(str(profile))
         files.append(local)
     return files + [".secrets.yaml"]

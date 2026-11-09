@@ -1,0 +1,12 @@
+# An interviewer asks a family about a death, at a facility or in the
+# community. Site profiles of this use case override these settings.
+
+app:
+  show_clinical_note: false
+  show_mccd: false
+  show_cod_result: false
+  wording: interview
+
+inference:
+  num_questions: 3
+  question_style: simplified

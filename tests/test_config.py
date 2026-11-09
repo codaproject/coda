@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from coda.config import inference_url, reload_settings, settings
+from coda.config import _settings_files, inference_url, reload_settings, \
+    settings, site_profile, usecase_defaults
 
 RAG_PROMPTS = Path(__file__).parents[1] / "src" / "coda" / "grounding" / \
     "rag_grounder" / "prompts"
@@ -211,3 +212,13 @@ def test_storage_env_var_overrides(monkeypatch, tmp_path):
     assert settings.storage.store.audio is True
     assert settings.storage.store.transcripts is True
     assert settings.logging.level == "DEBUG"
+
+
+def test_usecase_defaults(monkeypatch, tmp_path):
+    local = tmp_path / "settings.yaml"
+    local.write_text("site: kintampo\n")
+    monkeypatch.setenv("CODA_SETTINGS_FILE", str(local))
+    monkeypatch.setenv("CODA_USECASE", "interview")
+    files = _settings_files()
+    assert files.index(str(usecase_defaults("interview"))) \
+        < files.index(str(site_profile("kintampo", "interview")))

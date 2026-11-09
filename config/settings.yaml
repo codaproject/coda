@@ -8,7 +8,8 @@
 #   - Edit a value here to change the default.
 #   - Set CODA_SETTINGS_FILE to a machine's own YAML settings file, which
 #     overrides a site profile under config/sites/ (chosen by its `site` key
-#     and CODA_USECASE) that in turn overrides this file.
+#     and CODA_USECASE), which overrides its use case's shared settings under
+#     config/usecases/, which in turn override this file.
 #   - Override at runtime with an environment variable, using the CODA_ prefix
 #     and `__` (double underscore) to descend into nested keys, e.g.:
 #         CODA_APP__PORT=9000

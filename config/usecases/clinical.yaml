@@ -1,0 +1,12 @@
+# A clinician works up a death from clinical records. Site profiles of this
+# use case override these settings.
+
+app:
+  show_clinical_note: true
+  show_mccd: true
+  show_cod_result: true
+  wording: clinical
+
+inference:
+  num_questions: 0
+  question_style: default
