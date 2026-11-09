@@ -2,8 +2,6 @@
 
 app:
   tls: true
-  show_mccd: true
-  show_cod_result: true
   ui_language: en
 
 inference:

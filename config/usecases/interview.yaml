@@ -10,3 +10,7 @@ app:
 inference:
   num_questions: 3
   question_style: simplified
+
+storage:
+  store:
+    audio: true

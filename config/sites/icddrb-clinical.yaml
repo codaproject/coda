@@ -1,10 +1,12 @@
-# icddr,b facility deaths, mostly children, entered by clinicians, in English
+# icddr,b facility deaths, mostly children, worked up by clinicians in English,
+# with family interviews in Bangla or English where the MCCD needs them
 
 app:
   tls: true
   ui_language: en
 
 inference:
+  num_questions: 3
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
@@ -12,11 +14,20 @@ inference:
     cohort: child
     coding: icd11
 
+translate:
+  backend: madlad
+  model: madlad400-3b-mt
+
 dialogue:
   language: en
   transcriber_model: large-v3-turbo
   whisper_livekit:
     backend: mlx-whisper
+  language_transcribers:
+    bn:
+      backend: indic-conformer
 
 storage:
   enabled: true
+  store:
+    audio: true
