@@ -77,12 +77,13 @@ PAUSE_SILENCE_BYTES = 32000
 # How long adding to a case waits for the connection that last recorded it to
 # finish closing it
 CASE_RELEASE_WAIT_S = 5.0
-# WebSocket close code sent when the case asked for cannot be continued
-CASE_IN_USE_CLOSE_CODE = 4409
-# Why a case cannot be continued, by the reason sent to the client
-CASE_REFUSALS = {
+# WebSocket close code sent when a recording is refused
+RECORDING_REFUSED_CLOSE_CODE = 4409
+# Why a recording is refused, by the reason sent to the client
+RECORDING_REFUSALS = {
     "in_use": "This case is being recorded elsewhere",
     "clinical_note": "This case was inferred from clinical notes",
+    "busy": "The server is recording as many interviews as it allows",
 }
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -241,7 +242,7 @@ class InferenceSessionCoordinator:
         """Record into a stored case, or a new case if there is no such case.
 
         Returns the reason the case cannot be continued, a key of
-        ``CASE_REFUSALS``, or None once recording into it.
+        ``RECORDING_REFUSALS``, or None once recording into it.
         """
         if not storage_enabled():
             return None
@@ -968,31 +969,38 @@ async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None):
 
     Each connection records one segment of a case. With ``case_id`` it
     continues that stored case instead of starting a new one, unless the case
-    was inferred from clinical notes.
+    was inferred from clinical notes. Connections beyond
+    ``app.max_recordings`` are refused.
     """
     await websocket.accept()
     logger.info("WebSocket connection established")
 
     inference_session = InferenceSessionCoordinator(websocket)
-    active_inference_sessions.add(inference_session)
-    if case_id is None:
-        await inference_session.start_case()
-    elif (refusal := await inference_session.continue_case(case_id)) \
-            is not None:
-        logger.warning("Not continuing case %s: %s", case_id,
-                       CASE_REFUSALS[refusal])
+    max_recordings = settings.app.get("max_recordings", 0)
+    if max_recordings and len(active_inference_sessions) >= max_recordings:
+        refusal = "busy"
+    else:
+        active_inference_sessions.add(inference_session)
+        if case_id is None:
+            await inference_session.start_case()
+            refusal = None
+        else:
+            refusal = await inference_session.continue_case(case_id)
+    if refusal is not None:
+        logger.warning("Refusing recording of case %s: %s", case_id,
+                       RECORDING_REFUSALS[refusal])
         active_inference_sessions.discard(inference_session)
         await _ws_send_safe(
             websocket,
             {
                 "type": "error",
-                "error": CASE_REFUSALS[refusal],
+                "error": RECORDING_REFUSALS[refusal],
                 "reason": refusal,
                 "fatal": True,
             },
         )
         try:
-            await websocket.close(code=CASE_IN_USE_CLOSE_CODE)
+            await websocket.close(code=RECORDING_REFUSED_CLOSE_CODE)
         except (WebSocketDisconnect, RuntimeError):
             pass
         return

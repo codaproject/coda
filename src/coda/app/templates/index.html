@@ -4626,6 +4626,8 @@
           "continue.transcriber": "Transcriber",
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
+          "server.busy":
+            "The server is busy with other interviews. Try again shortly.",
           "transcript.edit": "Edit",
           "transcript.both": "Both",
           "transcript.original": "Original",
@@ -4823,6 +4825,8 @@
           "continue.transcriber": "Injini ya unakili",
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
+          "server.busy":
+            "Seva ina mahojiano mengine kwa sasa. Jaribu tena baada ya muda mfupi.",
           "transcript.edit": "Hariri",
           "transcript.both": "Zote mbili",
           "transcript.original": "Asili",
@@ -5024,6 +5028,8 @@
           "continue.transcriber": "Moteur de transcription",
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
+          "server.busy":
+            "Le serveur est occupé par d'autres entretiens. Réessayez dans un instant.",
           "transcript.edit": "Modifier",
           "transcript.both": "Les deux",
           "transcript.original": "Original",
@@ -5220,6 +5226,7 @@
           "continue.transcriber": "محرك النسخ",
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
+          "server.busy": "الخادم مشغول بمقابلات أخرى. حاول مرة أخرى بعد قليل.",
           "transcript.edit": "تعديل",
           "transcript.both": "كلاهما",
           "transcript.original": "الأصل",
@@ -5418,6 +5425,8 @@
           "continue.transcriber": "প্রতিলিপি ইঞ্জিন",
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
+          "server.busy":
+            "সার্ভার অন্য সাক্ষাৎকারে ব্যস্ত। একটু পরে আবার চেষ্টা করুন।",
           "transcript.edit": "সম্পাদনা",
           "transcript.both": "উভয়",
           "transcript.original": "মূল",
@@ -5618,6 +5627,8 @@
           "continue.transcriber": "Motor de transcripción",
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
+          "server.busy":
+            "El servidor está ocupado con otras entrevistas. Inténtelo de nuevo en breve.",
           "transcript.edit": "Editar",
           "transcript.both": "Ambos",
           "transcript.original": "Original",
@@ -5821,6 +5832,8 @@
           "continue.transcriber": "Njhini yo tsala leswi vuriwaka",
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
+          "server.busy":
+            "Sevha yi khomekile hi tiinterviyu tin'wana. Ringeta nakambe endzhaku ka nkarhinyana.",
           "transcript.edit": "Lulamisa",
           "transcript.both": "Swimbirhi",
           "transcript.original": "Ririmi ra masungulo",
@@ -6023,6 +6036,8 @@
           "continue.transcriber": "Transcritor",
           "continue.inference": "Inferência",
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
+          "server.busy":
+            "O servidor está ocupado com outras entrevistas. Tente novamente em instantes.",
           "transcript.edit": "Editar",
           "transcript.both": "Ambos",
           "transcript.original": "Original",
@@ -8353,19 +8368,20 @@
             } else if (data.type === "warning") {
               showStatus(data.message, "warning");
             } else if (data.type === "error") {
-              // A fatal error means the server refused to continue the
+              // A fatal error means the server refused the recording, as it
+              // records as many as it allows, or refused to continue the
               // session, which another connection is recording or which was
               // inferred from clinical notes. Its close code can be lost
               // while audio is in flight, so this is the signal to rely on. Errors scoped to an inference chunk
               // (backend sets chunk_id) flip the UI into the offline state
               // rather than a fleeting toast. Other errors stay as toasts.
               if (data.fatal) {
+                const refusals = {
+                  clinical_note: "case.notesOnly",
+                  busy: "server.busy",
+                };
                 showStatus(
-                  t(
-                    data.reason === "clinical_note"
-                      ? "case.notesOnly"
-                      : "continue.inUse",
-                  ),
+                  t(refusals[data.reason] || "continue.inUse"),
                   "warning",
                 );
                 stopRecording({ save: false });

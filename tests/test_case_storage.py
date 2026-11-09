@@ -769,11 +769,31 @@ async def test_case_being_recorded_is_not_continued(storage_dir, idle_transcript
     websocket = RefusedWebSocket()
     await server.websocket_endpoint(websocket, case_id=live.recorder.case_id)
 
-    assert websocket.close_code == server.CASE_IN_USE_CLOSE_CODE
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
     [error] = websocket.messages
     assert error["type"] == "error" and error["fatal"] is True
     assert error["reason"] == "in_use"
     assert server.active_inference_sessions == {live}
+    live.end_case()
+
+
+async def test_recordings_beyond_the_limit_are_refused(storage_dir,
+                                                       idle_transcription,
+                                                       monkeypatch):
+    monkeypatch.setenv("CODA_APP__MAX_RECORDINGS", "1")
+    reload_settings()
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket)
+
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
+    [error] = websocket.messages
+    assert error["reason"] == "busy" and error["fatal"] is True
+    assert server.active_inference_sessions == {live}
+    assert case_dirs(storage_dir) == [live.recorder.case_dir]
     live.end_case()
 
 
@@ -981,7 +1001,7 @@ async def test_notes_case_is_not_continued(storage_dir, idle_transcription,
     websocket = RefusedWebSocket()
     await server.websocket_endpoint(websocket, case_id=from_notes["case_id"])
 
-    assert websocket.close_code == server.CASE_IN_USE_CLOSE_CODE
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
     [error] = websocket.messages
     assert error["fatal"] is True
     assert error["reason"] == "clinical_note"
