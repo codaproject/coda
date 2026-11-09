@@ -28,7 +28,8 @@ from coda import __version__, get_commit, get_version_label
 from coda.app.documents import OcrUnavailable, document_text
 from coda.app.storage import CaseRecorder, case_audio_path, case_revision, \
     case_sources, cases_browsable, cases_root, find_case, list_cases, \
-    load_case, storage_enabled, storage_keeps_audio, storage_keeps_notes
+    load_case, save_metadata, storage_enabled, storage_keeps_audio, \
+    storage_keeps_notes
 from coda.app.onboarding_notice import (
     load_onboarding_notice_html,
     render_onboarding_notice,
@@ -1586,6 +1587,26 @@ async def get_case(case_id: str) -> dict:
     if case is None:
         raise HTTPException(status_code=404, detail="Unknown case")
     return {**case, "in_progress": case_id in _recording_case_ids()}
+
+
+class CaseMetadataRequest(BaseModel):
+    # The revision of the case on screen
+    revision: int | None = None
+    metadata: dict | None = None
+    user: dict | None = None
+
+
+@app.post("/cases/{case_id}/metadata")
+async def set_case_metadata(case_id: str, req: CaseMetadataRequest) -> dict:
+    """Save the metadata of a stored case that is not being recorded."""
+    if not storage_enabled() or find_case(case_id) is None:
+        raise HTTPException(status_code=404, detail="Unknown case")
+    if case_id in _recording_case_ids():
+        raise HTTPException(status_code=409, detail="in_use")
+    if case_changed(case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
+    metadata = Metadata.from_dict(req.metadata).to_dict()
+    return {"revision": save_metadata(case_id, metadata, parse_user(req.user))}
 
 
 @app.get("/cases/{case_id}/audio")

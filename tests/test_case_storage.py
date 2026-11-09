@@ -1111,3 +1111,37 @@ async def test_edit_of_a_changed_case_is_refused(offline_server, storage_dir):
 
     assert refused.value.status_code == 409
     assert load_case(stored.case_id)["edits"] == []
+
+
+def test_metadata_edit_is_a_logged_revision(storage_dir):
+    stored = record_case("aaaa0001")
+    client = TestClient(server.app)
+    older = {"profile": {"age": {"value": 4, "unit": "years"}}}
+    url = f"/cases/{stored.case_id}/metadata"
+
+    saved = client.post(url, json={"revision": 1, "metadata": older,
+                                   "user": {"name": "Ana", "id": "7"}})
+    unchanged = client.post(url, json={"revision": 2, "metadata": older})
+    stale = client.post(url, json={"revision": 1, "metadata": PROFILE})
+
+    assert saved.json() == {"revision": 2}
+    assert unchanged.json() == {"revision": 2}
+    assert stale.status_code == 409
+    case = load_case(stored.case_id)
+    assert case["metadata"]["profile"]["age"]["value"] == 4
+    edit = case["revisions"][-1]
+    assert (edit["revision"], edit["kind"]) == (2, "metadata")
+    assert edit["metadata"]["before"]["profile"]["age"]["value"] == 3
+    assert edit["user"] == {"name": "Ana", "id": "7"}
+
+
+def test_metadata_of_a_case_being_recorded_is_not_saved(storage_dir,
+                                                        monkeypatch):
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    live.recorder = record_case("aaaa0001")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    response = TestClient(server.app).post(
+        f"/cases/{live.recorder.case_id}/metadata", json={"metadata": {}})
+
+    assert response.status_code == 409

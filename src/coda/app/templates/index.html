@@ -2766,7 +2766,6 @@
         border-radius: 6px;
         color: var(--ink);
       }
-      body.viewing-case .profile-bar,
       body.viewing-case .lang-chip,
       body.viewing-case #resetBtn,
       body.viewing-case #historyBtn {
@@ -6870,6 +6869,7 @@
         caseRunInfo = session.runInfo || null;
         caseProfile = (session.metadata && session.metadata.profile) || null;
         caseMetadataId = (session.metadata && session.metadata.case_id) || null;
+        showCaseProfile();
         sessionPartCount = session.parts || 1;
 
         transcriptText = session.transcript || "";
@@ -6942,6 +6942,7 @@
         caseRunInfo = parts.length ? parts[parts.length - 1].run_info : c.run_info;
         caseProfile = (c.metadata && c.metadata.profile) || null;
         caseMetadataId = (c.metadata && c.metadata.case_id) || null;
+        showCaseProfile();
         caseInProgress = !!c.in_progress;
         continueBtn.disabled = caseInProgress;
         sessionPartCount = parts.length;
@@ -8938,6 +8939,52 @@
         sendProfile();
       }
 
+      // Save a profile edit to the stored case on screen, unless the
+      // connection recording it carries the edit
+      async function saveCaseProfile() {
+        if (!currentCaseId || ws || finishingSocket) return;
+        const metadata = caseMetadata();
+        try {
+          const resp = await fetch(
+            `/cases/${encodeURIComponent(currentCaseId)}/metadata`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                revision: currentCaseRevision,
+                metadata,
+                user: currentUser(),
+              }),
+            },
+          );
+          if (resp.status === 409) {
+            const err = await resp.json();
+            if (err.detail === "changed") reloadChangedCase();
+            else showStatus(t("continue.inUse"), "warning");
+            return;
+          }
+          if (!resp.ok) return;
+          currentCaseRevision = (await resp.json()).revision;
+          caseMetadataId = metadata.case_id;
+          caseProfile = metadata.profile;
+        } catch (e) {}
+      }
+
+      function profileChanged() {
+        pushMetadata();
+        saveCaseProfile();
+      }
+
+      // Show a reopened case's own profile, with its case ID fixed
+      function showCaseProfile() {
+        clearProfileInputs();
+        if (caseMetadataId) caseIdInput.value = caseMetadataId;
+        if (caseProfile) fillProfileInputs(caseProfile);
+        caseIdInput.readOnly = true;
+        caseIdUsed = true;
+        pushMetadata();
+      }
+
       // Whether a recording has been saved as a case under the current ID
       let caseIdUsed = false;
 
@@ -8946,7 +8993,10 @@
         caseIdUsed = false;
         try {
           const resp = await fetch("/next-case-id");
-          caseIdInput.value = (await resp.json()).case_id;
+          const caseId = (await resp.json()).case_id;
+          // Unless a reopened case was shown meanwhile
+          if (caseIdInput.readOnly) return;
+          caseIdInput.value = caseId;
         } catch (e) {}
         await pushMetadata();
       }
@@ -9146,19 +9196,19 @@
             ageUnitSelect.value = "years";
           }
           setCohort(radio.value);
-          pushMetadata();
+          profileChanged();
         }),
       );
-      ageValueInput.addEventListener("change", pushMetadata);
-      ageUnitSelect.addEventListener("change", pushMetadata);
-      stillbirthToggle.addEventListener("change", pushMetadata);
-      caseIdInput.addEventListener("change", pushMetadata);
-      hivSelect.addEventListener("change", pushMetadata);
+      ageValueInput.addEventListener("change", profileChanged);
+      ageUnitSelect.addEventListener("change", profileChanged);
+      stillbirthToggle.addEventListener("change", profileChanged);
+      caseIdInput.addEventListener("change", profileChanged);
+      hivSelect.addEventListener("change", profileChanged);
       Object.values(measurementInputs).forEach((input) =>
-        input.addEventListener("change", pushMetadata),
+        input.addEventListener("change", profileChanged),
       );
-      dateOfDeathInput.addEventListener("change", pushMetadata);
-      mannerSelect.addEventListener("change", pushMetadata);
+      dateOfDeathInput.addEventListener("change", profileChanged);
+      mannerSelect.addEventListener("change", profileChanged);
       // Clicking the selected option again clears the choice
       sexRadios.forEach((radio) => {
         radio.closest("label").addEventListener("pointerdown", () => {
@@ -9167,7 +9217,7 @@
         radio.addEventListener("click", () => {
           if (radio.dataset.wasChecked === "true") radio.checked = false;
           radio.dataset.wasChecked = "false";
-          pushMetadata();
+          profileChanged();
         });
       });
 
@@ -9176,6 +9226,7 @@
       function clearSessionView() {
         body.classList.remove("viewing-case");
         resetMccd();
+        caseIdInput.readOnly = false;
         // The case ID and profile of a case already saved stay with it
         if (caseIdUsed) {
           clearProfileInputs();

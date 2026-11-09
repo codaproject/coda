@@ -378,6 +378,26 @@ def case_revision(case_id: str) -> int | None:
     return _read_manifest(case_dir).get("revision", 0)
 
 
+def save_metadata(case_id: str, metadata: dict, user: dict | None) -> int:
+    """Replace a stored case's metadata as a new revision and return the
+    revision the case is at.
+
+    Metadata that is unchanged or not stored makes no revision.
+    """
+    case_dir = find_case(case_id)
+    manifest = _read_manifest(case_dir)
+    store = {key: bool(value) for key, value in settings.storage.store.items()}
+    before = manifest.get("metadata")
+    if not store.get("metadata") or metadata == before:
+        return manifest.get("revision", 0)
+    manifest["revision"] = manifest.get("revision", 0) + 1
+    manifest["metadata"] = metadata
+    _write_manifest(case_dir, manifest)
+    _log_revision(case_dir, store, manifest["revision"], "metadata", user,
+                  before, metadata)
+    return manifest["revision"]
+
+
 def _read_jsonl(path: Path) -> list[dict] | None:
     """Records in a JSONL file, or None if it was not stored.
 
