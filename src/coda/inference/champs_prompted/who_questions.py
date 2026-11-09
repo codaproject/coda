@@ -130,8 +130,8 @@ def is_negated(evidence):
 # Choices that give no answer
 NON_ANSWERS = {"dk", "ref"}
 UNKNOWN = "unknown"
-# Answer of a respondent who says they do not know
-DONT_KNOW = "dont_know"
+# Answer to a question asked whose reply gives no form answer
+NO_ANSWER = "no_answer"
 
 
 def answer_hint(field):
@@ -141,11 +141,11 @@ def answer_hint(field):
         names = [c for c in choices if c.lower() not in NON_ANSWERS]
         if field["type"] == "select all that apply":
             return "any of, separated by spaces: " + " ".join(names) \
-                + f" | {DONT_KNOW} | {UNKNOWN}"
-        return "one of: " + " | ".join(names) + f" | {DONT_KNOW} | {UNKNOWN}"
+                + f" | {NO_ANSWER} | {UNKNOWN}"
+        return "one of: " + " | ".join(names) + f" | {NO_ANSWER} | {UNKNOWN}"
     if field["type"] == "integer":
-        return f"a whole number | {DONT_KNOW} | {UNKNOWN}"
-    return f"a number | {DONT_KNOW} | {UNKNOWN}"
+        return f"a whole number | {NO_ANSWER} | {UNKNOWN}"
+    return f"a number | {NO_ANSWER} | {UNKNOWN}"
 
 
 def parse_answer(field, answer):
@@ -176,7 +176,7 @@ def answer_schema(field):
     """Return the JSON schema of the answer to a form field."""
     if field["type"] == "select one":
         names = [c for c in field["choices"] if c.lower() not in NON_ANSWERS]
-        return {"type": "string", "enum": [*names, DONT_KNOW, UNKNOWN]}
+        return {"type": "string", "enum": [*names, NO_ANSWER, UNKNOWN]}
     return {"type": "string"}
 
 
@@ -221,15 +221,15 @@ class WhoQuestions:
         return WhoInterview(self)
 
     def asks_about(self, evidence, question):
-        """Return whether a quote shares a topic word with a question."""
+        """Return whether a quote asks a question sharing its topic word."""
         label = set(words(self.fields.loc[question, "label"]).split())
-        return bool((label - self.common_words)
-                    & set(words(evidence).split()))
+        return "?" in evidence and bool((label - self.common_words)
+                                        & set(words(evidence).split()))
 
     def code_answers(self, text, questions):
         """Return the form values the text gives for the questions.
 
-        A question the respondent says they do not know has DONT_KNOW.
+        A question asked whose reply gives no form answer has NO_ANSWER.
         """
         listed = "\n".join(
             f"{q}: {self.fields.loc[q, 'label']} "
@@ -251,7 +251,7 @@ class WhoQuestions:
                     str(item.get("answer")).strip().lower() == UNKNOWN:
                 continue
             answer = str(item["answer"]).strip().lower()
-            value = DONT_KNOW if answer == DONT_KNOW else \
+            value = NO_ANSWER if answer == NO_ANSWER else \
                 parse_answer(self.fields.loc[question], answer)
             if value is None:
                 logger.info("Invalid answer %r to %s", item.get("answer"),
@@ -262,10 +262,10 @@ class WhoQuestions:
             elif value == "no" and not is_negated(item["evidence"]):
                 logger.info("Answer no to %s has no denial in its evidence",
                             question)
-            elif value == DONT_KNOW and \
+            elif value == NO_ANSWER and \
                     not self.asks_about(item["evidence"], question):
                 logger.info("Answer %s to %s has no question in its evidence",
-                            DONT_KNOW, question)
+                            NO_ANSWER, question)
             else:
                 values[question] = value
         return values
@@ -306,11 +306,11 @@ class WhoInterview:
             values = self.questions.code_answers(text, questions)
             if not values:
                 break
-            unknown = [q for q, v in values.items() if v == DONT_KNOW]
+            unknown = [q for q, v in values.items() if v == NO_ANSWER]
             self.interview.record(
                 pd.Series(unknown, index=[CASE] * len(unknown), dtype=object),
                 pd.DataFrame({q: [v] for q, v in values.items()
-                              if v != DONT_KNOW},
+                              if v != NO_ANSWER},
                              index=[CASE], dtype=object))
         else:
             ranked, stop = self.rank(probabilities)

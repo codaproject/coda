@@ -87,19 +87,20 @@ def test_interview():
                             3) == ([], False)
 
 
-class DontKnowClient:
+class NoAnswerClient:
     def call_with_schema(self, schema, **kwargs):
-        return {q: {"evidence": "I don't know", "answer": "dont_know"}
+        return {q: {"evidence": "I don't know", "answer": "no_answer"}
                 for q in schema["properties"]}
 
 
-def test_dont_know():
+def test_no_answer():
     pytest.importorskip("codalg")
     from coda.inference.champs_prompted.who_questions import WhoQuestions
-    questions = WhoQuestions("voi", DontKnowClient(), skip_logic=False)
+    questions = WhoQuestions("voi", NoAnswerClient(), skip_logic=False)
     cough = "Did he have a cough? I don't know."
     assert questions.asks_about(cough, "Id10153")
     assert not questions.asks_about(cough, "Id10397")
+    assert not questions.asks_about("She had a cough.", "Id10153")
     interview = questions.start()
     causes = {"icd11:1C62.Z": {"score": 0.6}, "icd11:CA40.Z": {"score": 0.4}}
     interview.update("I don't know.", None, causes, 3)
