@@ -23,9 +23,14 @@ CASE = "case"
 MAX_ROUNDS = 3
 # Questions coded per question suggested
 CANDIDATES_PER_QUESTION = 4
-# Questions about the respondent and the deceased's social background
+# Questions about the respondent, the deceased's social background, records
+# and access to care
 BACKGROUND = {"Id10008", "Id10009", "Id10020", "Id10022", "Id10051",
-              "Id10052", "Id10063", "Id10064", "Id10065"}
+              "Id10052", "Id10063", "Id10064", "Id10065", "Id10429",
+              "Id10430", "Id10435", "Id10437", "Id10438", "Id10442",
+              "Id10450", "Id10451", "Id10452", "Id10453", "Id10454",
+              "Id10455", "Id10456", "Id10458", "Id10459", "Id10462",
+              "Id10463"}
 # Form answers of a stillbirth
 STILLBIRTH = {"Id10104": "no", "Id10109": "no", "Id10110": "no",
               "Id10114": "yes"}
@@ -42,6 +47,8 @@ NEGATIONS = {"no", "not", "never", "none", "nothing", "neither", "nor",
              "without", "didn", "wasn", "weren", "hadn", "couldn", "don",
              "doesn", "isn", "t"}
 SYSTEM_PROMPT = read_prompt("who_answers.txt")
+# Words in more form questions than this do not identify a question's topic
+MAX_TOPIC_WORD_QUESTIONS = 15
 # Answers less likely than this are not expected to change the top cause
 MIN_ANSWER_PROBABILITY = 0.1
 
