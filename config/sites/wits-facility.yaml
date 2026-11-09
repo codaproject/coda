@@ -14,7 +14,7 @@ inference:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    population: child
+    cohort: child
     coding: icd11
 
 dialogue:

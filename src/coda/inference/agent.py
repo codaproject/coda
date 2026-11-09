@@ -399,13 +399,15 @@ if __name__ == "__main__":
     else:
         from coda.inference.champs_prompted import create_champs_prompted_agent
         agent = create_champs_prompted_agent(provider=args.provider, model=args.model)
+        default = agent.agents[agent.default]
         logger.info("Prompted agent backend: provider=%s model=%s endpoint=%s",
-                    args.provider, agent.llm_client.model,
-                    agent.llm_client.base_url or "provider default")
-        info.update(agent_class=type(agent).__name__,
-                    provider=args.provider, model=agent.llm_client.model,
-                    num_questions=agent.num_questions,
-                    question_style=agent.question_style)
+                    args.provider, default.llm_client.model,
+                    default.llm_client.base_url or "provider default")
+        info.update(agent_classes={cohort: type(a).__name__
+                                   for cohort, a in agent.agents.items()},
+                    provider=args.provider, model=default.llm_client.model,
+                    num_questions=default.num_questions,
+                    question_style=default.question_style)
 
     server = InferenceServer(agent, host=args.host, port=args.port, info=info)
     server.run()

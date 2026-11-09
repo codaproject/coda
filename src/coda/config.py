@@ -89,6 +89,8 @@ settings = Dynaconf(
         Validator("inference.llm.provider", "grounder.rag.llm.provider",
                   is_in=["openai", "ollama"]),
         Validator("inference.question_style", is_in=["default", "simplified"]),
+        Validator("inference.champs_prompted.cohort",
+                  is_in=["child", "adult"]),
         Validator("app.wording", is_in=["clinical", "interview"]),
         Validator("grounder.type", is_in=["gilda", "rag"]),
         Validator("inference.num_questions", cast=int),

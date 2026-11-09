@@ -78,3 +78,11 @@ def test_invalid_clinical_values_dropped():
                                         "weight_kg_death": -1,
                                         "muac_cm_admission": "x"}})
     assert m.is_empty()
+
+
+def test_cohort():
+    m = Metadata.from_dict({"profile": {"cohort": "adult"}})
+    assert m.profile.cohort == "adult"
+    assert m.to_dict()["profile"]["cohort"] == "adult"
+    m = Metadata.from_dict({"profile": {"cohort": "elderly"}})
+    assert m.profile is None
