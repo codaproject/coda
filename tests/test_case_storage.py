@@ -242,6 +242,26 @@ async def test_targeted_reset_only_rotates_target_case(offline_server,
     session_b.end_case()
 
 
+def test_reset_needs_a_session():
+    assert TestClient(server.app).post("/reset").status_code == 422
+
+
+async def test_reset_of_a_closed_session_resets_only_its_inference(
+        offline_server, monkeypatch):
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "session-b")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+    resets = []
+
+    async def fake_reset(session_id, generation):
+        resets.append((session_id, generation))
+
+    monkeypatch.setattr(server, "_reset_inference_session", fake_reset)
+    await server.reset_session(server.ResetRequest(session_id="session-a"))
+
+    assert resets == [("session-a", None)]
+    assert live.generation == 0
+
+
 @pytest.mark.asyncio
 async def test_inference_results_recorded_unless_stale(offline_server,
                                                        storage_dir, monkeypatch):

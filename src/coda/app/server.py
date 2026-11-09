@@ -413,7 +413,7 @@ class InferenceSessionCoordinator:
 
 
 class ResetRequest(BaseModel):
-    session_id: Optional[str] = None
+    session_id: str
     session_generation: Optional[int] = None
 
 
@@ -571,12 +571,12 @@ async def _reset_inference_session(session_id: str, generation: int):
         })
         resp.raise_for_status()
         logger.info(
-            "Inference agent reset for session %s generation %d",
+            "Inference agent reset for session %s generation %s",
             session_id, generation
         )
     except Exception as e:
         logger.warning(
-            "Could not reset inference session %s generation %d: %s",
+            "Could not reset inference session %s generation %s: %s",
             session_id, generation, e
         )
 
@@ -1486,26 +1486,17 @@ async def edit_transcript(req: TranscriptEditRequest):
 
 
 @app.post("/reset")
-async def reset_session(req: Optional[ResetRequest] = None):
-    """Reset session state: start a new case and reset the inference agent."""
-    targeted_reset = req is not None and req.session_id is not None
-    target_sessions = list(active_inference_sessions)
-    if targeted_reset:
-        target_sessions = [
-            session for session in target_sessions
-            if session.session_id == req.session_id
-        ]
+async def reset_session(req: ResetRequest):
+    """Start a new case on one session and reset its inference."""
+    sessions = [session for session in active_inference_sessions
+                if session.session_id == req.session_id]
     await asyncio.gather(
-        *(session.invalidate("reset") for session in target_sessions),
+        *(session.invalidate("reset") for session in sessions),
         return_exceptions=True,
     )
-    if not target_sessions:
-        try:
-            resp = await inference_client.post("/reset", json=req.model_dump() if req else {})
-            resp.raise_for_status()
-            logger.info("Inference agent reset")
-        except Exception as e:
-            logger.warning(f"Could not reset inference agent: {e}")
+    if not sessions:
+        await _reset_inference_session(req.session_id,
+                                       req.session_generation)
     return {"status": "reset"}
 
 

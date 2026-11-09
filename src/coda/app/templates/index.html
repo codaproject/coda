@@ -9252,14 +9252,16 @@
           renderIdleRecent();
           setSessionState("idle");
           try {
-            await fetch("/reset", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                session_id: currentInferenceSessionId,
-                session_generation: currentInferenceSessionGeneration,
-              }),
-            });
+            if (currentInferenceSessionId) {
+              await fetch("/reset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  session_id: currentInferenceSessionId,
+                  session_generation: currentInferenceSessionGeneration,
+                }),
+              });
+            }
             currentInferenceSessionId = null;
             currentInferenceSessionGeneration = null;
             showStatus("Session reset — ready for new recording", "success");
