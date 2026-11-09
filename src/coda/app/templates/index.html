@@ -557,6 +557,10 @@
       #caseId {
         width: 110px;
       }
+      #caseId:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
       .profile-field select {
         padding: 4px 8px;
         border: 1px solid var(--border-warm);
@@ -8980,7 +8984,7 @@
         clearProfileInputs();
         if (caseMetadataId) caseIdInput.value = caseMetadataId;
         if (caseProfile) fillProfileInputs(caseProfile);
-        caseIdInput.readOnly = true;
+        caseIdInput.disabled = true;
         caseIdUsed = true;
         pushMetadata();
       }
@@ -8995,7 +8999,7 @@
           const resp = await fetch("/next-case-id");
           const caseId = (await resp.json()).case_id;
           // Unless a reopened case was shown meanwhile
-          if (caseIdInput.readOnly) return;
+          if (caseIdInput.disabled) return;
           caseIdInput.value = caseId;
         } catch (e) {}
         await pushMetadata();
@@ -9226,7 +9230,7 @@
       function clearSessionView() {
         body.classList.remove("viewing-case");
         resetMccd();
-        caseIdInput.readOnly = false;
+        caseIdInput.disabled = false;
         // The case ID and profile of a case already saved stay with it
         if (caseIdUsed) {
           clearProfileInputs();
