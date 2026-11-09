@@ -21,7 +21,7 @@
 
 # Site name, set in a machine's settings file. Empty -> none.
 site: ""
-# Use case of the site, chosen when CODA starts: facility | community.
+# Use case of the site, chosen when CODA starts: clinical | interview.
 # Empty -> the site's only profile.
 usecase: ""
 

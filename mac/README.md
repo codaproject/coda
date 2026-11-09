@@ -59,7 +59,9 @@ Settings come from three files, each overriding the one before:
    made on the laptop. Updates never touch it.
 
 A site has one profile per use case, named `<site>-<usecase>.yaml`, where
-the use case is `facility` or `community`. With `site: <site>` in the
+the use case is `clinical` (a clinician works up a death from clinical
+records) or `interview` (a family interview, at a facility or in the
+community). With `site: <site>` in the
 laptop's file, CODA asks at start which use case to run when the site has
 more than one, and offers the last choice first. The interview page
 footer shows the site and use case, and each saved case records them.

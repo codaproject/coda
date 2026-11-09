@@ -3,8 +3,8 @@
 ObjC.import("AppKit")
 
 const DESCRIPTIONS = {
-    facility: "A clinician enters a death at a health facility",
-    community: "A field worker interviews a family about a death",
+    clinical: "A clinician works up a death from clinical records",
+    interview: "An interviewer asks a family about a death",
 }
 
 ObjC.registerSubclass({name: "RadioTarget", methods: {
