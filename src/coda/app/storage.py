@@ -58,9 +58,13 @@ class CaseRecorder:
     """Writes everything recorded for one case into its own folder.
 
     With ``case_id`` the existing case is reopened and a new segment appended
-    to it. The time between the two segments is recorded as a pause. Without
-    ``audio`` the segment keeps no audio, as for a clinical-notes inference.
-    A new case starts with ``metadata``, replaced by that given on close.
+    to it. The time between the two segments is recorded as a pause. The
+    ``kind`` of write is ``recording``, ``notes`` or ``edit``, and only a
+    recording keeps audio. A new case starts with ``metadata``, replaced by
+    that given on close.
+
+    Each recorder makes one revision of the case, numbered when it opens and
+    logged in ``revisions.jsonl`` when it closes.
     """
 
     def __init__(
@@ -69,13 +73,14 @@ class CaseRecorder:
         generation: int,
         run_info: dict,
         case_id: str | None = None,
-        audio: bool = True,
+        kind: str = "recording",
         metadata: dict | None = None,
     ):
         self.store = {key: bool(value)
                       for key, value in settings.storage.store.items()}
-        keeps_audio = audio and self.store.get("audio", False)
+        keeps_audio = kind == "recording" and self.store.get("audio", False)
         started = datetime.now()
+        self.kind = kind
         self.reopened = case_id is not None
         self._heard = False
         if case_id is None:
@@ -101,6 +106,9 @@ class CaseRecorder:
             self.case_id = case_id
             self.case_dir = cases_root() / case_id
             self.manifest = self._reopened_manifest(started)
+        self.revision = self.manifest.get("revision", 0) + 1
+        self.manifest["revision"] = self.revision
+        self._metadata_before = self.manifest.get("metadata")
 
         self.segment = len(self.manifest["segments"])
         audio_file = "audio.wav" if self.segment == 0 \
@@ -158,11 +166,7 @@ class CaseRecorder:
         return open(path, "a", encoding="utf-8")
 
     def _write_manifest(self):
-        path = self.case_dir / "manifest.json"
-        tmp = path.with_suffix(".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self.manifest, f, indent=2, default=str)
-        os.replace(tmp, path)
+        _write_manifest(self.case_dir, self.manifest)
 
     @staticmethod
     def _append_json(f: Optional[TextIO], record: dict):
@@ -316,6 +320,8 @@ class CaseRecorder:
             self._audio = None
         if self.reopened and not self._heard:
             self._drop_segment()
+            _log_revision(self.case_dir, self.store, self.revision, self.kind,
+                          user, self._metadata_before, self._metadata_before)
             return
         ended = datetime.now().isoformat()
         self.manifest["ended_at"] = ended
@@ -325,6 +331,8 @@ class CaseRecorder:
         if self.store.get("user"):
             self.manifest["user"] = user
         self._write_manifest()
+        _log_revision(self.case_dir, self.store, self.revision, self.kind,
+                      user, self._metadata_before, metadata)
 
     def _drop_segment(self):
         """Leave the case as it was, as this segment received no audio."""
@@ -334,6 +342,40 @@ class CaseRecorder:
         del self.manifest["pauses"][self._gap_index :]
         self.manifest["ended_at"] = self.manifest["segments"][-1]["ended_at"]
         self._write_manifest()
+
+
+def _write_manifest(case_dir: Path, manifest: dict):
+    path = case_dir / "manifest.json"
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, default=str)
+    os.replace(tmp, path)
+
+
+def _log_revision(case_dir: Path, store: dict, revision: int, kind: str,
+                  user: dict | None, before: dict | None, after: dict | None):
+    """Append one revision of a case to its revision log.
+
+    The metadata before and after are logged when they differ.
+    """
+    record = {"revision": revision, "kind": kind,
+              "at": datetime.now().isoformat()}
+    if store.get("user"):
+        record["user"] = user
+    if store.get("metadata") and before != after:
+        record["metadata"] = {"before": before, "after": after}
+    path = case_dir / "revisions.jsonl"
+    _end_last_line(path)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, default=str) + "\n")
+
+
+def case_revision(case_id: str) -> int | None:
+    """The revision a stored case is at, or None if there is no such case."""
+    case_dir = find_case(case_id)
+    if case_dir is None:
+        return None
+    return _read_manifest(case_dir).get("revision", 0)
 
 
 def _read_jsonl(path: Path) -> list[dict] | None:
@@ -606,6 +648,8 @@ def load_case(case_id: str) -> dict | None:
                        if record.get("source") == "clinical_note"]
     return {
         **_summary(case_dir, manifest, chunks or [], inference or []),
+        "revision": manifest.get("revision", 0),
+        "revisions": _read_jsonl(case_dir / "revisions.jsonl") or [],
         "coda_version": manifest.get("coda_version"),
         "run_info": manifest.get("run_info"),
         "pauses": manifest.get("pauses", []),

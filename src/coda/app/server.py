@@ -26,9 +26,9 @@ from pydantic import BaseModel
 
 from coda import __version__, get_commit, get_version_label
 from coda.app.documents import OcrUnavailable, document_text
-from coda.app.storage import CaseRecorder, case_audio_path, case_sources, \
-    cases_browsable, cases_root, find_case, list_cases, load_case, \
-    storage_enabled, storage_keeps_audio, storage_keeps_notes
+from coda.app.storage import CaseRecorder, case_audio_path, case_revision, \
+    case_sources, cases_browsable, cases_root, find_case, list_cases, \
+    load_case, storage_enabled, storage_keeps_audio, storage_keeps_notes
 from coda.app.onboarding_notice import (
     load_onboarding_notice_html,
     render_onboarding_notice,
@@ -84,6 +84,7 @@ RECORDING_REFUSALS = {
     "in_use": "This case is being recorded elsewhere",
     "clinical_note": "This case was inferred from clinical notes",
     "busy": "The server is recording as many interviews as it allows",
+    "changed": "This case was changed elsewhere",
 }
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -238,10 +239,12 @@ class InferenceSessionCoordinator:
                                          await _run_info(),
                                          metadata=self.metadata.to_dict()))
 
-    async def continue_case(self, case_id: str) -> str | None:
+    async def continue_case(self, case_id: str,
+                            revision: int | None = None) -> str | None:
         """Record into a stored case, or a new case if there is no such case.
 
-        Returns the reason the case cannot be continued, a key of
+        With ``revision``, the case must still be at that revision. Returns
+        the reason the case cannot be continued, a key of
         ``RECORDING_REFUSALS``, or None once recording into it.
         """
         if not storage_enabled():
@@ -252,6 +255,8 @@ class InferenceSessionCoordinator:
         # meanwhile
         if case_id in _recording_case_ids():
             return "in_use"
+        if case_changed(case_id, revision):
+            return "changed"
         if find_case(case_id) is None:
             logger.warning("No stored case %s to continue, starting a new one",
                            case_id)
@@ -347,6 +352,8 @@ class InferenceSessionCoordinator:
             "session_generation": self.generation,
             "case_id": self.recorder.case_id
             if self.recorder is not None else None,
+            "revision": self.recorder.revision
+            if self.recorder is not None else None,
         }
 
     async def wait_for_idle(self):
@@ -429,8 +436,17 @@ class ClinicalNotesRequest(BaseModel):
     notes: list[ClinicalNote]
     # The stored case on screen, which the inference joins
     case_id: str | None = None
+    # The revision of that case on screen
+    revision: int | None = None
     metadata: dict | None = None
     user: dict | None = None
+
+
+def case_changed(case_id: str, revision: int | None) -> bool:
+    """Return whether a stored case has moved on from ``revision``."""
+    if revision is None:
+        return False
+    return case_revision(case_id) not in (None, revision)
 
 
 def parse_user(user: dict | None) -> dict:
@@ -962,14 +978,16 @@ async def update_settings(req: SettingsRequest):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None):
+async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None,
+                             revision: int | None = None):
     """Capture and processing are decoupled into two tasks: one only drains the
     socket into an in-memory queue (so it is always drained and never
     overflows/disconnects), the other transcribes + grounds it at its own pace.
 
     Each connection records one segment of a case. With ``case_id`` it
     continues that stored case instead of starting a new one, unless the case
-    was inferred from clinical notes. Connections beyond
+    was inferred from clinical notes or has moved on from ``revision``.
+    Connections beyond
     ``app.max_recordings`` are refused.
     """
     await websocket.accept()
@@ -985,7 +1003,7 @@ async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None):
             await inference_session.start_case()
             refusal = None
         else:
-            refusal = await inference_session.continue_case(case_id)
+            refusal = await inference_session.continue_case(case_id, revision)
     if refusal is not None:
         logger.warning("Refusing recording of case %s: %s", case_id,
                        RECORDING_REFUSALS[refusal])
@@ -1340,26 +1358,29 @@ async def read_document_text(request: Request, name: str):
 
 
 async def _store_note_inference(
-    case_id: str | None, request: dict, result: dict, user: dict
-) -> str | None:
+    req: ClinicalNotesRequest, request: dict, result: dict
+) -> CaseRecorder | None:
     """Store an inference made from clinical notes in the stored case it was
-    made on, else in a new case, and return that case."""
+    made on, else in a new case, and return the recorder that stored it."""
     if not storage_enabled():
         return None
+    case_id = req.case_id
     run_info = await _run_info()
     # No await from here on, so no connection can take the case meanwhile
+    if case_id is not None and case_changed(case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
     if case_id is not None and (
         case_id in _recording_case_ids() or find_case(case_id) is None
     ):
         logger.warning("Cannot add to case %s, starting a new one", case_id)
         case_id = None
     recorder = CaseRecorder(
-        request["session_id"], 0, run_info, case_id=case_id, audio=False
+        request["session_id"], 0, run_info, case_id=case_id, kind="notes"
     )
     recorder.write_inference(request, result, shown_at=time.time())
-    recorder.close(request["metadata"], user)
+    recorder.close(request["metadata"], parse_user(req.user))
     logger.info("Stored clinical-notes inference in case %s", recorder.case_id)
-    return recorder.case_id
+    return recorder
 
 
 @app.post("/clinical-notes")
@@ -1382,6 +1403,9 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         raise HTTPException(
             status_code=409, detail="Clinical notes cannot join a recorded case"
         )
+    if storage_enabled() and req.case_id is not None and \
+            case_changed(req.case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
 
     note_text = "\n\n".join(n["text"] for n in notes)
     annotations = await asyncio.to_thread(grounder.annotate, note_text)
@@ -1402,9 +1426,10 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         result = {**response.json(), "source": "clinical_note"}
     finally:
         await _reset_inference_session(session_id, 0)
-    stored_in = await _store_note_inference(req.case_id, request, result,
-                                            parse_user(req.user))
-    return {**result, "case_id": stored_in}
+    recorder = await _store_note_inference(req, request, result)
+    return {**result,
+            "case_id": recorder.case_id if recorder else None,
+            "revision": recorder.revision if recorder else None}
 
 
 class TranscriptEditRequest(BaseModel):
@@ -1417,6 +1442,8 @@ class TranscriptEditRequest(BaseModel):
     # The recording session, if recording
     session_id: str | None = None
     case_id: str | None = None
+    # The revision of that case on screen
+    revision: int | None = None
     metadata: dict | None = None
     user: dict | None = None
 
@@ -1425,8 +1452,12 @@ async def _infer_edited_case(req, edit_id, after, annotations):
     """Infer once from an edited transcript and store it in its case.
 
     The edit and its inference are stored only if the case is stored and not
-    being recorded.
+    being recorded. Returns the inference and the revision that stored it,
+    if any.
     """
+    if storage_enabled() and req.case_id is not None and \
+            case_changed(req.case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
     session_id = str(uuid.uuid4())
     user = parse_user(req.user)
     request = {
@@ -1448,18 +1479,21 @@ async def _infer_edited_case(req, edit_id, after, annotations):
         run_info = await _run_info()
         await _wait_for_case_release(req.case_id)
         # No await from here on, so no connection can take the case meanwhile
+        if case_changed(req.case_id, req.revision):
+            raise HTTPException(status_code=409, detail="changed")
         if req.case_id in _recording_case_ids() or \
                 find_case(req.case_id) is None:
             logger.warning("Not storing the edit in case %s", req.case_id)
-            return result
+            return result, None
         recorder = CaseRecorder(session_id, 0, run_info, case_id=req.case_id,
-                                audio=False)
+                                kind="edit")
         recorder.write_edit(edit_id, req.shown_through, req.before, after,
                             annotations, live=False, user=user)
         recorder.write_inference(request, result, shown_at=time.time(),
                                  edit_id=edit_id)
         recorder.close(request["metadata"], user)
-    return result
+        return result, recorder.revision
+    return result, None
 
 
 @app.post("/transcript-edit")
@@ -1479,7 +1513,7 @@ async def edit_transcript(req: TranscriptEditRequest):
                     if s.session_id == req.session_id), None)
     logger.info("Edit %s through chunk %s %s", edit_id, req.shown_through,
                 "while recording" if session else "after recording")
-    result = None
+    result, revision = None, None
     if session is not None:
         if session.recorder is not None:
             session.recorder.write_edit(edit_id, req.shown_through,
@@ -1488,12 +1522,14 @@ async def edit_transcript(req: TranscriptEditRequest):
         await session.restart(after, annotations, req.shown_through,
                               edit_id)
     else:
-        result = await _infer_edited_case(req, edit_id, after, annotations)
+        result, revision = await _infer_edited_case(req, edit_id, after,
+                                                    annotations)
     return {
         "edit_id": edit_id,
         "transcript": after,
         "annotations": display_annotations(annotations),
         "inference": result,
+        "revision": revision,
     }
 
 

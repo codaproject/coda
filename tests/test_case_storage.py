@@ -573,6 +573,7 @@ async def test_reset_tells_the_client_its_new_case(storage_dir, offline_server):
         "session_id": "session-a",
         "session_generation": 1,
         "case_id": session.recorder.case_id,
+        "revision": 1,
     }
     assert session.recorder.case_id != first_case
     session.end_case()
@@ -925,7 +926,7 @@ def test_cases_report_what_they_were_inferred_from(storage_dir, monkeypatch):
 def test_segment_without_audio_keeps_no_wav(storage_dir, monkeypatch):
     monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
     reload_settings()
-    recorder = CaseRecorder("aaaa0001", 0, {}, audio=False)
+    recorder = CaseRecorder("aaaa0001", 0, {}, kind="notes")
     recorder.close()
 
     manifest = json.loads((recorder.case_dir / "manifest.json").read_text())
@@ -1071,3 +1072,42 @@ async def test_edit_after_recording_infers_and_is_stored(offline_server,
     assert edit["live"] is False
     assert edit["user"] == {}
     assert case["inference"][-1]["edit_id"] == edit["edit_id"]
+
+
+def test_each_write_is_a_logged_revision(storage_dir):
+    first = record_case("aaaa0001")
+    second = CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id,
+                          kind="edit")
+    second.close(PROFILE, {"name": "Ana", "id": "7"})
+
+    case = load_case(first.case_id)
+    assert (first.revision, second.revision, case["revision"]) == (1, 2, 2)
+    assert [(r["revision"], r["kind"]) for r in case["revisions"]] == \
+        [(1, "recording"), (2, "edit")]
+    assert "metadata" not in case["revisions"][1]
+    assert case["revisions"][1]["user"] == {"name": "Ana", "id": "7"}
+
+
+async def test_continuing_a_changed_case_is_refused(storage_dir,
+                                                    idle_transcription):
+    stored = record_case("aaaa0001")
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket, case_id=stored.case_id,
+                                    revision=0)
+
+    [error] = websocket.messages
+    assert error["reason"] == "changed"
+    assert load_case(stored.case_id)["revision"] == 1
+
+
+async def test_edit_of_a_changed_case_is_refused(offline_server, storage_dir):
+    stored = record_case("aaaa0001")
+
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="fever for three days", transcript="fever for five days",
+            case_id=stored.case_id, revision=0))
+
+    assert refused.value.status_code == 409
+    assert load_case(stored.case_id)["edits"] == []

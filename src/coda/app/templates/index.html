@@ -4626,6 +4626,8 @@
           "continue.transcriber": "Transcriber",
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
+          "case.changed":
+            "This case was changed on another device. Showing its latest version.",
           "server.busy":
             "The server is busy with other interviews. Try again shortly.",
           "transcript.edit": "Edit",
@@ -4825,6 +4827,8 @@
           "continue.transcriber": "Injini ya unakili",
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
+          "case.changed":
+            "Kesi hii imebadilishwa kwenye kifaa kingine. Inaonyesha toleo lake la hivi karibuni.",
           "server.busy":
             "Seva ina mahojiano mengine kwa sasa. Jaribu tena baada ya muda mfupi.",
           "transcript.edit": "Hariri",
@@ -5028,6 +5032,8 @@
           "continue.transcriber": "Moteur de transcription",
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
+          "case.changed":
+            "Ce cas a été modifié sur un autre appareil. Sa dernière version est affichée.",
           "server.busy":
             "Le serveur est occupé par d'autres entretiens. Réessayez dans un instant.",
           "transcript.edit": "Modifier",
@@ -5226,6 +5232,8 @@
           "continue.transcriber": "محرك النسخ",
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
+          "case.changed":
+            "تم تعديل هذه الحالة على جهاز آخر. يتم عرض أحدث نسخة منها.",
           "server.busy": "الخادم مشغول بمقابلات أخرى. حاول مرة أخرى بعد قليل.",
           "transcript.edit": "تعديل",
           "transcript.both": "كلاهما",
@@ -5425,6 +5433,8 @@
           "continue.transcriber": "প্রতিলিপি ইঞ্জিন",
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
+          "case.changed":
+            "এই কেসটি অন্য একটি ডিভাইসে পরিবর্তন করা হয়েছে। এর সর্বশেষ সংস্করণ দেখানো হচ্ছে।",
           "server.busy":
             "সার্ভার অন্য সাক্ষাৎকারে ব্যস্ত। একটু পরে আবার চেষ্টা করুন।",
           "transcript.edit": "সম্পাদনা",
@@ -5627,6 +5637,8 @@
           "continue.transcriber": "Motor de transcripción",
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
+          "case.changed":
+            "Este caso se modificó en otro dispositivo. Se muestra su versión más reciente.",
           "server.busy":
             "El servidor está ocupado con otras entrevistas. Inténtelo de nuevo en breve.",
           "transcript.edit": "Editar",
@@ -5832,6 +5844,8 @@
           "continue.transcriber": "Njhini yo tsala leswi vuriwaka",
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
+          "case.changed":
+            "Mhaka leyi yi cinciwile eka xitirhisiwa xin'wana. Ku kombisiwa vuxokoxoko bya yona lebyintshwa.",
           "server.busy":
             "Sevha yi khomekile hi tiinterviyu tin'wana. Ringeta nakambe endzhaku ka nkarhinyana.",
           "transcript.edit": "Lulamisa",
@@ -6036,6 +6050,8 @@
           "continue.transcriber": "Transcritor",
           "continue.inference": "Inferência",
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
+          "case.changed":
+            "Este caso foi alterado em outro dispositivo. A versão mais recente está sendo exibida.",
           "server.busy":
             "O servidor está ocupado com outras entrevistas. Tente novamente em instantes.",
           "transcript.edit": "Editar",
@@ -6847,6 +6863,7 @@
         if (!session) return;
         clearSessionView();
         currentCaseId = session.caseId || null;
+        currentCaseRevision = null;
         currentLocalId = session.id;
         sessionStartedAt = session.startedAt;
         lastDuration = session.durationSeconds || 0;
@@ -6893,6 +6910,12 @@
         setSessionState("result");
       }
 
+      // Show the case on screen as stored, after another device changed it
+      function reloadChangedCase() {
+        showStatus(t("case.changed"), "warning");
+        if (currentCaseId) openStoredCase(currentCaseId, currentLocalId);
+      }
+
       // A row kept on both sides falls back to the device copy when the
       // server's cannot be loaded
       async function openStoredCase(caseId, localId = null) {
@@ -6912,6 +6935,7 @@
         clearSessionView();
         const parts = c.segments || [];
         currentCaseId = caseId;
+        currentCaseRevision = c.revision ?? null;
         currentLocalId = localId;
         sessionStartedAt = c.started_at;
         lastDuration = c.duration_s || 0;
@@ -7238,6 +7262,8 @@
       let currentInferenceSessionId = null;
       let currentInferenceSessionGeneration = null;
       let currentCaseId = null;
+      // The revision of that case as shown, sent with each write to it
+      let currentCaseRevision = null;
       // What Continue needs about the session on screen: its copy on this
       // device, when it started, its recording time so far, the settings its
       // last part was recorded with, its profile, and whether it is being
@@ -8184,12 +8210,18 @@
               shown_through: through,
               session_id: isRecording ? currentInferenceSessionId : null,
               case_id: currentCaseId,
+              revision: isRecording ? null : currentCaseRevision,
               metadata: caseMetadata(),
               user: currentUser(),
             }),
           });
+          if (resp.status === 409) {
+            reloadChangedCase();
+            return;
+          }
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
+          if (data.revision != null) currentCaseRevision = data.revision;
           edited.innerHTML = chunkInnerHtml(data.transcript, data.annotations);
           if (data.inference) {
             showInference(data.inference);
@@ -8270,6 +8302,7 @@
             evolution = [];
             latestCauses = null;
             currentCaseId = null;
+            currentCaseRevision = null;
             currentLocalId = null;
             sessionStartedAt = new Date().toISOString();
             sessionPartCount = 0;
@@ -8285,13 +8318,16 @@
 
           const wsProtocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
-          const wsQuery =
-            continuing && currentCaseId
-              ? `?case_id=${encodeURIComponent(currentCaseId)}`
-              : "";
+          const wsQuery = new URLSearchParams();
+          if (continuing && currentCaseId) {
+            wsQuery.set("case_id", currentCaseId);
+            if (currentCaseRevision != null) {
+              wsQuery.set("revision", currentCaseRevision);
+            }
+          }
           const seed = continuing ? transcriptText.trim() : "";
           ws = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws${wsQuery}`,
+            `${wsProtocol}//${window.location.host}/ws?${wsQuery}`,
           );
 
           ws.onopen = (event) => {
@@ -8315,6 +8351,7 @@
               currentInferenceSessionGeneration =
                 data.session_generation ?? null;
               currentCaseId = data.case_id || null;
+              currentCaseRevision = data.revision ?? null;
             } else if (data.type === "transcript") {
               if (transcript.querySelector(".placeholder")) {
                 transcript.innerHTML = "";
@@ -8379,12 +8416,14 @@
                 const refusals = {
                   clinical_note: "case.notesOnly",
                   busy: "server.busy",
+                  changed: "case.changed",
                 };
                 showStatus(
                   t(refusals[data.reason] || "continue.inUse"),
                   "warning",
                 );
                 stopRecording({ save: false });
+                if (data.reason === "changed") reloadChangedCase();
               } else if (data.chunk_id) {
                 enterInferenceOffline(data.error);
               } else {
@@ -9166,6 +9205,7 @@
         lastDuration = 0;
         evolution = [];
         currentCaseId = null;
+        currentCaseRevision = null;
         currentLocalId = null;
         sessionStartedAt = null;
         priorActiveMs = 0;
@@ -9613,17 +9653,20 @@
             body: JSON.stringify({
               notes: noteFiles,
               case_id: currentCaseId,
+              revision: currentCaseRevision,
               metadata: caseMetadata(),
               user: currentUser(),
             }),
           });
           if (!resp.ok) {
             const err = await resp.json();
-            showStatus(err.detail || "Inference failed", "danger");
+            if (err.detail === "changed") reloadChangedCase();
+            else showStatus(err.detail || "Inference failed", "danger");
             return;
           }
           const data = await resp.json();
           if (data.case_id) currentCaseId = data.case_id;
+          currentCaseRevision = data.revision ?? null;
           sessionStartedAt ??= new Date().toISOString();
           caseIdUsed = true;
           showInference(data);
