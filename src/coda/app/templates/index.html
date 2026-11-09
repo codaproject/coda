@@ -7771,8 +7771,10 @@
         }
       }
 
-      languageSelect.addEventListener("change", () => {
-        updateSettings({ language: languageSelect.value });
+      languageSelect.addEventListener("change", async () => {
+        await updateSettings({ language: languageSelect.value });
+        // The language may bring its own speech model
+        await loadSettings();
         updateTranslationVisibility();
       });
 

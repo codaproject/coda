@@ -11,10 +11,12 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from coda.config import settings
 from coda.dialogue import (
     ChunkedTranscriber,
     TRANSCRIBER_BACKENDS,
     TranscriptEvent,
+    language_transcriber,
 )
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 from coda.dialogue.finetuned_whisper import decode_options
@@ -251,3 +253,15 @@ async def test_whisper_livekit_stream_keeps_every_word(monkeypatch):
     assert [e async for e in transcriber.stream(audio())] == []
     [processor] = processors
     assert processor.tokens_alignment._retention_seconds == math.inf
+
+
+def test_language_transcriber(monkeypatch):
+    dialogue = settings.dialogue
+    monkeypatch.setitem(dialogue, "transcriber_backend", "whisper-livekit")
+    monkeypatch.setitem(dialogue, "transcriber_model", "large-v3-turbo")
+    monkeypatch.setitem(dialogue, "language_transcribers", {
+        "bn": {"backend": "indic-conformer"},
+        "zu": {"model": "anv-zul-turbo"}})
+    assert language_transcriber("en") == ("whisper-livekit", "large-v3-turbo")
+    assert language_transcriber("bn") == ("indic-conformer", None)
+    assert language_transcriber("zu") == ("whisper-livekit", "anv-zul-turbo")

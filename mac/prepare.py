@@ -34,14 +34,21 @@ def main():
         from huggingface_hub import login
         login(token=os.environ["HF_TOKEN"], add_to_git_credential=False)
     profile = " ".join(filter(None, [settings.site, settings.usecase]))
-    print(f"Preparing the {profile} speech model...", flush=True)
+    print(f"Preparing the {profile} speech models...", flush=True)
     from coda.dialogue import create_transcriber
-    create_transcriber(settings.dialogue.transcriber_backend,
-                       model=settings.dialogue.transcriber_model or None)
+    from coda.dialogue import language_transcriber
+    dialogue = settings.dialogue
+    transcribers = [(dialogue.transcriber_backend,
+                     dialogue.transcriber_model or None)]
+    transcribers += [language_transcriber(language)
+                     for language in dialogue.language_transcribers]
+    for backend, model in dict.fromkeys(transcribers):
+        create_transcriber(backend, model=model)
     from coda.translate import create_translator, text_backend
     backend = text_backend(settings.translate.backend,
-                           settings.dialogue.transcriber_backend)
-    if settings.dialogue.language != "en" and backend:
+                           dialogue.transcriber_backend)
+    languages = {dialogue.language, *dialogue.language_transcribers}
+    if languages != {"en"} and backend:
         print(f"Preparing the {profile} translation model...", flush=True)
         same = backend == settings.translate.backend
         create_translator(

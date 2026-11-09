@@ -191,6 +191,11 @@ dialogue:
   transcriber_model: ""
   # Spoken language of the interview.
   language: en
+  # Speech model of each spoken language that needs its own, as
+  # `<language>: {backend: ..., model: ...}`, either key defaulting to the
+  # above. Choosing such a language switches to its model, and choosing
+  # another one back to the above. Empty -> one model for all languages.
+  language_transcribers: {}
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:

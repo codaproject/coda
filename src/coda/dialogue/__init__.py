@@ -81,6 +81,21 @@ def get_transcriber_models(backend: str) -> dict:
     return {"models": list(cls.MODELS), "default_model": cls.DEFAULT_MODEL}
 
 
+def language_transcriber(language):
+    """Return the transcriber backend and model the settings give a language.
+
+    The model is None for the backend's own default.
+    """
+    dialogue = settings.dialogue
+    entry = dialogue.language_transcribers.get(language) or {}
+    backend = entry.get("backend") or dialogue.transcriber_backend
+    if entry.get("model"):
+        return backend, entry["model"]
+    if backend == dialogue.transcriber_backend:
+        return backend, dialogue.transcriber_model or None
+    return backend, None
+
+
 def get_transcriber_languages(backend: str) -> dict:
     """Return supported language codes and display names without loading a model."""
     return dict(_load_backend_class(backend.lower()).LANGUAGES)
