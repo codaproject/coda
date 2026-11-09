@@ -67,8 +67,8 @@ def _measurement(value) -> Optional[float]:
 
 @dataclass
 class Profile:
-    # One of POPULATIONS
-    population: Optional[str] = None
+    # One of COHORTS
+    cohort: Optional[str] = None
     age: Optional[Age] = None
     stillbirth: bool = False
     # ISO date, YYYY-MM-DD
@@ -85,7 +85,7 @@ class Profile:
     muac_cm_admission: Optional[float] = None
     muac_cm_death: Optional[float] = None
 
-    POPULATIONS = ("child", "adult")
+    COHORTS = ("child", "adult")
     SEXES = ("female", "male", "ambiguous")
     MANNERS_OF_DEATH = ("disease", "accident", "self_harm", "assault",
                         "pending_investigation", "unknown")
@@ -100,9 +100,9 @@ class Profile:
         sex = d.get("sex")
         manner = d.get("manner_of_death")
         hiv = d.get("hiv_status")
-        population = d.get("population")
+        cohort = d.get("cohort")
         profile = cls(
-            population=population if population in cls.POPULATIONS else None,
+            cohort=cohort if cohort in cls.COHORTS else None,
             age=Age.from_dict(d.get("age")),
             stillbirth=bool(d.get("stillbirth", False)),
             date_of_death=d.get("date_of_death") or None,
@@ -117,7 +117,7 @@ class Profile:
 
     def to_dict(self) -> dict:
         return {
-            "population": self.population,
+            "cohort": self.cohort,
             "age": self.age.to_dict() if self.age else None,
             "stillbirth": self.stillbirth,
             "date_of_death": self.date_of_death,

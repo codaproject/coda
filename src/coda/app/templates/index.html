@@ -596,8 +596,8 @@
         outline: 2px solid var(--accent-sage);
         outline-offset: -2px;
       }
-      .profile-bar[data-population="adult"] .profile-child,
-      .profile-bar:not([data-population="adult"]) .profile-adult {
+      .profile-bar[data-cohort="adult"] .profile-child,
+      .profile-bar:not([data-cohort="adult"]) .profile-adult {
         display: none;
       }
       .profile-bar[data-stillbirth="true"] .profile-age {
@@ -3659,15 +3659,15 @@
         </div>
         <div class="profile-fields" id="profileFields">
           <div class="profile-row">
-            <div class="profile-segmented" role="radiogroup" id="populationGroup">
+            <div class="profile-segmented" role="radiogroup" id="cohortGroup">
               <label
-                ><input type="radio" name="population" value="child" /><span
+                ><input type="radio" name="cohort" value="child" /><span
                   data-i18n="profile.child"
                   >Child</span
                 ></label
               >
               <label
-                ><input type="radio" name="population" value="adult" /><span
+                ><input type="radio" name="cohort" value="adult" /><span
                   data-i18n="profile.adult"
                   >Adult</span
                 ></label
@@ -8713,11 +8713,11 @@
       const mannerSelect = document.getElementById("mannerOfDeath");
       const sexRadios = document.querySelectorAll('input[name="sex"]');
       const hivSelect = document.getElementById("hivStatus");
-      const populationRadios = document.querySelectorAll(
-        'input[name="population"]',
+      const cohortRadios = document.querySelectorAll(
+        'input[name="cohort"]',
       );
-      // Population chosen last, preselected for the next case
-      const POPULATION_KEY = "codaPopulation";
+      // Cohort chosen last, preselected for the next case
+      const COHORT_KEY = "codaCohort";
       // Measurement inputs by profile field name
       const measurementInputs = {
         birth_weight_g: document.getElementById("birthWeight"),
@@ -8741,9 +8741,9 @@
         return document.querySelector('input[name="sex"]:checked');
       }
 
-      function rememberedPopulation() {
+      function rememberedCohort() {
         try {
-          return localStorage.getItem(POPULATION_KEY) === "adult"
+          return localStorage.getItem(COHORT_KEY) === "adult"
             ? "adult"
             : "child";
         } catch (e) {
@@ -8751,26 +8751,26 @@
         }
       }
 
-      function checkedPopulation() {
+      function checkedCohort() {
         return (
-          document.querySelector('input[name="population"]:checked')?.value ||
+          document.querySelector('input[name="cohort"]:checked')?.value ||
           "child"
         );
       }
 
-      // Show the profile fields of a population
-      function setPopulation(population) {
-        populationRadios.forEach((r) => (r.checked = r.value === population));
-        profileBar.setAttribute("data-population", population);
+      // Show the profile fields of a cohort
+      function setCohort(cohort) {
+        cohortRadios.forEach((r) => (r.checked = r.value === cohort));
+        profileBar.setAttribute("data-cohort", cohort);
         // Some browsers show hidden options
         hivSelect.querySelector('option[value="exposed"]').disabled =
-          population === "adult";
-        if (population === "adult") stillbirthToggle.checked = false;
+          cohort === "adult";
+        if (cohort === "adult") stillbirthToggle.checked = false;
         applyStillbirthState();
       }
 
       function isAdult() {
-        return checkedPopulation() === "adult";
+        return checkedCohort() === "adult";
       }
 
       function ageUnit() {
@@ -8791,7 +8791,7 @@
 
       // One-line summary shown on the toggle while collapsed.
       function updateProfileSummary() {
-        const parts = [t(`profile.${checkedPopulation()}`)];
+        const parts = [t(`profile.${checkedCohort()}`)];
         if (caseIdInput.value.trim()) parts.push(caseIdInput.value.trim());
         if (stillbirthToggle.checked) {
           parts.push(t("profile.stillbirth"));
@@ -8817,7 +8817,7 @@
         const ageValue =
           ageValueInput.value === "" ? null : Number(ageValueInput.value);
         const profile = {
-          population: checkedPopulation(),
+          cohort: checkedCohort(),
           age: ageValue === null ? null : { value: ageValue, unit: ageUnit() },
           stillbirth: stillbirthToggle.checked,
           date_of_death: dateOfDeathInput.value || null,
@@ -8828,7 +8828,7 @@
         for (const [name, input] of Object.entries(measurementInputs)) {
           profile[name] = input.value === "" ? null : Number(input.value);
         }
-        // Fields of the other population are hidden and left out
+        // Fields of the other cohort are hidden and left out
         if (isAdult()) {
           profile.stillbirth = false;
           profile.birth_weight_g = null;
@@ -8867,7 +8867,7 @@
       }
 
       function fillProfileInputs(profile) {
-        setPopulation(profile.population || "child");
+        setCohort(profile.cohort || "child");
         ageValueInput.value = profile.age ? profile.age.value : "";
         ageUnitSelect.value = profile.age ? profile.age.unit : "months";
         stillbirthToggle.checked = !!profile.stillbirth;
@@ -8890,7 +8890,7 @@
         sexRadios.forEach((r) => (r.checked = false));
         hivSelect.value = "";
         Object.values(measurementInputs).forEach((input) => (input.value = ""));
-        setPopulation(rememberedPopulation());
+        setCohort(rememberedCohort());
         applyStillbirthState();
         updateProfileSummary();
         setProfileExpanded(false);
@@ -9054,11 +9054,11 @@
         document.title = title;
       });
 
-      setPopulation(rememberedPopulation());
-      populationRadios.forEach((radio) =>
+      setCohort(rememberedCohort());
+      cohortRadios.forEach((radio) =>
         radio.addEventListener("change", () => {
           try {
-            localStorage.setItem(POPULATION_KEY, radio.value);
+            localStorage.setItem(COHORT_KEY, radio.value);
           } catch (e) {}
           // Adult ages are in years
           if (radio.value === "adult" && ageUnitSelect.value !== "years") {
@@ -9066,7 +9066,7 @@
           } else if (radio.value === "child" && ageValueInput.value !== "") {
             ageUnitSelect.value = "years";
           }
-          setPopulation(radio.value);
+          setCohort(radio.value);
           pushMetadata();
         }),
       );

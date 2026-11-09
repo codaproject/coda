@@ -1,0 +1,21 @@
+{
+  "input": "/private/tmp/coda_va.wav",
+  "mode": "chunked@3s",
+  "agent": "champs",
+  "grounder": "gilda",
+  "provider": "ollama",
+  "model": "medpsy-4b:latest",
+  "whisper_model": "small",
+  "language": "en",
+  "task": "transcribe",
+  "audio_duration_s": 49.8,
+  "timing": {
+    "transcription_s": 19.28,
+    "inference_s": 56.769,
+    "total_s": 76.049,
+    "transcription_rtf": 0.387
+  },
+  "causes": {},
+  "reasoning": "The symptoms described are consistent with severe dehydration and shock, likely due to gastroenteritis. The high fever, refusal to drink, and signs of poor perfusion (cold extremities despite fever, mottled skin, no urine) point to severe dehydration. The rapid progression and death suggest septic shock or severe electrolyte imbalance. The lack of rash and stiff neck makes meningitis less likely. The brief convulsion could be due to electrolyte imbalance or hypoxia. The incomplete vaccination history might indicate susceptibility to certain infections, but the presentation is more consistent with dehydration shock.",
+  "chunks_processed": 17
+}
