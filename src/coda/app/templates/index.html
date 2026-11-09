@@ -9247,6 +9247,9 @@
           if (isRecording) {
             stopRecording();
           }
+          // A case ID nothing was saved under stays for the next case
+          const idUsed = caseIdUsed;
+          const unusedId = idUsed ? "" : caseIdInput.value.trim();
           clearProfileInputs();
           clearSessionView();
           renderIdleRecent();
@@ -9268,7 +9271,12 @@
           } catch (e) {
             showStatus("UI cleared but server reset failed", "warning");
           }
-          assignCaseId();
+          if (unusedId) {
+            caseIdInput.value = unusedId;
+            pushMetadata();
+          } else if (!idUsed) {
+            assignCaseId();
+          }
         });
 
       function escapeHtml(text) {

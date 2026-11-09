@@ -151,6 +151,8 @@ def _default_translation_model_for(backend: str):
 current_translation_model = settings.translate.model or \
     _default_translation_model_for(text_translator_backend())
 transcriber: Transcriber
+# Highest CODA-NNN number handed out by /next-case-id
+last_issued_case_number = 0
 active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
 
@@ -771,8 +773,9 @@ async def get_translator_backend_models(backend: str):
 
 @app.get("/next-case-id")
 async def next_case_id():
-    """Return CODA-NNN, one past the highest such case ID saved so far."""
-    numbers = [0]
+    """Return CODA-NNN, one past the highest such case ID saved or issued."""
+    global last_issued_case_number
+    numbers = [last_issued_case_number]
     for path in cases_root().glob("*/manifest.json"):
         try:
             metadata = json.loads(path.read_text()).get("metadata") or {}
@@ -781,7 +784,8 @@ async def next_case_id():
         match = re.fullmatch(r"CODA-(\d+)", metadata.get("case_id") or "")
         if match:
             numbers.append(int(match[1]))
-    return {"case_id": f"CODA-{max(numbers) + 1:03d}"}
+    last_issued_case_number = max(numbers) + 1
+    return {"case_id": f"CODA-{last_issued_case_number:03d}"}
 
 
 @app.get("/transcriber_backends")

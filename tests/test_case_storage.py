@@ -152,11 +152,20 @@ def test_store_flags_disable_files(storage_dir, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_next_case_id_follows_saved_cases(storage_dir):
+async def test_next_case_id_follows_saved_cases(storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
     assert await server.next_case_id() == {"case_id": "CODA-001"}
     for session_id, case_id in [("a", "CODA-007"), ("b", "custom")]:
         CaseRecorder(session_id, 0, {}).close({"case_id": case_id})
     assert await server.next_case_id() == {"case_id": "CODA-008"}
+
+
+async def test_next_case_ids_are_not_handed_out_twice(storage_dir,
+                                                      monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    issued = await asyncio.gather(*(server.next_case_id() for _ in range(3)))
+    assert [i["case_id"] for i in issued] == \
+        ["CODA-001", "CODA-002", "CODA-003"]
 
 
 def test_pauses_recorded_in_manifest(storage_dir):
