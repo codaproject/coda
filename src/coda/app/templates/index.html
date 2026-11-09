@@ -8169,6 +8169,8 @@
               shown_through: through,
               session_id: isRecording ? currentInferenceSessionId : null,
               case_id: currentCaseId,
+              metadata: caseMetadata(),
+              user: currentUser(),
             }),
           });
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -8279,6 +8281,7 @@
 
           ws.onopen = (event) => {
             console.log("WebSocket connected");
+            sendProfile(event.target);
             if (seed) {
               event.target.send(JSON.stringify({ type: "seed", text: seed }));
             }
@@ -8853,18 +8856,31 @@
         return profile;
       }
 
-      async function pushMetadata() {
+      // The case ID and profile, sent with everything inferred for the case
+      function caseMetadata() {
+        return {
+          case_id: caseIdInput.value.trim() || null,
+          profile: readProfileInputs(),
+        };
+      }
+
+      // Send the case metadata and user to the connection recording the case
+      function sendProfile(socket = ws || finishingSocket) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: "profile",
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
+          );
+        }
+      }
+
+      function pushMetadata() {
         applyStillbirthState();
         updateProfileSummary();
-        const caseId = caseIdInput.value.trim() || null;
-        const profile = readProfileInputs();
-        try {
-          await fetch("/metadata", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ case_id: caseId, profile }),
-          });
-        } catch (e) {}
+        sendProfile();
       }
 
       // Whether a recording has been saved as a case under the current ID
@@ -8932,13 +8948,7 @@
         try {
           localStorage.setItem(USER_KEY, JSON.stringify(user));
         } catch (e) {}
-        try {
-          await fetch("/user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(user),
-          });
-        } catch (e) {}
+        sendProfile();
       }
 
       userToggle.addEventListener("click", () => {
@@ -9574,7 +9584,12 @@
           const resp = await fetch("/clinical-notes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ notes: noteFiles, case_id: currentCaseId }),
+            body: JSON.stringify({
+              notes: noteFiles,
+              case_id: currentCaseId,
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
           });
           if (!resp.ok) {
             const err = await resp.json();

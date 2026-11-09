@@ -266,6 +266,47 @@ async def test_inference_results_recorded_unless_stale(offline_server,
     assert record["shown_at"] is not None
 
 
+async def test_connections_keep_their_own_profile_and_user(
+        offline_server, storage_dir, monkeypatch):
+    posted = []
+
+    async def fake_post(path, json):
+        posted.append((json["session_id"], json["metadata"]))
+        return FakeResponse({"chunk_id": json["chunk_id"]})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    sessions = {}
+    for name, age in [("Ana", 3), ("Ben", 40)]:
+        session = server.InferenceSessionCoordinator(DummyWebSocket(), name)
+        await session.start_case()
+        profile = {"type": "profile", "user": {"name": name, "id": name},
+                   "metadata": {"case_id": f"CODA-{age}",
+                                "profile": {"age": {"value": age,
+                                                    "unit": "years"}}}}
+        with pytest.raises(WebSocketDisconnect):
+            await server.capture_audio(ScriptedWebSocket([
+                {"type": "websocket.receive", "text": json.dumps(profile)},
+                {"type": "websocket.disconnect", "code": 1000}]),
+                asyncio.Queue(), session)
+        sessions[name] = session
+    batch = server.CoalescedInferenceBatch(
+        chunk_id="c1", timestamp=0.0, text="fever", annotations=[],
+        queued_at=0.0, chunk_count=1)
+    for session in sessions.values():
+        await server.process_inference(session, 0, batch, buffer_wait_s=0.0)
+
+    assert [(s, m["case_id"]) for s, m in posted] == \
+        [("Ana", "CODA-3"), ("Ben", "CODA-40")]
+    for name, session in sessions.items():
+        case_dir = session.recorder.case_dir
+        session.end_case()
+        manifest = json.loads((case_dir / "manifest.json").read_text())
+        assert manifest["user"] == {"name": name, "id": name}
+        assert manifest["metadata"]["case_id"] == \
+            {"Ana": "CODA-3", "Ben": "CODA-40"}[name]
+
+
 def test_configure_logging_writes_to_file(monkeypatch, tmp_path):
     log_file = tmp_path / "logs" / "coda.log"
     monkeypatch.setenv("CODA_LOGGING__FILE", str(log_file))

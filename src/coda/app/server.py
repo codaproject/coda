@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import httpx
-from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, \
+from fastapi import FastAPI, HTTPException, Request, WebSocket, \
     WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -150,12 +150,6 @@ def _default_translation_model_for(backend: str):
 
 current_translation_model = settings.translate.model or \
     _default_translation_model_for(text_translator_backend())
-# Per-interview metadata, set via /metadata and forwarded to the inference
-# agent with every inference request.
-current_metadata = Metadata()
-# Person using the app, set via /user and saved with each case but never
-# sent to the inference agent. Kept across case resets.
-current_user = {}
 transcriber: Transcriber
 active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
@@ -223,13 +217,23 @@ class InferenceSessionCoordinator:
         # (chunk_id, text, annotations) of each chunk committed on this
         # connection
         self.committed = []
+        # Case metadata, forwarded to the inference agent with every request
+        self.metadata = Metadata()
+        # Person using the app, saved with the case but never sent to the
+        # inference agent
+        self.user = {}
+
+    def set_profile(self, metadata: dict | None, user: dict | None):
+        """Set the case metadata and the person using the app."""
+        self.metadata = Metadata.from_dict(metadata)
+        self.user = parse_user(user)
 
     async def start_case(self):
         """Begin recording a new case for the current generation, if enabled."""
         if storage_enabled():
             self._record_to(CaseRecorder(self.session_id, self.generation,
                                          await _run_info(),
-                                         metadata=current_metadata.to_dict()))
+                                         metadata=self.metadata.to_dict()))
 
     async def continue_case(self, case_id: str) -> str | None:
         """Record into a stored case, or a new case if there is no such case.
@@ -253,7 +257,7 @@ class InferenceSessionCoordinator:
             return "clinical_note"
         self._record_to(CaseRecorder(self.session_id, self.generation,
                                      run_info, case_id=case_id,
-                                     metadata=current_metadata.to_dict()))
+                                     metadata=self.metadata.to_dict()))
         return None
 
     def _record_to(self, recorder: CaseRecorder):
@@ -264,7 +268,7 @@ class InferenceSessionCoordinator:
 
     def end_case(self):
         if self.recorder is not None:
-            self.recorder.close(current_metadata.to_dict(), current_user)
+            self.recorder.close(self.metadata.to_dict(), self.user)
             logger.info("Closed case %s", self.recorder.case_id)
             self.recorder = None
 
@@ -422,6 +426,15 @@ class ClinicalNotesRequest(BaseModel):
     notes: list[ClinicalNote]
     # The stored case on screen, which the inference joins
     case_id: str | None = None
+    metadata: dict | None = None
+    user: dict | None = None
+
+
+def parse_user(user: dict | None) -> dict:
+    """Return the name and ID of the person using the app."""
+    if not user:
+        return {}
+    return {"name": user.get("name", ""), "id": user.get("id", "")}
 
 
 def get_language_name(code: str) -> str:
@@ -607,7 +620,7 @@ async def process_inference(
             "timestamp": batch.timestamp,
             "text": batch.text,
             "annotations": [a.to_json() for a in batch.annotations],
-            "metadata": current_metadata.to_dict(),
+            "metadata": session.metadata.to_dict(),
             "session_id": session.session_id,
             "session_generation": request_generation,
         }
@@ -732,15 +745,6 @@ async def get_settings():
     }
 
 
-@app.post("/metadata")
-async def set_metadata(payload: dict = Body(...)):
-    """Set per-interview metadata forwarded to the inference agent."""
-    global current_metadata
-    current_metadata = Metadata.from_dict(payload)
-    logger.debug(f"Metadata set: {current_metadata.to_dict()}")
-    return current_metadata.to_dict()
-
-
 @app.get("/translator_backends")
 async def get_translator_backends():
     """List selectable translation backends for the settings UI."""
@@ -778,15 +782,6 @@ async def next_case_id():
         if match:
             numbers.append(int(match[1]))
     return {"case_id": f"CODA-{max(numbers) + 1:03d}"}
-
-
-@app.post("/user")
-async def set_user(payload: dict = Body(...)):
-    """Set the name and ID of the person using the app."""
-    global current_user
-    current_user = {"name": payload.get("name", ""),
-                    "id": payload.get("id", "")}
-    return current_user
 
 
 @app.get("/transcriber_backends")
@@ -1030,7 +1025,8 @@ async def capture_audio(
     `resume` take effect on arrival even when transcription lags behind the
     audio. A pause also queues a marker after the audio sent before it. `seed`,
     accepted once and only before any audio, carries the transcript recorded
-    before this connection when it continues a session. `stop` ends the audio,
+    before this connection when it continues a session. `profile` carries the
+    case metadata and the person using the app. `stop` ends the audio,
     so that what was said is transcribed and inferred on before the client
     closes.
     Surfaces WebSocketDisconnect to the gather; the sentinel lets the consumer's
@@ -1051,7 +1047,10 @@ async def capture_audio(
                     control = payload.get("type")
                 except (ValueError, AttributeError):
                     payload, control = None, None
-                if control == "seed":
+                if control == "profile":
+                    inference_session.set_profile(payload.get("metadata"),
+                                                  payload.get("user"))
+                elif control == "seed":
                     seed = str(payload.get("text") or "").strip()
                     if audio_received or \
                             inference_session.seed is not None or not seed:
@@ -1329,7 +1328,7 @@ async def read_document_text(request: Request, name: str):
 
 
 async def _store_note_inference(
-    case_id: str | None, request: dict, result: dict
+    case_id: str | None, request: dict, result: dict, user: dict
 ) -> str | None:
     """Store an inference made from clinical notes in the stored case it was
     made on, else in a new case, and return that case."""
@@ -1346,7 +1345,7 @@ async def _store_note_inference(
         request["session_id"], 0, run_info, case_id=case_id, audio=False
     )
     recorder.write_inference(request, result, shown_at=time.time())
-    recorder.close(current_metadata.to_dict(), current_user)
+    recorder.close(request["metadata"], user)
     logger.info("Stored clinical-notes inference in case %s", recorder.case_id)
     return recorder.case_id
 
@@ -1381,7 +1380,7 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         "clinical_notes": notes,
         "text": "",
         "annotations": [a.to_json() for a in annotations],
-        "metadata": current_metadata.to_dict(),
+        "metadata": Metadata.from_dict(req.metadata).to_dict(),
         "session_id": session_id,
         "session_generation": 0,
     }
@@ -1391,7 +1390,8 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         result = {**response.json(), "source": "clinical_note"}
     finally:
         await _reset_inference_session(session_id, 0)
-    stored_in = await _store_note_inference(req.case_id, request, result)
+    stored_in = await _store_note_inference(req.case_id, request, result,
+                                            parse_user(req.user))
     return {**result, "case_id": stored_in}
 
 
@@ -1405,6 +1405,8 @@ class TranscriptEditRequest(BaseModel):
     # The recording session, if recording
     session_id: str | None = None
     case_id: str | None = None
+    metadata: dict | None = None
+    user: dict | None = None
 
 
 async def _infer_edited_case(req, edit_id, after, annotations):
@@ -1414,12 +1416,13 @@ async def _infer_edited_case(req, edit_id, after, annotations):
     being recorded.
     """
     session_id = str(uuid.uuid4())
+    user = parse_user(req.user)
     request = {
         "chunk_id": edit_id,
         "timestamp": time.time(),
         "text": after,
         "annotations": [a.to_json() for a in annotations],
-        "metadata": current_metadata.to_dict(),
+        "metadata": Metadata.from_dict(req.metadata).to_dict(),
         "session_id": session_id,
         "session_generation": 0,
     }
@@ -1440,10 +1443,10 @@ async def _infer_edited_case(req, edit_id, after, annotations):
         recorder = CaseRecorder(session_id, 0, run_info, case_id=req.case_id,
                                 audio=False)
         recorder.write_edit(edit_id, req.shown_through, req.before, after,
-                            annotations, live=False, user=current_user)
+                            annotations, live=False, user=user)
         recorder.write_inference(request, result, shown_at=time.time(),
                                  edit_id=edit_id)
-        recorder.close(current_metadata.to_dict(), current_user)
+        recorder.close(request["metadata"], user)
     return result
 
 
@@ -1469,7 +1472,7 @@ async def edit_transcript(req: TranscriptEditRequest):
         if session.recorder is not None:
             session.recorder.write_edit(edit_id, req.shown_through,
                                         req.before, after, annotations,
-                                        live=True, user=current_user)
+                                        live=True, user=parse_user(req.user))
         await session.restart(after, annotations, req.shown_through,
                               edit_id)
     else:
@@ -1485,10 +1488,7 @@ async def edit_transcript(req: TranscriptEditRequest):
 @app.post("/reset")
 async def reset_session(req: Optional[ResetRequest] = None):
     """Reset session state: start a new case and reset the inference agent."""
-    global current_metadata
     targeted_reset = req is not None and req.session_id is not None
-    if not targeted_reset:
-        current_metadata = Metadata()
     target_sessions = list(active_inference_sessions)
     if targeted_reset:
         target_sessions = [
