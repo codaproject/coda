@@ -1,0 +1,22 @@
+# Kintampo community deaths, mostly adults, interviews by field workers in English
+
+app:
+  tls: true
+  ui_language: en
+
+inference:
+  llm:
+    provider: ollama
+    model: qwen3:30b-a3b-instruct-2507-q4_K_M
+  champs_prompted:
+    cohort: adult
+    coding: icd11
+
+dialogue:
+  language: en
+  transcriber_model: large-v3-turbo
+  whisper_livekit:
+    backend: mlx-whisper
+
+storage:
+  enabled: true

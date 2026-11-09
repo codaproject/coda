@@ -8,7 +8,8 @@
 #   - Edit a value here to change the default.
 #   - Set CODA_SETTINGS_FILE to a machine's own YAML settings file, which
 #     overrides a site profile under config/sites/ (chosen by its `site` key
-#     and CODA_USECASE) that in turn overrides this file.
+#     and CODA_USECASE), which overrides its use case's shared settings under
+#     config/usecases/, which in turn override this file.
 #   - Override at runtime with an environment variable, using the CODA_ prefix
 #     and `__` (double underscore) to descend into nested keys, e.g.:
 #         CODA_APP__PORT=9000
@@ -21,7 +22,7 @@
 
 # Site name, set in a machine's settings file. Empty -> none.
 site: ""
-# Use case of the site, chosen when CODA starts: facility | community.
+# Use case of the site, chosen when CODA starts: clinical | interview.
 # Empty -> the site's only profile.
 usecase: ""
 
@@ -190,6 +191,11 @@ dialogue:
   transcriber_model: ""
   # Spoken language of the interview.
   language: en
+  # Speech model of each spoken language that needs its own, as
+  # `<language>: {backend: ..., model: ...}`, either key defaulting to the
+  # above. Choosing such a language switches to its model, and choosing
+  # another one back to the above. Empty -> one model for all languages.
+  language_transcribers: {}
   device: cpu               # local whisper device. alternatives: cpu | cuda
   faster_whisper_compute_type: ""   # empty -> int8 on CPU, float16 on CUDA
   whisper_livekit:

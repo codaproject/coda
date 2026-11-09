@@ -1,21 +1,16 @@
-# Kintampo community deaths, mostly adults, interviews by field workers in English
+# Wits VIDA facility deaths, mostly children, worked up by clinicians in
+# English
 
 app:
   tls: true
-  show_clinical_note: false
-  show_mccd: true
-  show_cod_result: true
   ui_language: en
-  wording: interview
 
 inference:
-  num_questions: 3
-  question_style: simplified
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    cohort: adult
+    cohort: child
     coding: icd11
 
 dialogue:

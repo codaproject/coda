@@ -15,18 +15,23 @@ def unknown_keys(values, defaults, prefix=""):
     for key, value in values.items():
         if key not in defaults:
             yield prefix + str(key)
-        elif isinstance(value, dict) and isinstance(defaults[key], dict):
+        # An empty default allows any keys
+        elif isinstance(value, dict) and isinstance(defaults[key], dict) \
+                and defaults[key]:
             yield from unknown_keys(value, defaults[key], f"{prefix}{key}.")
 
 
 def main():
     try:
-        from coda.config import CONFIG_DIR, settings, site_profile
+        from coda.config import CONFIG_DIR, settings, site_profile, \
+            usecase_defaults
         settings.validators.validate()
         defaults = yaml.safe_load((CONFIG_DIR / "settings.yaml").read_text())
         files = [Path(os.environ["CODA_SETTINGS_FILE"])]
         if settings.site:
             files.insert(0, site_profile(settings.site, settings.usecase))
+        if settings.site and settings.usecase:
+            files.insert(0, usecase_defaults(settings.usecase))
         for path in files:
             values = yaml.safe_load(path.read_text()) or {}
             for key in unknown_keys(values, defaults):

@@ -1,24 +1,25 @@
-# Kintampo facility deaths, mostly adults, entered by clinicians, in English
+# USP facility deaths, children and adults, worked up by clinicians in
+# Portuguese
 
 app:
   tls: true
-  show_clinical_note: true
-  show_mccd: true
-  show_cod_result: true
-  ui_language: en
+  show_mccd: false
+  ui_language: pt
 
 inference:
-  num_questions: 0
-  question_style: default
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    cohort: adult
+    cohort: child
     coding: icd11
 
+translate:
+  backend: madlad
+  model: madlad400-3b-mt
+
 dialogue:
-  language: en
+  language: pt
   transcriber_model: large-v3-turbo
   whisper_livekit:
     backend: mlx-whisper

@@ -1,15 +1,12 @@
-# icddr,b facility deaths, mostly children, entered by clinicians, in English
+# Wits VIDA family interviews at the facility, mostly children, by grief
+# counsellors in English, isiZulu or Sesotho
 
 app:
   tls: true
-  show_clinical_note: true
-  show_mccd: true
   show_cod_result: true
   ui_language: en
 
 inference:
-  num_questions: 0
-  question_style: default
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
@@ -17,11 +14,20 @@ inference:
     cohort: child
     coding: icd11
 
+translate:
+  backend: ctranslate2
+  model: nllb-1.3b
+
 dialogue:
   language: en
   transcriber_model: large-v3-turbo
   whisper_livekit:
     backend: mlx-whisper
+  language_transcribers:
+    zu:
+      model: anv-zul-turbo
+    st:
+      model: anv-sot-turbo
 
 storage:
   enabled: true

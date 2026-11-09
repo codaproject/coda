@@ -1,16 +1,12 @@
-# USP community deaths, children and adults, interviews by nurses and field workers in Portuguese
+# icddr,b facility deaths, mostly children, worked up by clinicians in English,
+# with family interviews in Bangla or English where the MCCD needs them
 
 app:
   tls: true
-  show_clinical_note: false
-  show_mccd: false
-  show_cod_result: true
-  ui_language: pt
-  wording: interview
+  ui_language: en
 
 inference:
   num_questions: 3
-  question_style: simplified
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
@@ -23,10 +19,15 @@ translate:
   model: madlad400-3b-mt
 
 dialogue:
-  language: pt
+  language: en
   transcriber_model: large-v3-turbo
   whisper_livekit:
     backend: mlx-whisper
+  language_transcribers:
+    bn:
+      backend: indic-conformer
 
 storage:
   enabled: true
+  store:
+    audio: true

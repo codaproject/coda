@@ -40,6 +40,7 @@ from coda.dialogue import (
     create_transcriber,
     get_transcriber_models,
     get_transcriber_languages,
+    language_transcriber,
 )
 from coda.inference.streaming import (
     INFERENCE_MAX_WAIT_S,
@@ -101,8 +102,17 @@ def _default_model_for(backend: str):
         return None
 
 
+def language_transcriber_with_model(language):
+    """Return the transcriber backend and model for a language."""
+    backend, model = language_transcriber(language)
+    return backend, model or _default_model_for(backend)
+
+
 current_transcriber_model = settings.dialogue.transcriber_model \
     or _default_model_for(current_transcriber_backend)
+if settings.dialogue.language_transcribers:
+    current_transcriber_backend, current_transcriber_model = \
+        language_transcriber_with_model(current_language)
 current_llm_provider = settings.inference.llm.provider
 current_llm_model = settings.inference.llm.model
 current_grounder = settings.grounder.type
@@ -668,8 +678,21 @@ async def process_inference(
 
 @app.get("/languages")
 async def get_languages():
-    """Get supported languages for the active transcription backend."""
-    names = get_transcriber_languages(current_transcriber_backend)
+    """Get supported languages for the active transcription backend.
+
+    With speech models per language, those of the profile's backend and of
+    the languages with their own model.
+    """
+    transcribers = settings.dialogue.language_transcribers
+    if transcribers:
+        names = get_transcriber_languages(
+            settings.dialogue.transcriber_backend)
+        for language in transcribers:
+            backend = language_transcriber(language)[0]
+            names[language] = get_transcriber_languages(backend).get(
+                language, language)
+    else:
+        names = get_transcriber_languages(current_transcriber_backend)
     # Return sorted by name, with English first
     langs = [{"code": code, "name": name}
              for code, name in sorted(names.items(), key=lambda x: x[1])]
@@ -809,6 +832,14 @@ async def update_settings(req: SettingsRequest):
         current_language = req.language
         transcriber_changed = transcriber.LANGUAGE_AT_BUILD
         logger.info(f"Language set to: {current_language}")
+        if settings.dialogue.language_transcribers:
+            backend, model = await asyncio.to_thread(
+                language_transcriber_with_model, current_language)
+            if (backend, model) != (current_transcriber_backend,
+                                    current_transcriber_model):
+                current_transcriber_backend = backend
+                current_transcriber_model = model
+                transcriber_changed = True
     if req.grounder is not None:
         grounder_name = req.grounder.strip().lower()
         if grounder_name not in {"gilda", "rag"}:

@@ -47,19 +47,23 @@ address in its Terminal window.
 Configuration
 -------------
 
-Settings come from three files, each overriding the one before:
+Settings come from four files, each overriding the one before:
 
 1. `config/settings.yaml`, CODA's defaults, which lists and explains every
    setting.
-2. `config/sites/<site>.yaml`, the site profile, such as the UI elements shown,
+2. `config/usecases/<usecase>.yaml`, the settings every profile of a use case
+   shares, such as whether clinical notes are shown and questions suggested.
+3. `config/sites/<site>.yaml`, the site profile, such as the UI elements shown,
    storage, language and inference model. Profiles are part of CODA, so an
    update also updates the profile.
-3. `~/Library/Application Support/CODA/settings.yaml`, this laptop's file,
+4. `~/Library/Application Support/CODA/settings.yaml`, this laptop's file,
    which `CODA Settings` opens. It names the site profile and holds any changes
    made on the laptop. Updates never touch it.
 
 A site has one profile per use case, named `<site>-<usecase>.yaml`, where
-the use case is `facility` or `community`. With `site: <site>` in the
+the use case is `clinical` (a clinician works up a death from clinical
+records) or `interview` (a family interview, at a facility or in the
+community). With `site: <site>` in the
 laptop's file, CODA asks at start which use case to run when the site has
 more than one, and offers the last choice first. The interview page
 footer shows the site and use case, and each saved case records them.

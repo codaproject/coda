@@ -1,20 +1,16 @@
-# Wits VIDA facility deaths, mostly children, entered by clinicians, in English
+# Kintampo facility deaths, mostly adults, worked up by clinicians in
+# English
 
 app:
   tls: true
-  show_clinical_note: true
-  show_mccd: true
-  show_cod_result: true
   ui_language: en
 
 inference:
-  num_questions: 0
-  question_style: default
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
   champs_prompted:
-    cohort: child
+    cohort: adult
     coding: icd11
 
 dialogue:

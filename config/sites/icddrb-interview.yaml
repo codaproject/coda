@@ -2,15 +2,11 @@
 
 app:
   tls: true
-  show_clinical_note: false
   show_mccd: true
   show_cod_result: true
-  ui_language: en
-  wording: interview
+  ui_language: bn
 
 inference:
-  num_questions: 3
-  question_style: simplified
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M
