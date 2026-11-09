@@ -1435,15 +1435,9 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
             "revision": recorder.revision if recorder else None}
 
 
-class TranscriptEditRequest(BaseModel):
-    # The whole transcript inference reads, as shown before the edit
-    before: str
-    # The whole transcript after the edit
+class ReinferRequest(BaseModel):
+    # The whole transcript as shown
     transcript: str
-    # The last chunk shown when the edit began, the last one it covers
-    shown_through: str | None = None
-    # The recording session, if recording
-    session_id: str | None = None
     case_id: str | None = None
     # The revision of that case on screen
     revision: int | None = None
@@ -1451,12 +1445,22 @@ class TranscriptEditRequest(BaseModel):
     user: dict | None = None
 
 
-async def _infer_edited_case(req, edit_id, after, annotations):
-    """Infer once from an edited transcript and store it in its case.
+class TranscriptEditRequest(ReinferRequest):
+    # The whole transcript inference reads, as shown before the edit
+    before: str
+    # The last chunk shown when the edit began, the last one it covers
+    shown_through: str | None = None
+    # The recording session, if recording
+    session_id: str | None = None
 
-    The edit and its inference are stored only if the case is stored and not
-    being recorded. Returns the inference and the revision that stored it,
-    if any.
+
+async def _infer_once(req, text, annotations, edit_id=None):
+    """Infer once from ``text`` and store the inference in its case.
+
+    With ``edit_id`` the inference follows that transcript edit of
+    ``req``, which is stored with it. Nothing is stored unless the case is
+    stored and not being recorded. Returns the inference and the revision
+    that stored it, if any.
     """
     if storage_enabled() and req.case_id is not None and \
             case_changed(req.case_id, req.revision):
@@ -1464,9 +1468,9 @@ async def _infer_edited_case(req, edit_id, after, annotations):
     session_id = str(uuid.uuid4())
     user = parse_user(req.user)
     request = {
-        "chunk_id": edit_id,
+        "chunk_id": edit_id or uuid.uuid4().hex,
         "timestamp": time.time(),
-        "text": after,
+        "text": text,
         "annotations": [a.to_json() for a in annotations],
         "metadata": Metadata.from_dict(req.metadata).to_dict(),
         "session_id": session_id,
@@ -1486,17 +1490,31 @@ async def _infer_edited_case(req, edit_id, after, annotations):
             raise HTTPException(status_code=409, detail="changed")
         if req.case_id in _recording_case_ids() or \
                 find_case(req.case_id) is None:
-            logger.warning("Not storing the edit in case %s", req.case_id)
+            logger.warning("Not storing the inference in case %s",
+                           req.case_id)
             return result, None
         recorder = CaseRecorder(session_id, 0, run_info, case_id=req.case_id,
-                                kind="edit")
-        recorder.write_edit(edit_id, req.shown_through, req.before, after,
-                            annotations, live=False, user=user)
+                                kind="edit" if edit_id else "inference")
+        if edit_id:
+            recorder.write_edit(edit_id, req.shown_through, req.before, text,
+                                annotations, live=False, user=user)
         recorder.write_inference(request, result, shown_at=time.time(),
                                  edit_id=edit_id)
         recorder.close(request["metadata"], user)
         return result, recorder.revision
     return result, None
+
+
+@app.post("/reinfer")
+async def reinfer(req: ReinferRequest):
+    """Infer once more from the transcript on screen and store it in its
+    case, as after a change to the case profile."""
+    text = " ".join(req.transcript.split())
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty transcript")
+    annotations = await asyncio.to_thread(grounder.annotate, text)
+    result, revision = await _infer_once(req, text, annotations)
+    return {"inference": result, "revision": revision}
 
 
 @app.post("/transcript-edit")
@@ -1525,8 +1543,8 @@ async def edit_transcript(req: TranscriptEditRequest):
         await session.restart(after, annotations, req.shown_through,
                               edit_id)
     else:
-        result, revision = await _infer_edited_case(req, edit_id, after,
-                                                    annotations)
+        result, revision = await _infer_once(req, after, annotations,
+                                             edit_id)
     return {
         "edit_id": edit_id,
         "transcript": after,

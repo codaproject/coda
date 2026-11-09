@@ -59,9 +59,9 @@ class CaseRecorder:
 
     With ``case_id`` the existing case is reopened and a new segment appended
     to it. The time between the two segments is recorded as a pause. The
-    ``kind`` of write is ``recording``, ``notes`` or ``edit``, and only a
-    recording keeps audio. A new case starts with ``metadata``, replaced by
-    that given on close.
+    ``kind`` of write is ``recording``, ``notes``, ``edit`` or ``inference``,
+    and only a recording keeps audio. A new case starts with ``metadata``,
+    replaced by that given on close.
 
     Each recorder makes one revision of the case, numbered when it opens and
     logged in ``revisions.jsonl`` when it closes.

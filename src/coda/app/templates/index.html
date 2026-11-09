@@ -452,6 +452,13 @@
         display: flex;
         padding: 0 16px;
       }
+      #reinferBtn {
+        margin-left: auto;
+        color: var(--warning);
+      }
+      #reinferBtn[hidden] {
+        display: none;
+      }
       .profile-toggle {
         display: flex;
         align-items: center;
@@ -3649,6 +3656,10 @@
             <i class="bi bi-chevron-down profile-chevron"></i>
             <span class="profile-summary" id="userSummary"></span>
           </button>
+          <button type="button" class="profile-toggle" id="reinferBtn" hidden>
+            <i class="bi bi-arrow-repeat"></i>
+            <span data-i18n="profile.reinfer">Update inference</span>
+          </button>
         </div>
         <div class="profile-fields" id="userFields">
           <div class="profile-field">
@@ -4476,6 +4487,10 @@
           "profile.child": "Child",
           "profile.adult": "Adult",
           "profile.caseId": "Case ID",
+          "profile.reinfer": "Update inference",
+          "profile.reinferring":
+            "Updating the inference with the new profile…",
+          "profile.reinferFailed": "Could not update the inference",
           "profile.clinical": "Clinical",
           "profile.birthWeight": "Birth weight",
           "profile.hiv": "HIV status",
@@ -4680,6 +4695,10 @@
           "profile.child": "Mtoto",
           "profile.adult": "Mtu mzima",
           "profile.caseId": "Kitambulisho cha kesi",
+          "profile.reinfer": "Sasisha makisio",
+          "profile.reinferring":
+            "Inasasisha makisio kwa wasifu mpya…",
+          "profile.reinferFailed": "Imeshindwa kusasisha makisio",
           "profile.clinical": "Kliniki",
           "profile.birthWeight": "Uzito wa kuzaliwa",
           "profile.hiv": "Hali ya VVU",
@@ -4884,6 +4903,10 @@
           "profile.child": "Enfant",
           "profile.adult": "Adulte",
           "profile.caseId": "Identifiant du cas",
+          "profile.reinfer": "Mettre à jour l'inférence",
+          "profile.reinferring":
+            "Mise à jour de l'inférence avec le nouveau profil…",
+          "profile.reinferFailed": "Impossible de mettre à jour l'inférence",
           "profile.clinical": "Clinique",
           "profile.birthWeight": "Poids de naissance",
           "profile.hiv": "Statut VIH",
@@ -5092,6 +5115,10 @@
           "profile.child": "طفل",
           "profile.adult": "بالغ",
           "profile.caseId": "رقم الحالة",
+          "profile.reinfer": "تحديث الاستدلال",
+          "profile.reinferring":
+            "جارٍ تحديث الاستدلال بالملف الجديد…",
+          "profile.reinferFailed": "تعذّر تحديث الاستدلال",
           "profile.clinical": "سريري",
           "profile.birthWeight": "الوزن عند الولادة",
           "profile.hiv": "حالة فيروس نقص المناعة",
@@ -5291,6 +5318,10 @@
           "profile.child": "শিশু",
           "profile.adult": "প্রাপ্তবয়স্ক",
           "profile.caseId": "কেস আইডি",
+          "profile.reinfer": "অনুমান হালনাগাদ করুন",
+          "profile.reinferring":
+            "নতুন প্রোফাইল দিয়ে অনুমান হালনাগাদ হচ্ছে…",
+          "profile.reinferFailed": "অনুমান হালনাগাদ করা যায়নি",
           "profile.clinical": "ক্লিনিক্যাল",
           "profile.birthWeight": "জন্ম ওজন",
           "profile.hiv": "এইচআইভি অবস্থা",
@@ -5496,6 +5527,10 @@
           "profile.child": "Niño",
           "profile.adult": "Adulto",
           "profile.caseId": "ID del caso",
+          "profile.reinfer": "Actualizar la inferencia",
+          "profile.reinferring":
+            "Actualizando la inferencia con el nuevo perfil…",
+          "profile.reinferFailed": "No se pudo actualizar la inferencia",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso al nacer",
           "profile.hiv": "Estado de VIH",
@@ -5702,6 +5737,10 @@
           "profile.child": "N'wana",
           "profile.adult": "Munhu lonkulu",
           "profile.caseId": "Nomboro ya mhaka",
+          "profile.reinfer": "Pfuxeta nkumbetelo",
+          "profile.reinferring":
+            "Ku pfuxeta nkumbetelo hi phurofayili leyintshwa…",
+          "profile.reinferFailed": "Nkumbetelo a wu pfuxetiwanga",
           "profile.clinical": "Vutshunguri",
           "profile.birthWeight": "Ntiko wa ku velekiwa",
           "profile.hiv": "Xiyimo xa HIV",
@@ -5910,6 +5949,10 @@
           "profile.child": "Criança",
           "profile.adult": "Adulto",
           "profile.caseId": "ID do caso",
+          "profile.reinfer": "Atualizar a inferência",
+          "profile.reinferring":
+            "Atualizando a inferência com o novo perfil…",
+          "profile.reinferFailed": "Não foi possível atualizar a inferência",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso ao nascer",
           "profile.hiv": "Status de HIV",
@@ -7024,7 +7067,11 @@
         setSessionState("result");
       }
 
+      // The case and kicker the banner shows, to show again with new metadata
+      let bannerCase = null;
+
       function renderCaseBanner(c, kickerKey = "case.kicker") {
+        bannerCase = [c, kickerKey];
         caseKicker.dataset.i18n = kickerKey;
         caseKicker.textContent = t(kickerKey);
         const run = c.run_info || {};
@@ -8988,9 +9035,19 @@
             return;
           }
           if (!resp.ok) return;
-          currentCaseRevision = (await resp.json()).revision;
+          const revision = (await resp.json()).revision;
+          if (
+            revision !== currentCaseRevision &&
+            (transcriptText.trim() || noteFiles.length)
+          ) {
+            setInferenceStale(true);
+          }
+          currentCaseRevision = revision;
           caseMetadataId = metadata.case_id;
           caseProfile = metadata.profile;
+          if (bannerCase && body.classList.contains("viewing-case")) {
+            renderCaseBanner({ ...bannerCase[0], metadata }, bannerCase[1]);
+          }
         } catch (e) {}
       }
 
@@ -8998,6 +9055,52 @@
         pushMetadata();
         saveCaseProfile();
       }
+
+      // Offered once the profile of a stopped case changes, so that one
+      // inference follows however many fields are edited
+      const reinferBtn = document.getElementById("reinferBtn");
+
+      function setInferenceStale(stale) {
+        reinferBtn.hidden = !stale;
+      }
+
+      reinferBtn.addEventListener("click", async () => {
+        // A case inferred from clinical notes infers from them again
+        if (!transcriptText.trim() && noteFiles.length) {
+          await runClinicalNotes();
+          return;
+        }
+        reinferBtn.disabled = true;
+        showStatus(t("profile.reinferring"), "info");
+        try {
+          const resp = await fetch("/reinfer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: transcriptText,
+              case_id: currentCaseId,
+              revision: currentCaseRevision,
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
+          });
+          if (resp.status === 409) {
+            reloadChangedCase();
+            return;
+          }
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          if (data.revision != null) currentCaseRevision = data.revision;
+          showInference(data.inference);
+          finalizeSessionIfSaving();
+          renderResultHero();
+        } catch (e) {
+          console.error("Reinference failed:", e);
+          showStatus(t("profile.reinferFailed"), "danger");
+        } finally {
+          reinferBtn.disabled = false;
+        }
+      });
 
       // Show a reopened case's own profile, with its case ID fixed
       function showCaseProfile() {
@@ -9250,6 +9353,7 @@
       function clearSessionView() {
         body.classList.remove("viewing-case");
         resetMccd();
+        setInferenceStale(false);
         caseIdInput.disabled = false;
         // The case ID and profile of a case already saved stay with it
         if (caseIdUsed) {
@@ -9433,6 +9537,7 @@
 
       function showInference(data) {
         console.debug("[coda] inference", data);
+        setInferenceStale(false);
         exitInferenceOffline();
         body.classList.remove("inference-offline");
 

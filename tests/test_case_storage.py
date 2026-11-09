@@ -1154,3 +1154,26 @@ def test_settings_are_refused_while_recording(monkeypatch):
     assert client.post("/settings", json={}).status_code == 409
     monkeypatch.setattr(server, "active_inference_sessions", set())
     assert client.post("/settings", json={}).status_code == 200
+
+
+async def test_reinference_is_stored_with_the_new_profile(
+        offline_server, storage_dir, monkeypatch):
+    stored = record_case("aaaa0001")
+    older = {"profile": {"age": {"value": 4, "unit": "years"}}}
+
+    async def fake_post(path, json):
+        return FakeResponse({"chunk_id": json["chunk_id"],
+                             "causes": {"icd10:A41.9": SEPSIS}})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    result = await server.reinfer(server.ReinferRequest(
+        transcript="fever for three days", case_id=stored.case_id,
+        revision=1, metadata=older))
+
+    assert result["revision"] == 2
+    case = load_case(stored.case_id)
+    assert case["top_cause"] == SEPSIS
+    assert case["inference"][-1]["metadata"]["profile"]["age"]["value"] == 4
+    assert case["revisions"][-1]["kind"] == "inference"
+    assert case["edits"] == []
