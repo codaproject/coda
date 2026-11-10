@@ -1,9 +1,9 @@
-# icddr,b community deaths, mostly children, interviews by field workers in Bangla
+# icddr,b community deaths, mostly children, interviews by field workers in
+# Bangla, with clinical notes where available
 
 app:
   tls: true
-  show_mccd: true
-  show_cod_result: true
+  show_clinical_note: true
   ui_language: bn
 
 inference:

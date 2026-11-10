@@ -1,8 +1,9 @@
-# Agincourt community deaths, mostly adults, interviews by field workers in Xitsonga
+# Agincourt community deaths, mostly adults, interviews by field workers in
+# Xitsonga, with the screen in Xitsonga
 
 app:
   tls: true
-  ui_language: en
+  ui_language: ts
 
 inference:
   llm:
