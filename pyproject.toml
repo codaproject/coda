@@ -94,7 +94,7 @@ champs-finetuned = [
     "jinja2",
 ]
 questions = [
-    "codalg[questionnaire] @ git+https://github.com/uw-codaproject/coda-sft@v0.2.0#subdirectory=packages/codalg",
+    "codalg[questionnaire,lightgbm] @ git+https://github.com/uw-codaproject/coda-sft@v0.3.0#subdirectory=packages/codalg",
     "jdk4py",
 ]
 
