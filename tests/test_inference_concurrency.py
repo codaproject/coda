@@ -329,3 +329,21 @@ def test_render_profile_clinical_fields():
         "- birth weight: 2900 g\n- HIV status: exposed\n"
         "- weight: 6.9 kg at admission, 6.5 kg at death\n"
         "- MUAC: 11.2 cm at death\n")
+
+
+def test_inference_server_keeps_no_runtime_after_its_reset(monkeypatch):
+    from fastapi.testclient import TestClient
+    server = InferenceServer(ChampsPromptedIcd10Agent(FakeLLMClient()))
+    client = TestClient(server.app)
+    chunk = {"chunk_id": "a-1", "text": "alpha", "annotations": [],
+             "session_id": "session-a", "session_generation": 0}
+    client.post("/reset", json={"session_id": "session-a",
+                                "session_generation": 0})
+
+    assert client.post("/infer", json=chunk).status_code == 200
+    assert server._session_runtimes == {}
+    client.post("/infer", json={**chunk, "session_generation": 1})
+    assert list(server._session_runtimes) == [("session-a", 1)]
+    monkeypatch.setattr("coda.inference.agent.SESSION_IDLE_S", -1)
+    client.post("/infer", json={**chunk, "session_id": "session-b"})
+    assert list(server._session_runtimes) == [("session-b", 0)]
