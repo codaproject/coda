@@ -3,6 +3,7 @@
 
 app:
   tls: true
+  max_recordings: 3
   # show_cod_result: true
   # show_clinical_note: false
   # show_mccd: false
