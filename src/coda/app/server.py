@@ -1488,9 +1488,9 @@ async def _infer_once(req, text, annotations, edit_id=None):
     """Infer once from ``text`` and store the inference in its case.
 
     With ``edit_id`` the inference follows that transcript edit of
-    ``req``, which is stored with it. Nothing is stored unless the case is
-    stored and not being recorded. Returns the inference and the revision
-    that stored it, if any.
+    ``req``, which is stored with it. A case still being recorded after a
+    short wait is refused, and nothing is stored for a case that is not
+    stored. Returns the inference and the revision that stored it, if any.
     """
     if storage_enabled() and req.case_id is not None and \
             case_changed(req.case_id, req.revision):
@@ -1518,9 +1518,10 @@ async def _infer_once(req, text, annotations, edit_id=None):
         # No await from here on, so no connection can take the case meanwhile
         if case_changed(req.case_id, req.revision):
             raise HTTPException(status_code=409, detail="changed")
-        if req.case_id in _recording_case_ids() or \
-                find_case(req.case_id) is None:
-            logger.warning("Not storing the inference in case %s",
+        if req.case_id in _recording_case_ids():
+            raise HTTPException(status_code=409, detail="in_use")
+        if find_case(req.case_id) is None:
+            logger.warning("Not storing the inference in unknown case %s",
                            req.case_id)
             return result, None
         recorder = CaseRecorder(session_id, 0, run_info, case_id=req.case_id,

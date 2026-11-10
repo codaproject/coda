@@ -8276,6 +8276,10 @@
         showStatus(t("transcript.reinferring"), "info");
         try {
           const view = viewCount;
+          // An edit saved after Stop waits for that recording to close its case
+          if (!isRecording && finishingSocket) {
+            await socketClosed(finishingSocket);
+          }
           // A stored case is inferred with its own profile, as when continuing
           if (!isRecording) await restoreCaseMetadata();
           const resp = await fetch("/transcript-edit", {
@@ -8294,8 +8298,11 @@
           });
           if (view !== viewCount) return;
           if (resp.status === 409 && !isRecording) {
-            reloadChangedCase();
-            return;
+            const err = await resp.json();
+            if (err.detail === "changed") {
+              reloadChangedCase();
+              return;
+            }
           }
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
@@ -8715,6 +8722,14 @@
           } else {
             sock.close();
           }
+        });
+      }
+
+      // Resolve once a socket has closed
+      function socketClosed(sock) {
+        return new Promise((resolve) => {
+          if (sock.readyState === WebSocket.CLOSED) resolve();
+          else sock.addEventListener("close", resolve, { once: true });
         });
       }
 

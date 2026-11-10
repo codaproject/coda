@@ -1267,3 +1267,24 @@ def test_write_without_a_revision_is_refused(storage_dir):
         f"/cases/{stored.case_id}/metadata", json={"metadata": {}})
     assert response.status_code == 409
     assert load_case(stored.case_id)["revision"] == 1
+
+
+async def test_edit_of_a_case_still_recording_is_refused(
+        offline_server, storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "CASE_RELEASE_WAIT_S", 0.2)
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    async def fake_post(path, json):
+        return FakeResponse({"chunk_id": json["chunk_id"], "causes": {}})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="fever", transcript="fever for days",
+            case_id=live.recorder.case_id, revision=1))
+
+    assert refused.value.status_code == 409
+    live.end_case()
