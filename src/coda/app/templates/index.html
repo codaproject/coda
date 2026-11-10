@@ -452,6 +452,13 @@
         display: flex;
         padding: 0 16px;
       }
+      #reinferBtn {
+        margin-left: auto;
+        color: var(--warning);
+      }
+      #reinferBtn[hidden] {
+        display: none;
+      }
       .profile-toggle {
         display: flex;
         align-items: center;
@@ -556,6 +563,10 @@
       }
       #caseId {
         width: 110px;
+      }
+      #caseId:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
       .profile-field select {
         padding: 4px 8px;
@@ -2766,7 +2777,6 @@
         border-radius: 6px;
         color: var(--ink);
       }
-      body.viewing-case .profile-bar,
       body.viewing-case .lang-chip,
       body.viewing-case #resetBtn,
       body.viewing-case #historyBtn {
@@ -3646,6 +3656,10 @@
             <i class="bi bi-chevron-down profile-chevron"></i>
             <span class="profile-summary" id="userSummary"></span>
           </button>
+          <button type="button" class="profile-toggle" id="reinferBtn" hidden>
+            <i class="bi bi-arrow-repeat"></i>
+            <span data-i18n="profile.reinfer">Update inference</span>
+          </button>
         </div>
         <div class="profile-fields" id="userFields">
           <div class="profile-field">
@@ -4473,6 +4487,12 @@
           "profile.child": "Child",
           "profile.adult": "Adult",
           "profile.caseId": "Case ID",
+          "profile.caseIdTaken":
+            "Another stored case already has this case ID",
+          "profile.reinfer": "Update inference",
+          "profile.reinferring":
+            "Updating the inference with the new profile…",
+          "profile.reinferFailed": "Could not update the inference",
           "profile.clinical": "Clinical",
           "profile.birthWeight": "Birth weight",
           "profile.hiv": "HIV status",
@@ -4626,6 +4646,12 @@
           "continue.transcriber": "Transcriber",
           "continue.inference": "Inference",
           "continue.inUse": "This session is being recorded elsewhere",
+          "case.changed":
+            "This case was changed on another device. Showing its latest version.",
+          "settings.recording":
+            "Settings cannot change while an interview is being recorded.",
+          "server.busy":
+            "The server is busy with other interviews. Try again shortly.",
           "transcript.edit": "Edit",
           "transcript.both": "Both",
           "transcript.original": "Original",
@@ -4671,6 +4697,12 @@
           "profile.child": "Mtoto",
           "profile.adult": "Mtu mzima",
           "profile.caseId": "Kitambulisho cha kesi",
+          "profile.caseIdTaken":
+            "Kesi nyingine iliyohifadhiwa tayari ina kitambulisho hiki",
+          "profile.reinfer": "Sasisha makisio",
+          "profile.reinferring":
+            "Inasasisha makisio kwa wasifu mpya…",
+          "profile.reinferFailed": "Imeshindwa kusasisha makisio",
           "profile.clinical": "Kliniki",
           "profile.birthWeight": "Uzito wa kuzaliwa",
           "profile.hiv": "Hali ya VVU",
@@ -4823,6 +4855,12 @@
           "continue.transcriber": "Injini ya unakili",
           "continue.inference": "Ubashiri",
           "continue.inUse": "Kikao hiki kinarekodiwa mahali pengine",
+          "case.changed":
+            "Kesi hii imebadilishwa kwenye kifaa kingine. Inaonyesha toleo lake la hivi karibuni.",
+          "settings.recording":
+            "Mipangilio haiwezi kubadilishwa wakati mahojiano yanarekodiwa.",
+          "server.busy":
+            "Seva ina mahojiano mengine kwa sasa. Jaribu tena baada ya muda mfupi.",
           "transcript.edit": "Hariri",
           "transcript.both": "Zote mbili",
           "transcript.original": "Asili",
@@ -4869,6 +4907,12 @@
           "profile.child": "Enfant",
           "profile.adult": "Adulte",
           "profile.caseId": "Identifiant du cas",
+          "profile.caseIdTaken":
+            "Un autre cas enregistré a déjà cet identifiant",
+          "profile.reinfer": "Mettre à jour l'inférence",
+          "profile.reinferring":
+            "Mise à jour de l'inférence avec le nouveau profil…",
+          "profile.reinferFailed": "Impossible de mettre à jour l'inférence",
           "profile.clinical": "Clinique",
           "profile.birthWeight": "Poids de naissance",
           "profile.hiv": "Statut VIH",
@@ -5024,6 +5068,12 @@
           "continue.transcriber": "Moteur de transcription",
           "continue.inference": "Inférence",
           "continue.inUse": "Cette session est en cours d'enregistrement ailleurs",
+          "case.changed":
+            "Ce cas a été modifié sur un autre appareil. Sa dernière version est affichée.",
+          "settings.recording":
+            "Les paramètres ne peuvent pas changer pendant l'enregistrement d'un entretien.",
+          "server.busy":
+            "Le serveur est occupé par d'autres entretiens. Réessayez dans un instant.",
           "transcript.edit": "Modifier",
           "transcript.both": "Les deux",
           "transcript.original": "Original",
@@ -5071,6 +5121,12 @@
           "profile.child": "طفل",
           "profile.adult": "بالغ",
           "profile.caseId": "رقم الحالة",
+          "profile.caseIdTaken":
+            "توجد حالة محفوظة أخرى بهذا الرقم",
+          "profile.reinfer": "تحديث الاستدلال",
+          "profile.reinferring":
+            "جارٍ تحديث الاستدلال بالملف الجديد…",
+          "profile.reinferFailed": "تعذّر تحديث الاستدلال",
           "profile.clinical": "سريري",
           "profile.birthWeight": "الوزن عند الولادة",
           "profile.hiv": "حالة فيروس نقص المناعة",
@@ -5220,6 +5276,10 @@
           "continue.transcriber": "محرك النسخ",
           "continue.inference": "الاستدلال",
           "continue.inUse": "يتم تسجيل هذه الجلسة في مكان آخر",
+          "case.changed":
+            "تم تعديل هذه الحالة على جهاز آخر. يتم عرض أحدث نسخة منها.",
+          "settings.recording": "لا يمكن تغيير الإعدادات أثناء تسجيل مقابلة.",
+          "server.busy": "الخادم مشغول بمقابلات أخرى. حاول مرة أخرى بعد قليل.",
           "transcript.edit": "تعديل",
           "transcript.both": "كلاهما",
           "transcript.original": "الأصل",
@@ -5266,6 +5326,12 @@
           "profile.child": "শিশু",
           "profile.adult": "প্রাপ্তবয়স্ক",
           "profile.caseId": "কেস আইডি",
+          "profile.caseIdTaken":
+            "সংরক্ষিত আরেকটি কেসে এই আইডি আগে থেকেই আছে",
+          "profile.reinfer": "অনুমান হালনাগাদ করুন",
+          "profile.reinferring":
+            "নতুন প্রোফাইল দিয়ে অনুমান হালনাগাদ হচ্ছে…",
+          "profile.reinferFailed": "অনুমান হালনাগাদ করা যায়নি",
           "profile.clinical": "ক্লিনিক্যাল",
           "profile.birthWeight": "জন্ম ওজন",
           "profile.hiv": "এইচআইভি অবস্থা",
@@ -5418,6 +5484,12 @@
           "continue.transcriber": "প্রতিলিপি ইঞ্জিন",
           "continue.inference": "অনুমান",
           "continue.inUse": "এই সেশনটি অন্য কোথাও রেকর্ড হচ্ছে",
+          "case.changed":
+            "এই কেসটি অন্য একটি ডিভাইসে পরিবর্তন করা হয়েছে। এর সর্বশেষ সংস্করণ দেখানো হচ্ছে।",
+          "settings.recording":
+            "সাক্ষাৎকার রেকর্ড হওয়ার সময় সেটিংস পরিবর্তন করা যাবে না।",
+          "server.busy":
+            "সার্ভার অন্য সাক্ষাৎকারে ব্যস্ত। একটু পরে আবার চেষ্টা করুন।",
           "transcript.edit": "সম্পাদনা",
           "transcript.both": "উভয়",
           "transcript.original": "মূল",
@@ -5465,6 +5537,12 @@
           "profile.child": "Niño",
           "profile.adult": "Adulto",
           "profile.caseId": "ID del caso",
+          "profile.caseIdTaken":
+            "Otro caso guardado ya tiene este ID",
+          "profile.reinfer": "Actualizar la inferencia",
+          "profile.reinferring":
+            "Actualizando la inferencia con el nuevo perfil…",
+          "profile.reinferFailed": "No se pudo actualizar la inferencia",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso al nacer",
           "profile.hiv": "Estado de VIH",
@@ -5618,6 +5696,12 @@
           "continue.transcriber": "Motor de transcripción",
           "continue.inference": "Inferencia",
           "continue.inUse": "Esta sesión se está grabando en otro lugar",
+          "case.changed":
+            "Este caso se modificó en otro dispositivo. Se muestra su versión más reciente.",
+          "settings.recording":
+            "La configuración no puede cambiar mientras se graba una entrevista.",
+          "server.busy":
+            "El servidor está ocupado con otras entrevistas. Inténtelo de nuevo en breve.",
           "transcript.edit": "Editar",
           "transcript.both": "Ambos",
           "transcript.original": "Original",
@@ -5665,6 +5749,12 @@
           "profile.child": "N'wana",
           "profile.adult": "Munhu lonkulu",
           "profile.caseId": "Nomboro ya mhaka",
+          "profile.caseIdTaken":
+            "Mhaka yin'wana leyi hlayisiweke yi na nomboro leyi",
+          "profile.reinfer": "Pfuxeta nkumbetelo",
+          "profile.reinferring":
+            "Ku pfuxeta nkumbetelo hi phurofayili leyintshwa…",
+          "profile.reinferFailed": "Nkumbetelo a wu pfuxetiwanga",
           "profile.clinical": "Vutshunguri",
           "profile.birthWeight": "Ntiko wa ku velekiwa",
           "profile.hiv": "Xiyimo xa HIV",
@@ -5821,6 +5911,12 @@
           "continue.transcriber": "Njhini yo tsala leswi vuriwaka",
           "continue.inference": "Nkumbetelo",
           "continue.inUse": "Ntshamo lowu wu karhi wu rhekhodiwa kun'wana",
+          "case.changed":
+            "Mhaka leyi yi cinciwile eka xitirhisiwa xin'wana. Ku kombisiwa vuxokoxoko bya yona lebyintshwa.",
+          "settings.recording":
+            "Swiletelo a swi nge cinciwi loko inthavhiyu yi ri karhi yi rhekhodiwa.",
+          "server.busy":
+            "Sevha yi khomekile hi tiinterviyu tin'wana. Ringeta nakambe endzhaku ka nkarhinyana.",
           "transcript.edit": "Lulamisa",
           "transcript.both": "Swimbirhi",
           "transcript.original": "Ririmi ra masungulo",
@@ -5867,6 +5963,12 @@
           "profile.child": "Criança",
           "profile.adult": "Adulto",
           "profile.caseId": "ID do caso",
+          "profile.caseIdTaken":
+            "Outro caso salvo já tem este ID",
+          "profile.reinfer": "Atualizar a inferência",
+          "profile.reinferring":
+            "Atualizando a inferência com o novo perfil…",
+          "profile.reinferFailed": "Não foi possível atualizar a inferência",
           "profile.clinical": "Clínico",
           "profile.birthWeight": "Peso ao nascer",
           "profile.hiv": "Status de HIV",
@@ -6023,6 +6125,12 @@
           "continue.transcriber": "Transcritor",
           "continue.inference": "Inferência",
           "continue.inUse": "Esta sessão está sendo gravada em outro lugar",
+          "case.changed":
+            "Este caso foi alterado em outro dispositivo. A versão mais recente está sendo exibida.",
+          "settings.recording":
+            "As configurações não podem ser alteradas enquanto uma entrevista está sendo gravada.",
+          "server.busy":
+            "O servidor está ocupado com outras entrevistas. Tente novamente em instantes.",
           "transcript.edit": "Editar",
           "transcript.both": "Ambos",
           "transcript.original": "Original",
@@ -6413,6 +6521,7 @@
                   Math.random().toString(36).slice(2, 8),
           // The server's copy of this session, when it kept one
           caseId: currentCaseId,
+          revision: currentCaseRevision,
           startedAt: sessionStartedAt,
           endedAt: new Date().toISOString(),
           durationSeconds: lastDuration,
@@ -6832,12 +6941,14 @@
         if (!session) return;
         clearSessionView();
         currentCaseId = session.caseId || null;
+        currentCaseRevision = session.revision ?? null;
         currentLocalId = session.id;
         sessionStartedAt = session.startedAt;
         lastDuration = session.durationSeconds || 0;
         caseRunInfo = session.runInfo || null;
         caseProfile = (session.metadata && session.metadata.profile) || null;
         caseMetadataId = (session.metadata && session.metadata.case_id) || null;
+        showCaseProfile();
         sessionPartCount = session.parts || 1;
 
         transcriptText = session.transcript || "";
@@ -6878,6 +6989,12 @@
         setSessionState("result");
       }
 
+      // Show the case on screen as stored, after another device changed it
+      function reloadChangedCase() {
+        showStatus(t("case.changed"), "warning");
+        if (currentCaseId) openStoredCase(currentCaseId, currentLocalId);
+      }
+
       // A row kept on both sides falls back to the device copy when the
       // server's cannot be loaded
       async function openStoredCase(caseId, localId = null) {
@@ -6897,12 +7014,14 @@
         clearSessionView();
         const parts = c.segments || [];
         currentCaseId = caseId;
+        currentCaseRevision = c.revision ?? null;
         currentLocalId = localId;
         sessionStartedAt = c.started_at;
         lastDuration = c.duration_s || 0;
         caseRunInfo = parts.length ? parts[parts.length - 1].run_info : c.run_info;
         caseProfile = (c.metadata && c.metadata.profile) || null;
         caseMetadataId = (c.metadata && c.metadata.case_id) || null;
+        showCaseProfile();
         caseInProgress = !!c.in_progress;
         continueBtn.disabled = caseInProgress;
         sessionPartCount = parts.length;
@@ -6965,7 +7084,11 @@
         setSessionState("result");
       }
 
+      // The case and kicker the banner shows, to show again with new metadata
+      let bannerCase = null;
+
       function renderCaseBanner(c, kickerKey = "case.kicker") {
+        bannerCase = [c, kickerKey];
         caseKicker.dataset.i18n = kickerKey;
         caseKicker.textContent = t(kickerKey);
         const run = c.run_info || {};
@@ -7223,6 +7346,11 @@
       let currentInferenceSessionId = null;
       let currentInferenceSessionGeneration = null;
       let currentCaseId = null;
+      // The revision of that case as shown, sent with each write to it
+      let currentCaseRevision = null;
+      // Counts the cases shown, so that a reply to a request about an earlier
+      // one is dropped
+      let viewCount = 0;
       // What Continue needs about the session on screen: its copy on this
       // device, when it started, its recording time so far, the settings its
       // last part was recorded with, its profile, and whether it is being
@@ -7764,6 +7892,11 @@
             body: JSON.stringify(changes),
           });
           const data = await resp.json();
+          if (resp.status === 409) {
+            showStatus(t("settings.recording"), "warning");
+            await loadSettings();
+            return false;
+          }
           if (!resp.ok) {
             showStatus(data.detail || "Failed to update settings", "danger");
             return false;
@@ -8158,6 +8291,11 @@
         editPending = true;
         showStatus(t("transcript.reinferring"), "info");
         try {
+          const view = viewCount;
+          // An edit saved after Stop waits for that recording to close its case
+          if (!isRecording && finishingSocket) {
+            await socketClosed(finishingSocket);
+          }
           // A stored case is inferred with its own profile, as when continuing
           if (!isRecording) await restoreCaseMetadata();
           const resp = await fetch("/transcript-edit", {
@@ -8169,10 +8307,22 @@
               shown_through: through,
               session_id: isRecording ? currentInferenceSessionId : null,
               case_id: currentCaseId,
+              revision: isRecording ? null : currentCaseRevision,
+              metadata: caseMetadata(),
+              user: currentUser(),
             }),
           });
+          if (view !== viewCount) return;
+          if (resp.status === 409 && !isRecording) {
+            const err = await resp.json();
+            if (err.detail === "changed") {
+              reloadChangedCase();
+              return;
+            }
+          }
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
+          if (data.revision != null) currentCaseRevision = data.revision;
           edited.innerHTML = chunkInnerHtml(data.transcript, data.annotations);
           if (data.inference) {
             showInference(data.inference);
@@ -8237,8 +8387,10 @@
       async function startRecording({ continuing = false } = {}) {
         if (!recordingAllowed()) return;
         try {
+          // Close the last recording's socket before the new case ID is sent
+          if (!continuing) abandonFinishingSocket();
           if (caseIdUsed && !continuing) await assignCaseId();
-          caseIdUsed = true;
+          useCaseId();
           micSelect.disabled = true;
           languageSelect.disabled = true;
           transcriberBackendSelect.disabled = true;
@@ -8249,10 +8401,11 @@
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
           if (!continuing) {
-            abandonFinishingSocket();
+            viewCount += 1;
             evolution = [];
             latestCauses = null;
             currentCaseId = null;
+            currentCaseRevision = null;
             currentLocalId = null;
             sessionStartedAt = new Date().toISOString();
             sessionPartCount = 0;
@@ -8268,17 +8421,21 @@
 
           const wsProtocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
-          const wsQuery =
-            continuing && currentCaseId
-              ? `?case_id=${encodeURIComponent(currentCaseId)}`
-              : "";
+          const wsQuery = new URLSearchParams();
+          if (continuing && currentCaseId) {
+            wsQuery.set("case_id", currentCaseId);
+            if (currentCaseRevision != null) {
+              wsQuery.set("revision", currentCaseRevision);
+            }
+          }
           const seed = continuing ? transcriptText.trim() : "";
           ws = new WebSocket(
-            `${wsProtocol}//${window.location.host}/ws${wsQuery}`,
+            `${wsProtocol}//${window.location.host}/ws?${wsQuery}`,
           );
 
           ws.onopen = (event) => {
             console.log("WebSocket connected");
+            sendProfile(event.target);
             if (seed) {
               event.target.send(JSON.stringify({ type: "seed", text: seed }));
             }
@@ -8297,6 +8454,7 @@
               currentInferenceSessionGeneration =
                 data.session_generation ?? null;
               currentCaseId = data.case_id || null;
+              currentCaseRevision = data.revision ?? null;
             } else if (data.type === "transcript") {
               if (transcript.querySelector(".placeholder")) {
                 transcript.innerHTML = "";
@@ -8350,22 +8508,25 @@
             } else if (data.type === "warning") {
               showStatus(data.message, "warning");
             } else if (data.type === "error") {
-              // A fatal error means the server refused to continue the
+              // A fatal error means the server refused the recording, as it
+              // records as many as it allows, or refused to continue the
               // session, which another connection is recording or which was
               // inferred from clinical notes. Its close code can be lost
               // while audio is in flight, so this is the signal to rely on. Errors scoped to an inference chunk
               // (backend sets chunk_id) flip the UI into the offline state
               // rather than a fleeting toast. Other errors stay as toasts.
               if (data.fatal) {
+                const refusals = {
+                  clinical_note: "case.notesOnly",
+                  busy: "server.busy",
+                  changed: "case.changed",
+                };
                 showStatus(
-                  t(
-                    data.reason === "clinical_note"
-                      ? "case.notesOnly"
-                      : "continue.inUse",
-                  ),
+                  t(refusals[data.reason] || "continue.inUse"),
                   "warning",
                 );
                 stopRecording({ save: false });
+                if (data.reason === "changed") reloadChangedCase();
               } else if (data.chunk_id) {
                 enterInferenceOffline(data.error);
               } else {
@@ -8577,6 +8738,14 @@
           } else {
             sock.close();
           }
+        });
+      }
+
+      // Resolve once a socket has closed
+      function socketClosed(sock) {
+        return new Promise((resolve) => {
+          if (sock.readyState === WebSocket.CLOSED) resolve();
+          else sock.addEventListener("close", resolve, { once: true });
         });
       }
 
@@ -8853,31 +9022,188 @@
         return profile;
       }
 
-      async function pushMetadata() {
+      // The case ID and profile, sent with everything inferred for the case
+      function caseMetadata() {
+        return {
+          case_id: caseIdInput.value.trim() || null,
+          profile: readProfileInputs(),
+        };
+      }
+
+      // Send the case metadata and user to the connection recording the case
+      function sendProfile(socket = ws || finishingSocket) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(
+            JSON.stringify({
+              type: "profile",
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
+          );
+        }
+      }
+
+      function pushMetadata() {
         applyStillbirthState();
         updateProfileSummary();
-        const caseId = caseIdInput.value.trim() || null;
-        const profile = readProfileInputs();
+        sendProfile();
+      }
+
+      // Save a profile edit to the stored case on screen, unless the
+      // connection recording it carries the edit. Saves run one at a time, so
+      // that each sends the revision the one before it made.
+      let profileSave = Promise.resolve();
+
+      function saveCaseProfile() {
+        profileSave = profileSave.then(saveCaseProfileNow);
+      }
+
+      async function saveCaseProfileNow() {
+        if (!currentCaseId || ws || finishingSocket) return;
+        const metadata = caseMetadata();
+        const view = viewCount;
         try {
-          await fetch("/metadata", {
+          const resp = await fetch(
+            `/cases/${encodeURIComponent(currentCaseId)}/metadata`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                revision: currentCaseRevision,
+                metadata,
+                user: currentUser(),
+              }),
+            },
+          );
+          if (view !== viewCount) return;
+          if (resp.status === 409) {
+            const err = await resp.json();
+            if (err.detail === "changed") reloadChangedCase();
+            else showStatus(t("continue.inUse"), "warning");
+            return;
+          }
+          if (!resp.ok) return;
+          const revision = (await resp.json()).revision;
+          if (
+            revision !== currentCaseRevision &&
+            (transcriptText.trim() || noteFiles.length)
+          ) {
+            setInferenceStale(true);
+          }
+          currentCaseRevision = revision;
+          caseMetadataId = metadata.case_id;
+          caseProfile = metadata.profile;
+          finalizeSessionIfSaving();
+          if (bannerCase && body.classList.contains("viewing-case")) {
+            renderCaseBanner({ ...bannerCase[0], metadata }, bannerCase[1]);
+          }
+        } catch (e) {}
+      }
+
+      function profileChanged() {
+        pushMetadata();
+        saveCaseProfile();
+      }
+
+      // Offered once the profile of a stopped case changes, so that one
+      // inference follows however many fields are edited
+      const reinferBtn = document.getElementById("reinferBtn");
+
+      function setInferenceStale(stale) {
+        reinferBtn.hidden = !stale;
+      }
+
+      reinferBtn.addEventListener("click", async () => {
+        // A case inferred from clinical notes infers from them again
+        if (!transcriptText.trim() && noteFiles.length) {
+          await runClinicalNotes();
+          return;
+        }
+        reinferBtn.disabled = true;
+        showStatus(t("profile.reinferring"), "info");
+        try {
+          const view = viewCount;
+          const resp = await fetch("/reinfer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ case_id: caseId, profile }),
+            body: JSON.stringify({
+              transcript: transcriptText,
+              case_id: currentCaseId,
+              revision: currentCaseRevision,
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
           });
-        } catch (e) {}
+          if (view !== viewCount) return;
+          if (resp.status === 409) {
+            reloadChangedCase();
+            return;
+          }
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          if (data.revision != null) currentCaseRevision = data.revision;
+          showInference(data.inference);
+          finalizeSessionIfSaving();
+          renderResultHero();
+        } catch (e) {
+          console.error("Reinference failed:", e);
+          showStatus(t("profile.reinferFailed"), "danger");
+        } finally {
+          reinferBtn.disabled = false;
+        }
+      });
+
+      // Show a reopened case's own profile, with its case ID fixed
+      function showCaseProfile() {
+        clearProfileInputs();
+        if (caseMetadataId) caseIdInput.value = caseMetadataId;
+        if (caseProfile) fillProfileInputs(caseProfile);
+        caseIdInput.disabled = true;
+        caseIdUsed = true;
+        pushMetadata();
       }
 
       // Whether a recording has been saved as a case under the current ID
       let caseIdUsed = false;
 
+      // The case ID handed out for the next new case, until a case uses it
+      let nextCaseId = null;
+
       // Fill in the next default case ID and send the profile with it
       async function assignCaseId() {
         caseIdUsed = false;
         try {
-          const resp = await fetch("/next-case-id");
-          caseIdInput.value = (await resp.json()).case_id;
+          if (!nextCaseId) {
+            const resp = await fetch("/next-case-id");
+            nextCaseId = (await resp.json()).case_id;
+          }
+          // Unless a reopened case was shown meanwhile
+          if (caseIdInput.disabled) return;
+          caseIdInput.value = nextCaseId;
         } catch (e) {}
         await pushMetadata();
+      }
+
+      // Mark the case ID on screen as used, when it is the one handed out
+      function useCaseId() {
+        caseIdUsed = true;
+        if (caseIdInput.value.trim() === nextCaseId) nextCaseId = null;
+      }
+
+      // Hold a typed case ID and warn when a stored case already has it
+      async function checkCaseId() {
+        const caseId = caseIdInput.value.trim();
+        if (!caseId) return;
+        try {
+          const resp = await fetch("/case-ids", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ case_id: caseId }),
+          });
+          if ((await resp.json()).taken) {
+            showStatus(t("profile.caseIdTaken"), "warning");
+          }
+        } catch (e) {}
       }
 
       function fillProfileInputs(profile) {
@@ -8932,13 +9258,7 @@
         try {
           localStorage.setItem(USER_KEY, JSON.stringify(user));
         } catch (e) {}
-        try {
-          await fetch("/user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(user),
-          });
-        } catch (e) {}
+        sendProfile();
       }
 
       userToggle.addEventListener("click", () => {
@@ -9081,19 +9401,20 @@
             ageUnitSelect.value = "years";
           }
           setCohort(radio.value);
-          pushMetadata();
+          profileChanged();
         }),
       );
-      ageValueInput.addEventListener("change", pushMetadata);
-      ageUnitSelect.addEventListener("change", pushMetadata);
-      stillbirthToggle.addEventListener("change", pushMetadata);
-      caseIdInput.addEventListener("change", pushMetadata);
-      hivSelect.addEventListener("change", pushMetadata);
+      ageValueInput.addEventListener("change", profileChanged);
+      ageUnitSelect.addEventListener("change", profileChanged);
+      stillbirthToggle.addEventListener("change", profileChanged);
+      caseIdInput.addEventListener("change", profileChanged);
+      caseIdInput.addEventListener("change", checkCaseId);
+      hivSelect.addEventListener("change", profileChanged);
       Object.values(measurementInputs).forEach((input) =>
-        input.addEventListener("change", pushMetadata),
+        input.addEventListener("change", profileChanged),
       );
-      dateOfDeathInput.addEventListener("change", pushMetadata);
-      mannerSelect.addEventListener("change", pushMetadata);
+      dateOfDeathInput.addEventListener("change", profileChanged);
+      mannerSelect.addEventListener("change", profileChanged);
       // Clicking the selected option again clears the choice
       sexRadios.forEach((radio) => {
         radio.closest("label").addEventListener("pointerdown", () => {
@@ -9102,15 +9423,19 @@
         radio.addEventListener("click", () => {
           if (radio.dataset.wasChecked === "true") radio.checked = false;
           radio.dataset.wasChecked = "false";
-          pushMetadata();
+          profileChanged();
         });
       });
 
       // Empty the transcript, notes, inference, chart, and playback of the last
       // session or stored case
       function clearSessionView() {
+        viewCount += 1;
         body.classList.remove("viewing-case");
         resetMccd();
+        setInferenceStale(false);
+        caseIdInput.disabled = false;
+        abandonFinishingSocket();
         // The case ID and profile of a case already saved stay with it
         if (caseIdUsed) {
           clearProfileInputs();
@@ -9127,7 +9452,6 @@
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];
-        abandonFinishingSocket();
         transcript.innerHTML =
           '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
         inference.innerHTML = "";
@@ -9140,6 +9464,7 @@
         lastDuration = 0;
         evolution = [];
         currentCaseId = null;
+        currentCaseRevision = null;
         currentLocalId = null;
         sessionStartedAt = null;
         priorActiveMs = 0;
@@ -9237,26 +9562,36 @@
           if (isRecording) {
             stopRecording();
           }
+          // A case ID nothing was saved under stays for the next case
+          const idUsed = caseIdUsed;
+          const unusedId = idUsed ? "" : caseIdInput.value.trim();
           clearProfileInputs();
           clearSessionView();
           renderIdleRecent();
           setSessionState("idle");
           try {
-            await fetch("/reset", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                session_id: currentInferenceSessionId,
-                session_generation: currentInferenceSessionGeneration,
-              }),
-            });
+            if (currentInferenceSessionId) {
+              await fetch("/reset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  session_id: currentInferenceSessionId,
+                  session_generation: currentInferenceSessionGeneration,
+                }),
+              });
+            }
             currentInferenceSessionId = null;
             currentInferenceSessionGeneration = null;
             showStatus("Session reset — ready for new recording", "success");
           } catch (e) {
             showStatus("UI cleared but server reset failed", "warning");
           }
-          assignCaseId();
+          if (unusedId) {
+            caseIdInput.value = unusedId;
+            pushMetadata();
+          } else if (!idUsed) {
+            assignCaseId();
+          }
         });
 
       function escapeHtml(text) {
@@ -9282,6 +9617,7 @@
 
       function showInference(data) {
         console.debug("[coda] inference", data);
+        setInferenceStale(false);
         exitInferenceOffline();
         body.classList.remove("inference-offline");
 
@@ -9569,22 +9905,32 @@
         }
         showStatus("Running inference on clinical notes…", "info");
         try {
+          const view = viewCount;
           // A stored case is inferred with its own profile, as when continuing
           await restoreCaseMetadata();
           const resp = await fetch("/clinical-notes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ notes: noteFiles, case_id: currentCaseId }),
+            body: JSON.stringify({
+              notes: noteFiles,
+              case_id: currentCaseId,
+              revision: currentCaseRevision,
+              metadata: caseMetadata(),
+              user: currentUser(),
+            }),
           });
+          if (view !== viewCount) return;
           if (!resp.ok) {
             const err = await resp.json();
-            showStatus(err.detail || "Inference failed", "danger");
+            if (err.detail === "changed") reloadChangedCase();
+            else showStatus(err.detail || "Inference failed", "danger");
             return;
           }
           const data = await resp.json();
           if (data.case_id) currentCaseId = data.case_id;
+          currentCaseRevision = data.revision ?? null;
           sessionStartedAt ??= new Date().toISOString();
-          caseIdUsed = true;
+          useCaseId();
           showInference(data);
           finalizeSessionIfSaving();
           renderResultHero();

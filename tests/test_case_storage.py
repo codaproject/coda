@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import logging
+import time
 import wave
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -152,11 +153,20 @@ def test_store_flags_disable_files(storage_dir, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_next_case_id_follows_saved_cases(storage_dir):
+async def test_next_case_id_follows_saved_cases(storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
     assert await server.next_case_id() == {"case_id": "CODA-001"}
     for session_id, case_id in [("a", "CODA-007"), ("b", "custom")]:
         CaseRecorder(session_id, 0, {}).close({"case_id": case_id})
     assert await server.next_case_id() == {"case_id": "CODA-008"}
+
+
+async def test_next_case_ids_are_not_handed_out_twice(storage_dir,
+                                                      monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    issued = await asyncio.gather(*(server.next_case_id() for _ in range(3)))
+    assert [i["case_id"] for i in issued] == \
+        ["CODA-001", "CODA-002", "CODA-003"]
 
 
 def test_pauses_recorded_in_manifest(storage_dir):
@@ -242,6 +252,26 @@ async def test_targeted_reset_only_rotates_target_case(offline_server,
     session_b.end_case()
 
 
+def test_reset_needs_a_session():
+    assert TestClient(server.app).post("/reset").status_code == 422
+
+
+async def test_reset_of_a_closed_session_resets_only_its_inference(
+        offline_server, monkeypatch):
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "session-b")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+    resets = []
+
+    async def fake_reset(session_id, generation):
+        resets.append((session_id, generation))
+
+    monkeypatch.setattr(server, "_reset_inference_session", fake_reset)
+    await server.reset_session(server.ResetRequest(session_id="session-a"))
+
+    assert resets == [("session-a", None)]
+    assert live.generation == 0
+
+
 @pytest.mark.asyncio
 async def test_inference_results_recorded_unless_stale(offline_server,
                                                        storage_dir, monkeypatch):
@@ -264,6 +294,47 @@ async def test_inference_results_recorded_unless_stale(offline_server,
     [record] = read_jsonl(case_dir / "inference.jsonl")
     assert record["questions"] == ["q1"]
     assert record["shown_at"] is not None
+
+
+async def test_connections_keep_their_own_profile_and_user(
+        offline_server, storage_dir, monkeypatch):
+    posted = []
+
+    async def fake_post(path, json):
+        posted.append((json["session_id"], json["metadata"]))
+        return FakeResponse({"chunk_id": json["chunk_id"]})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    sessions = {}
+    for name, age in [("Ana", 3), ("Ben", 40)]:
+        session = server.InferenceSessionCoordinator(DummyWebSocket(), name)
+        await session.start_case()
+        profile = {"type": "profile", "user": {"name": name, "id": name},
+                   "metadata": {"case_id": f"CODA-{age}",
+                                "profile": {"age": {"value": age,
+                                                    "unit": "years"}}}}
+        with pytest.raises(WebSocketDisconnect):
+            await server.capture_audio(ScriptedWebSocket([
+                {"type": "websocket.receive", "text": json.dumps(profile)},
+                {"type": "websocket.disconnect", "code": 1000}]),
+                asyncio.Queue(), session)
+        sessions[name] = session
+    batch = server.CoalescedInferenceBatch(
+        chunk_id="c1", timestamp=0.0, text="fever", annotations=[],
+        queued_at=0.0, chunk_count=1)
+    for session in sessions.values():
+        await server.process_inference(session, 0, batch, buffer_wait_s=0.0)
+
+    assert [(s, m["case_id"]) for s, m in posted] == \
+        [("Ana", "CODA-3"), ("Ben", "CODA-40")]
+    for name, session in sessions.items():
+        case_dir = session.recorder.case_dir
+        session.end_case()
+        manifest = json.loads((case_dir / "manifest.json").read_text())
+        assert manifest["user"] == {"name": name, "id": name}
+        assert manifest["metadata"]["case_id"] == \
+            {"Ana": "CODA-3", "Ben": "CODA-40"}[name]
 
 
 def test_configure_logging_writes_to_file(monkeypatch, tmp_path):
@@ -503,6 +574,7 @@ async def test_reset_tells_the_client_its_new_case(storage_dir, offline_server):
         "session_id": "session-a",
         "session_generation": 1,
         "case_id": session.recorder.case_id,
+        "revision": 1,
     }
     assert session.recorder.case_id != first_case
     session.end_case()
@@ -671,7 +743,8 @@ async def test_connection_continues_a_stored_case(storage_dir, offline_server,
     monkeypatch.setattr(server, "consume_transcripts", hear_audio)
     first = record_case("aaaa0001")
     websocket = ClosingWebSocket()
-    await server.websocket_endpoint(websocket, case_id=first.case_id)
+    await server.websocket_endpoint(websocket, case_id=first.case_id,
+                                    revision=1)
 
     assert case_dirs(storage_dir) == [first.case_dir]
     assert websocket.messages[0]["case_id"] == first.case_id
@@ -699,11 +772,31 @@ async def test_case_being_recorded_is_not_continued(storage_dir, idle_transcript
     websocket = RefusedWebSocket()
     await server.websocket_endpoint(websocket, case_id=live.recorder.case_id)
 
-    assert websocket.close_code == server.CASE_IN_USE_CLOSE_CODE
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
     [error] = websocket.messages
     assert error["type"] == "error" and error["fatal"] is True
     assert error["reason"] == "in_use"
     assert server.active_inference_sessions == {live}
+    live.end_case()
+
+
+async def test_recordings_beyond_the_limit_are_refused(storage_dir,
+                                                       idle_transcription,
+                                                       monkeypatch):
+    monkeypatch.setenv("CODA_APP__MAX_RECORDINGS", "1")
+    reload_settings()
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket)
+
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
+    [error] = websocket.messages
+    assert error["reason"] == "busy" and error["fatal"] is True
+    assert server.active_inference_sessions == {live}
+    assert case_dirs(storage_dir) == [live.recorder.case_dir]
     live.end_case()
 
 
@@ -721,7 +814,7 @@ async def test_case_released_while_waiting_is_continued(storage_dir,
 
     stopping = asyncio.create_task(stop_shortly())
     websocket = ClosingWebSocket()
-    await server.websocket_endpoint(websocket, case_id=case_id)
+    await server.websocket_endpoint(websocket, case_id=case_id, revision=1)
     await stopping
 
     assert websocket.messages[0]["case_id"] == case_id
@@ -758,7 +851,7 @@ async def test_seed_is_kept_by_a_new_case_only(storage_dir, offline_server):
     new.end_case()
 
     reopened = server.InferenceSessionCoordinator(DummyWebSocket(), "bbbb0002")
-    assert await reopened.continue_case(case_id) is None
+    assert await reopened.continue_case(case_id, 1) is None
     with pytest.raises(WebSocketDisconnect):
         await server.capture_audio(ScriptedWebSocket([seed, disconnect]),
                                    asyncio.Queue(), reopened)
@@ -835,7 +928,7 @@ def test_cases_report_what_they_were_inferred_from(storage_dir, monkeypatch):
 def test_segment_without_audio_keeps_no_wav(storage_dir, monkeypatch):
     monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
     reload_settings()
-    recorder = CaseRecorder("aaaa0001", 0, {}, audio=False)
+    recorder = CaseRecorder("aaaa0001", 0, {}, kind="notes")
     recorder.close()
 
     manifest = json.loads((recorder.case_dir / "manifest.json").read_text())
@@ -866,7 +959,8 @@ async def test_notes_on_a_notes_case_join_it(storage_dir, offline_server,
     case_dir = storage_dir / first["case_id"]
     before = json.loads((case_dir / "manifest.json").read_text())
 
-    second = await run_notes(case_id=first["case_id"])
+    second = await run_notes(case_id=first["case_id"],
+                             revision=first["revision"])
 
     assert second["case_id"] == first["case_id"]
     assert case_dirs(storage_dir) == [case_dir]
@@ -911,7 +1005,7 @@ async def test_notes_case_is_not_continued(storage_dir, idle_transcription,
     websocket = RefusedWebSocket()
     await server.websocket_endpoint(websocket, case_id=from_notes["case_id"])
 
-    assert websocket.close_code == server.CASE_IN_USE_CLOSE_CODE
+    assert websocket.close_code == server.RECORDING_REFUSED_CLOSE_CODE
     [error] = websocket.messages
     assert error["fatal"] is True
     assert error["reason"] == "clinical_note"
@@ -965,7 +1059,7 @@ async def test_edit_after_recording_infers_and_is_stored(offline_server,
     monkeypatch.setattr(server, "display_annotations", lambda anns: [])
     result = await server.edit_transcript(server.TranscriptEditRequest(
         before="fever for three days", transcript=" fever for  five days ",
-        shown_through="c1", case_id=recorder.case_id))
+        shown_through="c1", case_id=recorder.case_id, revision=1))
 
     assert result["transcript"] == "fever for five days"
     assert result["inference"]["causes"] == {"icd10:A41.9": SEPSIS}
@@ -981,3 +1075,250 @@ async def test_edit_after_recording_infers_and_is_stored(offline_server,
     assert edit["live"] is False
     assert edit["user"] == {}
     assert case["inference"][-1]["edit_id"] == edit["edit_id"]
+
+
+def test_each_write_is_a_logged_revision(storage_dir):
+    first = record_case("aaaa0001")
+    second = CaseRecorder("bbbb0002", 0, {}, case_id=first.case_id,
+                          kind="edit")
+    second.close(PROFILE, {"name": "Ana", "id": "7"})
+
+    case = load_case(first.case_id)
+    assert (first.revision, second.revision, case["revision"]) == (1, 2, 2)
+    assert [(r["revision"], r["kind"]) for r in case["revisions"]] == \
+        [(1, "recording"), (2, "edit")]
+    assert "metadata" not in case["revisions"][1]
+    assert case["revisions"][1]["user"] == {"name": "Ana", "id": "7"}
+
+
+async def test_continuing_a_changed_case_is_refused(storage_dir,
+                                                    idle_transcription):
+    stored = record_case("aaaa0001")
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket, case_id=stored.case_id,
+                                    revision=0)
+
+    [error] = websocket.messages
+    assert error["reason"] == "changed"
+    assert load_case(stored.case_id)["revision"] == 1
+
+
+async def test_edit_of_a_changed_case_is_refused(offline_server, storage_dir):
+    stored = record_case("aaaa0001")
+
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="fever for three days", transcript="fever for five days",
+            case_id=stored.case_id, revision=0))
+
+    assert refused.value.status_code == 409
+    assert load_case(stored.case_id)["edits"] == []
+
+
+def test_metadata_edit_is_a_logged_revision(storage_dir):
+    stored = record_case("aaaa0001")
+    client = TestClient(server.app)
+    older = {"profile": {"age": {"value": 4, "unit": "years"}}}
+    url = f"/cases/{stored.case_id}/metadata"
+
+    saved = client.post(url, json={"revision": 1, "metadata": older,
+                                   "user": {"name": "Ana", "id": "7"}})
+    unchanged = client.post(url, json={"revision": 2, "metadata": older})
+    stale = client.post(url, json={"revision": 1, "metadata": PROFILE})
+
+    assert saved.json() == {"revision": 2}
+    assert unchanged.json() == {"revision": 2}
+    assert stale.status_code == 409
+    case = load_case(stored.case_id)
+    assert case["metadata"]["profile"]["age"]["value"] == 4
+    edit = case["revisions"][-1]
+    assert (edit["revision"], edit["kind"]) == (2, "metadata")
+    assert edit["metadata"]["before"]["profile"]["age"]["value"] == 3
+    assert edit["user"] == {"name": "Ana", "id": "7"}
+
+
+def test_metadata_of_a_case_being_recorded_is_not_saved(storage_dir,
+                                                        monkeypatch):
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    live.recorder = record_case("aaaa0001")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    response = TestClient(server.app).post(
+        f"/cases/{live.recorder.case_id}/metadata", json={"metadata": {}})
+
+    assert response.status_code == 409
+
+
+def test_settings_are_refused_while_recording(monkeypatch):
+    client = TestClient(server.app)
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+    assert client.post("/settings", json={}).status_code == 409
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+    assert client.post("/settings", json={}).status_code == 200
+
+
+async def test_reinference_is_stored_with_the_new_profile(
+        offline_server, storage_dir, monkeypatch):
+    stored = record_case("aaaa0001")
+    older = {"profile": {"age": {"value": 4, "unit": "years"}}}
+
+    async def fake_post(path, json):
+        return FakeResponse({"chunk_id": json["chunk_id"],
+                             "causes": {"icd10:A41.9": SEPSIS}})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    result = await server.reinfer(server.ReinferRequest(
+        transcript="fever for three days", case_id=stored.case_id,
+        revision=1, metadata=older))
+
+    assert result["revision"] == 2
+    case = load_case(stored.case_id)
+    assert case["top_cause"] == SEPSIS
+    assert case["inference"][-1]["metadata"]["profile"]["age"]["value"] == 4
+    assert case["metadata"]["profile"]["age"]["value"] == 4
+    assert case["revisions"][-1]["kind"] == "inference"
+    assert case["edits"] == []
+
+
+async def test_unreadable_case_frees_its_recording_slot(storage_dir,
+                                                        idle_transcription,
+                                                        monkeypatch):
+    stored = record_case("aaaa0001")
+    (stored.case_dir / "manifest.json").write_text("{")
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+
+    with pytest.raises(ValueError):
+        await server.websocket_endpoint(RefusedWebSocket(),
+                                        case_id=stored.case_id, revision=1)
+
+    assert server.active_inference_sessions == set()
+
+
+async def test_reset_racing_a_disconnect_leaves_no_open_case(
+        offline_server, storage_dir, monkeypatch):
+    async def slow_run_info():
+        await asyncio.sleep(0.05)
+        return {}
+
+    monkeypatch.setattr(server, "_run_info", slow_run_info)
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {session})
+    reset = asyncio.create_task(
+        server.reset_session(server.ResetRequest(session_id="aaaa0001")))
+    await asyncio.sleep(0.01)
+    await session.invalidate("disconnect")
+    await reset
+
+    assert session.recorder is None
+    for case_dir in case_dirs(storage_dir):
+        manifest = json.loads((case_dir / "manifest.json").read_text())
+        assert manifest["ended_at"] is not None
+
+
+async def test_text_grounded_across_a_reset_is_dropped(offline_server,
+                                                       storage_dir,
+                                                       monkeypatch):
+    def slow_annotate(text):
+        time.sleep(0.1)
+        return []
+
+    monkeypatch.setattr(server, "grounder",
+                        SimpleNamespace(annotate=slow_annotate))
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    event = SimpleNamespace(id="c1", timestamp=0.0, text="old case words")
+    committed = asyncio.create_task(
+        server._handle_committed(session, event, direct_translate=False))
+    sentence = asyncio.create_task(server._flush_sentence(
+        session, ("maneno ya zamani", ["c2"], 0.0), session.resets))
+    await asyncio.sleep(0.02)
+    await session.invalidate("reset")
+
+    assert await committed is None
+    assert await sentence is None
+    assert load_case(session.recorder.case_id)["chunks"] == []
+    session.end_case()
+
+
+async def test_live_edit_of_a_case_left_by_a_reset_is_refused(
+        offline_server, storage_dir, monkeypatch):
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    old_case = session.recorder.case_id
+    await session.invalidate("reset")
+    monkeypatch.setattr(server, "active_inference_sessions", {session})
+
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="old case words", transcript="old case edited",
+            session_id="aaaa0001", case_id=old_case))
+
+    assert refused.value.status_code == 409
+    assert session.seed is None
+    session.end_case()
+
+
+def test_write_without_a_revision_is_refused(storage_dir):
+    stored = record_case("aaaa0001")
+    response = TestClient(server.app).post(
+        f"/cases/{stored.case_id}/metadata", json={"metadata": {}})
+    assert response.status_code == 409
+    assert load_case(stored.case_id)["revision"] == 1
+
+
+async def test_edit_of_a_case_still_recording_is_refused(
+        offline_server, storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "CASE_RELEASE_WAIT_S", 0.2)
+    live = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await live.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {live})
+
+    async def fake_post(path, json):
+        return FakeResponse({"chunk_id": json["chunk_id"], "causes": {}})
+
+    monkeypatch.setattr(server, "inference_client",
+                        SimpleNamespace(post=fake_post))
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="fever", transcript="fever for days",
+            case_id=live.recorder.case_id, revision=1))
+
+    assert refused.value.status_code == 409
+    live.end_case()
+
+
+async def test_recording_is_refused_while_settings_change(
+        storage_dir, idle_transcription, monkeypatch):
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+    monkeypatch.setattr(server, "settings_changing", True)
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket)
+
+    [error] = websocket.messages
+    assert error["reason"] == "busy"
+    assert server.active_inference_sessions == set()
+
+
+async def test_case_numbers_are_held_across_restarts(storage_dir,
+                                                     monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    CaseRecorder("a", 0, {}).close({"case_id": "coda-004"})
+    assert await server.next_case_id() == {"case_id": "CODA-005"}
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    assert await server.next_case_id() == {"case_id": "CODA-006"}
+
+
+async def test_typed_case_ids_are_held_and_checked(storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    CaseRecorder("a", 0, {}).close({"case_id": "CODA-002"})
+    held = server.CaseIdRequest(case_id="CODA-009")
+
+    assert await server.hold_case_id(held) == {"taken": False}
+    assert await server.hold_case_id(
+        server.CaseIdRequest(case_id=" coda-002 ")) == {"taken": True}
+    assert await server.next_case_id() == {"case_id": "CODA-010"}

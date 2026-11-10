@@ -12,10 +12,15 @@ from coda.metadata import Metadata
 logger = logging.getLogger('coda.inference')
 
 
+# Session runtimes unused for this long are dropped
+SESSION_IDLE_S = 12 * 3600
+
+
 @dataclass
 class SessionRuntime:
     agent: "InferenceAgent"
     lock: asyncio.Lock
+    used_at: float = 0.0
 
 
 class InferenceAgent:
@@ -252,18 +257,31 @@ class InferenceServer:
         self.app = FastAPI(title="CODA Inference Agent")
         self._session_runtimes: dict[tuple[str, int], SessionRuntime] = {}
         self._session_runtimes_lock = asyncio.Lock()
+        # Lowest generation of each session not yet reset
+        self._live_generations = {}
 
         async def get_session_runtime(session_id: str,
                                       session_generation: int) -> SessionRuntime:
+            """Return the runtime of a session generation.
+
+            A generation already reset gets a runtime that is not kept.
+            """
             key = (session_id, session_generation)
+            now = time.monotonic()
             async with self._session_runtimes_lock:
+                for idle in [k for k, r in self._session_runtimes.items()
+                             if now - r.used_at > SESSION_IDLE_S]:
+                    del self._session_runtimes[idle]
                 runtime = self._session_runtimes.get(key)
                 if runtime is None:
                     runtime = SessionRuntime(
                         agent=self.agent.create_session_agent(),
                         lock=asyncio.Lock(),
                     )
-                    self._session_runtimes[key] = runtime
+                    live = self._live_generations.get(session_id, 0)
+                    if session_generation >= live:
+                        self._session_runtimes[key] = runtime
+                runtime.used_at = now
                 return runtime
 
         @self.app.post("/infer")
@@ -342,6 +360,9 @@ class InferenceServer:
                         ]
                     else:
                         keys = [(request.session_id, request.session_generation)]
+                        self._live_generations[request.session_id] = max(
+                            self._live_generations.get(request.session_id, 0),
+                            request.session_generation + 1)
                 else:
                     keys = list(self._session_runtimes.keys())
                 for key in keys:

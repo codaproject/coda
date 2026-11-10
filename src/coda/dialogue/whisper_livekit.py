@@ -2,6 +2,8 @@ import asyncio
 import contextlib
 import logging
 import math
+import sys
+import threading
 import time
 import uuid
 from typing import AsyncIterator
@@ -73,6 +75,29 @@ def _disable_text_conditioning(asr):
         asr.model = unconditioned(asr.model)
 
 
+DTW_LOCK = threading.Lock()
+
+
+def _serialize_dtw():
+    """Run the loaded Whisper word-timing DTW in one thread at a time.
+
+    The DTW is a Numba function compiled with ``parallel=True``, and Numba's
+    default threading layer aborts the process when two threads run such a
+    function at once.
+    """
+    for name in ("mlx_whisper.timing", "whisperlivekit.whisper.timing"):
+        timing = sys.modules.get(name)
+        if timing is None or getattr(timing.dtw_cpu, "serialized", False):
+            continue
+
+        def serialized(x, dtw=timing.dtw_cpu):
+            with DTW_LOCK:
+                return dtw(x)
+
+        serialized.serialized = True
+        timing.dtw_cpu = serialized
+
+
 class WhisperLiveKitTranscriber(StreamingTranscriber):
     """Streaming backend running WhisperLiveKit's engine in-process.
 
@@ -119,6 +144,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         )
         if not condition and wlk.policy == "localagreement":
             _disable_text_conditioning(self._engine.asr)
+        _serialize_dtw()
 
     async def stream(self, audio: AsyncIterator[bytes], *,
                      language: str = "en",

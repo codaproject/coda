@@ -42,6 +42,9 @@ app:
   setup_port: 8001
   # When true, the server rejects changes to server-global settings.
   lock_server_settings: false
+  # Most interviews recorded at once, further recordings are refused until
+  # one ends. 0 means no limit.
+  max_recordings: 0
   # When false, the case profile (demographics) selector is hidden.
   show_case_profile: true
   # When false, hides live COD ranking, reasoning, and the probability

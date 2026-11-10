@@ -19,16 +19,17 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import httpx
-from fastapi import Body, FastAPI, HTTPException, Request, WebSocket, \
+from fastapi import FastAPI, HTTPException, Request, WebSocket, \
     WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from coda import __version__, get_commit, get_version_label
 from coda.app.documents import OcrUnavailable, document_text
-from coda.app.storage import CaseRecorder, case_audio_path, case_sources, \
-    cases_browsable, cases_root, find_case, list_cases, load_case, \
-    storage_enabled, storage_keeps_audio, storage_keeps_notes
+from coda.app.storage import CaseRecorder, case_audio_path, case_revision, \
+    case_sources, cases_browsable, cases_root, find_case, list_cases, \
+    load_case, save_metadata, storage_enabled, storage_keeps_audio, \
+    storage_keeps_notes
 from coda.app.onboarding_notice import (
     load_onboarding_notice_html,
     render_onboarding_notice,
@@ -77,12 +78,14 @@ PAUSE_SILENCE_BYTES = 32000
 # How long adding to a case waits for the connection that last recorded it to
 # finish closing it
 CASE_RELEASE_WAIT_S = 5.0
-# WebSocket close code sent when the case asked for cannot be continued
-CASE_IN_USE_CLOSE_CODE = 4409
-# Why a case cannot be continued, by the reason sent to the client
-CASE_REFUSALS = {
+# WebSocket close code sent when a recording is refused
+RECORDING_REFUSED_CLOSE_CODE = 4409
+# Why a recording is refused, by the reason sent to the client
+RECORDING_REFUSALS = {
     "in_use": "This case is being recorded elsewhere",
     "clinical_note": "This case was inferred from clinical notes",
+    "busy": "The server is recording as many interviews as it allows",
+    "changed": "This case was changed elsewhere",
 }
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -150,13 +153,11 @@ def _default_translation_model_for(backend: str):
 
 current_translation_model = settings.translate.model or \
     _default_translation_model_for(text_translator_backend())
-# Per-interview metadata, set via /metadata and forwarded to the inference
-# agent with every inference request.
-current_metadata = Metadata()
-# Person using the app, set via /user and saved with each case but never
-# sent to the inference agent. Kept across case resets.
-current_user = {}
 transcriber: Transcriber
+# Highest CODA-NNN number handed out or typed
+last_issued_case_number = 0
+# Set while /settings swaps the models, when no recording may start
+settings_changing = False
 active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
 
@@ -223,19 +224,38 @@ class InferenceSessionCoordinator:
         # (chunk_id, text, annotations) of each chunk committed on this
         # connection
         self.committed = []
+        # Case metadata, forwarded to the inference agent with every request
+        self.metadata = Metadata()
+        # Person using the app, saved with the case but never sent to the
+        # inference agent
+        self.user = {}
+        # Set once the connection closes, after which no case starts
+        self.closing = False
+        # Counts resets, so that text from before one is not added after it
+        self.resets = 0
+
+    def set_profile(self, metadata: dict | None, user: dict | None):
+        """Set the case metadata and the person using the app."""
+        self.metadata = Metadata.from_dict(metadata)
+        self.user = parse_user(user)
 
     async def start_case(self):
         """Begin recording a new case for the current generation, if enabled."""
-        if storage_enabled():
+        if not storage_enabled():
+            return
+        run_info = await _run_info()
+        if not self.closing:
             self._record_to(CaseRecorder(self.session_id, self.generation,
-                                         await _run_info(),
-                                         metadata=current_metadata.to_dict()))
+                                         run_info,
+                                         metadata=self.metadata.to_dict()))
 
-    async def continue_case(self, case_id: str) -> str | None:
+    async def continue_case(self, case_id: str,
+                            revision: int | None = None) -> str | None:
         """Record into a stored case, or a new case if there is no such case.
 
-        Returns the reason the case cannot be continued, a key of
-        ``CASE_REFUSALS``, or None once recording into it.
+        With ``revision``, the case must still be at that revision. Returns
+        the reason the case cannot be continued, a key of
+        ``RECORDING_REFUSALS``, or None once recording into it.
         """
         if not storage_enabled():
             return None
@@ -251,9 +271,11 @@ class InferenceSessionCoordinator:
             case_id = None
         elif "clinical_note" in case_sources(case_id):
             return "clinical_note"
+        elif case_changed(case_id, revision):
+            return "changed"
         self._record_to(CaseRecorder(self.session_id, self.generation,
                                      run_info, case_id=case_id,
-                                     metadata=current_metadata.to_dict()))
+                                     metadata=self.metadata.to_dict()))
         return None
 
     def _record_to(self, recorder: CaseRecorder):
@@ -264,7 +286,7 @@ class InferenceSessionCoordinator:
 
     def end_case(self):
         if self.recorder is not None:
-            self.recorder.close(current_metadata.to_dict(), current_user)
+            self.recorder.close(self.metadata.to_dict(), self.user)
             logger.info("Closed case %s", self.recorder.case_id)
             self.recorder = None
 
@@ -283,12 +305,15 @@ class InferenceSessionCoordinator:
                 self._drain_task = asyncio.create_task(self._drain_loop())
 
     async def invalidate(self, reason: str):
+        if reason == "disconnect":
+            self.closing = True
         async with self._lock:
             dropped = len(self._pending)
             old_generation = self.generation
             self.generation += 1
             self._pending.clear()
             self.seed = None
+            self.resets += 1
             self.buffer.take()
             self.committed = []
         logger.info(
@@ -339,6 +364,8 @@ class InferenceSessionCoordinator:
             "session_id": self.session_id,
             "session_generation": self.generation,
             "case_id": self.recorder.case_id
+            if self.recorder is not None else None,
+            "revision": self.recorder.revision
             if self.recorder is not None else None,
         }
 
@@ -409,7 +436,7 @@ class InferenceSessionCoordinator:
 
 
 class ResetRequest(BaseModel):
-    session_id: Optional[str] = None
+    session_id: str
     session_generation: Optional[int] = None
 
 
@@ -422,6 +449,27 @@ class ClinicalNotesRequest(BaseModel):
     notes: list[ClinicalNote]
     # The stored case on screen, which the inference joins
     case_id: str | None = None
+    # The revision of that case on screen
+    revision: int | None = None
+    metadata: dict | None = None
+    user: dict | None = None
+
+
+def case_changed(case_id: str, revision: int | None) -> bool:
+    """Return whether a stored case has moved on from ``revision``.
+
+    Without a revision the client has not seen the case as stored, so any
+    stored case has moved on.
+    """
+    current = case_revision(case_id)
+    return current is not None and current != revision
+
+
+def parse_user(user: dict | None) -> dict:
+    """Return the name and ID of the person using the app."""
+    if not user:
+        return {}
+    return {"name": user.get("name", ""), "id": user.get("id", "")}
 
 
 def get_language_name(code: str) -> str:
@@ -479,10 +527,11 @@ async def translate_text(text: str, source_language: str) -> str:
 
 
 async def _flush_sentence(inference_session: InferenceSessionCoordinator,
-                          batch):
+                          batch, resets):
     """Translate one buffered sentence and patch it onto the chunks it spans.
 
-    Returns (chunk_id, timestamp, english_text, annotations) for inference.
+    Returns (chunk_id, timestamp, english_text, annotations) for inference,
+    or None if the session was reset since its ``resets``.
     """
     original_text, chunk_ids, timestamp = batch
     anchor = chunk_ids[0]
@@ -498,6 +547,8 @@ async def _flush_sentence(inference_session: InferenceSessionCoordinator,
         annotations = await asyncio.to_thread(grounder.annotate, english_text)
         grounding_s = time.perf_counter() - grounding_start
 
+    if inference_session.resets != resets:
+        return None
     recorder = inference_session.recorder
     if recorder is not None:
         recorder.write_chunk(
@@ -558,12 +609,12 @@ async def _reset_inference_session(session_id: str, generation: int):
         })
         resp.raise_for_status()
         logger.info(
-            "Inference agent reset for session %s generation %d",
+            "Inference agent reset for session %s generation %s",
             session_id, generation
         )
     except Exception as e:
         logger.warning(
-            "Could not reset inference session %s generation %d: %s",
+            "Could not reset inference session %s generation %s: %s",
             session_id, generation, e
         )
 
@@ -607,7 +658,7 @@ async def process_inference(
             "timestamp": batch.timestamp,
             "text": batch.text,
             "annotations": [a.to_json() for a in batch.annotations],
-            "metadata": current_metadata.to_dict(),
+            "metadata": session.metadata.to_dict(),
             "session_id": session.session_id,
             "session_generation": request_generation,
         }
@@ -732,15 +783,6 @@ async def get_settings():
     }
 
 
-@app.post("/metadata")
-async def set_metadata(payload: dict = Body(...)):
-    """Set per-interview metadata forwarded to the inference agent."""
-    global current_metadata
-    current_metadata = Metadata.from_dict(payload)
-    logger.debug(f"Metadata set: {current_metadata.to_dict()}")
-    return current_metadata.to_dict()
-
-
 @app.get("/translator_backends")
 async def get_translator_backends():
     """List selectable translation backends for the settings UI."""
@@ -765,28 +807,67 @@ async def get_translator_backend_models(backend: str):
     return {"backend": backend, "available": True, **info}
 
 
-@app.get("/next-case-id")
-async def next_case_id():
-    """Return CODA-NNN, one past the highest such case ID saved so far."""
-    numbers = [0]
+CASE_NUMBER = re.compile(r"CODA-(\d+)", re.IGNORECASE)
+
+
+def _stored_case_ids() -> list[str]:
+    """Return the case IDs in the profiles of the stored cases."""
+    case_ids = []
     for path in cases_root().glob("*/manifest.json"):
         try:
             metadata = json.loads(path.read_text()).get("metadata") or {}
         except ValueError:
             continue
-        match = re.fullmatch(r"CODA-(\d+)", metadata.get("case_id") or "")
+        if metadata.get("case_id"):
+            case_ids.append(metadata["case_id"])
+    return case_ids
+
+
+def _held_case_number_path():
+    return cases_root() / "last_case_number"
+
+
+def _hold_case_number(number: int):
+    """Raise the highest CODA-NNN number held to ``number``, kept in the
+    cases folder when cases are stored."""
+    global last_issued_case_number
+    last_issued_case_number = max(last_issued_case_number, number)
+    if storage_enabled():
+        path = _held_case_number_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(str(last_issued_case_number))
+
+
+@app.get("/next-case-id")
+async def next_case_id():
+    """Return CODA-NNN, one past the highest such case ID saved or held."""
+    numbers = [last_issued_case_number]
+    try:
+        numbers.append(int(_held_case_number_path().read_text()))
+    except (OSError, ValueError):
+        pass
+    for case_id in _stored_case_ids():
+        match = CASE_NUMBER.fullmatch(case_id.strip())
         if match:
             numbers.append(int(match[1]))
-    return {"case_id": f"CODA-{max(numbers) + 1:03d}"}
+    _hold_case_number(max(numbers) + 1)
+    return {"case_id": f"CODA-{last_issued_case_number:03d}"}
 
 
-@app.post("/user")
-async def set_user(payload: dict = Body(...)):
-    """Set the name and ID of the person using the app."""
-    global current_user
-    current_user = {"name": payload.get("name", ""),
-                    "id": payload.get("id", "")}
-    return current_user
+class CaseIdRequest(BaseModel):
+    case_id: str
+
+
+@app.post("/case-ids")
+async def hold_case_id(req: CaseIdRequest):
+    """Hold the number of a typed case ID, so that it is not handed out, and
+    return whether a stored case already has the ID."""
+    case_id = req.case_id.strip()
+    match = CASE_NUMBER.fullmatch(case_id)
+    if match:
+        _hold_case_number(int(match[1]))
+    stored = {c.strip().lower() for c in _stored_case_ids()}
+    return {"taken": case_id.lower() in stored}
 
 
 @app.get("/transcriber_backends")
@@ -815,9 +896,21 @@ async def get_transcriber_backend_models(backend: str):
 
 @app.post("/settings")
 async def update_settings(req: SettingsRequest):
-    """Update server settings."""
+    """Update server settings, unless an interview is being recorded."""
+    global settings_changing
     if settings.app.get("lock_server_settings", False):
         raise HTTPException(status_code=403, detail="Server settings are locked")
+    if active_inference_sessions or settings_changing:
+        raise HTTPException(status_code=409, detail="recording")
+    settings_changing = True
+    try:
+        return await _apply_settings(req)
+    finally:
+        settings_changing = False
+
+
+async def _apply_settings(req: SettingsRequest):
+    """Apply the settings given in ``req``."""
     global current_language, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
     global translation_mode, current_translation_model
@@ -962,38 +1055,54 @@ async def update_settings(req: SettingsRequest):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None):
+async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None,
+                             revision: int | None = None):
     """Capture and processing are decoupled into two tasks: one only drains the
     socket into an in-memory queue (so it is always drained and never
     overflows/disconnects), the other transcribes + grounds it at its own pace.
 
     Each connection records one segment of a case. With ``case_id`` it
     continues that stored case instead of starting a new one, unless the case
-    was inferred from clinical notes.
+    was inferred from clinical notes or has moved on from ``revision``.
+    Connections beyond
+    ``app.max_recordings``, or while settings change, are refused.
     """
     await websocket.accept()
     logger.info("WebSocket connection established")
 
     inference_session = InferenceSessionCoordinator(websocket)
-    active_inference_sessions.add(inference_session)
-    if case_id is None:
-        await inference_session.start_case()
-    elif (refusal := await inference_session.continue_case(case_id)) \
-            is not None:
-        logger.warning("Not continuing case %s: %s", case_id,
-                       CASE_REFUSALS[refusal])
+    max_recordings = settings.app.get("max_recordings", 0)
+    full = max_recordings and \
+        len(active_inference_sessions) >= max_recordings
+    if settings_changing or full:
+        refusal = "busy"
+    else:
+        active_inference_sessions.add(inference_session)
+        try:
+            if case_id is None:
+                await inference_session.start_case()
+                refusal = None
+            else:
+                refusal = await inference_session.continue_case(case_id,
+                                                                revision)
+        except Exception:
+            active_inference_sessions.discard(inference_session)
+            raise
+    if refusal is not None:
+        logger.warning("Refusing recording of case %s: %s", case_id,
+                       RECORDING_REFUSALS[refusal])
         active_inference_sessions.discard(inference_session)
         await _ws_send_safe(
             websocket,
             {
                 "type": "error",
-                "error": CASE_REFUSALS[refusal],
+                "error": RECORDING_REFUSALS[refusal],
                 "reason": refusal,
                 "fatal": True,
             },
         )
         try:
-            await websocket.close(code=CASE_IN_USE_CLOSE_CODE)
+            await websocket.close(code=RECORDING_REFUSED_CLOSE_CODE)
         except (WebSocketDisconnect, RuntimeError):
             pass
         return
@@ -1030,7 +1139,8 @@ async def capture_audio(
     `resume` take effect on arrival even when transcription lags behind the
     audio. A pause also queues a marker after the audio sent before it. `seed`,
     accepted once and only before any audio, carries the transcript recorded
-    before this connection when it continues a session. `stop` ends the audio,
+    before this connection when it continues a session. `profile` carries the
+    case metadata and the person using the app. `stop` ends the audio,
     so that what was said is transcribed and inferred on before the client
     closes.
     Surfaces WebSocketDisconnect to the gather; the sentinel lets the consumer's
@@ -1051,7 +1161,10 @@ async def capture_audio(
                     control = payload.get("type")
                 except (ValueError, AttributeError):
                     payload, control = None, None
-                if control == "seed":
+                if control == "profile":
+                    inference_session.set_profile(payload.get("metadata"),
+                                                  payload.get("user"))
+                elif control == "seed":
                     seed = str(payload.get("text") or "").strip()
                     if audio_received or \
                             inference_session.seed is not None or not seed:
@@ -1135,17 +1248,20 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
     # the transcript stream and the displayed text would fall behind the audio.
     # Sentences are queued and translated by a worker, which keeps them ordered.
     translations = asyncio.Queue()
+    # Resets of the session when the buffered sentences began
+    sentence_resets = inference_session.resets
 
     def queue_pending():
         batch = sentences.take()
         if batch is not None:
-            translations.put_nowait(batch)
+            translations.put_nowait((batch, sentence_resets))
 
     async def translation_worker():
         while True:
-            batch = await translations.get()
+            batch, resets = await translations.get()
             try:
-                done = await _flush_sentence(inference_session, batch)
+                done = await _flush_sentence(inference_session, batch,
+                                             resets)
                 if done is not None:
                     chunk_id, timestamp, text, anns = done
                     inference_session.committed.append((chunk_id, text, anns))
@@ -1184,6 +1300,9 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 await _ws_send_safe(websocket,
                                     {"type": "preview", "text": event.text})
                 continue
+            if inference_session.resets != sentence_resets:
+                sentences.take()
+                sentence_resets = inference_session.resets
             # One bad event shouldn't kill the session.
             try:
                 committed = await _handle_committed(
@@ -1224,6 +1343,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     accumulate toward inference, or None if nothing is ready yet.
     """
     chunk_id = event.id
+    resets = inference_session.resets
     timestamp = event.timestamp
     original_transcript = None
     english_text = event.text
@@ -1258,6 +1378,8 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         grounding_s = time.perf_counter() - grounding_start
 
     if not english_text:
+        return None
+    if inference_session.resets != resets:
         return None
 
     recorder = inference_session.recorder
@@ -1329,26 +1451,29 @@ async def read_document_text(request: Request, name: str):
 
 
 async def _store_note_inference(
-    case_id: str | None, request: dict, result: dict
-) -> str | None:
+    req: ClinicalNotesRequest, request: dict, result: dict
+) -> CaseRecorder | None:
     """Store an inference made from clinical notes in the stored case it was
-    made on, else in a new case, and return that case."""
+    made on, else in a new case, and return the recorder that stored it."""
     if not storage_enabled():
         return None
+    case_id = req.case_id
     run_info = await _run_info()
     # No await from here on, so no connection can take the case meanwhile
+    if case_id is not None and case_changed(case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
     if case_id is not None and (
         case_id in _recording_case_ids() or find_case(case_id) is None
     ):
         logger.warning("Cannot add to case %s, starting a new one", case_id)
         case_id = None
     recorder = CaseRecorder(
-        request["session_id"], 0, run_info, case_id=case_id, audio=False
+        request["session_id"], 0, run_info, case_id=case_id, kind="notes"
     )
     recorder.write_inference(request, result, shown_at=time.time())
-    recorder.close(current_metadata.to_dict(), current_user)
+    recorder.close(request["metadata"], parse_user(req.user))
     logger.info("Stored clinical-notes inference in case %s", recorder.case_id)
-    return recorder.case_id
+    return recorder
 
 
 @app.post("/clinical-notes")
@@ -1371,6 +1496,9 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         raise HTTPException(
             status_code=409, detail="Clinical notes cannot join a recorded case"
         )
+    if storage_enabled() and req.case_id is not None and \
+            case_changed(req.case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
 
     note_text = "\n\n".join(n["text"] for n in notes)
     annotations = await asyncio.to_thread(grounder.annotate, note_text)
@@ -1381,7 +1509,7 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         "clinical_notes": notes,
         "text": "",
         "annotations": [a.to_json() for a in annotations],
-        "metadata": current_metadata.to_dict(),
+        "metadata": Metadata.from_dict(req.metadata).to_dict(),
         "session_id": session_id,
         "session_generation": 0,
     }
@@ -1391,35 +1519,50 @@ async def set_clinical_notes(req: ClinicalNotesRequest):
         result = {**response.json(), "source": "clinical_note"}
     finally:
         await _reset_inference_session(session_id, 0)
-    stored_in = await _store_note_inference(req.case_id, request, result)
-    return {**result, "case_id": stored_in}
+    recorder = await _store_note_inference(req, request, result)
+    return {**result,
+            "case_id": recorder.case_id if recorder else None,
+            "revision": recorder.revision if recorder else None}
 
 
-class TranscriptEditRequest(BaseModel):
+class ReinferRequest(BaseModel):
+    # The whole transcript as shown
+    transcript: str
+    case_id: str | None = None
+    # The revision of that case on screen
+    revision: int | None = None
+    metadata: dict | None = None
+    user: dict | None = None
+
+
+class TranscriptEditRequest(ReinferRequest):
     # The whole transcript inference reads, as shown before the edit
     before: str
-    # The whole transcript after the edit
-    transcript: str
     # The last chunk shown when the edit began, the last one it covers
     shown_through: str | None = None
     # The recording session, if recording
     session_id: str | None = None
-    case_id: str | None = None
 
 
-async def _infer_edited_case(req, edit_id, after, annotations):
-    """Infer once from an edited transcript and store it in its case.
+async def _infer_once(req, text, annotations, edit_id=None):
+    """Infer once from ``text`` and store the inference in its case.
 
-    The edit and its inference are stored only if the case is stored and not
-    being recorded.
+    With ``edit_id`` the inference follows that transcript edit of
+    ``req``, which is stored with it. A case still being recorded after a
+    short wait is refused, and nothing is stored for a case that is not
+    stored. Returns the inference and the revision that stored it, if any.
     """
+    if storage_enabled() and req.case_id is not None and \
+            case_changed(req.case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
     session_id = str(uuid.uuid4())
+    user = parse_user(req.user)
     request = {
-        "chunk_id": edit_id,
+        "chunk_id": edit_id or uuid.uuid4().hex,
         "timestamp": time.time(),
-        "text": after,
+        "text": text,
         "annotations": [a.to_json() for a in annotations],
-        "metadata": current_metadata.to_dict(),
+        "metadata": Metadata.from_dict(req.metadata).to_dict(),
         "session_id": session_id,
         "session_generation": 0,
     }
@@ -1433,18 +1576,36 @@ async def _infer_edited_case(req, edit_id, after, annotations):
         run_info = await _run_info()
         await _wait_for_case_release(req.case_id)
         # No await from here on, so no connection can take the case meanwhile
-        if req.case_id in _recording_case_ids() or \
-                find_case(req.case_id) is None:
-            logger.warning("Not storing the edit in case %s", req.case_id)
-            return result
+        if case_changed(req.case_id, req.revision):
+            raise HTTPException(status_code=409, detail="changed")
+        if req.case_id in _recording_case_ids():
+            raise HTTPException(status_code=409, detail="in_use")
+        if find_case(req.case_id) is None:
+            logger.warning("Not storing the inference in unknown case %s",
+                           req.case_id)
+            return result, None
         recorder = CaseRecorder(session_id, 0, run_info, case_id=req.case_id,
-                                audio=False)
-        recorder.write_edit(edit_id, req.shown_through, req.before, after,
-                            annotations, live=False, user=current_user)
+                                kind="edit" if edit_id else "inference")
+        if edit_id:
+            recorder.write_edit(edit_id, req.shown_through, req.before, text,
+                                annotations, live=False, user=user)
         recorder.write_inference(request, result, shown_at=time.time(),
                                  edit_id=edit_id)
-        recorder.close(current_metadata.to_dict(), current_user)
-    return result
+        recorder.close(request["metadata"], user)
+        return result, recorder.revision
+    return result, None
+
+
+@app.post("/reinfer")
+async def reinfer(req: ReinferRequest):
+    """Infer once more from the transcript on screen and store it in its
+    case, as after a change to the case profile."""
+    text = " ".join(req.transcript.split())
+    if not text:
+        raise HTTPException(status_code=400, detail="Empty transcript")
+    annotations = await asyncio.to_thread(grounder.annotate, text)
+    result, revision = await _infer_once(req, text, annotations)
+    return {"inference": result, "revision": revision}
 
 
 @app.post("/transcript-edit")
@@ -1464,48 +1625,42 @@ async def edit_transcript(req: TranscriptEditRequest):
                     if s.session_id == req.session_id), None)
     logger.info("Edit %s through chunk %s %s", edit_id, req.shown_through,
                 "while recording" if session else "after recording")
-    result = None
+    result, revision = None, None
     if session is not None:
+        # The session has moved on to a new case since the edit began
+        if session.recorder is not None and \
+                session.recorder.case_id != req.case_id:
+            raise HTTPException(status_code=409, detail="changed")
         if session.recorder is not None:
             session.recorder.write_edit(edit_id, req.shown_through,
                                         req.before, after, annotations,
-                                        live=True, user=current_user)
+                                        live=True, user=parse_user(req.user))
         await session.restart(after, annotations, req.shown_through,
                               edit_id)
     else:
-        result = await _infer_edited_case(req, edit_id, after, annotations)
+        result, revision = await _infer_once(req, after, annotations,
+                                             edit_id)
     return {
         "edit_id": edit_id,
         "transcript": after,
         "annotations": display_annotations(annotations),
         "inference": result,
+        "revision": revision,
     }
 
 
 @app.post("/reset")
-async def reset_session(req: Optional[ResetRequest] = None):
-    """Reset session state: start a new case and reset the inference agent."""
-    global current_metadata
-    targeted_reset = req is not None and req.session_id is not None
-    if not targeted_reset:
-        current_metadata = Metadata()
-    target_sessions = list(active_inference_sessions)
-    if targeted_reset:
-        target_sessions = [
-            session for session in target_sessions
-            if session.session_id == req.session_id
-        ]
+async def reset_session(req: ResetRequest):
+    """Start a new case on one session and reset its inference."""
+    sessions = [session for session in active_inference_sessions
+                if session.session_id == req.session_id]
     await asyncio.gather(
-        *(session.invalidate("reset") for session in target_sessions),
+        *(session.invalidate("reset") for session in sessions),
         return_exceptions=True,
     )
-    if not target_sessions:
-        try:
-            resp = await inference_client.post("/reset", json=req.model_dump() if req else {})
-            resp.raise_for_status()
-            logger.info("Inference agent reset")
-        except Exception as e:
-            logger.warning(f"Could not reset inference agent: {e}")
+    if not sessions:
+        await _reset_inference_session(req.session_id,
+                                       req.session_generation)
     return {"status": "reset"}
 
 
@@ -1547,6 +1702,26 @@ async def get_case(case_id: str) -> dict:
     if case is None:
         raise HTTPException(status_code=404, detail="Unknown case")
     return {**case, "in_progress": case_id in _recording_case_ids()}
+
+
+class CaseMetadataRequest(BaseModel):
+    # The revision of the case on screen
+    revision: int | None = None
+    metadata: dict | None = None
+    user: dict | None = None
+
+
+@app.post("/cases/{case_id}/metadata")
+async def set_case_metadata(case_id: str, req: CaseMetadataRequest) -> dict:
+    """Save the metadata of a stored case that is not being recorded."""
+    if not storage_enabled() or find_case(case_id) is None:
+        raise HTTPException(status_code=404, detail="Unknown case")
+    if case_id in _recording_case_ids():
+        raise HTTPException(status_code=409, detail="in_use")
+    if case_changed(case_id, req.revision):
+        raise HTTPException(status_code=409, detail="changed")
+    metadata = Metadata.from_dict(req.metadata).to_dict()
+    return {"revision": save_metadata(case_id, metadata, parse_user(req.user))}
 
 
 @app.get("/cases/{case_id}/audio")
