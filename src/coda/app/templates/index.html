@@ -9435,6 +9435,7 @@
         resetMccd();
         setInferenceStale(false);
         caseIdInput.disabled = false;
+        abandonFinishingSocket();
         // The case ID and profile of a case already saved stay with it
         if (caseIdUsed) {
           clearProfileInputs();
@@ -9451,7 +9452,6 @@
         chunkCount = 0;
         transcriptEditor = null;
         editCovered = [];
-        abandonFinishingSocket();
         transcript.innerHTML =
           '<span class="placeholder">Press the mic to begin. Your audio is transcribed on this device.</span>';
         inference.innerHTML = "";
