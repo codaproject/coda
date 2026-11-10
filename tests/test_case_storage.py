@@ -1191,3 +1191,25 @@ async def test_unreadable_case_frees_its_recording_slot(storage_dir,
                                         case_id=stored.case_id, revision=1)
 
     assert server.active_inference_sessions == set()
+
+
+async def test_reset_racing_a_disconnect_leaves_no_open_case(
+        offline_server, storage_dir, monkeypatch):
+    async def slow_run_info():
+        await asyncio.sleep(0.05)
+        return {}
+
+    monkeypatch.setattr(server, "_run_info", slow_run_info)
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    monkeypatch.setattr(server, "active_inference_sessions", {session})
+    reset = asyncio.create_task(
+        server.reset_session(server.ResetRequest(session_id="aaaa0001")))
+    await asyncio.sleep(0.01)
+    await session.invalidate("disconnect")
+    await reset
+
+    assert session.recorder is None
+    for case_dir in case_dirs(storage_dir):
+        manifest = json.loads((case_dir / "manifest.json").read_text())
+        assert manifest["ended_at"] is not None

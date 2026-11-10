@@ -227,6 +227,8 @@ class InferenceSessionCoordinator:
         # Person using the app, saved with the case but never sent to the
         # inference agent
         self.user = {}
+        # Set once the connection closes, after which no case starts
+        self.closing = False
 
     def set_profile(self, metadata: dict | None, user: dict | None):
         """Set the case metadata and the person using the app."""
@@ -235,9 +237,12 @@ class InferenceSessionCoordinator:
 
     async def start_case(self):
         """Begin recording a new case for the current generation, if enabled."""
-        if storage_enabled():
+        if not storage_enabled():
+            return
+        run_info = await _run_info()
+        if not self.closing:
             self._record_to(CaseRecorder(self.session_id, self.generation,
-                                         await _run_info(),
+                                         run_info,
                                          metadata=self.metadata.to_dict()))
 
     async def continue_case(self, case_id: str,
@@ -296,6 +301,8 @@ class InferenceSessionCoordinator:
                 self._drain_task = asyncio.create_task(self._drain_loop())
 
     async def invalidate(self, reason: str):
+        if reason == "disconnect":
+            self.closing = True
         async with self._lock:
             dropped = len(self._pending)
             old_generation = self.generation
