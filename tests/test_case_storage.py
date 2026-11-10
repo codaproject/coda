@@ -1178,6 +1178,7 @@ async def test_reinference_is_stored_with_the_new_profile(
     case = load_case(stored.case_id)
     assert case["top_cause"] == SEPSIS
     assert case["inference"][-1]["metadata"]["profile"]["age"]["value"] == 4
+    assert case["metadata"]["profile"]["age"]["value"] == 4
     assert case["revisions"][-1]["kind"] == "inference"
     assert case["edits"] == []
 

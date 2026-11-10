@@ -320,12 +320,15 @@ class CaseRecorder:
             self._audio = None
         if self.reopened and not self._heard:
             self._drop_segment()
-            _log_revision(self.case_dir, self.store, self.revision, self.kind,
-                          user, self._metadata_before, self._metadata_before)
-            return
-        ended = datetime.now().isoformat()
-        self.manifest["ended_at"] = ended
-        self.manifest["segments"][-1]["ended_at"] = ended
+            if self.kind == "recording":
+                _log_revision(self.case_dir, self.store, self.revision,
+                              self.kind, user, self._metadata_before,
+                              self._metadata_before)
+                return
+        else:
+            ended = datetime.now().isoformat()
+            self.manifest["ended_at"] = ended
+            self.manifest["segments"][-1]["ended_at"] = ended
         if self.store.get("metadata"):
             self.manifest["metadata"] = metadata
         if self.store.get("user"):
@@ -335,7 +338,7 @@ class CaseRecorder:
                       user, self._metadata_before, metadata)
 
     def _drop_segment(self):
-        """Leave the case as it was, as this segment received no audio."""
+        """Remove this segment, which received no audio, and its gap."""
         segment = self.manifest["segments"].pop()
         if segment["audio"]:
             (self.case_dir / segment["audio"]).unlink(missing_ok=True)
