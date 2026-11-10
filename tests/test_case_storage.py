@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import logging
+import time
 import wave
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -1213,3 +1214,28 @@ async def test_reset_racing_a_disconnect_leaves_no_open_case(
     for case_dir in case_dirs(storage_dir):
         manifest = json.loads((case_dir / "manifest.json").read_text())
         assert manifest["ended_at"] is not None
+
+
+async def test_text_grounded_across_a_reset_is_dropped(offline_server,
+                                                       storage_dir,
+                                                       monkeypatch):
+    def slow_annotate(text):
+        time.sleep(0.1)
+        return []
+
+    monkeypatch.setattr(server, "grounder",
+                        SimpleNamespace(annotate=slow_annotate))
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    event = SimpleNamespace(id="c1", timestamp=0.0, text="old case words")
+    committed = asyncio.create_task(
+        server._handle_committed(session, event, direct_translate=False))
+    sentence = asyncio.create_task(server._flush_sentence(
+        session, ("maneno ya zamani", ["c2"], 0.0), session.resets))
+    await asyncio.sleep(0.02)
+    await session.invalidate("reset")
+
+    assert await committed is None
+    assert await sentence is None
+    assert load_case(session.recorder.case_id)["chunks"] == []
+    session.end_case()

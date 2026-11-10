@@ -229,6 +229,8 @@ class InferenceSessionCoordinator:
         self.user = {}
         # Set once the connection closes, after which no case starts
         self.closing = False
+        # Counts resets, so that text from before one is not added after it
+        self.resets = 0
 
     def set_profile(self, metadata: dict | None, user: dict | None):
         """Set the case metadata and the person using the app."""
@@ -309,6 +311,7 @@ class InferenceSessionCoordinator:
             self.generation += 1
             self._pending.clear()
             self.seed = None
+            self.resets += 1
             self.buffer.take()
             self.committed = []
         logger.info(
@@ -519,10 +522,11 @@ async def translate_text(text: str, source_language: str) -> str:
 
 
 async def _flush_sentence(inference_session: InferenceSessionCoordinator,
-                          batch):
+                          batch, resets):
     """Translate one buffered sentence and patch it onto the chunks it spans.
 
-    Returns (chunk_id, timestamp, english_text, annotations) for inference.
+    Returns (chunk_id, timestamp, english_text, annotations) for inference,
+    or None if the session was reset since its ``resets``.
     """
     original_text, chunk_ids, timestamp = batch
     anchor = chunk_ids[0]
@@ -538,6 +542,8 @@ async def _flush_sentence(inference_session: InferenceSessionCoordinator,
         annotations = await asyncio.to_thread(grounder.annotate, english_text)
         grounding_s = time.perf_counter() - grounding_start
 
+    if inference_session.resets != resets:
+        return None
     recorder = inference_session.recorder
     if recorder is not None:
         recorder.write_chunk(
@@ -1179,17 +1185,20 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
     # the transcript stream and the displayed text would fall behind the audio.
     # Sentences are queued and translated by a worker, which keeps them ordered.
     translations = asyncio.Queue()
+    # Resets of the session when the buffered sentences began
+    sentence_resets = inference_session.resets
 
     def queue_pending():
         batch = sentences.take()
         if batch is not None:
-            translations.put_nowait(batch)
+            translations.put_nowait((batch, sentence_resets))
 
     async def translation_worker():
         while True:
-            batch = await translations.get()
+            batch, resets = await translations.get()
             try:
-                done = await _flush_sentence(inference_session, batch)
+                done = await _flush_sentence(inference_session, batch,
+                                             resets)
                 if done is not None:
                     chunk_id, timestamp, text, anns = done
                     inference_session.committed.append((chunk_id, text, anns))
@@ -1228,6 +1237,9 @@ async def consume_transcripts(websocket: WebSocket, queue: asyncio.Queue,
                 await _ws_send_safe(websocket,
                                     {"type": "preview", "text": event.text})
                 continue
+            if inference_session.resets != sentence_resets:
+                sentences.take()
+                sentence_resets = inference_session.resets
             # One bad event shouldn't kill the session.
             try:
                 committed = await _handle_committed(
@@ -1268,6 +1280,7 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
     accumulate toward inference, or None if nothing is ready yet.
     """
     chunk_id = event.id
+    resets = inference_session.resets
     timestamp = event.timestamp
     original_transcript = None
     english_text = event.text
@@ -1302,6 +1315,8 @@ async def _handle_committed(inference_session: InferenceSessionCoordinator,
         grounding_s = time.perf_counter() - grounding_start
 
     if not english_text:
+        return None
+    if inference_session.resets != resets:
         return None
 
     recorder = inference_session.recorder
