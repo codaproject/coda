@@ -1239,3 +1239,21 @@ async def test_text_grounded_across_a_reset_is_dropped(offline_server,
     assert await sentence is None
     assert load_case(session.recorder.case_id)["chunks"] == []
     session.end_case()
+
+
+async def test_live_edit_of_a_case_left_by_a_reset_is_refused(
+        offline_server, storage_dir, monkeypatch):
+    session = server.InferenceSessionCoordinator(DummyWebSocket(), "aaaa0001")
+    await session.start_case()
+    old_case = session.recorder.case_id
+    await session.invalidate("reset")
+    monkeypatch.setattr(server, "active_inference_sessions", {session})
+
+    with pytest.raises(HTTPException) as refused:
+        await server.edit_transcript(server.TranscriptEditRequest(
+            before="old case words", transcript="old case edited",
+            session_id="aaaa0001", case_id=old_case))
+
+    assert refused.value.status_code == 409
+    assert session.seed is None
+    session.end_case()

@@ -8292,7 +8292,7 @@
             }),
           });
           if (view !== viewCount) return;
-          if (resp.status === 409) {
+          if (resp.status === 409 && !isRecording) {
             reloadChangedCase();
             return;
           }

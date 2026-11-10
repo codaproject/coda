@@ -1563,6 +1563,10 @@ async def edit_transcript(req: TranscriptEditRequest):
                 "while recording" if session else "after recording")
     result, revision = None, None
     if session is not None:
+        # The session has moved on to a new case since the edit began
+        if session.recorder is not None and \
+                session.recorder.case_id != req.case_id:
+            raise HTTPException(status_code=409, detail="changed")
         if session.recorder is not None:
             session.recorder.write_edit(edit_id, req.shown_through,
                                         req.before, after, annotations,
