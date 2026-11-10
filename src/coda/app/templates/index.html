@@ -9018,8 +9018,15 @@
       }
 
       // Save a profile edit to the stored case on screen, unless the
-      // connection recording it carries the edit
-      async function saveCaseProfile() {
+      // connection recording it carries the edit. Saves run one at a time, so
+      // that each sends the revision the one before it made.
+      let profileSave = Promise.resolve();
+
+      function saveCaseProfile() {
+        profileSave = profileSave.then(saveCaseProfileNow);
+      }
+
+      async function saveCaseProfileNow() {
         if (!currentCaseId || ws || finishingSocket) return;
         const metadata = caseMetadata();
         const view = viewCount;
