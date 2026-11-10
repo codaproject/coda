@@ -134,8 +134,14 @@ def create_champs_prompted_agent(
             WhoQuestions
         try:
             child["question_selector"] = WhoQuestions(
-                selection, client, skip_logic=settings.inference.get(
-                    "question_skip_logic", True))
+                selection, client,
+                skip_logic=settings.inference.get("question_skip_logic",
+                                                  True),
+                review_of_systems=settings.inference.get(
+                    "question_review_of_systems", True),
+                probabilities=settings.inference.get(
+                    "question_probabilities", "llm"),
+                region=settings.inference.get("question_region"))
         except ImportError:
             logging.getLogger(__name__).warning(
                 "Question selection %s needs the codalg package, the LLM "

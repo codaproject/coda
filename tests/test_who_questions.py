@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from coda.inference.champs_prompted.who_questions import age_fields, \
-    changes_top_cause, evidence_in_text, is_negated, parse_answer, \
-    profile_fields
+from coda.inference.champs_prompted.who_questions import age_features, \
+    age_fields, asks_topic, changes_top_cause, dont_know, \
+    evidence_in_text, is_negated, parse_answer, profile_fields
 from coda.metadata import Profile
 
 YES_NO = {"type": "select one", "choices": ["yes", "no", "dk", "ref"]}
@@ -19,6 +19,17 @@ def test_age_fields():
     assert child["age_child_unit"] == "years"
     assert child["age_child_years"] == 1
     assert age_fields(None)["age_group"] is None
+
+
+def test_age_features():
+    features = age_features(400)
+    assert features["ageInYears"] == 1
+    assert features["ageInMonthsByYear"] == 13
+    assert features["isChild"] == 1
+    assert features["isNeonatal"] == 0
+    assert features["age_group_subcat"] is None
+    assert age_features(2)["age_group_subcat"] == "neonate 72h"
+    assert age_features(None) == {}
 
 
 def test_profile_fields():
@@ -38,6 +49,12 @@ def test_parse_answer():
         "pharmacy private_hospital"
     assert parse_answer(DAYS, "5") == "5"
     assert parse_answer(DAYS, "2.5") is None
+
+
+def test_dont_know():
+    assert dont_know(YES_NO) == "dk"
+    assert dont_know(CARE) == "DK"
+    assert dont_know(DAYS) is None
     assert parse_answer(DAYS, "five") is None
 
 
@@ -46,6 +63,12 @@ def test_evidence_in_text():
     assert evidence_in_text("high fever for five", text)
     assert not evidence_in_text("high temperature", text)
     assert not evidence_in_text("", text)
+
+
+def test_asks_topic():
+    text = "Interviewer: How was her breathing? Respondent: Fast. Skin fine."
+    assert asks_topic(text, ("breath",))
+    assert not asks_topic(text, ("skin",))
 
 
 def test_is_negated():
@@ -69,15 +92,17 @@ def test_changes_top_cause():
     assert not changes_top_cause(np.array([0.9, 0.1]), rare, ["A", "B"])
 
 
+CAUSES = {"icd11:1C62.Z": {"score": 0.6}, "icd11:CA40.Z": {"score": 0.4}}
+
+
 def test_interview():
     pytest.importorskip("codalg")
     from coda.inference.champs_prompted.who_questions import WhoQuestions
     questions = WhoQuestions("voi", FakeClient(), skip_logic=False)
     interview = questions.start()
     profile = Profile.from_dict({"age": {"value": 14, "unit": "months"}})
-    causes = {"icd11:1C62.Z": {"score": 0.6}, "icd11:CA40.Z": {"score": 0.4}}
-    labels, stop = interview.update("She had a high fever.", profile, causes,
-                                    3)
+    labels, stop = interview.update("She had a high fever.", profile,
+                                    CAUSES, 3)
     features = interview.interview.features.loc["case"]
     answered = features.index[features == "yes"].drop("Id10013")
     assert len(answered) > 3
@@ -85,6 +110,11 @@ def test_interview():
     assert not set(labels) & set(questions.fields.loc[answered, "label"])
     assert interview.update("", profile, {"icd10:A00": {"score": 1}},
                             3) == ([], False)
+    questions = WhoQuestions("voi", FakeClient(), skip_logic=False,
+                             probabilities="lightgbm")
+    interview = questions.start()
+    interview.update("She had a high fever.", profile, {}, 3)
+    assert interview.probabilities().loc["case"].sum() == pytest.approx(1)
 
 
 class NoAnswerClient:
@@ -102,6 +132,26 @@ def test_no_answer():
     assert not questions.asks_about(cough, "Id10397")
     assert not questions.asks_about("She had a cough.", "Id10153")
     interview = questions.start()
-    causes = {"icd11:1C62.Z": {"score": 0.6}, "icd11:CA40.Z": {"score": 0.4}}
-    interview.update("I don't know.", None, causes, 3)
-    assert not interview.interview.asked_questions.loc["case"].any()
+    interview.update("I don't know.", None, CAUSES, 3)
+    asked = interview.interview.asked_questions.loc["case"]
+    assert set(asked.index[asked]) <= set(questions.calculated)
+
+
+def test_review_of_systems():
+    pytest.importorskip("codalg")
+    from coda.inference.champs_prompted.who_questions import \
+        REVIEW_OF_SYSTEMS, WhoQuestions
+    profile = Profile.from_dict({"age": {"value": 14, "unit": "months"}})
+    questions = WhoQuestions("baq", NoAnswerClient(), skip_logic=False,
+                             review_of_systems=True,
+                             region={"hiv": "high", "malaria": "very_low"})
+    assert questions.region == {"Id10002": "high", "Id10003": "veryl"}
+    labels, stop = questions.start().update("I don't know.", profile,
+                                            CAUSES, 3)
+    assert labels == [q for q, _, _ in REVIEW_OF_SYSTEMS[:3]]
+    assert not stop
+    questions = WhoQuestions("baq", FakeClient(), skip_logic=False,
+                             review_of_systems=True)
+    labels, _ = questions.start().update("She had a high fever.", profile,
+                                         CAUSES, 3)
+    assert not set(labels) & {q for q, _, _ in REVIEW_OF_SYSTEMS}

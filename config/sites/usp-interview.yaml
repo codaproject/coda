@@ -8,6 +8,9 @@ app:
 
 inference:
   question_selection: voi
+  question_region:
+    hiv: low
+    malaria: very_low
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M

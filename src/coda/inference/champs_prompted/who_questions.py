@@ -1,7 +1,8 @@
 """Follow-up questions from the WHO VA 2016 form, ranked by information gain.
 
 An LLM codes the form answers the transcript gives, and a codalg policy ranks
-the questions still open given the agent's ICD-11 cause probabilities.
+the questions still open given ICD-11 cause probabilities, those of the
+agent or those a LightGBM model trained on CHAMPS gives the answers.
 """
 
 import logging
@@ -17,7 +18,9 @@ from coda.inference.champs_prompted.base_agent import read_prompt
 logger = logging.getLogger(__name__)
 
 QUESTIONNAIRE = "who_va_2016"
+CLASSIFIER = "champs"
 POLICIES = ("voi", "baq")
+PROBABILITIES = ("llm", "lightgbm")
 CASE = "case"
 # Rounds of answer coding per update, each round codes the best questions
 # that earlier rounds left open
@@ -43,6 +46,38 @@ SEX_FIELD = "Id10019"
 BIRTH_WEIGHT_FIELD = "Id10366"
 DAYS_PER_YEAR = 365.25
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12
+# CHAMPS age subcategories and the age in days each ends at
+AGE_SUBCATEGORIES = (("neonate 72h", 3), ("neonate >72h", 28),
+                     ("infant 6m", DAYS_PER_YEAR / 2),
+                     ("infant >6m", DAYS_PER_YEAR))
+# Form fields of the mortality of the region, high, low or very low
+REGION_FIELDS = {"hiv": "Id10002", "malaria": "Id10003"}
+REGION_VALUES = {"high": "high", "low": "low", "very_low": "veryl"}
+ILLNESS = "During the illness that led to death, "
+# Open questions asked before the policy's, each with the word stems of its
+# topic and the form questions whose answers cover it
+REVIEW_OF_SYSTEMS = (
+    ("Could you tell me about the illness or events that led to her/his "
+     "death?", ("ill", "happen"),
+     ("Id10147", "Id10153", "Id10181", "Id10188", "Id10219", "Id10284",
+      "Id10286")),
+    (ILLNESS + "what did you notice about her/his general condition?",
+     ("condition",),
+     ("Id10244", "Id10268", "Id10214", "Id10281", "Id10286", "Id10284")),
+    (ILLNESS + "what did you notice about her/his breathing?", ("breath",),
+     ("Id10153", "Id10159", "Id10166", "Id10168", "Id10172", "Id10112")),
+    (ILLNESS + "what did you notice about her/his feeding and belly "
+     "(abdomen)?", ("feed", "belly", "abdom", "eat"),
+     ("Id10181", "Id10188", "Id10193", "Id10194", "Id10200", "Id10273")),
+    (ILLNESS + "what did you notice about how (s)he behaved or responded?",
+     ("behav", "respon"),
+     ("Id10214", "Id10219", "Id10281", "Id10286", "Id10208", "Id10278")),
+    (ILLNESS + "what did you notice about her/his skin or body?",
+     ("skin",),
+     ("Id10233", "Id10240", "Id10265", "Id10268", "Id10289", "Id10244")),
+    (ILLNESS + "did (s)he seem to have any pain?", ("pain",),
+     ("Id10174", "Id10194", "Id10210", "Id10264")),
+)
 # Words that make a quote a denial
 NEGATIONS = {"no", "not", "never", "none", "nothing", "neither", "nor",
              "without", "didn", "wasn", "weren", "hadn", "couldn", "don",
@@ -84,13 +119,51 @@ def age_fields(days):
     return fields
 
 
+def age_features(days):
+    """Return the classifier's age features for an age at death in days.
+
+    These are the ages the form calculates and those of CHAMPS, which splits
+    the age into whole years, months and days.
+    """
+    if days is None or days < 0:
+        return {}
+    days = int(days)
+    years, in_year = divmod(days, DAYS_PER_YEAR)
+    months, in_month = divmod(in_year, DAYS_PER_MONTH)
+    neonate = int(days < 28)
+    adult = int(days >= 12 * DAYS_PER_YEAR)
+    groups = {"isNeonatal": neonate, "isChild": 1 - neonate - adult,
+              "isAdult": adult}
+    return {
+        "ageInDays": days, "ageInDaysNeonate": days,
+        "ageInYears": int(years), "ageInYears2": int(years),
+        "ageInYearsRemain": in_year, "ageInMonths": int(months),
+        "ageInMonthsRemain": int(in_month),
+        "ageInMonthsByYear": int(years * 12 + months),
+        **{f"{name}{suffix}": value for name, value in groups.items()
+           for suffix in ("", "1", "2")},
+        "age_years": int(years), "age_months": int(months),
+        "age_days": int(in_month),
+        "age_group_subcat": next(
+            (name for name, end in AGE_SUBCATEGORIES if days < end), None),
+    }
+
+
+def age_days(profile):
+    """Return a decedent profile's age at death in days, or None."""
+    if profile is None:
+        return None
+    if profile.stillbirth:
+        return 0
+    return profile.age.days if profile.age else None
+
+
 def profile_fields(profile):
     """Return the form fields a decedent profile gives."""
     if profile is None:
         return age_fields(None) | {SEX_FIELD: None}
-    days = 0 if profile.stillbirth else \
-        profile.age.days if profile.age else None
-    fields = age_fields(days) | {SEX_FIELD: SEXES.get(profile.sex)}
+    fields = age_fields(age_days(profile)) | \
+        {SEX_FIELD: SEXES.get(profile.sex)}
     if profile.birth_weight_g:
         fields[BIRTH_WEIGHT_FIELD] = str(round(profile.birth_weight_g))
     if profile.stillbirth:
@@ -122,6 +195,13 @@ def evidence_in_text(evidence, text):
     return bool(quote) and f" {quote} " in f" {words(text)} "
 
 
+def asks_topic(text, stems):
+    """Return whether a question in the text has a word with a stem given."""
+    questions = re.findall(r"[^.?!]*\?", text)
+    return any(w.startswith(stems) for question in questions
+               for w in words(question).split())
+
+
 def is_negated(evidence):
     """Return whether a quote contains a negation."""
     return bool(NEGATIONS & set(words(evidence).split()))
@@ -132,6 +212,14 @@ NON_ANSWERS = {"dk", "ref"}
 UNKNOWN = "unknown"
 # Answer to a question asked whose reply gives no form answer
 NO_ANSWER = "no_answer"
+
+
+def dont_know(field):
+    """Return the form field's don't know choice, or None if it has none."""
+    choices = field["choices"]
+    if not isinstance(choices, list):
+        return None
+    return next((c for c in choices if c.lower() == "dk"), None)
 
 
 def answer_hint(field):
@@ -196,15 +284,34 @@ def answers_schema(fields):
 class WhoQuestions:
     """WHO VA 2016 question policy and answer coding shared by interviews."""
 
-    def __init__(self, policy, llm_client, skip_logic=True):
+    def __init__(self, policy, llm_client, skip_logic=True,
+                 review_of_systems=False, probabilities="llm", region=None):
+        """Load the policy and the form.
+
+        With review_of_systems, open review-of-systems questions come
+        before the policy's. The probabilities are the agent's with llm, or
+        the LightGBM model's with lightgbm. The region gives the LightGBM
+        model the mortality, high, low or very_low, of hiv and malaria where
+        the deaths happen.
+        """
         from codalg.interview import BAQPolicy, VOIPolicy
         from codalg.questionnaires import Questionnaire
         if policy not in POLICIES:
             raise ValueError(f"Unknown question policy {policy!r}, expected "
                              f"one of: {', '.join(POLICIES)}")
+        if probabilities not in PROBABILITIES:
+            raise ValueError(f"Unknown cause probabilities {probabilities!r},"
+                             f" expected one of: {', '.join(PROBABILITIES)}")
         policy_class = BAQPolicy if policy == "baq" else VOIPolicy
         self.policy = policy_class.from_pretrained(QUESTIONNAIRE)
-        self.fields = Questionnaire.load(QUESTIONNAIRE).fields
+        questionnaire = Questionnaire.load(QUESTIONNAIRE)
+        self.fields = questionnaire.fields.join(
+            questionnaire.labels.rename("label")).fillna({"label": ""})
+        self.calculated = questionnaire.calculated
+        self.classifier = None
+        if probabilities == "lightgbm":
+            from codalg.classification.lightgbm import LightGBMClassifier
+            self.classifier = LightGBMClassifier.from_pretrained(CLASSIFIER)
         # ICD-11 category of each cause, its code before the dot
         self.categories = [c.split(".")[0] for c in self.policy.causes]
         counts = Counter(w for label in self.fields["label"]
@@ -213,6 +320,9 @@ class WhoQuestions:
                              if n > MAX_TOPIC_WORD_QUESTIONS}
         self.llm_client = llm_client
         self.skip_logic = skip_logic
+        self.review_of_systems = review_of_systems
+        self.region = {REGION_FIELDS[name]: REGION_VALUES[value]
+                       for name, value in (region or {}).items() if value}
         if skip_logic:
             use_bundled_java()
 
@@ -283,39 +393,74 @@ class WhoInterview:
         self.interview = Interview.start(
             prefilled, questions.policy.questions,
             questionnaire=QUESTIONNAIRE, use_rules=questions.skip_logic)
+        # The form calculates these, so they are never asked
+        calculated = questions.calculated.intersection(
+            questions.policy.questions)
+        self.interview.asked_questions[calculated] = True
+        self.ages = {}
+        self.causes = {}
 
     def update(self, text, profile, causes, num_questions):
         """Code the answers in the text and return the next questions.
 
         Only the best-ranked questions are coded, so that those suggested
-        are not already answered. Return the labels of the best questions,
-        and whether the policy would stop asking.
+        are not already answered, along with the form questions of the
+        review-of-systems questions suggested. Return the open
+        review-of-systems questions followed by the labels of the best
+        questions, and whether the policy would stop asking. A question asked
+        without a form answer gets its don't know choice, or stays without
+        a value. Without cause probabilities, return no questions.
         """
         self.set_fields(profile_fields(profile))
-        probabilities = self.probabilities(causes)
-        if probabilities is None:
+        self.ages = age_features(age_days(profile))
+        self.causes = causes
+        if self.probabilities() is None:
             return [], False
+        fields = self.questions.fields
         coded = set()
         for _ in range(MAX_ROUNDS):
-            ranked, stop = self.rank(probabilities)
+            ranked, stop = self.rank()
             candidates = ranked[:CANDIDATES_PER_QUESTION * num_questions]
-            questions = [q for q in candidates if q not in coded]
+            reviews = self.open_reviews(text, ranked)[:num_questions]
+            covering = [q for _, _, fields in reviews for q in fields
+                        if q in ranked]
+            questions = [q for q in dict.fromkeys(covering + candidates)
+                         if q not in coded]
             if not questions:
                 break
             coded.update(questions)
             values = self.questions.code_answers(text, questions)
             if not values:
                 break
-            unknown = [q for q, v in values.items() if v == NO_ANSWER]
+            values = {q: dont_know(fields.loc[q]) if v == NO_ANSWER else v
+                      for q, v in values.items()}
+            unknown = [q for q, v in values.items() if v is None]
             self.interview.record(
                 pd.Series(unknown, index=[CASE] * len(unknown), dtype=object),
                 pd.DataFrame({q: [v] for q, v in values.items()
-                              if v != NO_ANSWER},
+                              if v is not None},
                              index=[CASE], dtype=object))
         else:
-            ranked, stop = self.rank(probabilities)
-        labels = self.questions.fields["label"]
-        return list(labels[ranked[:num_questions]]), stop
+            ranked, stop = self.rank()
+        reviews = [question for question, _, _ in
+                   self.open_reviews(text, ranked)]
+        labels = reviews + list(fields["label"][ranked])
+        return labels[:num_questions], stop and not reviews
+
+    def open_reviews(self, text, ranked):
+        """Return the open review-of-systems questions.
+
+        One is open while the text asks no question on its topic, none of its
+        form questions is asked and some are among the ranked ones.
+        """
+        if not self.questions.review_of_systems:
+            return []
+        asked = self.interview.asked_questions.loc[CASE]
+        return [(question, stems, fields)
+                for question, stems, fields in REVIEW_OF_SYSTEMS
+                if not asks_topic(text, stems)
+                and not asked[list(fields)].any()
+                and set(fields) & set(ranked)]
 
     def set_fields(self, fields):
         """Write form fields, marking the policy's questions answered."""
@@ -327,17 +472,29 @@ class WhoInterview:
                 asked.loc[CASE, field] = True
             self.interview.features.loc[CASE, field] = value
 
-    def probabilities(self, causes):
-        """Return the ICD-11 cause probabilities, or None if none are known."""
+    def probabilities(self):
+        """Return the ICD-11 cause probabilities, or None if none are known.
+
+        These are the classifier's given the answers if there is one, else
+        the agent's.
+        """
+        classifier = self.questions.classifier
+        if classifier is not None:
+            context = pd.DataFrame(self.questions.region | self.ages,
+                                   index=[CASE])
+            return classifier.classify(
+                pd.concat([self.interview.features, context], axis=1))
         scores = {c.split(":", 1)[1]: cause["score"]
-                  for c, cause in causes.items() if c.startswith("icd11:")}
+                  for c, cause in self.causes.items()
+                  if c.startswith("icd11:")}
         if not any(scores.get(c) for c in self.questions.policy.causes):
             return None
         return pd.DataFrame(scores, index=[CASE])
 
-    def rank(self, probabilities):
+    def rank(self):
         """Return the open questions from best to worst and whether to stop."""
         policy = self.questions.policy
+        probabilities = self.probabilities()
         asked = self.interview.asked_questions
         is_open = ~asked.loc[CASE]
         if self.interview.rules is not None:
