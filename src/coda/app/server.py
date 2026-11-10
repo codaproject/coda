@@ -1002,11 +1002,16 @@ async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None,
         refusal = "busy"
     else:
         active_inference_sessions.add(inference_session)
-        if case_id is None:
-            await inference_session.start_case()
-            refusal = None
-        else:
-            refusal = await inference_session.continue_case(case_id, revision)
+        try:
+            if case_id is None:
+                await inference_session.start_case()
+                refusal = None
+            else:
+                refusal = await inference_session.continue_case(case_id,
+                                                                revision)
+        except Exception:
+            active_inference_sessions.discard(inference_session)
+            raise
     if refusal is not None:
         logger.warning("Refusing recording of case %s: %s", case_id,
                        RECORDING_REFUSALS[refusal])

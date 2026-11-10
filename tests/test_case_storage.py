@@ -1177,3 +1177,17 @@ async def test_reinference_is_stored_with_the_new_profile(
     assert case["inference"][-1]["metadata"]["profile"]["age"]["value"] == 4
     assert case["revisions"][-1]["kind"] == "inference"
     assert case["edits"] == []
+
+
+async def test_unreadable_case_frees_its_recording_slot(storage_dir,
+                                                        idle_transcription,
+                                                        monkeypatch):
+    stored = record_case("aaaa0001")
+    (stored.case_dir / "manifest.json").write_text("{")
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+
+    with pytest.raises(ValueError):
+        await server.websocket_endpoint(RefusedWebSocket(),
+                                        case_id=stored.case_id, revision=1)
+
+    assert server.active_inference_sessions == set()
