@@ -1288,3 +1288,16 @@ async def test_edit_of_a_case_still_recording_is_refused(
 
     assert refused.value.status_code == 409
     live.end_case()
+
+
+async def test_recording_is_refused_while_settings_change(
+        storage_dir, idle_transcription, monkeypatch):
+    monkeypatch.setattr(server, "active_inference_sessions", set())
+    monkeypatch.setattr(server, "settings_changing", True)
+
+    websocket = RefusedWebSocket()
+    await server.websocket_endpoint(websocket)
+
+    [error] = websocket.messages
+    assert error["reason"] == "busy"
+    assert server.active_inference_sessions == set()

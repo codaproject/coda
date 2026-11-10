@@ -156,6 +156,8 @@ current_translation_model = settings.translate.model or \
 transcriber: Transcriber
 # Highest CODA-NNN number handed out by /next-case-id
 last_issued_case_number = 0
+# Set while /settings swaps the models, when no recording may start
+settings_changing = False
 active_inference_sessions: set["InferenceSessionCoordinator"] = set()
 
 
@@ -848,11 +850,21 @@ async def get_transcriber_backend_models(backend: str):
 
 @app.post("/settings")
 async def update_settings(req: SettingsRequest):
-    """Update server settings."""
+    """Update server settings, unless an interview is being recorded."""
+    global settings_changing
     if settings.app.get("lock_server_settings", False):
         raise HTTPException(status_code=403, detail="Server settings are locked")
-    if active_inference_sessions:
+    if active_inference_sessions or settings_changing:
         raise HTTPException(status_code=409, detail="recording")
+    settings_changing = True
+    try:
+        return await _apply_settings(req)
+    finally:
+        settings_changing = False
+
+
+async def _apply_settings(req: SettingsRequest):
+    """Apply the settings given in ``req``."""
     global current_language, transcriber, grounder
     global current_transcriber_model, current_llm_provider, current_llm_model
     global translation_mode, current_translation_model
@@ -1007,14 +1019,16 @@ async def websocket_endpoint(websocket: WebSocket, case_id: str | None = None,
     continues that stored case instead of starting a new one, unless the case
     was inferred from clinical notes or has moved on from ``revision``.
     Connections beyond
-    ``app.max_recordings`` are refused.
+    ``app.max_recordings``, or while settings change, are refused.
     """
     await websocket.accept()
     logger.info("WebSocket connection established")
 
     inference_session = InferenceSessionCoordinator(websocket)
     max_recordings = settings.app.get("max_recordings", 0)
-    if max_recordings and len(active_inference_sessions) >= max_recordings:
+    full = max_recordings and \
+        len(active_inference_sessions) >= max_recordings
+    if settings_changing or full:
         refusal = "busy"
     else:
         active_inference_sessions.add(inference_session)
