@@ -1302,3 +1302,23 @@ async def test_recording_is_refused_while_settings_change(
     [error] = websocket.messages
     assert error["reason"] == "busy"
     assert server.active_inference_sessions == set()
+
+
+async def test_case_numbers_are_held_across_restarts(storage_dir,
+                                                     monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    CaseRecorder("a", 0, {}).close({"case_id": "coda-004"})
+    assert await server.next_case_id() == {"case_id": "CODA-005"}
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    assert await server.next_case_id() == {"case_id": "CODA-006"}
+
+
+async def test_typed_case_ids_are_held_and_checked(storage_dir, monkeypatch):
+    monkeypatch.setattr(server, "last_issued_case_number", 0)
+    CaseRecorder("a", 0, {}).close({"case_id": "CODA-002"})
+    held = server.CaseIdRequest(case_id="CODA-009")
+
+    assert await server.hold_case_id(held) == {"taken": False}
+    assert await server.hold_case_id(
+        server.CaseIdRequest(case_id=" coda-002 ")) == {"taken": True}
+    assert await server.next_case_id() == {"case_id": "CODA-010"}

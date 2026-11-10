@@ -154,7 +154,7 @@ def _default_translation_model_for(backend: str):
 current_translation_model = settings.translate.model or \
     _default_translation_model_for(text_translator_backend())
 transcriber: Transcriber
-# Highest CODA-NNN number handed out by /next-case-id
+# Highest CODA-NNN number handed out or typed
 last_issued_case_number = 0
 # Set while /settings swaps the models, when no recording may start
 settings_changing = False
@@ -807,21 +807,67 @@ async def get_translator_backend_models(backend: str):
     return {"backend": backend, "available": True, **info}
 
 
-@app.get("/next-case-id")
-async def next_case_id():
-    """Return CODA-NNN, one past the highest such case ID saved or issued."""
-    global last_issued_case_number
-    numbers = [last_issued_case_number]
+CASE_NUMBER = re.compile(r"CODA-(\d+)", re.IGNORECASE)
+
+
+def _stored_case_ids() -> list[str]:
+    """Return the case IDs in the profiles of the stored cases."""
+    case_ids = []
     for path in cases_root().glob("*/manifest.json"):
         try:
             metadata = json.loads(path.read_text()).get("metadata") or {}
         except ValueError:
             continue
-        match = re.fullmatch(r"CODA-(\d+)", metadata.get("case_id") or "")
+        if metadata.get("case_id"):
+            case_ids.append(metadata["case_id"])
+    return case_ids
+
+
+def _held_case_number_path():
+    return cases_root() / "last_case_number"
+
+
+def _hold_case_number(number: int):
+    """Raise the highest CODA-NNN number held to ``number``, kept in the
+    cases folder when cases are stored."""
+    global last_issued_case_number
+    last_issued_case_number = max(last_issued_case_number, number)
+    if storage_enabled():
+        path = _held_case_number_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(str(last_issued_case_number))
+
+
+@app.get("/next-case-id")
+async def next_case_id():
+    """Return CODA-NNN, one past the highest such case ID saved or held."""
+    numbers = [last_issued_case_number]
+    try:
+        numbers.append(int(_held_case_number_path().read_text()))
+    except (OSError, ValueError):
+        pass
+    for case_id in _stored_case_ids():
+        match = CASE_NUMBER.fullmatch(case_id.strip())
         if match:
             numbers.append(int(match[1]))
-    last_issued_case_number = max(numbers) + 1
+    _hold_case_number(max(numbers) + 1)
     return {"case_id": f"CODA-{last_issued_case_number:03d}"}
+
+
+class CaseIdRequest(BaseModel):
+    case_id: str
+
+
+@app.post("/case-ids")
+async def hold_case_id(req: CaseIdRequest):
+    """Hold the number of a typed case ID, so that it is not handed out, and
+    return whether a stored case already has the ID."""
+    case_id = req.case_id.strip()
+    match = CASE_NUMBER.fullmatch(case_id)
+    if match:
+        _hold_case_number(int(match[1]))
+    stored = {c.strip().lower() for c in _stored_case_ids()}
+    return {"taken": case_id.lower() in stored}
 
 
 @app.get("/transcriber_backends")

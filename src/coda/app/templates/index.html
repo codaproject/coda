@@ -4487,6 +4487,8 @@
           "profile.child": "Child",
           "profile.adult": "Adult",
           "profile.caseId": "Case ID",
+          "profile.caseIdTaken":
+            "Another stored case already has this case ID",
           "profile.reinfer": "Update inference",
           "profile.reinferring":
             "Updating the inference with the new profile…",
@@ -4695,6 +4697,8 @@
           "profile.child": "Mtoto",
           "profile.adult": "Mtu mzima",
           "profile.caseId": "Kitambulisho cha kesi",
+          "profile.caseIdTaken":
+            "Kesi nyingine iliyohifadhiwa tayari ina kitambulisho hiki",
           "profile.reinfer": "Sasisha makisio",
           "profile.reinferring":
             "Inasasisha makisio kwa wasifu mpya…",
@@ -4903,6 +4907,8 @@
           "profile.child": "Enfant",
           "profile.adult": "Adulte",
           "profile.caseId": "Identifiant du cas",
+          "profile.caseIdTaken":
+            "Un autre cas enregistré a déjà cet identifiant",
           "profile.reinfer": "Mettre à jour l'inférence",
           "profile.reinferring":
             "Mise à jour de l'inférence avec le nouveau profil…",
@@ -5115,6 +5121,8 @@
           "profile.child": "طفل",
           "profile.adult": "بالغ",
           "profile.caseId": "رقم الحالة",
+          "profile.caseIdTaken":
+            "توجد حالة محفوظة أخرى بهذا الرقم",
           "profile.reinfer": "تحديث الاستدلال",
           "profile.reinferring":
             "جارٍ تحديث الاستدلال بالملف الجديد…",
@@ -5318,6 +5326,8 @@
           "profile.child": "শিশু",
           "profile.adult": "প্রাপ্তবয়স্ক",
           "profile.caseId": "কেস আইডি",
+          "profile.caseIdTaken":
+            "সংরক্ষিত আরেকটি কেসে এই আইডি আগে থেকেই আছে",
           "profile.reinfer": "অনুমান হালনাগাদ করুন",
           "profile.reinferring":
             "নতুন প্রোফাইল দিয়ে অনুমান হালনাগাদ হচ্ছে…",
@@ -5527,6 +5537,8 @@
           "profile.child": "Niño",
           "profile.adult": "Adulto",
           "profile.caseId": "ID del caso",
+          "profile.caseIdTaken":
+            "Otro caso guardado ya tiene este ID",
           "profile.reinfer": "Actualizar la inferencia",
           "profile.reinferring":
             "Actualizando la inferencia con el nuevo perfil…",
@@ -5737,6 +5749,8 @@
           "profile.child": "N'wana",
           "profile.adult": "Munhu lonkulu",
           "profile.caseId": "Nomboro ya mhaka",
+          "profile.caseIdTaken":
+            "Mhaka yin'wana leyi hlayisiweke yi na nomboro leyi",
           "profile.reinfer": "Pfuxeta nkumbetelo",
           "profile.reinferring":
             "Ku pfuxeta nkumbetelo hi phurofayili leyintshwa…",
@@ -5949,6 +5963,8 @@
           "profile.child": "Criança",
           "profile.adult": "Adulto",
           "profile.caseId": "ID do caso",
+          "profile.caseIdTaken":
+            "Outro caso salvo já tem este ID",
           "profile.reinfer": "Atualizar a inferência",
           "profile.reinferring":
             "Atualizando a inferência com o novo perfil…",
@@ -8374,7 +8390,7 @@
           // Close the last recording's socket before the new case ID is sent
           if (!continuing) abandonFinishingSocket();
           if (caseIdUsed && !continuing) await assignCaseId();
-          caseIdUsed = true;
+          useCaseId();
           micSelect.disabled = true;
           languageSelect.disabled = true;
           transcriberBackendSelect.disabled = true;
@@ -9150,17 +9166,44 @@
       // Whether a recording has been saved as a case under the current ID
       let caseIdUsed = false;
 
+      // The case ID handed out for the next new case, until a case uses it
+      let nextCaseId = null;
+
       // Fill in the next default case ID and send the profile with it
       async function assignCaseId() {
         caseIdUsed = false;
         try {
-          const resp = await fetch("/next-case-id");
-          const caseId = (await resp.json()).case_id;
+          if (!nextCaseId) {
+            const resp = await fetch("/next-case-id");
+            nextCaseId = (await resp.json()).case_id;
+          }
           // Unless a reopened case was shown meanwhile
           if (caseIdInput.disabled) return;
-          caseIdInput.value = caseId;
+          caseIdInput.value = nextCaseId;
         } catch (e) {}
         await pushMetadata();
+      }
+
+      // Mark the case ID on screen as used, when it is the one handed out
+      function useCaseId() {
+        caseIdUsed = true;
+        if (caseIdInput.value.trim() === nextCaseId) nextCaseId = null;
+      }
+
+      // Hold a typed case ID and warn when a stored case already has it
+      async function checkCaseId() {
+        const caseId = caseIdInput.value.trim();
+        if (!caseId) return;
+        try {
+          const resp = await fetch("/case-ids", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ case_id: caseId }),
+          });
+          if ((await resp.json()).taken) {
+            showStatus(t("profile.caseIdTaken"), "warning");
+          }
+        } catch (e) {}
       }
 
       function fillProfileInputs(profile) {
@@ -9365,6 +9408,7 @@
       ageUnitSelect.addEventListener("change", profileChanged);
       stillbirthToggle.addEventListener("change", profileChanged);
       caseIdInput.addEventListener("change", profileChanged);
+      caseIdInput.addEventListener("change", checkCaseId);
       hivSelect.addEventListener("change", profileChanged);
       Object.values(measurementInputs).forEach((input) =>
         input.addEventListener("change", profileChanged),
@@ -9886,7 +9930,7 @@
           if (data.case_id) currentCaseId = data.case_id;
           currentCaseRevision = data.revision ?? null;
           sessionStartedAt ??= new Date().toISOString();
-          caseIdUsed = true;
+          useCaseId();
           showInference(data);
           finalizeSessionIfSaving();
           renderResultHero();
