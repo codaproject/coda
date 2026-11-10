@@ -8358,6 +8358,8 @@
       async function startRecording({ continuing = false } = {}) {
         if (!recordingAllowed()) return;
         try {
+          // Close the last recording's socket before the new case ID is sent
+          if (!continuing) abandonFinishingSocket();
           if (caseIdUsed && !continuing) await assignCaseId();
           caseIdUsed = true;
           micSelect.disabled = true;
@@ -8370,7 +8372,6 @@
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
           if (!continuing) {
-            abandonFinishingSocket();
             evolution = [];
             latestCauses = null;
             currentCaseId = null;
