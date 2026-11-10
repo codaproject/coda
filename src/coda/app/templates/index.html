@@ -6505,6 +6505,7 @@
                   Math.random().toString(36).slice(2, 8),
           // The server's copy of this session, when it kept one
           caseId: currentCaseId,
+          revision: currentCaseRevision,
           startedAt: sessionStartedAt,
           endedAt: new Date().toISOString(),
           durationSeconds: lastDuration,
@@ -6924,7 +6925,7 @@
         if (!session) return;
         clearSessionView();
         currentCaseId = session.caseId || null;
-        currentCaseRevision = null;
+        currentCaseRevision = session.revision ?? null;
         currentLocalId = session.id;
         sessionStartedAt = session.startedAt;
         lastDuration = session.durationSeconds || 0;

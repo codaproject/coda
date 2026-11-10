@@ -743,7 +743,8 @@ async def test_connection_continues_a_stored_case(storage_dir, offline_server,
     monkeypatch.setattr(server, "consume_transcripts", hear_audio)
     first = record_case("aaaa0001")
     websocket = ClosingWebSocket()
-    await server.websocket_endpoint(websocket, case_id=first.case_id)
+    await server.websocket_endpoint(websocket, case_id=first.case_id,
+                                    revision=1)
 
     assert case_dirs(storage_dir) == [first.case_dir]
     assert websocket.messages[0]["case_id"] == first.case_id
@@ -813,7 +814,7 @@ async def test_case_released_while_waiting_is_continued(storage_dir,
 
     stopping = asyncio.create_task(stop_shortly())
     websocket = ClosingWebSocket()
-    await server.websocket_endpoint(websocket, case_id=case_id)
+    await server.websocket_endpoint(websocket, case_id=case_id, revision=1)
     await stopping
 
     assert websocket.messages[0]["case_id"] == case_id
@@ -850,7 +851,7 @@ async def test_seed_is_kept_by_a_new_case_only(storage_dir, offline_server):
     new.end_case()
 
     reopened = server.InferenceSessionCoordinator(DummyWebSocket(), "bbbb0002")
-    assert await reopened.continue_case(case_id) is None
+    assert await reopened.continue_case(case_id, 1) is None
     with pytest.raises(WebSocketDisconnect):
         await server.capture_audio(ScriptedWebSocket([seed, disconnect]),
                                    asyncio.Queue(), reopened)
@@ -958,7 +959,8 @@ async def test_notes_on_a_notes_case_join_it(storage_dir, offline_server,
     case_dir = storage_dir / first["case_id"]
     before = json.loads((case_dir / "manifest.json").read_text())
 
-    second = await run_notes(case_id=first["case_id"])
+    second = await run_notes(case_id=first["case_id"],
+                             revision=first["revision"])
 
     assert second["case_id"] == first["case_id"]
     assert case_dirs(storage_dir) == [case_dir]
@@ -1057,7 +1059,7 @@ async def test_edit_after_recording_infers_and_is_stored(offline_server,
     monkeypatch.setattr(server, "display_annotations", lambda anns: [])
     result = await server.edit_transcript(server.TranscriptEditRequest(
         before="fever for three days", transcript=" fever for  five days ",
-        shown_through="c1", case_id=recorder.case_id))
+        shown_through="c1", case_id=recorder.case_id, revision=1))
 
     assert result["transcript"] == "fever for five days"
     assert result["inference"]["causes"] == {"icd10:A41.9": SEPSIS}
@@ -1257,3 +1259,11 @@ async def test_live_edit_of_a_case_left_by_a_reset_is_refused(
     assert refused.value.status_code == 409
     assert session.seed is None
     session.end_case()
+
+
+def test_write_without_a_revision_is_refused(storage_dir):
+    stored = record_case("aaaa0001")
+    response = TestClient(server.app).post(
+        f"/cases/{stored.case_id}/metadata", json={"metadata": {}})
+    assert response.status_code == 409
+    assert load_case(stored.case_id)["revision"] == 1

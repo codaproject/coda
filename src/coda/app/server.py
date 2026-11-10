@@ -263,14 +263,14 @@ class InferenceSessionCoordinator:
         # meanwhile
         if case_id in _recording_case_ids():
             return "in_use"
-        if case_changed(case_id, revision):
-            return "changed"
         if find_case(case_id) is None:
             logger.warning("No stored case %s to continue, starting a new one",
                            case_id)
             case_id = None
         elif "clinical_note" in case_sources(case_id):
             return "clinical_note"
+        elif case_changed(case_id, revision):
+            return "changed"
         self._record_to(CaseRecorder(self.session_id, self.generation,
                                      run_info, case_id=case_id,
                                      metadata=self.metadata.to_dict()))
@@ -454,10 +454,13 @@ class ClinicalNotesRequest(BaseModel):
 
 
 def case_changed(case_id: str, revision: int | None) -> bool:
-    """Return whether a stored case has moved on from ``revision``."""
-    if revision is None:
-        return False
-    return case_revision(case_id) not in (None, revision)
+    """Return whether a stored case has moved on from ``revision``.
+
+    Without a revision the client has not seen the case as stored, so any
+    stored case has moved on.
+    """
+    current = case_revision(case_id)
+    return current is not None and current != revision
 
 
 def parse_user(user: dict | None) -> dict:
