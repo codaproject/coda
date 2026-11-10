@@ -5,7 +5,9 @@ real Whisper model or any network/grounder.
 """
 import asyncio
 import math
+import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import numpy as np
@@ -21,6 +23,7 @@ from coda.dialogue import (
 from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
+from coda.dialogue import whisper_livekit
 from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
     _events_from_response
 
@@ -265,3 +268,22 @@ def test_language_transcriber(monkeypatch):
     assert language_transcriber("en") == ("whisper-livekit", "large-v3-turbo")
     assert language_transcriber("bn") == ("indic-conformer", None)
     assert language_transcriber("zu") == ("whisper-livekit", "anv-zul-turbo")
+
+
+def test_whisper_dtw_runs_in_one_thread_at_a_time(monkeypatch):
+    running, most = [0], [0]
+
+    def dtw_cpu(x):
+        running[0] += 1
+        most[0] = max(most[0], running[0])
+        time.sleep(0.01)
+        running[0] -= 1
+        return x
+
+    timing = SimpleNamespace(dtw_cpu=dtw_cpu)
+    monkeypatch.setitem(sys.modules, "mlx_whisper.timing", timing)
+    whisper_livekit._serialize_dtw()
+    whisper_livekit._serialize_dtw()
+    with ThreadPoolExecutor(4) as pool:
+        assert list(pool.map(timing.dtw_cpu, range(8))) == list(range(8))
+    assert most[0] == 1
