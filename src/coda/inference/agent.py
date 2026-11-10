@@ -407,7 +407,9 @@ if __name__ == "__main__":
                                    for cohort, a in agent.agents.items()},
                     provider=args.provider, model=default.llm_client.model,
                     num_questions=default.num_questions,
-                    question_style=default.question_style)
+                    question_style=default.question_style,
+                    question_selection=settings.inference.get(
+                        "question_selection", "llm"))
 
     server = InferenceServer(agent, host=args.host, port=args.port, info=info)
     server.run()

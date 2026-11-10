@@ -11,6 +11,10 @@ export PYTHONPATH="$PWD/src"
 ICON="$PWD/mac/CODA.app/Contents/Resources/icon.icns"
 # Address of the running CODA, removed when it stops
 URL_FILE="$DATA/url"
+# Token that reads the private codalg repository
+CODALG_TOKEN_FILE="$DATA/codalg_token"
+CODALG_VERSION=0.3.0
+LIGHTGBM_VERSION=4.7.0
 
 # Show a message in a dialog
 notify() {
@@ -46,17 +50,54 @@ check_prereqs() {
         || fail "Ollama is not installed, see mac/README.md."
 }
 
-# Install the locked Python environment if the lock changed
+# Install the locked Python environment if the lock changed, then codalg
 sync_env() {
     if [ ! -x "$VENV/bin/python" ]; then
         uv venv --managed-python --python 3.12 "$VENV" || return
     fi
-    cmp -s mac/requirements.lock "$VENV/requirements.lock" && return
-    uv pip sync --python "$VENV/bin/python" mac/requirements.lock || return
-    # Stopword list Gilda needs
-    "$VENV/bin/python" -m nltk.downloader -q stopwords || return
-    cp mac/requirements.lock "$VENV/requirements.lock"
-    rm -f "$GILDA_DB"
+    if ! cmp -s mac/requirements.lock "$VENV/requirements.lock"; then
+        uv pip sync --python "$VENV/bin/python" mac/requirements.lock \
+            || return
+        # Stopword list Gilda needs
+        "$VENV/bin/python" -m nltk.downloader -q stopwords || return
+        cp mac/requirements.lock "$VENV/requirements.lock"
+        rm -f "$GILDA_DB"
+    fi
+    install_codalg
+}
+
+# Version of a package installed in the environment
+installed_version() {
+    uv pip show --python "$VENV/bin/python" "$1" 2>/dev/null \
+        | sed -n 's/^Version: //p'
+}
+
+# Install codalg from its private repository once a token is saved, saving
+# a CODALG_TOKEN from the environment first, along with LightGBM built
+# without OpenMP, whose runtime needs Homebrew and clashes with PyTorch's
+install_codalg() {
+    local auth
+    if [ -n "${CODALG_TOKEN:-}" ]; then
+        mkdir -p "$DATA"
+        (umask 077 && printf '%s' "$CODALG_TOKEN" > "$CODALG_TOKEN_FILE")
+    fi
+    [ -f "$CODALG_TOKEN_FILE" ] || return 0
+    if [ "$(installed_version lightgbm)" != "$LIGHTGBM_VERSION" ]; then
+        echo "Installing LightGBM $LIGHTGBM_VERSION..."
+        uv pip install --python "$VENV/bin/python" --no-deps \
+            --no-binary lightgbm -C cmake.define.USE_OPENMP=OFF \
+            "lightgbm==$LIGHTGBM_VERSION" \
+            || echo "Installing LightGBM failed, CODA runs without it."
+    fi
+    [ "$(installed_version codalg)" = "$CODALG_VERSION" ] && return
+    echo "Installing codalg $CODALG_VERSION..."
+    auth="$(printf 'x-access-token:%s' "$(cat "$CODALG_TOKEN_FILE")" | base64)"
+    GIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=1 \
+        GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+        GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth" \
+        uv pip install --python "$VENV/bin/python" --no-deps \
+        "codalg @ git+https://github.com/uw-codaproject/coda-sft@v$CODALG_VERSION#subdirectory=packages/codalg" \
+        || echo "Installing codalg failed, CODA runs without it."
 }
 
 # Site named in this laptop's settings file

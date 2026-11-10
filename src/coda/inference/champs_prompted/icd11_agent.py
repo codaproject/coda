@@ -1,5 +1,6 @@
 """CHAMPS prompted agents choosing ICD-11 codes from age-group label lists."""
 
+import asyncio
 import json
 import logging
 import os
@@ -95,6 +96,8 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
     all of them when the age group is unknown. Subclasses implement
     rank_codes, whose response may give the chain of codes from the top
     underlying cause to death, drawn from chain_labels.
+    A question selector, when given, chooses the follow-up questions
+    instead of the LLM.
     """
 
     diagnosis_standard = read_prompt("icd11/diagnosis_standard.txt")
@@ -103,8 +106,10 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
     age_group_guidance = AGE_GROUP_GUIDANCE
     chain_labels = {}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, question_selector=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.question_selector = question_selector
+        self.who_interview = None
         self.question_guidance = \
             load_question_style_guidance(self.question_style) \
             .replace("{num_questions}", str(self.num_questions))
@@ -142,9 +147,42 @@ class ChampsPromptedIcd11Agent(ChampsPromptedInferenceAgent):
                 "identifiers": {"icd11": code},
                 "score": float(ranks.get(f"rank_{i}_prob", 0.0)),
             }
-        return {"causes": normalize_scores(causes), "reasoning": reasoning,
-                "questions": ranks.get("questions", []),
+        causes = normalize_scores(causes)
+        questions = ranks.get("questions", [])
+        questions_done = False
+        if self.question_selector is not None:
+            questions, questions_done = await self.select_questions(
+                chunk_id, causes)
+        return {"causes": causes, "reasoning": reasoning,
+                "questions": questions, "questions_done": questions_done,
                 "chain": self.causal_chain(causes, ranks.get("chain", []))}
+
+    async def select_questions(self, chunk_id, causes):
+        """Return the selector's next questions and whether to stop asking.
+
+        A failure gives no questions.
+        """
+        try:
+            async with self.llm_semaphore:
+                if self.who_interview is None:
+                    self.who_interview = await asyncio.to_thread(
+                        self.question_selector.start)
+                return await asyncio.to_thread(
+                    self.who_interview.update, self.all_text,
+                    self.metadata.profile, causes, self.num_questions)
+        except Exception:
+            logger.exception("Question selection failed for chunk %s",
+                             chunk_id)
+            return [], False
+
+    def reset(self):
+        super().reset()
+        self.who_interview = None
+
+    def create_session_agent(self):
+        agent = super().create_session_agent()
+        agent.question_selector = self.question_selector
+        return agent
 
     def causal_chain(self, causes, codes):
         """Return the top cause followed by the chain codes it led to."""

@@ -2,7 +2,8 @@
 
 Pulls the profile's Ollama models that are missing and loads its speech model
 once, which caches it, along with its translation model for a non-English
-profile. With the argument ``ollama``, only pulls the Ollama models. A
+profile and the WHO VA questionnaire when the profile selects questions with
+it. With the argument ``ollama``, only pulls the Ollama models. A
 ``HF_TOKEN`` in the environment is saved for later starts.
 """
 import os
@@ -53,6 +54,20 @@ def main():
         same = backend == settings.translate.backend
         create_translator(
             backend, model=same and settings.translate.model or None).load()
+    selection = settings.inference.get("question_selection", "llm")
+    if selection != "llm":
+        from coda.inference.champs_prompted.who_questions import \
+            WhoQuestions
+        try:
+            questions = WhoQuestions(
+                selection, None, skip_logic=settings.inference.get(
+                    "question_skip_logic", True))
+        except ImportError:
+            print(f"The {profile} questionnaire needs codalg, which is not "
+                  f"installed, so the LLM writes its questions", flush=True)
+            return
+        print(f"Preparing the {profile} questionnaire...", flush=True)
+        questions.start()
 
 
 if __name__ == "__main__":

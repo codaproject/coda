@@ -289,6 +289,14 @@ CODA_APP__UI_LANGUAGE=bn
 Transcripts stay in the spoken language and are translated to English before
 inference.
 
+Follow-up questions from the WHO VA 2016 form, ranked by information gain
+for the child agent with ICD-11 coding (`pip install "coda[questions]"`):
+
+```bash
+CODA_INFERENCE__CHAMPS_PROMPTED__CODING=icd11
+CODA_INFERENCE__QUESTION_SELECTION=voi
+```
+
 The RAG grounder has its own provider and model settings. They default to
 OpenAI with `gpt-4o-mini` and are used only when RAG is selected in the app:
 

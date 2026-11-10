@@ -1,12 +1,16 @@
-# icddr,b community deaths, mostly children, interviews by field workers in Bangla
+# icddr,b community deaths, mostly children, interviews by field workers in
+# Bangla, with clinical notes where available
 
 app:
   tls: true
-  show_mccd: true
-  show_cod_result: true
+  show_clinical_note: true
   ui_language: bn
 
 inference:
+  question_selection: voi
+  question_region:
+    hiv: very_low
+    malaria: very_low
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M

@@ -80,6 +80,11 @@ indic-conformer = [
 ]
 mac = [
     "mlx-whisper",
+    # Dependencies of codalg, which the Mac scripts install from its
+    # private repository
+    "pyxform==4.5.0",
+    "jpype1",
+    "jdk4py",
 ]
 champs-finetuned = [
     "torch",
@@ -87,6 +92,10 @@ champs-finetuned = [
     "peft",
     "accelerate",
     "jinja2",
+]
+questions = [
+    "codalg[questionnaire,lightgbm] @ git+https://github.com/uw-codaproject/coda-sft@v0.3.0#subdirectory=packages/codalg",
+    "jdk4py",
 ]
 
 [project.urls]

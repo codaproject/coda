@@ -1,11 +1,12 @@
-# Kintampo facility deaths, mostly adults, worked up by clinicians in
-# English
+# Kintampo facility deaths, mostly adults, worked up by clinicians and nurses
+# in English, with suggested questions for family interviews
 
 app:
   tls: true
   ui_language: en
 
 inference:
+  num_questions: 3
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M

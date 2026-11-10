@@ -94,6 +94,25 @@ inference:
   # clinically phrased questions, `simplified` for short, plain-language ones
   # aimed at a family member with no medical training.
   question_style: simplified
+  # How the follow-up questions are chosen: llm (written by the inference
+  # LLM) | voi | baq (WHO VA 2016 questions ranked by information gain, for
+  # the champs_prompted child agent with icd11 coding)
+  question_selection: llm
+  # voi | baq only: suggest only the questions the WHO VA form's skip logic
+  # allows given the answers so far
+  question_skip_logic: true
+  # voi | baq only: suggest open review-of-systems questions first, each until
+  # the transcript answers one of its form questions
+  question_review_of_systems: true
+  # voi | baq only: cause probabilities the questions are ranked by: llm (the
+  # inference agent's) | lightgbm (a LightGBM model trained on CHAMPS, given
+  # the answers so far)
+  question_probabilities: llm
+  # lightgbm only: HIV/AIDS and malaria mortality where the deaths happen:
+  # high | low | very_low, empty if unknown
+  question_region:
+    hiv: ""
+    malaria: ""
   llm:
     provider: openai        # alternatives: openai | ollama
     model: gpt-5.4-mini

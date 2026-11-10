@@ -3,6 +3,7 @@ their configured factory.
 """
 
 import asyncio
+import logging
 from typing import Optional
 
 from coda.config import settings
@@ -123,8 +124,30 @@ def create_champs_prompted_agent(
         "question_style": str(settings.inference.get(
             "question_style", DEFAULT_QUESTION_STYLE)),
     }
+    child = {}
+    selection = settings.inference.get("question_selection", "llm")
+    if selection != "llm":
+        if coding != "icd11":
+            raise ValueError(f"Question selection {selection!r} needs icd11 "
+                             f"coding")
+        from coda.inference.champs_prompted.who_questions import \
+            WhoQuestions
+        try:
+            child["question_selector"] = WhoQuestions(
+                selection, client,
+                skip_logic=settings.inference.get("question_skip_logic",
+                                                  True),
+                review_of_systems=settings.inference.get(
+                    "question_review_of_systems", True),
+                probabilities=settings.inference.get(
+                    "question_probabilities", "llm"),
+                region=settings.inference.get("question_region"))
+        except ImportError:
+            logging.getLogger(__name__).warning(
+                "Question selection %s needs the codalg package, the LLM "
+                "writes the follow-up questions instead", selection)
     agents = {
-        "child": AGENT_CLASSES[keys["child"]](**shared),
+        "child": AGENT_CLASSES[keys["child"]](**shared, **child),
         "adult": AGENT_CLASSES[keys["adult"]](**shared),
     }
     return ChildAdultAgent(agents, default)

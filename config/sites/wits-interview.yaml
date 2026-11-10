@@ -1,5 +1,5 @@
 # Wits VIDA family interviews at the facility, mostly children, by grief
-# counsellors in English, isiZulu or Sesotho
+# counselors in English, isiZulu or Sesotho
 
 app:
   tls: true
@@ -7,6 +7,10 @@ app:
   ui_language: en
 
 inference:
+  question_selection: voi
+  question_region:
+    hiv: high
+    malaria: low
   llm:
     provider: ollama
     model: qwen3:30b-a3b-instruct-2507-q4_K_M

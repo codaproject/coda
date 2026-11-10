@@ -37,6 +37,18 @@ terms of `ai4bharat/indic-conformer-600m-multilingual`:
 curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | HF_TOKEN=<token> bash -s <site>
 ```
 
+Profiles that select follow-up questions from the WHO VA form need the codalg
+package from a private repository. Add a GitHub token that can read it, which
+is saved on the laptop for later updates:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/codaproject/coda/main/mac/install.sh | CODALG_TOKEN=<token> bash -s <site>
+```
+
+The same command adds the token to a laptop that already has CODA, keeping its
+settings. Without the package, CODA starts as usual and the LLM writes the
+follow-up questions.
+
 Everything shown in the CODA Terminal window is also kept in
 `~/Library/Logs/CODA/coda.log`, and saved cases are in `~/.data/coda/cases`.
 
