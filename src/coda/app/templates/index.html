@@ -7331,6 +7331,9 @@
       let currentCaseId = null;
       // The revision of that case as shown, sent with each write to it
       let currentCaseRevision = null;
+      // Counts the cases shown, so that a reply to a request about an earlier
+      // one is dropped
+      let viewCount = 0;
       // What Continue needs about the session on screen: its copy on this
       // device, when it started, its recording time so far, the settings its
       // last part was recorded with, its profile, and whether it is being
@@ -8271,6 +8274,7 @@
         editPending = true;
         showStatus(t("transcript.reinferring"), "info");
         try {
+          const view = viewCount;
           // A stored case is inferred with its own profile, as when continuing
           if (!isRecording) await restoreCaseMetadata();
           const resp = await fetch("/transcript-edit", {
@@ -8287,6 +8291,7 @@
               user: currentUser(),
             }),
           });
+          if (view !== viewCount) return;
           if (resp.status === 409) {
             reloadChangedCase();
             return;
@@ -8372,6 +8377,7 @@
           ragOntologySelect.disabled = true;
           ragRerankerToggle.disabled = true;
           if (!continuing) {
+            viewCount += 1;
             evolution = [];
             latestCauses = null;
             currentCaseId = null;
@@ -9016,6 +9022,7 @@
       async function saveCaseProfile() {
         if (!currentCaseId || ws || finishingSocket) return;
         const metadata = caseMetadata();
+        const view = viewCount;
         try {
           const resp = await fetch(
             `/cases/${encodeURIComponent(currentCaseId)}/metadata`,
@@ -9029,6 +9036,7 @@
               }),
             },
           );
+          if (view !== viewCount) return;
           if (resp.status === 409) {
             const err = await resp.json();
             if (err.detail === "changed") reloadChangedCase();
@@ -9074,6 +9082,7 @@
         reinferBtn.disabled = true;
         showStatus(t("profile.reinferring"), "info");
         try {
+          const view = viewCount;
           const resp = await fetch("/reinfer", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -9085,6 +9094,7 @@
               user: currentUser(),
             }),
           });
+          if (view !== viewCount) return;
           if (resp.status === 409) {
             reloadChangedCase();
             return;
@@ -9352,6 +9362,7 @@
       // Empty the transcript, notes, inference, chart, and playback of the last
       // session or stored case
       function clearSessionView() {
+        viewCount += 1;
         body.classList.remove("viewing-case");
         resetMccd();
         setInferenceStale(false);
@@ -9826,6 +9837,7 @@
         }
         showStatus("Running inference on clinical notes…", "info");
         try {
+          const view = viewCount;
           // A stored case is inferred with its own profile, as when continuing
           await restoreCaseMetadata();
           const resp = await fetch("/clinical-notes", {
@@ -9839,6 +9851,7 @@
               user: currentUser(),
             }),
           });
+          if (view !== viewCount) return;
           if (!resp.ok) {
             const err = await resp.json();
             if (err.detail === "changed") reloadChangedCase();
