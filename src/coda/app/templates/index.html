@@ -791,6 +791,13 @@
         opacity: 0.6;
         cursor: default;
       }
+      #noteRunBtn .note-card-spinner {
+        display: inline-block;
+      }
+      #noteRunBtn:not(.running) .note-card-spinner,
+      #noteRunBtn.running i {
+        display: none;
+      }
       .note-editor:not([hidden]) {
         display: flex;
         flex-direction: column;
@@ -3835,6 +3842,7 @@
         >
         <button id="noteRunBtn" class="btn btn-ghost">
           <i class="bi bi-play-fill"></i>
+          <span class="note-card-spinner"></span>
           <span data-i18n="note.run">Run inference</span>
         </button>
       </div>
@@ -4540,6 +4548,9 @@
           "note.readingPhoto": "Reading photo…",
           "note.failed": "Could not read",
           "note.waiting": "Waiting for documents…",
+          "note.running": "Running inference…",
+          "note.done": "Clinical notes processed",
+          "note.runFailed": "Could not process the clinical notes",
           "note.saveEdit": "Save changes",
           "note.ocrTitle": "Text read from the image by OCR. Tap to check or correct it.",
           "note.editTitle": "Tap to view or edit the text",
@@ -4750,6 +4761,9 @@
           "note.readingPhoto": "Inasoma picha…",
           "note.failed": "Haikuweza kusomwa",
           "note.waiting": "Inasubiri nyaraka…",
+          "note.running": "Inaendesha uchambuzi…",
+          "note.done": "Maelezo ya kliniki yamechakatwa",
+          "note.runFailed": "Imeshindwa kuchakata maelezo ya kliniki",
           "note.saveEdit": "Hifadhi mabadiliko",
           "note.ocrTitle": "Maandishi yamesomwa kutoka kwenye picha kwa OCR. Gusa ili kuyakagua au kuyasahihisha.",
           "note.editTitle": "Gusa ili kuona au kuhariri maandishi",
@@ -4960,6 +4974,9 @@
           "note.readingPhoto": "Lecture de la photo…",
           "note.failed": "Lecture impossible",
           "note.waiting": "En attente des documents…",
+          "note.running": "Inférence en cours…",
+          "note.done": "Notes cliniques traitées",
+          "note.runFailed": "Impossible de traiter les notes cliniques",
           "note.saveEdit": "Enregistrer",
           "note.ocrTitle": "Texte lu sur l'image par OCR. Touchez pour le vérifier ou le corriger.",
           "note.editTitle": "Touchez pour voir ou modifier le texte",
@@ -5173,6 +5190,9 @@
           "note.readingPhoto": "جارٍ قراءة الصورة…",
           "note.failed": "تعذّرت القراءة",
           "note.waiting": "بانتظار المستندات…",
+          "note.running": "جارٍ تشغيل الاستدلال…",
+          "note.done": "تمت معالجة الملاحظات السريرية",
+          "note.runFailed": "تعذّرت معالجة الملاحظات السريرية",
           "note.saveEdit": "حفظ التغييرات",
           "note.ocrTitle": "نص مقروء من الصورة بتقنية OCR. اضغط للتحقق منه أو تصحيحه.",
           "note.editTitle": "اضغط لعرض النص أو تعديله",
@@ -5378,6 +5398,9 @@
           "note.readingPhoto": "ছবি পড়া হচ্ছে…",
           "note.failed": "পড়া যায়নি",
           "note.waiting": "নথির অপেক্ষায়…",
+          "note.running": "অনুমান চলছে…",
+          "note.done": "ক্লিনিক্যাল নোট প্রক্রিয়া করা হয়েছে",
+          "note.runFailed": "ক্লিনিক্যাল নোট প্রক্রিয়া করা যায়নি",
           "note.saveEdit": "পরিবর্তন সংরক্ষণ করুন",
           "note.ocrTitle": "ছবি থেকে OCR দিয়ে পড়া লেখা। যাচাই বা সংশোধন করতে ট্যাপ করুন।",
           "note.editTitle": "লেখা দেখতে বা সম্পাদনা করতে ট্যাপ করুন",
@@ -5589,6 +5612,9 @@
           "note.readingPhoto": "Leyendo la foto…",
           "note.failed": "No se pudo leer",
           "note.waiting": "Esperando los documentos…",
+          "note.running": "Ejecutando inferencia…",
+          "note.done": "Notas clínicas procesadas",
+          "note.runFailed": "No se pudieron procesar las notas clínicas",
           "note.saveEdit": "Guardar cambios",
           "note.ocrTitle": "Texto leído de la imagen con OCR. Toque para revisarlo o corregirlo.",
           "note.editTitle": "Toque para ver o editar el texto",
@@ -5801,6 +5827,9 @@
           "note.readingPhoto": "Ku hlaya xifaniso…",
           "note.failed": "A swi hlayeki",
           "note.waiting": "Ku rindzela matsalwa…",
+          "note.running": "Ku kumisisa xivangelo…",
+          "note.done": "Matsalwa ya kliniki ma lulamisiwile",
+          "note.runFailed": "A swi kotekanga ku lulamisa matsalwa ya kliniki",
           "note.saveEdit": "Hlayisa ku cinca",
           "note.ocrTitle": "Matsalwa lama hlayiweke eka xifaniso hi OCR. Khoma ku ma kambela kumbe ku ma lulamisa.",
           "note.editTitle": "Khoma ku vona kumbe ku lulamisa matsalwa",
@@ -6016,6 +6045,9 @@
           "note.readingPhoto": "Lendo a foto…",
           "note.failed": "Não foi possível ler",
           "note.waiting": "Aguardando documentos…",
+          "note.running": "Executando inferência…",
+          "note.done": "Notas clínicas processadas",
+          "note.runFailed": "Não foi possível processar as notas clínicas",
           "note.saveEdit": "Salvar alterações",
           "note.ocrTitle":
             "Texto lido da imagem por OCR. Toque para conferir ou corrigir.",
@@ -7553,6 +7585,7 @@
       // Settings wiring
       const copyBtn = document.getElementById("copyBtn");
       const statusMessage = document.getElementById("statusMessage");
+      let statusTimer = null;
       const micSelect = document.getElementById("micSelect");
       const languageSelect = document.getElementById("languageSelect");
       // Whether History also lists the server's stored cases
@@ -8107,7 +8140,8 @@
         statusMessage.className = `alert alert-${type}`;
         statusMessage.textContent = message;
         statusMessage.style.display = "block";
-        setTimeout(() => {
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => {
           statusMessage.style.display = "none";
         }, 3000);
       }
@@ -9661,7 +9695,9 @@
       const noteStrip = document.getElementById("noteStrip");
       const noteCards = document.getElementById("noteCards");
       const noteRunBtn = document.getElementById("noteRunBtn");
-      const noteRunLabel = noteRunBtn.querySelector("span");
+      const noteRunLabel = noteRunBtn.querySelector("[data-i18n]");
+      // A notes inference is in flight
+      let notesRunning = false;
 
       // A case is inferred either from a voice recording or from clinical
       // notes, whichever it starts with, until New. Null before either.
@@ -9885,8 +9921,13 @@
         noteCards.innerHTML = read.concat(pending).join("");
         // Inference waits for the documents still being read
         const reading = pendingNotes.some((p) => !p.error);
-        noteRunBtn.disabled = reading;
-        noteRunLabel.dataset.i18n = reading ? "note.waiting" : "note.run";
+        noteRunBtn.disabled = reading || notesRunning;
+        noteRunBtn.classList.toggle("running", notesRunning);
+        noteRunLabel.dataset.i18n = notesRunning
+          ? "note.running"
+          : reading
+            ? "note.waiting"
+            : "note.run";
         noteRunLabel.textContent = t(noteRunLabel.dataset.i18n);
         noteStrip.classList.toggle(
           "has-notes",
@@ -9903,7 +9944,8 @@
           showStatus(t("continue.inUse"), "warning");
           return;
         }
-        showStatus("Running inference on clinical notes…", "info");
+        notesRunning = true;
+        renderNoteCards();
         try {
           const view = viewCount;
           // A stored case is inferred with its own profile, as when continuing
@@ -9923,7 +9965,7 @@
           if (!resp.ok) {
             const err = await resp.json();
             if (err.detail === "changed") reloadChangedCase();
-            else showStatus(err.detail || "Inference failed", "danger");
+            else showStatus(err.detail || t("note.runFailed"), "danger");
             return;
           }
           const data = await resp.json();
@@ -9935,10 +9977,13 @@
           finalizeSessionIfSaving();
           renderResultHero();
           setSessionState("result");
-          showStatus("Clinical notes processed", "success");
+          showStatus(t("note.done"), "success");
         } catch (e) {
           console.error("Clinical notes inference failed:", e);
-          showStatus("Failed to process clinical notes", "danger");
+          showStatus(t("note.runFailed"), "danger");
+        } finally {
+          notesRunning = false;
+          renderNoteCards();
         }
       }
 
