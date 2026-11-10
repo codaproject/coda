@@ -9062,6 +9062,7 @@
           currentCaseRevision = revision;
           caseMetadataId = metadata.case_id;
           caseProfile = metadata.profile;
+          finalizeSessionIfSaving();
           if (bannerCase && body.classList.contains("viewing-case")) {
             renderCaseBanner({ ...bannerCase[0], metadata }, bannerCase[1]);
           }
