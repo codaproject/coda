@@ -116,8 +116,6 @@ where = ["src"]
     "static/**/*.woff",
     "static/**/*.woff2",
 ]
-"coda.grounding.rag_grounder" = ["grounder_config/*.yaml", "prompt_configs/*.yaml"]
-"coda.app" = ["templates/*.html"]
 "coda.grounding.rag_grounder" = ["prompts/*.yaml"]
 "coda.inference.champs_prompted" = ["prompts/*.txt", "prompts/icd10/*.txt",
                                      "prompts/icd11/*.txt",
