@@ -2061,6 +2061,81 @@
         max-width: 420px;
         margin: 0;
       }
+      /* Documents first: a documents panel in place of the microphone */
+      .idle-docs {
+        display: none;
+      }
+      body[data-documents-first="true"] .idle-hero {
+        display: none;
+      }
+      body[data-documents-first="true"] .idle-docs {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        width: 100%;
+        max-width: 640px;
+      }
+      .idle-docs h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--ink);
+        margin: 0;
+        text-align: center;
+      }
+      .idle-docs-drop {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 40px 16px;
+        border: 2px dashed var(--border-warm-strong);
+        border-radius: 12px;
+        background: var(--paper-elevated);
+        color: var(--ink-muted);
+        font: inherit;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .idle-docs-drop i {
+        font-size: 34px;
+        color: var(--ink-soft);
+      }
+      .idle-docs-drop:hover,
+      body.note-drag-over .idle-docs-drop {
+        border-color: var(--accent-sage);
+        background: var(--accent-sage-soft);
+      }
+      #idleDocsNotes {
+        display: contents;
+      }
+      .idle-docs .note-strip,
+      .idle-docs .note-editor:not([hidden]) {
+        width: 100%;
+        justify-content: center;
+        padding: 0;
+        background: none;
+        border: none;
+        outline: none;
+      }
+      .idle-docs .note-drop-hint,
+      .idle-docs:has(.note-editor:not([hidden])) #idleTypeBtn {
+        display: none;
+      }
+      .idle-dictate {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 12px;
+        font-size: 14px;
+        color: var(--ink-muted);
+      }
+      .idle-dictate .btn {
+        border-radius: 999px;
+      }
       .idle-footer {
         font-size: 11px;
         font-weight: 500;
@@ -3835,6 +3910,7 @@
         </div>
       </div>
 
+      <div id="noteHome" hidden></div>
       <div class="note-strip" id="noteStrip">
         <div class="note-cards" id="noteCards"></div>
         <span class="note-drop-hint" data-i18n="note.dropHint"
@@ -3961,6 +4037,27 @@
             Press the button or use the space bar. Your audio is transcribed on
             this device.
           </p>
+        </div>
+        <div class="idle-docs">
+          <h1 data-i18n="idle.docsHeading">Add the case documents</h1>
+          <button type="button" class="idle-docs-drop" id="idleDocsDrop">
+            <i class="bi bi-file-earmark-arrow-up"></i>
+            <span data-i18n="idle.docsChoose"
+              >Choose clinical notes, PDFs or photos, or drop them here</span
+            >
+          </button>
+          <div id="idleDocsNotes"></div>
+          <button type="button" class="btn btn-ghost" id="idleTypeBtn">
+            <i class="bi bi-pencil-square"></i>
+            <span data-i18n="note.type">Type note</span>
+          </button>
+          <div class="idle-dictate">
+            <span data-i18n="idle.dictateLead">Or describe the case aloud</span>
+            <button type="button" class="btn btn-ghost" id="idleDictateBtn">
+              <i class="bi bi-mic-fill"></i>
+              <span data-i18n="idle.dictate">Dictate</span>
+            </button>
+          </div>
         </div>
         <div class="idle-recent" id="idleRecentBlock">
           <div class="idle-recent-head">
@@ -4569,6 +4666,10 @@
           "onboard.footLeft":
             "No data leaves this device. No sign-in required.",
           "idle.begin": "Start recording",
+          "idle.docsHeading": "Add the case documents",
+          "idle.docsChoose": "Choose clinical notes, PDFs or photos, or drop them here",
+          "idle.dictateLead": "Or describe the case aloud",
+          "idle.dictate": "Dictate",
           "idle.helper":
             "Press the button or use the space bar. Your audio is transcribed on this device.",
           "idle.advisory":
@@ -4782,6 +4883,10 @@
           "onboard.footLeft":
             "Hakuna data inayotoka kwenye kifaa hiki. Hakuna kuingia kunakohitajika.",
           "idle.begin": "Anza kurekodi",
+          "idle.docsHeading": "Ongeza nyaraka za kesi",
+          "idle.docsChoose": "Chagua maelezo ya kliniki, PDF au picha, au ziangushe hapa",
+          "idle.dictateLead": "Au eleza kesi kwa sauti",
+          "idle.dictate": "Imla",
           "idle.helper":
             "Bonyeza kitufe au tumia upau wa nafasi. Sauti yako inaandikwa kwenye kifaa hiki.",
           "idle.advisory": "Ushauri tu · Uamuzi wa mwisho ni wa daktari",
@@ -4996,6 +5101,10 @@
           "onboard.footLeft":
             "Aucune donnée ne quitte cet appareil. Aucune connexion requise.",
           "idle.begin": "Commencer l'enregistrement",
+          "idle.docsHeading": "Ajoutez les documents du cas",
+          "idle.docsChoose": "Choisissez des notes cliniques, des PDF ou des photos, ou déposez-les ici",
+          "idle.dictateLead": "Ou décrivez le cas à voix haute",
+          "idle.dictate": "Dicter",
           "idle.helper":
             "Appuyez sur le bouton ou la barre d'espace. Votre audio est transcrit sur cet appareil.",
           "idle.advisory":
@@ -5210,6 +5319,10 @@
           "onboard.footLeft":
             "لا تغادر أي بيانات هذا الجهاز. لا يلزم تسجيل الدخول.",
           "idle.begin": "ابدأ التسجيل",
+          "idle.docsHeading": "أضف مستندات الحالة",
+          "idle.docsChoose": "اختر ملاحظات سريرية أو ملفات PDF أو صورًا، أو أفلتها هنا",
+          "idle.dictateLead": "أو صف الحالة بصوتك",
+          "idle.dictate": "إملاء",
           "idle.helper":
             "اضغط الزر أو استخدم مسطرة المسافة. يتم نسخ صوتك على هذا الجهاز.",
           "idle.advisory": "استشاري فقط · القرار النهائي يعود للطبيب",
@@ -5420,6 +5533,10 @@
           "onboard.footLeft":
             "কোনো ডেটা এই ডিভাইস ছেড়ে যায় না। সাইন-ইন লাগে না।",
           "idle.begin": "রেকর্ডিং শুরু করুন",
+          "idle.docsHeading": "কেসের নথি যোগ করুন",
+          "idle.docsChoose": "ক্লিনিক্যাল নোট, PDF বা ছবি বেছে নিন, অথবা এখানে ছেড়ে দিন",
+          "idle.dictateLead": "অথবা কেসটি মুখে বর্ণনা করুন",
+          "idle.dictate": "ডিক্টেট করুন",
           "idle.helper":
             "বোতাম টিপুন বা স্পেস বার ব্যবহার করুন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
           "idle.advisory": "শুধু পরামর্শ · চূড়ান্ত সিদ্ধান্ত চিকিৎসকের",
@@ -5634,6 +5751,10 @@
           "onboard.footLeft":
             "Ningún dato sale de este dispositivo. No se requiere inicio de sesión.",
           "idle.begin": "Empezar a grabar",
+          "idle.docsHeading": "Añada los documentos del caso",
+          "idle.docsChoose": "Elija notas clínicas, PDF o fotos, o suéltelos aquí",
+          "idle.dictateLead": "O describa el caso en voz alta",
+          "idle.dictate": "Dictar",
           "idle.helper":
             "Presiona el botón o la barra espaciadora. Tu audio se transcribe en este dispositivo.",
           "idle.advisory":
@@ -5849,6 +5970,10 @@
           "onboard.footLeft":
             "A ku na vuxokoxoko lebyi humaka eka xitirhisiwa lexi. A swi laveki ku nghena.",
           "idle.begin": "Sungula ku rhekhoda",
+          "idle.docsHeading": "Engetela matsalwa ya mhaka",
+          "idle.docsChoose": "Hlawula matsalwa ya kliniki, ti-PDF kumbe swifaniso, kumbe u swi wisela laha",
+          "idle.dictateLead": "Kumbe u hlamusela mhaka hi rito",
+          "idle.dictate": "Vula u tsariwa",
           "idle.helper":
             "Tshikilela batheni kumbe u tirhisa batheni yo siya xivandla (space bar). Marito ya wena ya tsariwa eka xitirhisiwa lexi.",
           "idle.advisory":
@@ -6068,6 +6193,10 @@
           "onboard.footLeft":
             "Nenhum dado sai deste dispositivo. Não é preciso fazer login.",
           "idle.begin": "Iniciar gravação",
+          "idle.docsHeading": "Adicione os documentos do caso",
+          "idle.docsChoose": "Escolha notas clínicas, PDFs ou fotos, ou solte-os aqui",
+          "idle.dictateLead": "Ou descreva o caso em voz alta",
+          "idle.dictate": "Ditar",
           "idle.helper":
             "Pressione o botão ou use a barra de espaço. Seu áudio é transcrito neste dispositivo.",
           "idle.advisory":
@@ -6338,6 +6467,16 @@
         sessionState = next;
         body.dataset.state = next;
         syncCaseSource();
+        // The idle documents panel holds the note cards and editor
+        if (body.dataset.documentsFirst === "true") {
+          const strip = document.getElementById("noteStrip");
+          const editor = document.getElementById("noteEditor");
+          if (next === "idle") {
+            document.getElementById("idleDocsNotes").append(strip, editor);
+          } else {
+            document.getElementById("noteHome").after(strip, editor);
+          }
+        }
       }
 
       // Best available cause code from an identifiers map, regardless of
@@ -9743,6 +9882,16 @@
         noteInput.value = "";
       });
       noteRunBtn.addEventListener("click", runClinicalNotes);
+      // Idle documents panel
+      document.getElementById("idleDocsDrop").addEventListener("click", () =>
+        noteBtn.click(),
+      );
+      document.getElementById("idleTypeBtn").addEventListener("click", () =>
+        document.getElementById("noteTypeBtn").click(),
+      );
+      document.getElementById("idleDictateBtn").addEventListener("click", () =>
+        heroMicBtn.click(),
+      );
 
       // Typed notes join the uploaded ones as numbered .txt files
       let typedNoteCount = 0;
