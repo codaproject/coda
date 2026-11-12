@@ -11,3 +11,7 @@ app:
 inference:
   num_questions: 0
   question_style: default
+
+storage:
+  store:
+    audio: true

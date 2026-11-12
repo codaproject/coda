@@ -29,5 +29,3 @@ dialogue:
 
 storage:
   enabled: true
-  store:
-    audio: true

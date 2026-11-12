@@ -50,7 +50,9 @@ settings. Without the package, CODA starts as usual and the LLM writes the
 follow-up questions.
 
 Everything shown in the CODA Terminal window is also kept in
-`~/Library/Logs/CODA/coda.log`, and saved cases are in `~/.data/coda/cases`.
+`~/Library/Logs/CODA/coda.log`, and saved cases are in `~/CODA_Cases`, which
+the `CODA_Cases` shortcut on the Desktop opens. Cases saved by earlier
+releases in `~/.data/coda/cases` move there the first time CODA starts.
 
 Phones and tablets on the same network connect as described in the main
 README under "Phone or tablet on the same network". CODA prints the setup page

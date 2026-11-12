@@ -206,6 +206,7 @@ The Compose path is env-driven. The main runtime variables are:
   filenames and text, or only their filenames with
   `CODA_STORAGE__STORE__NOTES=false`.
   Each item can be switched off under `storage.store` in `settings.yaml`.
+  [CASE_STORAGE.md](CASE_STORAGE.md) lists every file and its schema.
 - `CODA_STORAGE__BROWSE=true` lists the stored cases in History, where they
   open with their recording when audio was kept, and can be continued. Anyone
   who can reach the server can then read every case, so enable it only where
