@@ -77,12 +77,10 @@ def _disable_text_conditioning(asr):
 
 
 def _omit_empty_prompt(asr):
-    """Decode without a prompt when a LocalAgreement ASR has no previous text.
+    """Decode a LocalAgreement ASR with no prompt when there is no prior text.
 
-    The backends then pass an empty prompt, which Whisper reads as a prompt
-    of one space. With it the first decode fails more often than with no
-    prompt, and the retries that follow are slow and prone to repetition
-    loops.
+    The backends otherwise pass an empty prompt, which Whisper encodes as a
+    prompt of one space.
     """
     transcribe = asr.transcribe
 
@@ -102,12 +100,10 @@ def _bare(word):
 
 
 def _loop_span(words):
-    """Return (start, end, phrase length) of a repetition loop.
+    """Return (start, end, phrase length) of the shortest-phrase loop, or None.
 
-    A loop is a phrase of any length said at least LOOP_COPIES times in a
-    row. It spans its whole copies, and a last copy that the end of the
-    words cuts short. The loop with the shortest phrase is returned, or
-    None when there is none.
+    A loop is a phrase said at least LOOP_COPIES times in a row. Its span
+    covers its whole copies and a last copy cut short by the end of words.
     """
     for n in range(1, len(words) // LOOP_COPIES + 1):
         run = 0
@@ -125,14 +121,12 @@ def _loop_span(words):
 
 
 def _collapse_loops(asr):
-    """Keep one copy of each phrase a decode of a LocalAgreement ASR loops on.
+    """Keep one copy of each phrase a LocalAgreement ASR decode loops on.
 
-    Whisper can repeat a word or phrase many times over noise or overlapping
-    speech. Committed words become the prompt of the next decode, so a
-    committed loop keeps itself going. Collapsing it before the words are
-    compared with the previous decode keeps it out of both. The copy kept
-    ends where the last whole copy ended, so committing it still passes
-    over the audio of the loop.
+    Committed words prompt the next decode, so a committed loop keeps
+    itself going. Collapsing before decodes are compared keeps it out of
+    both. The copy kept ends where the last whole copy ended, so committing
+    it passes over the loop's audio.
     """
     ts_words = asr.ts_words
 
