@@ -120,6 +120,25 @@ def _loop_span(words):
     return None
 
 
+def _drop_undecodable(words):
+    """Return words without the characters Whisper could not decode.
+
+    Tokens that are not valid text decode to U+FFFD, and a run of them is
+    glued to one word. A word left with no letters is dropped, and the word
+    before it ends where it ended, so committing it passes over its audio.
+    """
+    kept = []
+    for word in words:
+        if "\ufffd" in word.text:
+            word.text = word.text.replace("\ufffd", "")
+            if not _bare(word.text):
+                if kept:
+                    kept[-1].end = word.end
+                continue
+        kept.append(word)
+    return kept
+
+
 def _collapse_loops(asr):
     """Keep one copy of each phrase a LocalAgreement ASR decode loops on.
 
@@ -131,7 +150,7 @@ def _collapse_loops(asr):
     ts_words = asr.ts_words
 
     def wrapper(segments):
-        words = ts_words(segments)
+        words = _drop_undecodable(ts_words(segments))
         while span := _loop_span([_bare(word.text) for word in words]):
             start, end, n = span
             copies = (end - start) // n
