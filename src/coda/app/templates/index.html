@@ -9251,9 +9251,9 @@
 
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-          // Only pause for touch-only devices.
-          const finePointer = window.matchMedia("(any-pointer: fine)").matches;
-          if (isRecording && !isPaused && !finePointer) {
+          // Only pause for touch-first devices.
+          const touchFirst = matchMedia("(pointer: coarse)").matches;
+          if (isRecording && !isPaused && touchFirst) {
             pauseRecording();
             pausedByHide = true;
           }
