@@ -13,7 +13,7 @@ from typing import AsyncIterator
 from . import StreamingTranscriber, TranscriptEvent
 from .finetuned_whisper import FINETUNED_LANGUAGES, FINETUNED_MODELS, \
     decode_options, get_model_path
-from .mlx_whisper import limit_retries
+from .mlx_whisper import keep_best_decode, limit_retries
 from .util import get_whisper_languages
 
 # Model size used when none is supplied (matches the other backends).
@@ -258,6 +258,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
             _collapse_loops(self._engine.asr)
             if wlk.backend == "mlx-whisper":
                 limit_retries(self._engine.asr)
+                keep_best_decode()
         _serialize_dtw()
 
     async def stream(self, audio: AsyncIterator[bytes], *,
