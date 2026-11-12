@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import math
+import re
 import string
 import sys
 import threading
@@ -139,6 +140,24 @@ def _drop_undecodable(words):
     return kept
 
 
+# Two or more characters repeated LOOP_COPIES times in a row within a word
+INNER_LOOP = re.compile(r"(.{2,}?)\1{%d,}" % (LOOP_COPIES - 1))
+
+
+def _collapse_inner(text):
+    """Return a word with one copy of each run of characters it loops on.
+
+    A last copy cut short by the end of the word is dropped too.
+    """
+    match = INNER_LOOP.search(text)
+    if match is None:
+        return text
+    unit, rest = match[1], text[match.end():]
+    if unit.startswith(rest):
+        rest = ""
+    return text[:match.start()] + unit + _collapse_inner(rest)
+
+
 def _collapse_loops(asr):
     """Keep one copy of each phrase a LocalAgreement ASR decode loops on.
 
@@ -151,6 +170,8 @@ def _collapse_loops(asr):
 
     def wrapper(segments):
         words = _drop_undecodable(ts_words(segments))
+        for word in words:
+            word.text = _collapse_inner(word.text)
         while span := _loop_span([_bare(word.text) for word in words]):
             start, end, n = span
             copies = (end - start) // n

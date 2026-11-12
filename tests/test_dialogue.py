@@ -25,7 +25,7 @@ from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue import whisper_livekit
 from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
-    _events_from_response, _collapse_loops, _loop_span
+    _events_from_response, _collapse_inner, _collapse_loops, _loop_span
 
 
 class _FakeTranscriber(ChunkedTranscriber):
@@ -231,6 +231,13 @@ def test_loop_span():
     assert _loop_span("yes yes yes".split()) is None
 
 
+def test_collapse_inner():
+    assert _collapse_inner("thePorPorPorPorPorPo") == "thePor"
+    assert _collapse_inner("hahaha") == "hahaha"
+    assert _collapse_inner("kakhulu") == "kakhulu"
+    assert _collapse_inner("abababab.") == "ab."
+
+
 def test_collapse_loops():
     from whisperlivekit.timed_objects import ASRToken
 
@@ -243,6 +250,11 @@ def test_collapse_loops():
     words = asr.ts_words("I think I think I think I think I")
     assert [w.text for w in words] == ["I", "think"]
     assert words[1].end == 8
+    words = asr.ts_words("of thePorPorPorPorPor")
+    assert [w.text for w in words] == ["of", "thePor"]
+    words = asr.ts_words("of \ufffd\ufffd thePor\ufffdPorPorPor fever")
+    assert [w.text for w in words] == ["of", "thePor", "fever"]
+    assert words[0].end == 2
 
 
 async def test_whisper_livekit_stream_keeps_every_word(monkeypatch):
