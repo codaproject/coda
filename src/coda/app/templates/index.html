@@ -791,6 +791,13 @@
         opacity: 0.6;
         cursor: default;
       }
+      #noteRunBtn .note-card-spinner {
+        display: inline-block;
+      }
+      #noteRunBtn:not(.running) .note-card-spinner,
+      #noteRunBtn.running i {
+        display: none;
+      }
       .note-editor:not([hidden]) {
         display: flex;
         flex-direction: column;
@@ -2053,6 +2060,81 @@
         color: var(--ink-muted);
         max-width: 420px;
         margin: 0;
+      }
+      /* Documents first: a documents panel in place of the microphone */
+      .idle-docs {
+        display: none;
+      }
+      body[data-documents-first="true"] .idle-hero {
+        display: none;
+      }
+      body[data-documents-first="true"] .idle-docs {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        width: 100%;
+        max-width: 640px;
+      }
+      .idle-docs h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--ink);
+        margin: 0;
+        text-align: center;
+      }
+      .idle-docs-drop {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 40px 16px;
+        border: 2px dashed var(--border-warm-strong);
+        border-radius: 12px;
+        background: var(--paper-elevated);
+        color: var(--ink-muted);
+        font: inherit;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .idle-docs-drop i {
+        font-size: 34px;
+        color: var(--ink-soft);
+      }
+      .idle-docs-drop:hover,
+      body.note-drag-over .idle-docs-drop {
+        border-color: var(--accent-sage);
+        background: var(--accent-sage-soft);
+      }
+      #idleDocsNotes {
+        display: contents;
+      }
+      .idle-docs .note-strip,
+      .idle-docs .note-editor:not([hidden]) {
+        width: 100%;
+        justify-content: center;
+        padding: 0;
+        background: none;
+        border: none;
+        outline: none;
+      }
+      .idle-docs .note-drop-hint,
+      .idle-docs:has(.note-editor:not([hidden])) #idleTypeBtn {
+        display: none;
+      }
+      .idle-dictate {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 12px;
+        font-size: 14px;
+        color: var(--ink-muted);
+      }
+      .idle-dictate .btn {
+        border-radius: 999px;
       }
       .idle-footer {
         font-size: 11px;
@@ -3828,6 +3910,7 @@
         </div>
       </div>
 
+      <div id="noteHome" hidden></div>
       <div class="note-strip" id="noteStrip">
         <div class="note-cards" id="noteCards"></div>
         <span class="note-drop-hint" data-i18n="note.dropHint"
@@ -3835,6 +3918,7 @@
         >
         <button id="noteRunBtn" class="btn btn-ghost">
           <i class="bi bi-play-fill"></i>
+          <span class="note-card-spinner"></span>
           <span data-i18n="note.run">Run inference</span>
         </button>
       </div>
@@ -3953,6 +4037,27 @@
             Press the button or use the space bar. Your audio is transcribed on
             this device.
           </p>
+        </div>
+        <div class="idle-docs">
+          <h1 data-i18n="idle.docsHeading">Add the case documents</h1>
+          <button type="button" class="idle-docs-drop" id="idleDocsDrop">
+            <i class="bi bi-file-earmark-arrow-up"></i>
+            <span data-i18n="idle.docsChoose"
+              >Choose clinical notes, PDFs or photos, or drop them here</span
+            >
+          </button>
+          <div id="idleDocsNotes"></div>
+          <button type="button" class="btn btn-ghost" id="idleTypeBtn">
+            <i class="bi bi-pencil-square"></i>
+            <span data-i18n="note.type">Type note</span>
+          </button>
+          <div class="idle-dictate">
+            <span data-i18n="idle.dictateLead">Or describe the case aloud</span>
+            <button type="button" class="btn btn-ghost" id="idleDictateBtn">
+              <i class="bi bi-mic-fill"></i>
+              <span data-i18n="idle.dictate">Dictate</span>
+            </button>
+          </div>
         </div>
         <div class="idle-recent" id="idleRecentBlock">
           <div class="idle-recent-head">
@@ -4540,6 +4645,9 @@
           "note.readingPhoto": "Reading photo…",
           "note.failed": "Could not read",
           "note.waiting": "Waiting for documents…",
+          "note.running": "Running inference…",
+          "note.done": "Clinical notes processed",
+          "note.runFailed": "Could not process the clinical notes",
           "note.saveEdit": "Save changes",
           "note.ocrTitle": "Text read from the image by OCR. Tap to check or correct it.",
           "note.editTitle": "Tap to view or edit the text",
@@ -4558,6 +4666,10 @@
           "onboard.footLeft":
             "No data leaves this device. No sign-in required.",
           "idle.begin": "Start recording",
+          "idle.docsHeading": "Add the case documents",
+          "idle.docsChoose": "Choose clinical notes, PDFs or photos, or drop them here",
+          "idle.dictateLead": "Or describe the case aloud",
+          "idle.dictate": "Dictate",
           "idle.helper":
             "Press the button or use the space bar. Your audio is transcribed on this device.",
           "idle.advisory":
@@ -4750,6 +4862,9 @@
           "note.readingPhoto": "Inasoma picha…",
           "note.failed": "Haikuweza kusomwa",
           "note.waiting": "Inasubiri nyaraka…",
+          "note.running": "Inaendesha uchambuzi…",
+          "note.done": "Maelezo ya kliniki yamechakatwa",
+          "note.runFailed": "Imeshindwa kuchakata maelezo ya kliniki",
           "note.saveEdit": "Hifadhi mabadiliko",
           "note.ocrTitle": "Maandishi yamesomwa kutoka kwenye picha kwa OCR. Gusa ili kuyakagua au kuyasahihisha.",
           "note.editTitle": "Gusa ili kuona au kuhariri maandishi",
@@ -4768,6 +4883,10 @@
           "onboard.footLeft":
             "Hakuna data inayotoka kwenye kifaa hiki. Hakuna kuingia kunakohitajika.",
           "idle.begin": "Anza kurekodi",
+          "idle.docsHeading": "Ongeza nyaraka za kesi",
+          "idle.docsChoose": "Chagua maelezo ya kliniki, PDF au picha, au ziangushe hapa",
+          "idle.dictateLead": "Au eleza kesi kwa sauti",
+          "idle.dictate": "Imla",
           "idle.helper":
             "Bonyeza kitufe au tumia upau wa nafasi. Sauti yako inaandikwa kwenye kifaa hiki.",
           "idle.advisory": "Ushauri tu · Uamuzi wa mwisho ni wa daktari",
@@ -4960,6 +5079,9 @@
           "note.readingPhoto": "Lecture de la photo…",
           "note.failed": "Lecture impossible",
           "note.waiting": "En attente des documents…",
+          "note.running": "Inférence en cours…",
+          "note.done": "Notes cliniques traitées",
+          "note.runFailed": "Impossible de traiter les notes cliniques",
           "note.saveEdit": "Enregistrer",
           "note.ocrTitle": "Texte lu sur l'image par OCR. Touchez pour le vérifier ou le corriger.",
           "note.editTitle": "Touchez pour voir ou modifier le texte",
@@ -4979,6 +5101,10 @@
           "onboard.footLeft":
             "Aucune donnée ne quitte cet appareil. Aucune connexion requise.",
           "idle.begin": "Commencer l'enregistrement",
+          "idle.docsHeading": "Ajoutez les documents du cas",
+          "idle.docsChoose": "Choisissez des notes cliniques, des PDF ou des photos, ou déposez-les ici",
+          "idle.dictateLead": "Ou décrivez le cas à voix haute",
+          "idle.dictate": "Dicter",
           "idle.helper":
             "Appuyez sur le bouton ou la barre d'espace. Votre audio est transcrit sur cet appareil.",
           "idle.advisory":
@@ -5173,6 +5299,9 @@
           "note.readingPhoto": "جارٍ قراءة الصورة…",
           "note.failed": "تعذّرت القراءة",
           "note.waiting": "بانتظار المستندات…",
+          "note.running": "جارٍ تشغيل الاستدلال…",
+          "note.done": "تمت معالجة الملاحظات السريرية",
+          "note.runFailed": "تعذّرت معالجة الملاحظات السريرية",
           "note.saveEdit": "حفظ التغييرات",
           "note.ocrTitle": "نص مقروء من الصورة بتقنية OCR. اضغط للتحقق منه أو تصحيحه.",
           "note.editTitle": "اضغط لعرض النص أو تعديله",
@@ -5190,6 +5319,10 @@
           "onboard.footLeft":
             "لا تغادر أي بيانات هذا الجهاز. لا يلزم تسجيل الدخول.",
           "idle.begin": "ابدأ التسجيل",
+          "idle.docsHeading": "أضف مستندات الحالة",
+          "idle.docsChoose": "اختر ملاحظات سريرية أو ملفات PDF أو صورًا، أو أفلتها هنا",
+          "idle.dictateLead": "أو صف الحالة بصوتك",
+          "idle.dictate": "إملاء",
           "idle.helper":
             "اضغط الزر أو استخدم مسطرة المسافة. يتم نسخ صوتك على هذا الجهاز.",
           "idle.advisory": "استشاري فقط · القرار النهائي يعود للطبيب",
@@ -5378,6 +5511,9 @@
           "note.readingPhoto": "ছবি পড়া হচ্ছে…",
           "note.failed": "পড়া যায়নি",
           "note.waiting": "নথির অপেক্ষায়…",
+          "note.running": "অনুমান চলছে…",
+          "note.done": "ক্লিনিক্যাল নোট প্রক্রিয়া করা হয়েছে",
+          "note.runFailed": "ক্লিনিক্যাল নোট প্রক্রিয়া করা যায়নি",
           "note.saveEdit": "পরিবর্তন সংরক্ষণ করুন",
           "note.ocrTitle": "ছবি থেকে OCR দিয়ে পড়া লেখা। যাচাই বা সংশোধন করতে ট্যাপ করুন।",
           "note.editTitle": "লেখা দেখতে বা সম্পাদনা করতে ট্যাপ করুন",
@@ -5397,6 +5533,10 @@
           "onboard.footLeft":
             "কোনো ডেটা এই ডিভাইস ছেড়ে যায় না। সাইন-ইন লাগে না।",
           "idle.begin": "রেকর্ডিং শুরু করুন",
+          "idle.docsHeading": "কেসের নথি যোগ করুন",
+          "idle.docsChoose": "ক্লিনিক্যাল নোট, PDF বা ছবি বেছে নিন, অথবা এখানে ছেড়ে দিন",
+          "idle.dictateLead": "অথবা কেসটি মুখে বর্ণনা করুন",
+          "idle.dictate": "ডিক্টেট করুন",
           "idle.helper":
             "বোতাম টিপুন বা স্পেস বার ব্যবহার করুন। আপনার অডিও এই ডিভাইসেই প্রতিলিপিত হচ্ছে।",
           "idle.advisory": "শুধু পরামর্শ · চূড়ান্ত সিদ্ধান্ত চিকিৎসকের",
@@ -5589,6 +5729,9 @@
           "note.readingPhoto": "Leyendo la foto…",
           "note.failed": "No se pudo leer",
           "note.waiting": "Esperando los documentos…",
+          "note.running": "Ejecutando inferencia…",
+          "note.done": "Notas clínicas procesadas",
+          "note.runFailed": "No se pudieron procesar las notas clínicas",
           "note.saveEdit": "Guardar cambios",
           "note.ocrTitle": "Texto leído de la imagen con OCR. Toque para revisarlo o corregirlo.",
           "note.editTitle": "Toque para ver o editar el texto",
@@ -5608,6 +5751,10 @@
           "onboard.footLeft":
             "Ningún dato sale de este dispositivo. No se requiere inicio de sesión.",
           "idle.begin": "Empezar a grabar",
+          "idle.docsHeading": "Añada los documentos del caso",
+          "idle.docsChoose": "Elija notas clínicas, PDF o fotos, o suéltelos aquí",
+          "idle.dictateLead": "O describa el caso en voz alta",
+          "idle.dictate": "Dictar",
           "idle.helper":
             "Presiona el botón o la barra espaciadora. Tu audio se transcribe en este dispositivo.",
           "idle.advisory":
@@ -5801,6 +5948,9 @@
           "note.readingPhoto": "Ku hlaya xifaniso…",
           "note.failed": "A swi hlayeki",
           "note.waiting": "Ku rindzela matsalwa…",
+          "note.running": "Ku kumisisa xivangelo…",
+          "note.done": "Matsalwa ya kliniki ma lulamisiwile",
+          "note.runFailed": "A swi kotekanga ku lulamisa matsalwa ya kliniki",
           "note.saveEdit": "Hlayisa ku cinca",
           "note.ocrTitle": "Matsalwa lama hlayiweke eka xifaniso hi OCR. Khoma ku ma kambela kumbe ku ma lulamisa.",
           "note.editTitle": "Khoma ku vona kumbe ku lulamisa matsalwa",
@@ -5820,6 +5970,10 @@
           "onboard.footLeft":
             "A ku na vuxokoxoko lebyi humaka eka xitirhisiwa lexi. A swi laveki ku nghena.",
           "idle.begin": "Sungula ku rhekhoda",
+          "idle.docsHeading": "Engetela matsalwa ya mhaka",
+          "idle.docsChoose": "Hlawula matsalwa ya kliniki, ti-PDF kumbe swifaniso, kumbe u swi wisela laha",
+          "idle.dictateLead": "Kumbe u hlamusela mhaka hi rito",
+          "idle.dictate": "Vula u tsariwa",
           "idle.helper":
             "Tshikilela batheni kumbe u tirhisa batheni yo siya xivandla (space bar). Marito ya wena ya tsariwa eka xitirhisiwa lexi.",
           "idle.advisory":
@@ -6016,6 +6170,9 @@
           "note.readingPhoto": "Lendo a foto…",
           "note.failed": "Não foi possível ler",
           "note.waiting": "Aguardando documentos…",
+          "note.running": "Executando inferência…",
+          "note.done": "Notas clínicas processadas",
+          "note.runFailed": "Não foi possível processar as notas clínicas",
           "note.saveEdit": "Salvar alterações",
           "note.ocrTitle":
             "Texto lido da imagem por OCR. Toque para conferir ou corrigir.",
@@ -6036,6 +6193,10 @@
           "onboard.footLeft":
             "Nenhum dado sai deste dispositivo. Não é preciso fazer login.",
           "idle.begin": "Iniciar gravação",
+          "idle.docsHeading": "Adicione os documentos do caso",
+          "idle.docsChoose": "Escolha notas clínicas, PDFs ou fotos, ou solte-os aqui",
+          "idle.dictateLead": "Ou descreva o caso em voz alta",
+          "idle.dictate": "Ditar",
           "idle.helper":
             "Pressione o botão ou use a barra de espaço. Seu áudio é transcrito neste dispositivo.",
           "idle.advisory":
@@ -6306,6 +6467,16 @@
         sessionState = next;
         body.dataset.state = next;
         syncCaseSource();
+        // The idle documents panel holds the note cards and editor
+        if (body.dataset.documentsFirst === "true") {
+          const strip = document.getElementById("noteStrip");
+          const editor = document.getElementById("noteEditor");
+          if (next === "idle") {
+            document.getElementById("idleDocsNotes").append(strip, editor);
+          } else {
+            document.getElementById("noteHome").after(strip, editor);
+          }
+        }
       }
 
       // Best available cause code from an identifiers map, regardless of
@@ -7553,6 +7724,7 @@
       // Settings wiring
       const copyBtn = document.getElementById("copyBtn");
       const statusMessage = document.getElementById("statusMessage");
+      let statusTimer = null;
       const micSelect = document.getElementById("micSelect");
       const languageSelect = document.getElementById("languageSelect");
       // Whether History also lists the server's stored cases
@@ -8107,7 +8279,8 @@
         statusMessage.className = `alert alert-${type}`;
         statusMessage.textContent = message;
         statusMessage.style.display = "block";
-        setTimeout(() => {
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => {
           statusMessage.style.display = "none";
         }, 3000);
       }
@@ -9661,7 +9834,9 @@
       const noteStrip = document.getElementById("noteStrip");
       const noteCards = document.getElementById("noteCards");
       const noteRunBtn = document.getElementById("noteRunBtn");
-      const noteRunLabel = noteRunBtn.querySelector("span");
+      const noteRunLabel = noteRunBtn.querySelector("[data-i18n]");
+      // A notes inference is in flight
+      let notesRunning = false;
 
       // A case is inferred either from a voice recording or from clinical
       // notes, whichever it starts with, until New. Null before either.
@@ -9707,6 +9882,16 @@
         noteInput.value = "";
       });
       noteRunBtn.addEventListener("click", runClinicalNotes);
+      // Idle documents panel
+      document.getElementById("idleDocsDrop").addEventListener("click", () =>
+        noteBtn.click(),
+      );
+      document.getElementById("idleTypeBtn").addEventListener("click", () =>
+        document.getElementById("noteTypeBtn").click(),
+      );
+      document.getElementById("idleDictateBtn").addEventListener("click", () =>
+        heroMicBtn.click(),
+      );
 
       // Typed notes join the uploaded ones as numbered .txt files
       let typedNoteCount = 0;
@@ -9885,8 +10070,13 @@
         noteCards.innerHTML = read.concat(pending).join("");
         // Inference waits for the documents still being read
         const reading = pendingNotes.some((p) => !p.error);
-        noteRunBtn.disabled = reading;
-        noteRunLabel.dataset.i18n = reading ? "note.waiting" : "note.run";
+        noteRunBtn.disabled = reading || notesRunning;
+        noteRunBtn.classList.toggle("running", notesRunning);
+        noteRunLabel.dataset.i18n = notesRunning
+          ? "note.running"
+          : reading
+            ? "note.waiting"
+            : "note.run";
         noteRunLabel.textContent = t(noteRunLabel.dataset.i18n);
         noteStrip.classList.toggle(
           "has-notes",
@@ -9903,7 +10093,8 @@
           showStatus(t("continue.inUse"), "warning");
           return;
         }
-        showStatus("Running inference on clinical notes…", "info");
+        notesRunning = true;
+        renderNoteCards();
         try {
           const view = viewCount;
           // A stored case is inferred with its own profile, as when continuing
@@ -9923,7 +10114,7 @@
           if (!resp.ok) {
             const err = await resp.json();
             if (err.detail === "changed") reloadChangedCase();
-            else showStatus(err.detail || "Inference failed", "danger");
+            else showStatus(err.detail || t("note.runFailed"), "danger");
             return;
           }
           const data = await resp.json();
@@ -9935,10 +10126,13 @@
           finalizeSessionIfSaving();
           renderResultHero();
           setSessionState("result");
-          showStatus("Clinical notes processed", "success");
+          showStatus(t("note.done"), "success");
         } catch (e) {
           console.error("Clinical notes inference failed:", e);
-          showStatus("Failed to process clinical notes", "danger");
+          showStatus(t("note.runFailed"), "danger");
+        } finally {
+          notesRunning = false;
+          renderNoteCards();
         }
       }
 

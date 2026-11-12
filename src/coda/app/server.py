@@ -1778,6 +1778,13 @@ async def get_index():
             '<body data-show-clinical-note="false"',
             1,
         )
+    if settings.app.get("show_clinical_note", False) and \
+            settings.app.get("documents_first", False):
+        html_content = html_content.replace(
+            "<body",
+            '<body data-documents-first="true"',
+            1,
+        )
     if not settings.app.get("show_mccd", False):
         html_content = html_content.replace(
             "<body",

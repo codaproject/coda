@@ -58,6 +58,9 @@ app:
   # When false, the clinical note button, file cards and drag-and-drop are
   # hidden.
   show_clinical_note: false
+  # When true, the start screen leads with adding clinical notes, with a small
+  # button to dictate instead. Needs show_clinical_note.
+  documents_first: false
   # When false, the user (name and ID of the person using the app) selector
   # is hidden.
   show_user_profile: true

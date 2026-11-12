@@ -3,6 +3,7 @@
 
 app:
   show_clinical_note: true
+  documents_first: true
   show_mccd: true
   show_cod_result: true
   wording: clinical
