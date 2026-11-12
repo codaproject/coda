@@ -10199,7 +10199,9 @@
         applyLocale(sel.value, false);
         sel.addEventListener("change", () => {
           applyLocale(sel.value);
-          // History rows are built in the language active when drawn
+          // History rows and the profile summary are built in the language
+          // active when drawn
+          updateProfileSummary();
           renderIdleRecent();
           if (body.dataset.state === "history") renderHistoryView();
         });
