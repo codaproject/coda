@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import math
+import string
 import sys
 import threading
 import time
@@ -75,6 +76,73 @@ def _disable_text_conditioning(asr):
         asr.model = unconditioned(asr.model)
 
 
+def _omit_empty_prompt(asr):
+    """Decode a LocalAgreement ASR with no prompt when there is no prior text.
+
+    The backends otherwise pass an empty prompt, which Whisper encodes as a
+    prompt of one space.
+    """
+    transcribe = asr.transcribe
+
+    def wrapper(audio, init_prompt=""):
+        return transcribe(audio, init_prompt=init_prompt or None)
+
+    asr.transcribe = wrapper
+
+
+# A phrase said this many times in a row is a repetition loop
+LOOP_COPIES = 4
+
+
+def _bare(word):
+    """Return a word without its case, spaces and surrounding punctuation."""
+    return word.strip(string.punctuation + string.whitespace).lower()
+
+
+def _loop_span(words):
+    """Return (start, end, phrase length) of the shortest-phrase loop, or None.
+
+    A loop is a phrase said at least LOOP_COPIES times in a row. Its span
+    covers its whole copies and a last copy cut short by the end of words.
+    """
+    for n in range(1, len(words) // LOOP_COPIES + 1):
+        run = 0
+        for i in range(n, len(words)):
+            run = run + 1 if words[i] == words[i - n] else 0
+            if run >= n * (LOOP_COPIES - 1):
+                start, end = i - run - n + 1, i + 1
+                while words[end:end + n] == words[start:start + n]:
+                    end += n
+                # A last copy that the end of the decode cut short
+                if words[end:] == words[start:start + len(words) - end]:
+                    end = len(words)
+                return start, end, n
+    return None
+
+
+def _collapse_loops(asr):
+    """Keep one copy of each phrase a LocalAgreement ASR decode loops on.
+
+    Committed words prompt the next decode, so a committed loop keeps
+    itself going. Collapsing before decodes are compared keeps it out of
+    both. The copy kept ends where the last whole copy ended, so committing
+    it passes over the loop's audio.
+    """
+    ts_words = asr.ts_words
+
+    def wrapper(segments):
+        words = ts_words(segments)
+        while span := _loop_span([_bare(word.text) for word in words]):
+            start, end, n = span
+            copies = (end - start) // n
+            logger.debug("Collapsed a phrase repeated %d times", copies)
+            words[start + n - 1].end = words[start + n * copies - 1].end
+            words = words[:start + n] + words[end:]
+        return words
+
+    asr.ts_words = wrapper
+
+
 DTW_LOCK = threading.Lock()
 
 
@@ -144,6 +212,9 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
         )
         if not condition and wlk.policy == "localagreement":
             _disable_text_conditioning(self._engine.asr)
+        if wlk.policy == "localagreement":
+            _omit_empty_prompt(self._engine.asr)
+            _collapse_loops(self._engine.asr)
         _serialize_dtw()
 
     async def stream(self, audio: AsyncIterator[bytes], *,

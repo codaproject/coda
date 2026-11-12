@@ -25,7 +25,7 @@ from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue import whisper_livekit
 from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
-    _events_from_response
+    _events_from_response, _collapse_loops, _loop_span
 
 
 class _FakeTranscriber(ChunkedTranscriber):
@@ -222,6 +222,27 @@ def test_whisper_livekit_unbounded_retention_keeps_words():
     alignment.current_line_tokens = list(alignment.all_tokens)
     alignment._prune()
     assert len(alignment.current_line_tokens) == 2
+
+
+def test_loop_span():
+    assert _loop_span("had fever fever fever fever and".split()) == (1, 5, 1)
+    assert _loop_span("a b a b a b a b a".split()) == (0, 9, 2)
+    assert _loop_span("sick for two two weeks".split()) is None
+    assert _loop_span("yes yes yes".split()) is None
+
+
+def test_collapse_loops():
+    from whisperlivekit.timed_objects import ASRToken
+
+    asr = SimpleNamespace(ts_words=lambda text: [
+        ASRToken(i, i + 1, word) for i, word in enumerate(text.split())])
+    _collapse_loops(asr)
+    words = asr.ts_words("she had fever, Fever fever fever and cough")
+    assert [w.text for w in words] == ["she", "had", "fever,", "and", "cough"]
+    assert (words[2].start, words[2].end) == (2, 6)
+    words = asr.ts_words("I think I think I think I think I")
+    assert [w.text for w in words] == ["I", "think"]
+    assert words[1].end == 8
 
 
 async def test_whisper_livekit_stream_keeps_every_word(monkeypatch):
