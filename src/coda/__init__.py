@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 CODA_BASE = pystow.module('coda')
 
-__version__ = '1.1.0'
+__version__ = '1.3.2'
 
 
 @cache
