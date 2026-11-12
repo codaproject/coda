@@ -8854,23 +8854,13 @@
 
           ws.onerror = (error) => {
             console.error("WebSocket error:", error);
-            showStatus(
-              "Connection error. Make sure the server is running.",
-              "danger",
-            );
-            stopRecording();
+            stopRecording({ connectionError: true });
           };
 
           ws.onclose = (event) => {
             console.log("WebSocket disconnected");
             // Closed by the server, not by stopRecording
-            if (event.target === ws) {
-              showStatus(
-                "Connection error. Make sure the server is running.",
-                "danger",
-              );
-              stopRecording();
-            }
+            if (event.target === ws) stopRecording({ connectionError: true });
           };
 
           const audioConstraints = {
@@ -9084,11 +9074,7 @@
           if (pingAwaiting) {
             pingsLost += 1;
             if (pingsLost >= PINGS_LOST_LIMIT) {
-              showStatus(
-                "Connection error. Make sure the server is running.",
-                "danger",
-              );
-              stopRecording();
+              stopRecording({ connectionError: true });
               return;
             }
           }
@@ -9104,10 +9090,11 @@
       const STOP_FINISH_MS = 120000;
 
       // Ask the server to finish, after any edit being saved, and close the
-      // socket once it has or after STOP_FINISH_MS
-      function finishSocket(sock) {
+      // socket once it has or after STOP_FINISH_MS. A connection failure
+      // reports itself instead of the finishing status.
+      function finishSocket(sock, { connectionError = false } = {}) {
         finishingSocket = sock;
-        showStatus(t("transcript.finishing"), "info");
+        if (!connectionError) showStatus(t("transcript.finishing"), "info");
         const timer = setTimeout(() => sock.close(), STOP_FINISH_MS);
         sock.addEventListener("close", () => {
           clearTimeout(timer);
@@ -9141,7 +9128,7 @@
         sock.close();
       }
 
-      function stopRecording({ save = true } = {}) {
+      function stopRecording({ save = true, connectionError = false } = {}) {
         stopConnectionWatch();
         const started = isRecording;
         if (isPaused) {
@@ -9162,7 +9149,7 @@
         analyser = null;
 
         if (ws) {
-          if (started && save) finishSocket(ws);
+          if (started && save) finishSocket(ws, { connectionError });
           else ws.close();
           ws = null;
         }
@@ -9232,6 +9219,12 @@
         } else {
           renderIdleRecent();
           setSessionState("idle");
+        }
+        if (connectionError) {
+          showStatus(
+            "Connection error detected. Recording stopped.",
+            "danger",
+          );
         }
       }
 
