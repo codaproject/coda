@@ -13,6 +13,7 @@ from typing import AsyncIterator
 from . import StreamingTranscriber, TranscriptEvent
 from .finetuned_whisper import FINETUNED_LANGUAGES, FINETUNED_MODELS, \
     decode_options, get_model_path
+from .mlx_whisper import limit_retries
 from .util import get_whisper_languages
 
 # Model size used when none is supplied (matches the other backends).
@@ -75,26 +76,6 @@ def _disable_text_conditioning(asr):
         asr.model.transcribe = unconditioned(asr.model.transcribe)
     else:
         asr.model = unconditioned(asr.model)
-
-
-# Temperatures MLX Whisper decodes a buffer at: the first one, then the next
-# ones in turn while a decode fails its repetition or confidence check
-MLX_TEMPERATURES = (0.0, 0.2, 0.4)
-
-
-def _limit_retries(asr):
-    """Retry a failed decode of an MLX LocalAgreement ASR twice, not five times.
-
-    Each retry can take as long as a decode that runs to the token limit, and
-    the transcript waits for all of them. The decode at the last temperature
-    is returned even if it fails the check too.
-    """
-    decode = asr.model
-
-    def wrapper(audio, **kwargs):
-        return decode(audio, temperature=MLX_TEMPERATURES, **kwargs)
-
-    asr.model = wrapper
 
 
 def _omit_empty_prompt(asr):
@@ -276,7 +257,7 @@ class WhisperLiveKitTranscriber(StreamingTranscriber):
             _omit_empty_prompt(self._engine.asr)
             _collapse_loops(self._engine.asr)
             if wlk.backend == "mlx-whisper":
-                _limit_retries(self._engine.asr)
+                limit_retries(self._engine.asr)
         _serialize_dtw()
 
     async def stream(self, audio: AsyncIterator[bytes], *,

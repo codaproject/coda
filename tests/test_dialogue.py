@@ -24,9 +24,9 @@ from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue import whisper_livekit
+from coda.dialogue.mlx_whisper import TEMPERATURES, limit_retries
 from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
-    _events_from_response, _collapse_inner, _collapse_loops, \
-    _limit_retries, _loop_span, MLX_TEMPERATURES
+    _events_from_response, _collapse_inner, _collapse_loops, _loop_span
 
 
 class _FakeTranscriber(ChunkedTranscriber):
@@ -234,11 +234,11 @@ def test_loop_span():
 
 def test_limit_retries():
     asr = SimpleNamespace(model=lambda audio, **kwargs: kwargs)
-    _limit_retries(asr)
+    limit_retries(asr)
     assert asr.model(None, language="en") == {
-        "language": "en", "temperature": MLX_TEMPERATURES}
+        "language": "en", "temperature": TEMPERATURES}
     # The first decode is greedy, and at most two retries follow
-    assert MLX_TEMPERATURES[0] == 0 and len(MLX_TEMPERATURES) <= 3
+    assert TEMPERATURES[0] == 0 and len(TEMPERATURES) <= 3
 
 
 def test_collapse_inner():
