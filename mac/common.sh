@@ -8,6 +8,8 @@ GILDA_DB="$DATA/grounding_terms.db"
 export CODA_SETTINGS_FILE="$DATA/settings.yaml"
 export CODA_GROUNDER__GILDA__SQLITE_DB="$GILDA_DB"
 export PYTHONPATH="$PWD/src"
+CASES="$HOME/CODA_Cases"
+export CODA_STORAGE__OUTPUT_DIR="$CASES"
 ICON="$PWD/mac/CODA.app/Contents/Resources/icon.icns"
 # Address of the running CODA, removed when it stops
 URL_FILE="$DATA/url"
@@ -131,6 +133,21 @@ build_grounding() {
 }
 
 # Download everything the profiles of this laptop's site need
+# Make the cases folder and its Desktop shortcut, moving in the cases kept
+# in the former default folder
+setup_cases() {
+    local old="$HOME/.data/coda/cases"
+    mkdir -p "$CASES"
+    if [ -n "$(ls -A "$old" 2>/dev/null)" ] && [ -z "$(ls -A "$CASES")" ]
+    then
+        echo "Moving saved cases to $CASES..."
+        mv "$old"/* "$CASES"/ || fail "Moving the saved cases failed."
+    fi
+    [ -L "$HOME/Desktop/CODA_Cases" ] \
+        || ln -s "$CASES" "$HOME/Desktop/CODA_Cases" \
+        || echo "Could not add the CODA_Cases shortcut to the Desktop."
+}
+
 prepare() {
     start_ollama || return
     build_grounding || return

@@ -17,6 +17,7 @@ sync_env || fail "Installing CODA's Python packages failed, see the \
 Terminal window for details."
 mkdir -p "$DATA"
 [ -f "$CODA_SETTINGS_FILE" ] || cp mac/settings.yaml "$CODA_SETTINGS_FILE"
+setup_cases
 
 # A site with several use cases asks which one to start
 usecases="$(site_usecases "$(laptop_site)")"
