@@ -6621,17 +6621,6 @@
           `;
         });
 
-        if (chain && chain.length > 1) {
-          const links = chain
-            .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
-            .join(" → ");
-          html += `<div class="inference-chain"><div class="questions-head">${escapeHtml(t("result.chain"))}</div>${escapeHtml(links)}</div>`;
-        }
-
-        if (reasoning) {
-          html += `<div class="inference-reasoning">${escapeHtml(reasoning)}</div>`;
-        }
-
         if ((questions && questions.length) || questionsDone) {
           html += '<div class="inference-questions">';
           html += `<div class="questions-head">${escapeHtml(t("record.suggestedQuestions"))}</div>`;
@@ -6643,6 +6632,17 @@
             html += `<li>${escapeHtml(q)}</li>`;
           });
           html += "</ul></div>";
+        }
+
+        if (chain && chain.length > 1) {
+          const links = chain
+            .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
+            .join(" → ");
+          html += `<div class="inference-chain"><div class="questions-head">${escapeHtml(t("result.chain"))}</div>${escapeHtml(links)}</div>`;
+        }
+
+        if (reasoning) {
+          html += `<div class="inference-reasoning">${escapeHtml(reasoning)}</div>`;
         }
 
         html += "</div>";
@@ -10199,7 +10199,9 @@
         applyLocale(sel.value, false);
         sel.addEventListener("change", () => {
           applyLocale(sel.value);
-          // History rows are built in the language active when drawn
+          // History rows and the profile summary are built in the language
+          // active when drawn
+          updateProfileSummary();
           renderIdleRecent();
           if (body.dataset.state === "history") renderHistoryView();
         });
