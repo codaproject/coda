@@ -426,6 +426,7 @@ if __name__ == "__main__":
                     default.llm_client.base_url or "provider default")
         info.update(agent_classes={cohort: type(a).__name__
                                    for cohort, a in agent.agents.items()},
+                    default_cohort=agent.default,
                     provider=args.provider, model=default.llm_client.model,
                     num_questions=default.num_questions,
                     question_style=default.question_style,

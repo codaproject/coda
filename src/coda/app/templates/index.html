@@ -1015,7 +1015,7 @@
         gap: 0;
       }
       .cause-list:empty::before {
-        content: "Listening…";
+        content: attr(data-empty);
         color: var(--ink-muted);
         font-style: italic;
         font-size: 13px;
@@ -4157,6 +4157,8 @@
             <div
               id="differentialsList"
               class="cause-list"
+              data-i18n-empty="record.listening"
+              data-empty="Listening…"
               aria-live="polite"
             ></div>
           </section>
@@ -4168,7 +4170,7 @@
                 <option value="both" data-i18n="transcript.both">Both</option>
                 <option value="original" data-i18n="transcript.original">Original</option>
                 <option value="english" data-i18n="transcript.english">English</option></select
-              ><span id="wordCount" data-i18n-dynamic="wordCount"
+              ><span id="wordCount"
                 >0 words</span
               ><button
                 id="editTranscriptBtn"
@@ -4221,7 +4223,13 @@
               >Offline</span
             >
           </div>
-          <div id="inference" class="cause-list" aria-live="polite"></div>
+          <div
+            id="inference"
+            class="cause-list"
+            aria-live="polite"
+            data-i18n-empty="record.listening"
+            data-empty="Listening…"
+          ></div>
           <div
             id="inferenceErrorCard"
             class="inference-error-card"
@@ -4768,6 +4776,9 @@
           "transcript.reinferring": "Updating the inference with the correction…",
           "transcript.editFailed": "Could not apply the correction",
           "transcript.finishing": "Finishing the transcript…",
+          "transcript.word": "word",
+          "transcript.words": "words",
+          "record.listening": "Listening…",
           "case.noRecording": "Recording not available",
           "case.noteTextNotStored": "Note text not stored",
           "case.voiceOnly":
@@ -4984,6 +4995,9 @@
           "transcript.reinferring": "Inasasisha makisio kwa marekebisho…",
           "transcript.editFailed": "Imeshindwa kutumia marekebisho",
           "transcript.finishing": "Inakamilisha nakala…",
+          "transcript.word": "neno",
+          "transcript.words": "maneno",
+          "record.listening": "Inasikiliza…",
           "case.noRecording": "Rekodi haipatikani",
           "case.noteTextNotStored": "Maandishi ya maelezo hayakuhifadhiwa",
           "case.voiceOnly":
@@ -5204,6 +5218,9 @@
           "transcript.reinferring": "Mise à jour de l'inférence avec la correction…",
           "transcript.editFailed": "Impossible d'appliquer la correction",
           "transcript.finishing": "Finalisation de la transcription…",
+          "transcript.word": "mot",
+          "transcript.words": "mots",
+          "record.listening": "À l'écoute…",
           "case.noRecording": "Enregistrement indisponible",
           "case.noteTextNotStored": "Texte de la note non conservé",
           "case.voiceOnly":
@@ -5417,6 +5434,9 @@
           "transcript.reinferring": "جارٍ تحديث الاستدلال بالتصحيح…",
           "transcript.editFailed": "تعذّر تطبيق التصحيح",
           "transcript.finishing": "جارٍ إكمال النص…",
+          "transcript.word": "كلمة",
+          "transcript.words": "كلمات",
+          "record.listening": "جارٍ الاستماع…",
           "case.noRecording": "التسجيل غير متاح",
           "case.noteTextNotStored": "لم يُحفظ نص الملاحظة",
           "case.voiceOnly":
@@ -5634,6 +5654,9 @@
           "transcript.reinferring": "সংশোধন দিয়ে অনুমান হালনাগাদ হচ্ছে…",
           "transcript.editFailed": "সংশোধনটি প্রয়োগ করা যায়নি",
           "transcript.finishing": "প্রতিলিপি শেষ করা হচ্ছে…",
+          "transcript.word": "শব্দ",
+          "transcript.words": "শব্দ",
+          "record.listening": "শুনছে…",
           "case.noRecording": "রেকর্ডিং পাওয়া যাচ্ছে না",
           "case.noteTextNotStored": "নোটের লেখা সংরক্ষিত হয়নি",
           "case.voiceOnly":
@@ -5853,6 +5876,9 @@
           "transcript.reinferring": "Actualizando la inferencia con la corrección…",
           "transcript.editFailed": "No se pudo aplicar la corrección",
           "transcript.finishing": "Terminando la transcripción…",
+          "transcript.word": "palabra",
+          "transcript.words": "palabras",
+          "record.listening": "Escuchando…",
           "case.noRecording": "Grabación no disponible",
           "case.noteTextNotStored": "Texto de la nota no guardado",
           "case.voiceOnly":
@@ -6075,6 +6101,9 @@
           "transcript.reinferring": "Ku pfuxeta nkumbetelo hi ku lulamisa…",
           "transcript.editFailed": "Ku lulamisa a swi kotekanga",
           "transcript.finishing": "Ku hetisisa matsalwa…",
+          "transcript.word": "rito",
+          "transcript.words": "marito",
+          "record.listening": "Ku yingisela…",
           "case.noRecording": "Rhekhodo a yi kumeki",
           "case.noteTextNotStored": "Matsalwa a ya hlayisiwanga",
           "case.voiceOnly":
@@ -6296,6 +6325,9 @@
           "transcript.reinferring": "Atualizando a inferência com a correção…",
           "transcript.editFailed": "Não foi possível aplicar a correção",
           "transcript.finishing": "Finalizando a transcrição…",
+          "transcript.word": "palavra",
+          "transcript.words": "palavras",
+          "record.listening": "Ouvindo…",
           "case.noRecording": "Gravação indisponível",
           "case.noteTextNotStored": "Texto da nota não armazenado",
           "case.voiceOnly":
@@ -6367,6 +6399,10 @@
           const val = t(el.getAttribute("data-i18n-placeholder"));
           if (val) el.placeholder = val;
         });
+        document.querySelectorAll("[data-i18n-empty]").forEach((el) => {
+          el.dataset.empty = t(el.getAttribute("data-i18n-empty"));
+        });
+        updateWordCount();
       }
 
       let ws = null;
@@ -8308,7 +8344,8 @@
 
       function updateWordCount() {
         const words = transcriptText.trim().split(/\s+/).filter(Boolean).length;
-        wordCountEl.textContent = `${words} word${words === 1 ? "" : "s"}`;
+        wordCountEl.textContent =
+          `${words} ${t(words === 1 ? "transcript.word" : "transcript.words")}`;
         // Nothing to edit, the case is being recorded elsewhere, or its
         // recording is still finishing
         document.getElementById("editTranscriptBtn").hidden =
@@ -9092,20 +9129,24 @@
         return document.querySelector('input[name="sex"]:checked');
       }
 
+      // The inference agent's default cohort, once its info is fetched
+      let defaultCohort = "child";
+
+      // This browser's last cohort choice, else the default
       function rememberedCohort() {
+        let cohort = null;
         try {
-          return localStorage.getItem(COHORT_KEY) === "adult"
-            ? "adult"
-            : "child";
-        } catch (e) {
-          return "child";
-        }
+          cohort = localStorage.getItem(COHORT_KEY);
+        } catch (e) {}
+        return cohort === "adult" || cohort === "child"
+          ? cohort
+          : defaultCohort;
       }
 
       function checkedCohort() {
         return (
           document.querySelector('input[name="cohort"]:checked')?.value ||
-          "child"
+          defaultCohort
         );
       }
 
@@ -9375,7 +9416,7 @@
       }
 
       function fillProfileInputs(profile) {
-        setCohort(profile.cohort || "child");
+        setCohort(profile.cohort || defaultCohort);
         ageValueInput.value = profile.age ? profile.age.value : "";
         ageUnitSelect.value = profile.age ? profile.age.unit : "months";
         stillbirthToggle.checked = !!profile.stillbirth;
@@ -9557,6 +9598,15 @@
       });
 
       setCohort(rememberedCohort());
+      fetchRunInfo().then((info) => {
+        const cohort = info && info.inference && info.inference.default_cohort;
+        if (!cohort) return;
+        defaultCohort = cohort;
+        if (!caseProfile && !ws) {
+          setCohort(rememberedCohort());
+          pushMetadata();
+        }
+      });
       cohortRadios.forEach((radio) =>
         radio.addEventListener("change", () => {
           try {
