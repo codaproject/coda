@@ -603,6 +603,17 @@ async def _ws_send_safe(websocket: WebSocket, data: dict):
         pass
 
 
+# In-flight pong replies. Held so a full outbound buffer cannot stall the
+# capture loop, and so the tasks are not garbage-collected before they send.
+_pong_tasks: set[asyncio.Task] = set()
+
+
+def _schedule_pong(websocket: WebSocket):
+    task = asyncio.create_task(_ws_send_safe(websocket, {"type": "pong"}))
+    _pong_tasks.add(task)
+    task.add_done_callback(_pong_tasks.discard)
+
+
 async def _reset_inference_session(session_id: str, generation: int):
     try:
         resp = await inference_client.post("/reset", json={
@@ -1144,7 +1155,8 @@ async def capture_audio(
     before this connection when it continues a session. `profile` carries the
     case metadata and the person using the app. `stop` ends the audio,
     so that what was said is transcribed and inferred on before the client
-    closes.
+    closes. `ping` is answered with `pong` without waiting on the send, so a
+    full outbound buffer cannot stall the drain.
     Surfaces WebSocketDisconnect to the gather; the sentinel lets the consumer's
     audio iterator (and thus the transcriber stream) end cleanly.
     """
@@ -1190,7 +1202,9 @@ async def capture_audio(
                         inference_session.recorder.write_resume()
                 elif control == "stop":
                     queue.put_nowait(None)
-                elif control not in ("pause", "resume"):
+                elif control == "ping":
+                    _schedule_pong(websocket)
+                elif control not in ("pause", "resume", "ping"):
                     logger.warning("Ignoring control message %r",
                                    message["text"][:100])
     finally:
