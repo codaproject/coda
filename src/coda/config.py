@@ -102,7 +102,7 @@ settings = Dynaconf(
         Validator("inference.champs_prompted.cohort",
                   is_in=["child", "adult"]),
         Validator("inference.question_selection",
-                  is_in=["llm", "voi", "baq"]),
+                  is_in=["llm", "voi", "baq", "hinge"]),
         Validator("app.wording", is_in=["clinical", "interview"]),
         Validator("grounder.type", is_in=["gilda", "rag"]),
         Validator("inference.num_questions", cast=int),
