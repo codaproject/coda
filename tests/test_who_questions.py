@@ -1,6 +1,13 @@
+import types
+
 import numpy as np
+import pandas as pd
 import pytest
 
+from coda.inference.champs_prompted.hypergraph_hinge import (
+    HypergraphHingeConfig,
+    HypergraphHingePolicy,
+)
 from coda.inference.champs_prompted.who_questions import age_features, \
     age_fields, asks_topic, changes_top_cause, dont_know, \
     evidence_in_text, is_negated, parse_answer, profile_fields
@@ -155,3 +162,96 @@ def test_review_of_systems():
     labels, _ = questions.start().update("She had a high fever.", profile,
                                          CAUSES, 3)
     assert not set(labels) & {q for q, _, _ in REVIEW_OF_SYSTEMS}
+
+
+def _mock_interview(asked, xform="", fields=None):
+    if fields is None:
+        fields = pd.DataFrame(
+            {"type": ["select one"] * len(asked.columns),
+             "choices": [["yes", "no"]] * len(asked.columns)},
+            index=asked.columns,
+        )
+    questionnaire = types.SimpleNamespace(
+        id=f"mock_{hash(xform)}", xform=xform, fields=fields
+    )
+    return types.SimpleNamespace(
+        asked_questions=asked, questionnaire=questionnaire
+    )
+
+
+def test_hypergraph_hinge_regime2_and_stopping():
+    distributions = {
+        "q_common": np.array([[0.8, 0.2], [0.2, 0.8], [0.5, 0.5]]),
+        "q_rare": np.array([[0.01, 0.99], [0.01, 0.99], [0.95, 0.05]]),
+    }
+    policy = HypergraphHingePolicy(
+        ["A", "B", "RARE"],
+        distributions,
+        priors=[0.49, 0.49, 0.02],
+    )
+    probs = pd.DataFrame([{"A": 0.96, "B": 0.02, "RARE": 0.02}], index=["case"])
+    asked = pd.DataFrame([[False, False]], index=["case"],
+                         columns=policy.questions)
+    scores = policy(probs, _mock_interview(asked))
+    assert scores.loc["case"].idxmax() == "q_rare"
+    assert not policy.stopped_cases(probs, scores).loc["case"]
+
+    # After verifying the rare rival's pathognomonic question, >95% case stops
+    probs_verified = pd.DataFrame(
+        [{"A": 0.98, "B": 0.01, "RARE": 0.01}], index=["case"]
+    )
+    asked_after = pd.DataFrame([[False, True]], index=["case"],
+                               columns=policy.questions)
+    scores_after = policy(probs_verified, _mock_interview(asked_after))
+    assert policy.stopped_cases(
+        probs_verified, scores_after[["q_common"]]
+    ).loc["case"]
+
+
+def test_hypergraph_hinge_parent_child_lookahead():
+    xform = (
+        '<h:html xmlns:h="http://www.w3.org/1999/xhtml"><model>'
+        '<bind nodeset="/data/q_parent"/>'
+        '<bind nodeset="/data/q_child" relevant="selected(/data/q_parent, \'yes\')"/>'
+        '<bind nodeset="/data/q_leaf"/>'
+        "</model></h:html>"
+    )
+    distributions = {
+        "q_parent": np.array([[0.65, 0.35], [0.35, 0.65]]),
+        "q_child": np.array([[0.99, 0.01], [0.01, 0.99]]),
+        "q_leaf": np.array([[0.7, 0.3], [0.3, 0.7]]),
+    }
+    policy = HypergraphHingePolicy(
+        ["A", "B"],
+        distributions,
+        config=HypergraphHingeConfig(lookahead_weight=0.5),
+    )
+    asked = pd.DataFrame(False, index=["case"], columns=policy.questions)
+    probs = pd.DataFrame([{"A": 0.5, "B": 0.5}], index=["case"])
+    scores = policy(probs, _mock_interview(asked, xform=xform)).loc["case"]
+    assert scores["q_parent"] > scores["q_leaf"]
+
+
+def test_hinge_interview():
+    pytest.importorskip("codalg")
+    from coda.inference.champs_prompted.who_questions import WhoQuestions
+    questions = WhoQuestions("hinge", FakeClient(), skip_logic=False)
+    interview = questions.start()
+    profile = Profile.from_dict({"age": {"value": 14, "unit": "months"}})
+    labels, stop = interview.update("She had a high fever.", profile,
+                                    CAUSES, 3)
+    assert len(labels) == 3
+    assert not stop
+
+    # Single certain cause triggers hinge-margin stopping
+    certain = {"icd11:1C62.Z": {"score": 1.0}}
+    _, stop_certain = interview.update("She had a high fever.", profile,
+                                       certain, 3)
+    assert stop_certain
+
+    questions_lgbm = WhoQuestions("hinge", FakeClient(), skip_logic=False,
+                                  probabilities="lightgbm")
+    interview_lgbm = questions_lgbm.start()
+    labels_lgbm, _ = interview_lgbm.update("She had a high fever.", profile,
+                                           {}, 3)
+    assert len(labels_lgbm) == 3
