@@ -243,7 +243,6 @@ def test_hinge_interview():
     assert len(labels) == 3
     assert not stop
 
-    # Single certain cause triggers hinge-margin stopping
     certain = {"icd11:1C62.Z": {"score": 1.0}}
     _, stop_certain = interview.update("She had a high fever.", profile,
                                        certain, 3)

@@ -302,7 +302,6 @@ class WhoQuestions:
         if probabilities not in PROBABILITIES:
             raise ValueError(f"Unknown cause probabilities {probabilities!r},"
                              f" expected one of: {', '.join(PROBABILITIES)}")
-        self.policy_name = policy
         if policy == "hinge":
             try:
                 from codalg.interview import HypergraphHingePolicy
@@ -502,6 +501,7 @@ class WhoInterview:
 
     def rank(self):
         """Return the open questions from best to worst and whether to stop."""
+        from codalg.interview import Interview
         policy = self.questions.policy
         probabilities = self.probabilities()
         asked = self.interview.asked_questions
@@ -513,23 +513,13 @@ class WhoInterview:
         # Entry fields that follow a question have non-question labels
         questions = [q for q in is_open.index[is_open] if q not in BACKGROUND
                      and labels[q].rstrip().endswith("?")]
-        if self.questions.policy_name == "hinge":
-            from codalg.interview import Interview
-            candidate_asked = pd.DataFrame(
-                True, index=asked.index, columns=asked.columns)
-            if questions:
-                candidate_asked.loc[CASE, questions] = False
-            candidates = Interview(
-                self.interview.features, candidate_asked,
-                questionnaire=self.interview.questionnaire)
-            scores = policy(probabilities, candidates)
-            ranked = scores.loc[CASE, questions].sort_values(ascending=False)
-            stop = bool(
-                not questions
-                or policy.stopped_cases(
-                    probabilities, scores.loc[:, questions]).loc[CASE])
-            return list(ranked.index), stop
-        scores = policy(probabilities, self.interview)
+        # Only the open questions are candidates
+        candidate_asked = pd.DataFrame(True, index=asked.index,
+                                       columns=asked.columns)
+        candidate_asked.loc[CASE, questions] = False
+        candidates = Interview(self.interview.features, candidate_asked,
+                               questionnaire=self.interview.questionnaire)
+        scores = policy(probabilities, candidates)
         ranked = scores.loc[CASE, questions].sort_values(ascending=False)
         # Stop once no open question could change the top cause category
         cause_probabilities = policy.cause_probabilities(probabilities) \
