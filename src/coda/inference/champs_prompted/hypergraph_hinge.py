@@ -9,8 +9,6 @@ Implements adaptive WHO VA question selection and interview stopping:
     P(c*) > stop_threshold and no open rival bundle violates margin M.
 """
 
-from __future__ import annotations
-
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Mapping, Sequence
@@ -33,7 +31,7 @@ _EQUALS_RE = re.compile(r"([/\w.-]+)\s*(?<![!<>=])=\s*['\"]([^'\"]+)['\"]")
 
 @dataclass(frozen=True, slots=True)
 class HypergraphHingeConfig:
-    """Hyperparameters for the two-regime hypergraph + SVM hinge-margin policy."""
+    """Hyperparameters of the two-regime hypergraph hinge-margin policy."""
 
     explore_threshold: float = 0.7
     stop_threshold: float = 0.95
@@ -59,7 +57,8 @@ def mutual_information(
 def _normalize_priors(priors: Sequence[float], num_causes: int) -> np.ndarray:
     arr = np.asarray(priors, dtype=np.float64)
     if arr.shape != (num_causes,) or (arr < 0.0).any() or arr.sum() <= 0.0:
-        msg = "Priors must be non-negative with one entry per cause and positive sum."
+        msg = ("Priors must be non-negative with one entry per cause and "
+               "positive sum.")
         raise ValueError(msg)
     return arr / arr.sum()
 
@@ -74,8 +73,10 @@ def _top_k_column_sum(matrix: np.ndarray, k: int) -> np.ndarray:
     return partitioned[-k:].sum(axis=0)
 
 
-def _verified_stop_scores(ig_row: np.ndarray, min_information: float) -> np.ndarray:
-    """Shift a verified case's scores below min_information while preserving order."""
+def _verified_stop_scores(
+    ig_row: np.ndarray, min_information: float
+) -> np.ndarray:
+    """Shift a verified case's scores below min_information, keeping order."""
     max_score = float(ig_row.max()) if ig_row.size > 0 else 0.0
     if max_score < min_information:
         return ig_row
@@ -84,7 +85,7 @@ def _verified_stop_scores(ig_row: np.ndarray, min_information: float) -> np.ndar
 
 @lru_cache(maxsize=8)
 def extract_parent_children(xform_xml: str) -> dict[str, list[str]]:
-    """Extract static positive parent -> children question gates from XForm XML."""
+    """Extract the positive parent -> children question gates of an XForm."""
     if not xform_xml:
         return {}
     try:
@@ -111,12 +112,15 @@ def extract_parent_children(xform_xml: str) -> dict[str, list[str]]:
     children_of: dict[str, set[str]] = {}
     for field_name, nodeset in field_nodesets.items():
         for bind_nodeset, parents in binds:
-            if bind_nodeset == nodeset or nodeset.startswith(f"{bind_nodeset}/"):
+            if bind_nodeset == nodeset \
+                    or nodeset.startswith(f"{bind_nodeset}/"):
                 for parent in parents:
                     if parent != field_name:
                         children_of.setdefault(parent, set()).add(field_name)
 
-    return {parent: sorted(children) for parent, children in children_of.items()}
+    return {
+        parent: sorted(children) for parent, children in children_of.items()
+    }
 
 
 def _positive_parents(relevant: str) -> set[str]:
@@ -129,10 +133,11 @@ def _positive_parents(relevant: str) -> set[str]:
 
 
 class HypergraphHingePolicy:
-    """Two-regime hypergraph lookahead and top-K bundle SVM hinge-margin policy.
+    """Two-regime hypergraph lookahead and top-K bundle hinge-margin policy.
 
-    Duck-types codalg's ``AnswerDistributions`` / ``InterviewPolicy`` interface so
-    it works directly with ``codalg@v0.3.0`` as well as unit tests without ``codalg``.
+    Duck-types codalg's ``AnswerDistributions`` / ``InterviewPolicy``
+    interface so it works directly with ``codalg@v0.3.0`` as well as unit
+    tests without ``codalg``.
     """
 
     def __init__(
@@ -147,18 +152,22 @@ class HypergraphHingePolicy:
         self.causes = list(causes)
         self.questions = list(distributions)
         self.answer_distributions = {
-            q: np.asarray(dist, dtype=np.float64) for q, dist in distributions.items()
+            q: np.asarray(dist, dtype=np.float64)
+            for q, dist in distributions.items()
         }
         self.questionnaire_id = questionnaire_id
         self.priors: np.ndarray | None = (
-            _normalize_priors(priors, len(self.causes)) if priors is not None else None
+            _normalize_priors(priors, len(self.causes))
+            if priors is not None else None
         )
         self.config = config or HypergraphHingeConfig()
         self._log_distributions = {
             question: np.log(np.maximum(distribution, _PROB_EPS))
             for question, distribution in self.answer_distributions.items()
         }
-        self._boost_cache: dict[str, tuple[dict[str, list[str]], np.ndarray]] = {}
+        self._boost_cache: dict[
+            str, tuple[dict[str, list[str]], np.ndarray]
+        ] = {}
 
     @classmethod
     def from_pretrained(
@@ -166,8 +175,8 @@ class HypergraphHingePolicy:
         name_or_path: str | Path,
         *,
         config: HypergraphHingeConfig | None = None,
-    ) -> HypergraphHingePolicy:
-        """Load pretrained answer distributions via codalg and wrap in this policy."""
+    ) -> "HypergraphHingePolicy":
+        """Return the policy with codalg's pretrained answer distributions."""
         from codalg.interview import AnswerDistributions
 
         base = AnswerDistributions.from_pretrained(name_or_path)
@@ -181,8 +190,10 @@ class HypergraphHingePolicy:
         )
 
     def cause_probabilities(self, probabilities: pd.DataFrame) -> pd.DataFrame:
-        """Return the probabilities of the policy's causes, rescaled to sum to 1."""
-        probabilities = probabilities.reindex(columns=self.causes, fill_value=0.0)
+        """Return the probabilities of the policy's causes, summing to 1."""
+        probabilities = probabilities.reindex(
+            columns=self.causes, fill_value=0.0
+        )
         total = probabilities.sum(axis=1)
         if (total == 0).any():
             cases = total.index[total == 0].tolist()
@@ -192,7 +203,9 @@ class HypergraphHingePolicy:
 
     def __call__(self, probabilities: pd.DataFrame, interview) -> pd.DataFrame:
         """Return the score of each question in each case."""
-        p_post = self.cause_probabilities(probabilities).to_numpy(dtype=np.float64)
+        p_post = self.cause_probabilities(probabilities).to_numpy(
+            dtype=np.float64
+        )
         p_lik = self._prior_flat_likelihood(p_post)
         blend = self.config.explore_blend
         b_explore = (1.0 - blend) * p_post + blend * p_lik
@@ -217,13 +230,15 @@ class HypergraphHingePolicy:
             if row_score is not None:
                 scores[row_idx] = row_score
 
-        result = pd.DataFrame(scores, index=probabilities.index, columns=self.questions)
+        result = pd.DataFrame(
+            scores, index=probabilities.index, columns=self.questions
+        )
         return result[interview.asked_questions.columns]
 
     def stopped_cases(
         self, probabilities: pd.DataFrame, scores: pd.DataFrame
     ) -> pd.Series:
-        """Return True for each case that is verified or has no information left."""
+        """Return True for each case that is verified or has no information."""
         if scores.empty or scores.shape[1] == 0:
             return pd.Series(True, index=probabilities.index)
         return scores.max(axis=1) < self.config.min_information
@@ -253,7 +268,9 @@ class HypergraphHingePolicy:
         children_of = {p: ch for p, ch in children_of.items() if ch}
 
         q_index = {q: idx for idx, q in enumerate(self.questions)}
-        boost = np.zeros((len(self.questions), len(self.causes)), dtype=np.float64)
+        boost = np.zeros(
+            (len(self.questions), len(self.causes)), dtype=np.float64
+        )
         for parent, children in children_of.items():
             p_idx = q_index[parent]
             for child in children:
@@ -262,7 +279,9 @@ class HypergraphHingePolicy:
                 lr = np.log(np.maximum(dist, _PROB_EPS)) - np.log(
                     np.maximum(med, _PROB_EPS)
                 )
-                boost[p_idx] = np.maximum(boost[p_idx], np.maximum(lr, 0.0).max(axis=1))
+                boost[p_idx] = np.maximum(
+                    boost[p_idx], np.maximum(lr, 0.0).max(axis=1)
+                )
 
         self._boost_cache[form_id] = (children_of, boost)
         return children_of, boost
@@ -292,7 +311,9 @@ class HypergraphHingePolicy:
             p_gate = self._gate_probability(belief, parent, fields)
             active = eligible[:, p_idx] & (p_gate > _GATE_PROB_MIN)
             ig[active, p_idx] += (
-                self.config.lookahead_weight * p_gate[active] * max_child_ig[active]
+                self.config.lookahead_weight
+                * p_gate[active]
+                * max_child_ig[active]
             )
         return ig
 
@@ -334,7 +355,9 @@ class HypergraphHingePolicy:
 
         log_post = np.log(np.maximum(p_post, _PROB_EPS))
         lead = log_post[c_star] - log_post[sv_idx]
-        exp_pos_llr = self._expected_positive_llr(c_star, sv_idx, eligible, child_boost)
+        exp_pos_llr = self._expected_positive_llr(
+            c_star, sv_idx, eligible, child_boost
+        )
         bundle_sum = _top_k_column_sum(exp_pos_llr, cfg.bundle_size)
         margin_gap = cfg.margin - lead + bundle_sum
         bundle_hinge = np.maximum(0.0, margin_gap) * sv_weight[sv_idx]
@@ -359,7 +382,9 @@ class HypergraphHingePolicy:
         eligible: np.ndarray,
         child_boost: np.ndarray,
     ) -> np.ndarray:
-        exp_pos_llr = np.zeros((len(self.questions), sv_idx.size), dtype=np.float64)
+        exp_pos_llr = np.zeros(
+            (len(self.questions), sv_idx.size), dtype=np.float64
+        )
         for q_idx, question in enumerate(self.questions):
             if not eligible[q_idx]:
                 continue
@@ -370,5 +395,7 @@ class HypergraphHingePolicy:
                 - log_dist[c_star, :][np.newaxis, :]
                 + child_boost[q_idx, sv_idx][:, np.newaxis]
             )
-            exp_pos_llr[q_idx] = (np.maximum(lr, 0.0) * dist[sv_idx, :]).sum(axis=1)
+            exp_pos_llr[q_idx] = (
+                np.maximum(lr, 0.0) * dist[sv_idx, :]
+            ).sum(axis=1)
         return exp_pos_llr

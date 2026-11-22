@@ -4,10 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from coda.inference.champs_prompted.hypergraph_hinge import (
-    HypergraphHingeConfig,
-    HypergraphHingePolicy,
-)
+from coda.inference.champs_prompted.hypergraph_hinge import \
+    HypergraphHingeConfig, HypergraphHingePolicy
 from coda.inference.champs_prompted.who_questions import age_features, \
     age_fields, asks_topic, changes_top_cause, dont_know, \
     evidence_in_text, is_negated, parse_answer, profile_fields
@@ -189,7 +187,8 @@ def test_hypergraph_hinge_regime2_and_stopping():
         distributions,
         priors=[0.49, 0.49, 0.02],
     )
-    probs = pd.DataFrame([{"A": 0.96, "B": 0.02, "RARE": 0.02}], index=["case"])
+    probs = pd.DataFrame([{"A": 0.96, "B": 0.02, "RARE": 0.02}],
+                         index=["case"])
     asked = pd.DataFrame([[False, False]], index=["case"],
                          columns=policy.questions)
     scores = policy(probs, _mock_interview(asked))
@@ -212,7 +211,8 @@ def test_hypergraph_hinge_parent_child_lookahead():
     xform = (
         '<h:html xmlns:h="http://www.w3.org/1999/xhtml"><model>'
         '<bind nodeset="/data/q_parent"/>'
-        '<bind nodeset="/data/q_child" relevant="selected(/data/q_parent, \'yes\')"/>'
+        '<bind nodeset="/data/q_child" '
+        'relevant="selected(/data/q_parent, \'yes\')"/>'
         '<bind nodeset="/data/q_leaf"/>'
         "</model></h:html>"
     )
