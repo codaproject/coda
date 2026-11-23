@@ -11,9 +11,13 @@ from coda.dialogue import StreamingTranscriber, TranscriptEvent
 class FakeReceiveWebSocket:
     def __init__(self, messages):
         self.messages = list(messages)
+        self.sent = []
 
     async def receive(self):
         return self.messages.pop(0)
+
+    async def send_json(self, data):
+        self.sent.append(data)
 
 
 class FakeSendWebSocket:
@@ -132,6 +136,22 @@ async def test_stopped_is_sent_after_the_last_inference(monkeypatch):
         FakeSendWebSocket(log), queue, session), 2)
 
     assert log == ["infer fever for days", "stopped"]
+
+
+@pytest.mark.asyncio
+async def test_capture_replies_to_ping_without_queueing_audio():
+    websocket = FakeReceiveWebSocket([
+        {"type": "websocket.receive", "text": json.dumps({"type": "ping"})},
+        {"type": "websocket.disconnect", "code": 1000},
+    ])
+    session = server.InferenceSessionCoordinator(None, session_id="s")
+    queue = asyncio.Queue()
+    with pytest.raises(WebSocketDisconnect):
+        await server.capture_audio(websocket, queue, session)
+    if server._pong_tasks:
+        await asyncio.gather(*list(server._pong_tasks))
+    assert websocket.sent == [{"type": "pong"}]
+    assert [queue.get_nowait() for _ in range(queue.qsize())] == [None]
 
 
 @pytest.mark.asyncio
