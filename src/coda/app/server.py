@@ -762,12 +762,12 @@ async def get_run_info() -> dict:
 
 
 @app.get("/settings")
-async def get_settings():
+async def get_settings(request: Request):
     """Get current server settings."""
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
-        "cases_browsable": cases_browsable(),
+        "cases_browsable": cases_browsable(_client_host(request)),
         "storage_audio": storage_keeps_audio(),
         "storage_notes": storage_keeps_notes(),
         "transcriber_backend": current_transcriber_backend,
@@ -897,7 +897,7 @@ async def get_transcriber_backend_models(backend: str):
 
 
 @app.post("/settings")
-async def update_settings(req: SettingsRequest):
+async def update_settings(req: SettingsRequest, request: Request):
     """Update server settings, unless an interview is being recorded."""
     global settings_changing
     if settings.app.get("lock_server_settings", False):
@@ -906,9 +906,11 @@ async def update_settings(req: SettingsRequest):
         raise HTTPException(status_code=409, detail="recording")
     settings_changing = True
     try:
-        return await _apply_settings(req)
+        applied = await _apply_settings(req)
     finally:
         settings_changing = False
+    return {**applied,
+            "cases_browsable": cases_browsable(_client_host(request))}
 
 
 async def _apply_settings(req: SettingsRequest):
@@ -1038,7 +1040,6 @@ async def _apply_settings(req: SettingsRequest):
     return {
         "language": current_language,
         "storage_enabled": storage_enabled(),
-        "cases_browsable": cases_browsable(),
         "storage_audio": storage_keeps_audio(),
         "storage_notes": storage_keeps_notes(),
         "transcriber_backend": current_transcriber_backend,
@@ -1666,8 +1667,12 @@ async def reset_session(req: ResetRequest):
     return {"status": "reset"}
 
 
-def _require_cases_browsable() -> None:
-    if not cases_browsable():
+def _client_host(request):
+    return request.client.host if request.client else None
+
+
+def _require_cases_browsable(request) -> None:
+    if not cases_browsable(_client_host(request)):
         raise HTTPException(status_code=404, detail="Case browsing is disabled")
 
 
@@ -1687,9 +1692,9 @@ async def _wait_for_case_release(case_id):
 
 
 @app.get("/cases")
-async def get_cases() -> list[dict]:
+async def get_cases(request: Request) -> list[dict]:
     """List stored cases, newest first, for the History view."""
-    _require_cases_browsable()
+    _require_cases_browsable(request)
     cases = await asyncio.to_thread(list_cases)
     recording = _recording_case_ids()
     return [{**case, "in_progress": case["case_id"] in recording}
@@ -1697,9 +1702,9 @@ async def get_cases() -> list[dict]:
 
 
 @app.get("/cases/{case_id}")
-async def get_case(case_id: str) -> dict:
+async def get_case(case_id: str, request: Request) -> dict:
     """Return everything stored for one case."""
-    _require_cases_browsable()
+    _require_cases_browsable(request)
     case = await asyncio.to_thread(load_case, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Unknown case")
@@ -1727,9 +1732,10 @@ async def set_case_metadata(case_id: str, req: CaseMetadataRequest) -> dict:
 
 
 @app.get("/cases/{case_id}/audio")
-async def get_case_audio(case_id: str, part: int = 0) -> FileResponse:
+async def get_case_audio(case_id: str, request: Request,
+                         part: int = 0) -> FileResponse:
     """Serve the audio recorded in one part of a case, if it was stored."""
-    _require_cases_browsable()
+    _require_cases_browsable(request)
     path = case_audio_path(case_id, part)
     if path is None:
         raise HTTPException(status_code=404, detail="No audio for this case")

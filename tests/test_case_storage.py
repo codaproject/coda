@@ -471,6 +471,20 @@ def test_case_endpoints_are_off_unless_browsable(storage_dir):
     assert client.get("/settings").json()["cases_browsable"] is False
 
 
+def test_local_browsing_serves_only_this_machine(storage_dir, monkeypatch):
+    monkeypatch.setenv("CODA_STORAGE__BROWSE", "local")
+    reload_settings()
+    recorder = record_case("aaaa0001")
+    local = TestClient(server.app, client=("127.0.0.1", 50000))
+    remote = TestClient(server.app, client=("192.168.1.20", 50000))
+
+    assert local.get("/settings").json()["cases_browsable"] is True
+    assert local.get(f"/cases/{recorder.case_id}").status_code == 200
+    assert remote.get("/settings").json()["cases_browsable"] is False
+    assert remote.get("/cases").status_code == 404
+    assert remote.get(f"/cases/{recorder.case_id}").status_code == 404
+
+
 def test_case_endpoints_serve_stored_cases(storage_dir, monkeypatch):
     monkeypatch.setenv("CODA_STORAGE__BROWSE", "true")
     monkeypatch.setenv("CODA_STORAGE__STORE__AUDIO", "true")
