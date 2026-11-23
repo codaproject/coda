@@ -1206,10 +1206,33 @@
         flex-shrink: 0;
       }
       .inference-chain {
-        font-size: 13px;
-        line-height: 1.5;
-        color: var(--ink-soft);
-        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        background: var(--paper);
+        border: 1.5px solid var(--border-warm-strong);
+        border-radius: var(--radius-md);
+      }
+      .chain-step {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        background: var(--paper-elevated);
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-sm);
+      }
+      .chain-step .cause-name {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .chain-arrow {
+        align-self: center;
+        font-size: 16px;
+        line-height: 1;
+        padding: 4px 0;
+        color: var(--ink-muted);
       }
       .inference-reasoning {
         font-size: 12px;
@@ -6621,6 +6644,19 @@
           `;
         });
 
+        if (chain && chain.length > 1) {
+          html += '<div class="inference-chain">';
+          html += `<div class="questions-head">${escapeHtml(t("result.chain"))}</div>`;
+          // Immediate cause on top, underlying cause at the bottom
+          chain.slice().reverse().forEach((c, i) => {
+            if (i) {
+              html += '<i class="bi bi-arrow-up chain-arrow"></i>';
+            }
+            html += `<div class="chain-step"><span class="cause-name">${escapeHtml(c.name)}</span><span class="cause-meta">${escapeHtml(causeCode(c.identifiers))}</span></div>`;
+          });
+          html += "</div>";
+        }
+
         if ((questions && questions.length) || questionsDone) {
           html += '<div class="inference-questions">';
           html += `<div class="questions-head">${escapeHtml(t("record.suggestedQuestions"))}</div>`;
@@ -6632,13 +6668,6 @@
             html += `<li>${escapeHtml(q)}</li>`;
           });
           html += "</ul></div>";
-        }
-
-        if (chain && chain.length > 1) {
-          const links = chain
-            .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
-            .join(" → ");
-          html += `<div class="inference-chain"><div class="questions-head">${escapeHtml(t("result.chain"))}</div>${escapeHtml(links)}</div>`;
         }
 
         if (reasoning) {
