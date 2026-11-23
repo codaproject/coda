@@ -1206,10 +1206,33 @@
         flex-shrink: 0;
       }
       .inference-chain {
-        font-size: 13px;
-        line-height: 1.5;
-        color: var(--ink-soft);
-        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 14px;
+        background: var(--paper);
+        border: 1.5px solid var(--border-warm-strong);
+        border-radius: var(--radius-md);
+      }
+      .chain-step {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        background: var(--paper-elevated);
+        border: 1px solid var(--border-warm);
+        border-radius: var(--radius-sm);
+      }
+      .chain-step .cause-name {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .chain-arrow {
+        align-self: center;
+        font-size: 16px;
+        line-height: 1;
+        padding: 4px 0;
+        color: var(--ink-muted);
       }
       .inference-reasoning {
         font-size: 12px;
@@ -1246,6 +1269,24 @@
         font-size: 13px;
         line-height: 1.5;
         color: var(--ink-soft);
+      }
+      .inference-questions li[data-question] {
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .inference-questions li[data-question]:hover {
+        background: var(--border-warm);
+      }
+      /* The question the interviewer tapped as the one being asked */
+      .inference-questions .pinned-question {
+        list-style: none;
+        margin-left: -18px;
+        margin-bottom: 10px;
+        padding: 6px 10px;
+        border-left: 3px solid var(--success);
+        background: var(--accent-sage-soft);
+        color: var(--ink);
+        font-weight: 600;
       }
 
       .divider {
@@ -4685,6 +4726,8 @@
           "record.differentials": "Differentials",
           "record.suggestedQuestions": "Suggested follow-up questions",
           "record.questionsDone": "Enough information for a confident cause, further questions are optional",
+          "record.askingNow": "Asking now",
+          "record.tapToAsk": "Tap the question you are asking",
           "record.updating": "Updating",
           "record.offlinePill": "Offline",
           "record.placeholder":
@@ -4904,6 +4947,8 @@
           "record.differentials": "Tofauti",
           "record.suggestedQuestions": "Maswali ya ufuatiliaji yanayopendekezwa",
           "record.questionsDone": "Taarifa zinatosha kwa chanzo cha uhakika, maswali zaidi ni ya hiari",
+          "record.askingNow": "Unauliza sasa",
+          "record.tapToAsk": "Gusa swali unalouliza",
           "record.updating": "Inasasisha",
           "record.offlinePill": "Nje ya mtandao",
           "record.placeholder":
@@ -5126,6 +5171,8 @@
           "record.differentials": "Diagnostics différentiels",
           "record.suggestedQuestions": "Questions de suivi suggérées",
           "record.questionsDone": "Informations suffisantes pour une cause fiable, les questions supplémentaires sont facultatives",
+          "record.askingNow": "Question en cours",
+          "record.tapToAsk": "Touchez la question que vous posez",
           "record.updating": "Mise à jour",
           "record.offlinePill": "Hors ligne",
           "record.placeholder":
@@ -5346,6 +5393,8 @@
           "record.differentials": "التشخيصات التفريقية",
           "record.suggestedQuestions": "أسئلة متابعة مقترحة",
           "record.questionsDone": "المعلومات كافية لتحديد سبب موثوق، والأسئلة الإضافية اختيارية",
+          "record.askingNow": "السؤال الحالي",
+          "record.tapToAsk": "اضغط على السؤال الذي تطرحه",
           "record.updating": "يُحدِّث",
           "record.offlinePill": "غير متصل",
           "record.placeholder":
@@ -5563,6 +5612,8 @@
           "record.differentials": "পৃথকীকরণ",
           "record.suggestedQuestions": "প্রস্তাবিত অনুসরণমূলক প্রশ্ন",
           "record.questionsDone": "নির্ভরযোগ্য কারণ নির্ধারণের জন্য যথেষ্ট তথ্য পাওয়া গেছে, আরও প্রশ্ন ঐচ্ছিক",
+          "record.askingNow": "এখন জিজ্ঞাসা করা হচ্ছে",
+          "record.tapToAsk": "আপনি যে প্রশ্নটি করছেন তাতে ট্যাপ করুন",
           "record.updating": "আপডেট হচ্ছে",
           "record.offlinePill": "অফলাইন",
           "record.placeholder":
@@ -5785,6 +5836,8 @@
           "record.differentials": "Diagnósticos diferenciales",
           "record.suggestedQuestions": "Preguntas de seguimiento sugeridas",
           "record.questionsDone": "Información suficiente para una causa fiable, las preguntas adicionales son opcionales",
+          "record.askingNow": "Preguntando ahora",
+          "record.tapToAsk": "Toque la pregunta que está haciendo",
           "record.updating": "Actualizando",
           "record.offlinePill": "Sin conexión",
           "record.placeholder":
@@ -6008,6 +6061,8 @@
           "record.suggestedQuestions":
             "Swivutiso swo landzelela leswi ringanyetiweke",
           "record.questionsDone": "Vuxokoxoko byi ringanele ku kuma xivangelo lexi tiyeke, swivutiso swin'wana i swa ku tihlawulela",
+          "record.askingNow": "Swi vutisiwa sweswi",
+          "record.tapToAsk": "Khoma xivutiso lexi u xi vutisaka",
           "record.updating": "Ku pfuxetiwa",
           "record.offlinePill": "Handle ka inthanete",
           "record.placeholder":
@@ -6233,6 +6288,8 @@
           "record.differentials": "Diagnósticos diferenciais",
           "record.suggestedQuestions": "Perguntas de acompanhamento sugeridas",
           "record.questionsDone": "Informações suficientes para uma causa confiável, perguntas adicionais são opcionais",
+          "record.askingNow": "Perguntando agora",
+          "record.tapToAsk": "Toque na pergunta que você está fazendo",
           "record.updating": "Atualizando",
           "record.offlinePill": "Offline",
           "record.placeholder":
@@ -6621,25 +6678,20 @@
           `;
         });
 
-        if ((questions && questions.length) || questionsDone) {
-          html += '<div class="inference-questions">';
-          html += `<div class="questions-head">${escapeHtml(t("record.suggestedQuestions"))}</div>`;
-          if (questionsDone) {
-            html += `<div class="small text-muted">${escapeHtml(t("record.questionsDone"))}</div>`;
-          }
-          html += "<ul>";
-          (questions || []).forEach((q) => {
-            html += `<li>${escapeHtml(q)}</li>`;
+        if (chain && chain.length > 1) {
+          html += '<div class="inference-chain">';
+          html += `<div class="questions-head">${escapeHtml(t("result.chain"))}</div>`;
+          // Immediate cause on top, underlying cause at the bottom
+          chain.slice().reverse().forEach((c, i) => {
+            if (i) {
+              html += '<i class="bi bi-arrow-up chain-arrow"></i>';
+            }
+            html += `<div class="chain-step"><span class="cause-name">${escapeHtml(c.name)}</span><span class="cause-meta">${escapeHtml(causeCode(c.identifiers))}</span></div>`;
           });
-          html += "</ul></div>";
+          html += "</div>";
         }
 
-        if (chain && chain.length > 1) {
-          const links = chain
-            .map((c) => `${c.name} (${causeCode(c.identifiers)})`)
-            .join(" → ");
-          html += `<div class="inference-chain"><div class="questions-head">${escapeHtml(t("result.chain"))}</div>${escapeHtml(links)}</div>`;
-        }
+        html += renderQuestions(questions || [], questionsDone);
 
         if (reasoning) {
           html += `<div class="inference-reasoning">${escapeHtml(reasoning)}</div>`;
@@ -6648,6 +6700,47 @@
         html += "</div>";
         return html;
       }
+
+      // The question the interviewer tapped as the one being asked, kept on
+      // screen as new suggestions arrive
+      let pinnedQuestion = null;
+      let latestQuestions = null;
+
+      function renderQuestions(questions, questionsDone) {
+        const shown = questions.filter((q) => q !== pinnedQuestion);
+        if (!pinnedQuestion && !shown.length && !questionsDone) return "";
+        let html = '<div class="inference-questions">';
+        if (pinnedQuestion) {
+          html += `<div class="questions-head">${escapeHtml(t("record.askingNow"))}</div>`;
+          html += `<ul><li class="pinned-question" data-pinned="1">${escapeHtml(pinnedQuestion)}</li></ul>`;
+        }
+        if (shown.length || questionsDone) {
+          html += `<div class="questions-head">${escapeHtml(t("record.suggestedQuestions"))}</div>`;
+        }
+        if (questionsDone) {
+          html += `<div class="small text-muted">${escapeHtml(t("record.questionsDone"))}</div>`;
+        }
+        if (shown.length) {
+          html += "<ul>";
+          shown.forEach((q) => {
+            html += `<li data-question="${escapeHtml(q).replace(/"/g, "&quot;")}" title="${escapeHtml(t("record.tapToAsk"))}">${escapeHtml(q)}</li>`;
+          });
+          html += "</ul>";
+        }
+        return html + "</div>";
+      }
+
+      // Tapping a suggested question pins it, tapping the pinned one unpins it
+      inference.addEventListener("click", (event) => {
+        const item = event.target.closest(".inference-questions li");
+        const card = inference.querySelector(".inference-card");
+        if (!item || !latestQuestions || !card || !card.contains(item)) return;
+        pinnedQuestion = item.dataset.pinned ? null : item.dataset.question;
+        const html = renderQuestions(...latestQuestions);
+        const block = card.querySelector(".inference-questions");
+        if (block) block.outerHTML = html;
+        else card.insertAdjacentHTML("beforeend", html);
+      });
 
       // --- History persistence -----------------------------------------
       const HISTORY_KEY = "codaHistory";
@@ -8609,6 +8702,7 @@
             viewCount += 1;
             evolution = [];
             latestCauses = null;
+            pinnedQuestion = null;
             currentCaseId = null;
             currentCaseRevision = null;
             currentLocalId = null;
@@ -9679,6 +9773,7 @@
         timerEl.textContent = "00:00";
         updateWordCount();
         latestCauses = null;
+        pinnedQuestion = null;
         lastDuration = 0;
         evolution = [];
         currentCaseId = null;
@@ -9849,6 +9944,7 @@
           source: data.source || "recording",
         });
 
+        latestQuestions = [data.questions || [], data.questions_done];
         const html = renderCauseList(
           latestCauses,
           previous,
