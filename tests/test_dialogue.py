@@ -24,6 +24,8 @@ from coda.dialogue.faster_whisper import FasterWhisperTranscriber
 from coda.dialogue.finetuned_whisper import decode_options
 from coda.dialogue.indic_conformer import IndicConformerTranscriber
 from coda.dialogue import whisper_livekit
+from coda.dialogue.mlx_whisper import TEMPERATURES, best_decode, \
+    limit_retries
 from coda.dialogue.whisper_livekit import WhisperLiveKitTranscriber, \
     _events_from_response, _collapse_inner, _collapse_loops, _loop_span
 
@@ -229,6 +231,27 @@ def test_loop_span():
     assert _loop_span("a b a b a b a b a".split()) == (0, 9, 2)
     assert _loop_span("sick for two two weeks".split()) is None
     assert _loop_span("yes yes yes".split()) is None
+
+
+def test_limit_retries():
+    asr = SimpleNamespace(model=lambda audio, **kwargs: kwargs)
+    limit_retries(asr)
+    assert asr.model(None, language="en") == {
+        "language": "en", "temperature": TEMPERATURES}
+    # The first decode is greedy, and at most two retries follow
+    assert TEMPERATURES[0] == 0 and len(TEMPERATURES) <= 3
+
+
+def test_best_decode():
+    def decode(compression_ratio, avg_logprob):
+        return SimpleNamespace(compression_ratio=compression_ratio,
+                               avg_logprob=avg_logprob)
+
+    # A repetitive decode is the most probable one, and is passed over
+    loop, unsure, worse = decode(9.0, -0.1), decode(1.5, -1.2), decode(1.4, -1.6)
+    assert best_decode([loop, unsure, worse]) is unsure
+    # With only repetitive decodes, the most probable one is kept
+    assert best_decode([decode(9.0, -0.3), loop]) is loop
 
 
 def test_collapse_inner():
