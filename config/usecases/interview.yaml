@@ -12,5 +12,6 @@ inference:
   question_style: simplified
 
 storage:
+  browse: local
   store:
     audio: true

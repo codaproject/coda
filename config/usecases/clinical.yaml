@@ -13,5 +13,6 @@ inference:
   question_style: default
 
 storage:
+  browse: local
   store:
     audio: true

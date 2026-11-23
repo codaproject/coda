@@ -238,9 +238,11 @@ storage:
   enabled: false
   # Root directory for case folders. Empty -> ~/.data/coda/cases (pystow).
   output_dir: ""
-  # When true, the History view lists the case folders under output_dir and
-  # opens them. Anyone who can reach the server can then read every
-  # stored case, so enable it only where access to the server is restricted.
+  # Whether the History view lists the case folders under output_dir and
+  # opens them: false | true | local. With true, anyone who can reach the
+  # server can read every stored case, so enable it only where access to the
+  # server is restricted. With local, only a browser on the server's own
+  # machine can.
   browse: false
   # What each case folder keeps.
   store:

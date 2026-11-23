@@ -104,6 +104,7 @@ settings = Dynaconf(
         Validator("inference.question_selection",
                   is_in=["llm", "voi", "baq", "hinge"]),
         Validator("app.wording", is_in=["clinical", "interview"]),
+        Validator("storage.browse", is_in=[True, False, "local"]),
         Validator("grounder.type", is_in=["gilda", "rag"]),
         Validator("inference.num_questions", cast=int),
         Validator("inference.question_skip_logic", cast=bool),
@@ -118,7 +119,6 @@ settings = Dynaconf(
         Validator("grounder.rag.reranker.enabled", cast=bool),
         Validator(
             "storage.enabled",
-            "storage.browse",
             "storage.store.audio",
             "storage.store.transcripts",
             "storage.store.annotations",

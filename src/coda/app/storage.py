@@ -27,14 +27,20 @@ from coda.config import settings
 
 AUDIO_SAMPLE_RATE = 16000
 CASE_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
+# Client addresses of the machine the server runs on
+LOCAL_HOSTS = {"127.0.0.1", "::1"}
 
 
 def storage_enabled() -> bool:
     return bool(settings.storage.get("enabled", False))
 
 
-def cases_browsable() -> bool:
-    return bool(settings.storage.get("browse", False))
+def cases_browsable(client_host=None) -> bool:
+    """Return whether a client at the given address can browse cases."""
+    browse = settings.storage.get("browse", False)
+    if browse == "local":
+        return client_host in LOCAL_HOSTS
+    return bool(browse)
 
 
 def storage_keeps_audio() -> bool:
